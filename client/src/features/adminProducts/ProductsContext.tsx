@@ -106,6 +106,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
 
     const invalidateProducts = async (type?: string): Promise<void> => {
       await queryClient.invalidateQueries({ queryKey: ["/api/master-catalog"] }, { throwOnError: true });
+      await queryClient.invalidateQueries({ queryKey: ["joint-catalog-products"] }, { throwOnError: true });
       if (type) {
         await queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
       } else {

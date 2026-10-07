@@ -1,3 +1,6 @@
+import { queryClient } from "@/lib/queryClient";
+import { refreshBuildLibrary, ORIGINALS_QK } from "@/features/adminLibrary/shared/grfQueryKeys";
+import { TEMPLATE_LIBRARY_QK } from "@/features/shared/templateLibrary";
 import { packetBuildFields, productGraphicOptions, requireBuilderSnapshot } from '@shared/builderSnapshot';
 import { useState, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -96,6 +99,7 @@ export function useCreatePacket({
         json: { imageUrl: rawUrl, mimeType, originalFilename: `bg-${Date.now()}.${ext}` },
       });
       if (!uploadResult.asset?.publicUrl) throw new Error("Background upload returned no registered image URL");
+      void queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
       return uploadResult.asset.publicUrl;
     } catch (err: any) {
       console.error("[CreatePacket] Background upload failed — stripping base64 to prevent Firestore overflow:", err.message);
@@ -414,6 +418,7 @@ export function useCreatePacket({
             });
 
             if (commitData) {
+              void refreshBuildLibrary(queryClient);
               committedInstanceId = commitData.instanceId;
               committedAssemblyId = commitData.assemblyId;
               setActiveSession(state.activeSessionId, 'committed', commitData.instanceId);
@@ -434,7 +439,7 @@ export function useCreatePacket({
         .filter(Boolean).join(' / ') || product?.title || 'Product';
 
       const templateColors = productColors.length > 0 ? productColors : [{ name: 'Black', hex: '#000000' }];
-      adminFetch('/templates/full-save', {
+      await adminFetch('/templates/full-save', {
         method: 'POST',
         json: {
           name: grfName,
@@ -475,7 +480,11 @@ export function useCreatePacket({
           storeId: selectedStore?.id || null,
           channelId: selectedChannel?.id || null,
         },
-      }).catch((e: any) => console.warn('[CreatePacket] Template auto-save failed:', e.message));
+      }).then(() => queryClient.invalidateQueries({ queryKey: TEMPLATE_LIBRARY_QK }))
+        .catch((e: any) => {
+          console.warn('[CreatePacket] Template auto-save failed:', e.message);
+          toast({ title: 'Template was not saved', description: 'Your packet was created, but saving its reusable template failed. ' + e.message, variant: 'destructive' });
+        });
 
       loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl });
 
@@ -628,6 +637,8 @@ export function useCreatePacket({
       return;
     }
 
+    let finish: () => void;
+    try { finish = beginBuildActivity("Saving generated product…"); } catch { return; }
     setIsCommitting(true);
     try {
       const data = await adminFetch<any>(`/build-sessions/${state.activeSessionId}/commit`, {
@@ -647,6 +658,7 @@ export function useCreatePacket({
         sessionId: data.sessionId,
         packetId: data.packetId || null,
       };
+      void refreshBuildLibrary(queryClient);
       setCommitResult(result);
       setActiveSession(state.activeSessionId, 'committed', data.instanceId);
       setPacketResult(prev => prev ? { ...prev, assemblyId: data.assemblyId } : prev);
@@ -664,6 +676,7 @@ export function useCreatePacket({
         variant: "destructive",
       });
     } finally {
+      finish();
       setIsCommitting(false);
     }
   };

@@ -29,6 +29,7 @@ describe('Fulfillment provider configuration and refresh', () => {
     expect(value.providers.every(p => p.configured)).toBe(true);
     await value.api.invalidateProducts();
     expect(m.invalidate).toHaveBeenCalledWith({ queryKey: ['/api/master-catalog'] }, { throwOnError: true });
+    expect(m.invalidate).toHaveBeenCalledWith({ queryKey: ['joint-catalog-products'] }, { throwOnError: true });
     expect(m.invalidate).toHaveBeenCalledWith({ queryKey: ['products'] });
   });
 });

@@ -6,7 +6,7 @@ import { ProductsModule } from '../modules/ProductsModule';
 import type { CatalogProduct } from '../types';
 
 const mocks = vi.hoisted(() => ({
-  adminFetch: vi.fn(), apiRequest: vi.fn(), toast: vi.fn(),
+  adminFetch: vi.fn(), apiRequest: vi.fn(), toast: vi.fn(), reload: vi.fn(), masterError: null as Error | null,
   queryClient: { invalidateQueries: vi.fn(), setQueryData: vi.fn() },
   settings: {} as any, context: {} as any, catalogData: {} as any, categories: [] as any[],
 }));
@@ -18,11 +18,11 @@ vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => false }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
 vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => mocks.queryClient,
-  useQuery: ({ queryKey }: any) => ({ data:
+  useQuery: ({ queryKey }: any) => ({ refetch: mocks.reload, error: queryKey[0] === "/api/master-catalog" ? mocks.masterError : null, data:
     queryKey[0] === '/api/admin/settings' ? mocks.settings :
     queryKey[0] === '/api/admin/catalogs' ? mocks.catalogData :
     queryKey[0] === '/api/master-catalog' ? mocks.categories :
-    queryKey[0] === 'catalog-products' ? mocks.categories.find((cat: any) => cat.name === queryKey[2]) : undefined,
+    undefined,
   }),
 }));
 vi.mock('@/features/shared/components/skins/ProductSelectCardSkin', () => ({
@@ -73,6 +73,7 @@ async function resolveOptions(index: number, data = options()) {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
+  mocks.masterError = null;
   vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
   mocks.context = { api: {}, selectedRole: null, selectedStore: null, selectedChannel: null, selectedCollection: null,
     setSelectedRole: vi.fn(), setSelectedStore: vi.fn(), setSelectedChannel: vi.fn(), setSelectedCollection: vi.fn() };
@@ -386,4 +387,15 @@ describe('Catalog choices through fulfillment and draft reload', () => {
     expect(current.state.selectedProduct?.images).toEqual([]);
     expect(mocks.adminFetch).toHaveBeenLastCalledWith('/master-catalog/products/qrg_11001/options?provider=printify&catalogId=catalog');
   });
+});
+
+
+it('shows a catalog read failure instead of empty results and retries the shared source', async () => {
+  mocks.masterError = new Error('Catalog offline');
+  await mount(true);
+  expect(tree.root.findByProps({ role: 'alert' })).toBeTruthy();
+  expect(tree.root.findAllByType('product-card' as any)).toHaveLength(0);
+  const retry = tree.root.findAllByType('button').find(button => button.children.includes('Retry'))!;
+  await act(async () => { retry.props.onClick(); });
+  expect(mocks.reload).toHaveBeenCalledTimes(2);
 });

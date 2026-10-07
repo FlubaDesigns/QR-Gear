@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, type CSSProperties } from "react";
 import { useLocation } from "wouter";
 import type { LucideIcon } from "lucide-react";
 
@@ -14,6 +14,7 @@ interface AdminSectionTabsProps {
   activeTab: string;
   onTabChange?: (tabId: string) => void;
   className?: string;
+  style?: CSSProperties;
 }
 
 export default function AdminSectionTabs({
@@ -21,6 +22,7 @@ export default function AdminSectionTabs({
   activeTab,
   onTabChange,
   className = "",
+  style,
 }: AdminSectionTabsProps) {
   const [, navigate] = useLocation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -46,7 +48,7 @@ export default function AdminSectionTabs({
     <div
       ref={scrollRef}
       className={`flex gap-1 overflow-x-auto scrollbar-hide border-b border-border bg-card/50 px-2 ${className}`}
-      style={{ WebkitOverflowScrolling: "touch" }}
+      style={{ WebkitOverflowScrolling: "touch", ...style }}
       data-testid="admin-section-tabs"
     >
       {tabs.map((tab) => {

@@ -1,3 +1,4 @@
+import { ADMIN_SUBNAV_HEIGHT } from "@/components/admin/AdminSectionSubNav";
 import { type ReactNode } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -93,7 +94,8 @@ export default function AdminShell({
           tabs={tabs}
           activeTab={activeTab}
           onTabChange={onTabChange}
-          className={`sticky z-40 ${sectionNav ? "top-9" : "top-0"}`}
+          className="sticky z-40"
+          style={{ top: sectionNav ? ADMIN_SUBNAV_HEIGHT : 0 }}
         />
       )}
 

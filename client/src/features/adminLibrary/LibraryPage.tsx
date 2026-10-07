@@ -1,3 +1,6 @@
+import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { PendingAssetDeletions } from '@/features/shared/components/DeleteBuildDialog';
 import { useSearch, useLocation } from "wouter";
 import { QrCode, Layers, ImageIcon, LayoutTemplate, Link2, Upload, Crop, Image } from "lucide-react";
@@ -38,14 +41,9 @@ export default function LibraryPage() {
 
   return (
     <AdminAuthProvider apiBase="/api/admin">
-      <div className="page-wrap">
-        <div className="container mobile-compact mobile-compact-stack">
+      <AdminShell title="Asset Library" icon={Layers} sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}>
+        <div className="min-w-0 mobile-compact-stack">
           <div className="glass-card">
-            <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
-              <Layers className="h-5 w-5 text-blue-400" />
-              Asset Library
-            </h1>
-
             {/* Horizontal scrolling tab bar — compact, mobile-friendly */}
             <div
               className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1"
@@ -88,7 +86,7 @@ export default function LibraryPage() {
             {tab === "asm"         && <AssembliesTab />}
           </div>
         </div>
-      </div>
+      </AdminShell>
     </AdminAuthProvider>
   );
 }

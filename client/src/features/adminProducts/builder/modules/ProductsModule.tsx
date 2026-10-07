@@ -145,7 +145,7 @@ export function ProductsModule() {
     }
   }, [selectedCatalogId]);
 
-  const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
+  const { data: adminCatalogsData, error: catalogsError, refetch: reloadCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
   });
   const adminCatalogs = adminCatalogsData?.catalogs || [];
@@ -216,12 +216,13 @@ export function ProductsModule() {
   // Same approach as useAdminBlanksController (which works in production): read catalog.blankIds
   // then look up each blank in master_catalog. This avoids depending on admin_build_shelf
   // (which blanks added via BlankPickerModal never write to).
-  const { data: masterCatalogFull = [], isLoading: loadingCatalogProducts } = useQuery<Array<{ name: string; items: CatalogProduct[]; count: number }>>({
+  const { data: masterCatalogFull = [], isLoading: loadingCatalogProducts, error: masterError, refetch: reloadMaster } = useQuery<Array<{ name: string; items: CatalogProduct[]; count: number }>>({
     queryKey: ["/api/master-catalog"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/master-catalog");
       const d = await res.json();
-      return Array.isArray(d) ? d : [];
+      if (!Array.isArray(d)) throw new Error("Master catalog response is invalid.");
+      return d;
     },
     enabled: dataMode === "catalog" || dataMode === "all",
     staleTime: 60000,
@@ -305,7 +306,7 @@ export function ProductsModule() {
     setOpenShelfIds(new Set(categoryKeys.map(key => `qrg-shelf-${key}`)));
   }, [dataMode, selectedCatalogId, catalogModeProducts]);
 
-  const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
+  const { data: jointCatalogProducts = [], isLoading: loadingJointProducts, error: jointError, refetch: reloadJoint } = useQuery<CatalogProduct[]>({
     queryKey: ["joint-catalog-products"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/master-catalog/joint");
@@ -344,17 +345,10 @@ export function ProductsModule() {
     }
   }, [provider]);
 
-  const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
-    queryKey: ["catalog-categories", "master"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/master-catalog");
-      const data = await res.json();
-      return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
-        name: cat.name,
-        itemCount: cat.count || cat.items?.length || 0,
-      }));
-    },
-  });
+  const loadingCategories = loadingCatalogProducts;
+  const categories: CatalogCategory[] = masterCatalogFull.map(cat => ({
+    name: cat.name, itemCount: cat.count || cat.items?.length || 0,
+  }));
 
   // QRG super-category / subcategory navigator data — derived from masterCatalogFull filtered by provider.
   // superCategoryCode (S-digit) → Map of subCategoryCode (ST-digits) → { categoryName, count }
@@ -425,22 +419,9 @@ export function ProductsModule() {
     icon: <Layers className="h-4 w-4 flex-shrink-0" />,
   }));
 
-  const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
-    queryKey: ["catalog-products", "master", state.category],
-    queryFn: async () => {
-      if (!state.category) return null;
-      try {
-        const res = await apiRequest("GET", "/api/master-catalog");
-        if (!res.ok) return null;
-        const data = (await res.json()) as CatalogCategoryResponse[];
-        return data.find((cat) => cat.name === state.category) || null;
-      } catch (e) {
-        console.error("[ProductsModule] Catalog load failed:", e);
-        return null;
-      }
-    },
-    enabled: !!state.category,
-  });
+  const categoryData = masterCatalogFull.find(cat => cat.name === state.category) || null;
+  const isLoading = loadingCatalogProducts;
+  const error = masterError;
 
   const products = categoryData?.items || [];
 
@@ -823,6 +804,14 @@ export function ProductsModule() {
       );
     },
     [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, state.adminCatalogTitle, state.productDescription, handleImagesBulkSave]
+  );
+
+  const catalogLoadError = catalogsError || (dataMode === "joint" ? jointError : masterError);
+  if (catalogLoadError) return (
+    <div role="alert" className="space-y-3 rounded-md border border-destructive p-4">
+      <p>Could not load products. Your saved catalog has not been cleared.</p>
+      <Button className="h-12" onClick={() => { void reloadCatalogs(); void reloadMaster(); if (dataMode === "joint") void reloadJoint(); }}>Retry</Button>
+    </div>
   );
 
   return (

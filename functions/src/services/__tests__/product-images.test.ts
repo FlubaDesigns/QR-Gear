@@ -17,7 +17,8 @@ vi.mock('../../core', () => {
       }
     },
   });
-  return { db: { collection: (name: string) => ({ doc: (id: string) => ref(name, id) }) },
+  return { db: { collection: (name: string) => ({ doc: (id: string) => ref(name, id) }),
+    runTransaction: async (fn: any) => fn({ get: (r: any) => r.get(), update: (r: any, data: any) => r.update(data) }) },
     admin: { firestore: { FieldValue: { serverTimestamp: () => 'now' } } } };
 });
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next() }));
@@ -36,7 +37,7 @@ beforeEach(() => {
   m.writes = [];
   m.rows = {
     master_catalog: { qrg_11111: { images: ['keep', 'removed'] } },
-    catalogs: { primary: { blankImages: { qrg_11111: ['keep'] } } },
+    catalogs: { primary: { blankIds: ['qrg_11111'], blankImages: { qrg_11111: ['keep'] } } },
     admin_catalog_instances: { product: { currentPacketId: 'packet', baseSnapshot: { images: ['keep'] }, resolved: { images: ['old-generated', 'keep'] } } },
     productPackets: { packet: { lifestyleMockupUrl: 'lifestyle', placementMockupUrls: { back: 'back', front: 'front' }, compositeUrl: 'artwork', landingPageSnapshotUrl: 'proof' } },
   };
