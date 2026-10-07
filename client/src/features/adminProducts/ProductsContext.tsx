@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState, useCallback, useEffect } from "react";
+import { STORE_ROLES } from "@shared/storeRoles";
+import { createContext, useContext, useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/adminFetch";
@@ -22,12 +23,7 @@ const FALLBACK_PROVIDERS: FulfillmentProvider[] = [
   { id: "apliiq", name: "Apliiq", configured: false, role: "fulfillment" },
 ];
 
-const DEFAULT_ROLES: Role[] = [
-  { id: "internal", name: "Internal", description: "Products for QR Gear stores and channels", icon: "building" },
-  { id: "marketplace", name: "Marketplace", description: "Products listed on Etsy, eBay, Amazon", icon: "shopping-bag" },
-  { id: "partner", name: "Partner", description: "Products for partner sites embedding QR Gear UX", icon: "globe" },
-  { id: "member", name: "Member", description: "Member-created personalized products", icon: "user" },
-];
+const DEFAULT_ROLES: Role[] = STORE_ROLES.map(role => ({ ...role }));
 
 interface ProductsProviderProps {
   children: React.ReactNode;
@@ -35,10 +31,13 @@ interface ProductsProviderProps {
 
 export function ProductsProvider({ children }: ProductsProviderProps) {
   const [selectedProviders, setSelectedProvidersState] = useState<string[]>(["printful"]);
-  const [selectedRole, setSelectedRoleState] = useState<RoleType | null>(null);
-  const [selectedStore, setSelectedStoreState] = useState<Store | null>(null);
-  const [selectedChannel, setSelectedChannelState] = useState<Channel | null>(null);
-  const [selectedCollection, setSelectedCollectionState] = useState<Collection | null>(null);
+  const [destination, setDestination] = useState<{
+    selectedRole: RoleType | null; selectedStore: Store | null;
+    selectedChannel: Channel | null; selectedCollection: Collection | null;
+    destinationError: string | null;
+  }>({ selectedRole: null, selectedStore: null, selectedChannel: null, selectedCollection: null, destinationError: null });
+  const { selectedRole, selectedStore, selectedChannel, selectedCollection, destinationError } = destination;
+  const destinationVersion = useRef(0);
 
   const { data: apiProviders, isLoading: providersLoading, error: providerQueryError } = useQuery<FulfillmentProvider[]>({
     queryKey: ["fulfillment-providers"],
@@ -54,35 +53,52 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   }, []);
 
   const setSelectedRole = useCallback((role: RoleType | null) => {
-    setSelectedRoleState(role);
+    destinationVersion.current++;
+    setDestination(previous => previous.selectedRole === role ? { ...previous, destinationError: null }
+      : { selectedRole: role, selectedStore: null, selectedChannel: null, selectedCollection: null, destinationError: null });
   }, []);
 
   const setSelectedStore = useCallback((store: Store | null) => {
-    setSelectedStoreState(store);
+    destinationVersion.current++;
+    setDestination(previous => ({
+      ...previous, selectedRole: store?.roleType ?? previous.selectedRole, selectedStore: store, destinationError: null,
+      ...(store?.id !== previous.selectedStore?.id ? { selectedChannel: null, selectedCollection: null } : {}),
+    }));
   }, []);
 
   const setSelectedChannel = useCallback((channel: Channel | null) => {
-    setSelectedChannelState(channel);
-    setSelectedCollectionState(null);
+    destinationVersion.current++;
+    setDestination(previous => {
+      if (channel && channel.storeId !== previous.selectedStore?.id) {
+        return { ...previous, selectedChannel: null, selectedCollection: null, destinationError: 'The selected channel does not belong to this store. Choose a channel again.' };
+      }
+      return { ...previous, selectedChannel: channel, selectedCollection: null, destinationError: null };
+    });
   }, []);
 
   const setSelectedCollection = useCallback((collection: Collection | null) => {
-    setSelectedCollectionState(collection);
+    destinationVersion.current++;
+    setDestination(previous => ({ ...previous, selectedCollection: previous.selectedChannel ? collection : null }));
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const initialVersion = destinationVersion.current;
     const loadDefaults = async () => {
       try {
         const stores = await adminFetch<Store[]>("/stores?roleType=internal");
+        if (cancelled || destinationVersion.current !== initialVersion) return;
         const qrGearStore = stores.find(s => s.id === "qr-gear" || s.name.toLowerCase().includes("qr gear"));
         if (!qrGearStore) return;
-        setSelectedRoleState("internal");
-        setSelectedStoreState(qrGearStore);
-      } catch (err) {
-        console.log("[ProductsContext] Could not load defaults:", err);
+        setDestination(previous => ({ ...previous, selectedRole: "internal", selectedStore: qrGearStore }));
+      } catch (err: any) {
+        if (!cancelled && destinationVersion.current === initialVersion) {
+          setDestination(previous => ({ ...previous, destinationError: `Could not load the default store: ${err.message}` }));
+        }
       }
     };
-    loadDefaults();
+    void loadDefaults();
+    return () => { cancelled = true; };
   }, []);
 
   const api = useMemo<ProductsApi>(() => {
@@ -114,32 +130,15 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
         });
       },
 
-      fetchStores: async (roleType: RoleType): Promise<Store[]> => {
-        try {
-          return await adminFetch<Store[]>(`/stores?roleType=${roleType}`);
-        } catch (err: any) {
-          if (err?.message?.includes("404")) return [];
-          throw err;
-        }
-      },
+      fetchStores: (roleType: RoleType): Promise<Store[]> =>
+        adminFetch<Store[]>(`/stores?roleType=${encodeURIComponent(roleType)}`),
 
-      fetchChannels: async (storeId: string): Promise<Channel[]> => {
-        try {
-          return await adminFetch<Channel[]>(`/stores/${storeId}/channels`);
-        } catch (err: any) {
-          if (err?.message?.includes("404")) return [];
-          throw err;
-        }
-      },
+      fetchChannels: (storeId: string): Promise<Channel[]> =>
+        adminFetch<Channel[]>(`/stores/${encodeURIComponent(storeId)}/channels`),
 
       fetchCollections: async (storeId: string, channelId: string): Promise<Collection[]> => {
-        try {
-          const data = await adminFetch<{ collections: string[] }>(`/stores/${storeId}/channels/${channelId}/collections`);
-          return (data.collections || []).map((name: string) => ({ name }));
-        } catch (err: any) {
-          if (err?.message?.includes("404")) return [];
-          throw err;
-        }
+        const data = await adminFetch<{ collections: string[] }>(`/stores/${encodeURIComponent(storeId)}/channels/${encodeURIComponent(channelId)}/collections`);
+        return data.collections.map((name: string) => ({ name }));
       },
 
       createCollection: async (storeId: string, channelId: string, name: string): Promise<Collection> => {
@@ -168,6 +167,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       providers,
       providersLoading,
       providersError,
+      destinationError,
       selectedProviders,
       setSelectedProviders,
       roles: DEFAULT_ROLES,
@@ -185,6 +185,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       providers,
       providersLoading,
       providersError,
+      destinationError,
       selectedProviders, 
       setSelectedProviders,
       selectedRole,

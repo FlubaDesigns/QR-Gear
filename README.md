@@ -292,3 +292,11 @@ The Products fulfillment card supports Printify and Printful as lookup sources f
 Printful sync updates `printful_products` and `printful_variants`, the tables consumed by the QRG builder, and maintains the existing `printfulCatalog` compatibility table. Master-catalog responses retain both supplier mappings and read canonical SSCC variants as well as historical stored variants. Canonical QRG document identity and numbering definitions are unchanged.
 
 Held on `sandbox/products-fulfillment` for the combined release. The release must include the `catalogSyncs` (`syncType`, `startedAt`) index in `firestore.indexes.json` before the new provider-history query is used. Local tests use controlled supplier/Firestore adapters; no live supplier calls or production database writes were made.
+
+### Role / Store / Channel — sandbox (October 6, 2026)
+
+Products uses `shared/storeRoles.ts` for the supported store roles and `ProductsContext` for dependent selection clearing. Store, channel, and collection changes remain part of the existing builder snapshot. Late defaults and mutation responses cannot replace a newer destination; errors are visible.
+
+The existing admin and public-path store writers call `functions/src/services/store-channels.ts`. Duplicate creation returns a conflict instead of overwriting records. Channel creation verifies its parent, accepts the older partner-store parents used by Store Builder, and maintains channel counts. Existing IDs are retained; a new channel gets a store-scoped ID only when its traditional name ID is already taken by another store. Channel deletion verifies ownership, archives only its instances, and batches large changes. Admin authentication remains on both route families.
+
+Sandbox validation: 44 frontend tests and 55 backend tests passed, covering destination changes/restoration, late saves/defaults, duplicate names, legacy IDs/parents, ownership, large deletions, existing fulfillment, selection, snapshots, packet routes, and transaction-chain checks. Frontend and backend builds passed. Test adapters replaced live Firebase/provider services; no production writes or deployment occurred. Separate legacy Store Builder listing/collection flows remain outside this card fix and need their own review.

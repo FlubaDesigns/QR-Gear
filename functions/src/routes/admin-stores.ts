@@ -1,3 +1,4 @@
+import { createStore, createStoreChannel, deleteStore, deleteStoreChannel } from '../services/store-channels';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -34,67 +35,19 @@ app.get('/admin/stores', requireAdmin, async (req: Request, res: Response): Prom
 
 app.post('/admin/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, roleType } = req.body;
-    if (!name || !name.trim()) { res.status(400).json({ error: 'Store name is required' }); return; }
-    if (!roleType || !['internal', 'external', 'member', 'marketplace'].includes(roleType)) { res.status(400).json({ error: 'Valid roleType is required' }); return; }
-    const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const storeData: Record<string, any> = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
-    if (roleType === 'marketplace') {
-      const { platform, apiKeyRef, shopId, shopName, feePercent, syncEnabled } = req.body;
-      storeData.marketplaceConfig = {
-        platform: platform || '',
-        apiKeyRef: apiKeyRef || '',
-        shopId: shopId || '',
-        shopName: shopName || '',
-        feePercent: typeof feePercent === 'number' ? feePercent : 0,
-        syncEnabled: syncEnabled === true,
-        apiKeyConfigured: false,
-      };
-    }
-    await db.collection('stores').doc(storeId).set(storeData);
-    res.json({ id: storeId, ...storeData });
+    res.json(await createStore(db, req.body));
   } catch (error: any) {
-    console.error('[Stores] POST error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Stores] POST /stores:', error.message);
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
 app.delete('/admin/stores/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { storeId } = req.params;
-    const now = admin.firestore.FieldValue.serverTimestamp();
-
-    const [instancesSnap, channelsSnapshot] = await Promise.all([
-      db.collection('admin_catalog_instances').where('storeId', '==', storeId).get(),
-      db.collection('storeChannels').where('storeId', '==', storeId).get(),
-    ]);
-
-    // Collect all writes: soft-delete instances, hard-delete channels, hard-delete store doc
-    type WriteOp = { type: 'update'; ref: FirebaseFirestore.DocumentReference; data: Record<string, any> }
-                 | { type: 'delete'; ref: FirebaseFirestore.DocumentReference };
-
-    const ops: WriteOp[] = [
-      ...instancesSnap.docs.map(doc => ({ type: 'update' as const, ref: doc.ref, data: { isVisible: false, status: 'deleted', deletedAt: now } })),
-      ...channelsSnapshot.docs.map(doc => ({ type: 'delete' as const, ref: doc.ref })),
-      { type: 'delete', ref: db.collection('stores').doc(storeId) },
-    ];
-
-    // Commit in chunks of 500 to respect Firestore batch limit
-    const CHUNK = 500;
-    for (let i = 0; i < ops.length; i += CHUNK) {
-      const batch = db.batch();
-      ops.slice(i, i + CHUNK).forEach(op => {
-        if (op.type === 'update') batch.update(op.ref, op.data);
-        else batch.delete(op.ref);
-      });
-      await batch.commit();
-    }
-
-    console.log(`[Stores] Deleted store ${storeId}: ${instancesSnap.size} instances archived, ${channelsSnapshot.size} channels removed`);
-    res.json({ success: true, deletedStoreId: storeId, deletedChannels: channelsSnapshot.size, archivedInstances: instancesSnap.size });
+    res.json(await deleteStore(db, () => admin.firestore.FieldValue.serverTimestamp(), req.params.storeId));
   } catch (error: any) {
-    console.error('[Stores] DELETE error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Stores] DELETE /stores/:storeId:', error.message);
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -148,11 +101,12 @@ app.get('/admin/channels', requireAdmin, async (req: Request, res: Response): Pr
 app.delete('/admin/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { channelId } = req.params;
-    await db.collection('storeChannels').doc(channelId).delete();
-    res.json({ success: true });
+    const channel = await db.collection('storeChannels').doc(channelId).get();
+    if (!channel.exists) { res.status(404).json({ error: 'Channel not found' }); return; }
+    res.json(await deleteStoreChannel(db, () => admin.firestore.FieldValue.serverTimestamp(), channel.data()!.storeId, channelId));
   } catch (error: any) {
     console.error('[AllChannels] DELETE error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -171,42 +125,19 @@ app.get('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, re
 
 app.post('/admin/stores/:storeId/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { storeId } = req.params;
-    const { name } = req.body;
-    if (!name || !name.trim()) { res.status(400).json({ error: 'Channel name is required' }); return; }
-    const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const channelData = { name: name.trim(), storeId, isActive: true, productCount: 0, createdAt: new Date().toISOString() };
-    await db.collection('storeChannels').doc(channelId).set(channelData);
-    res.json({ id: channelId, ...channelData });
+    res.json(await createStoreChannel(db, req.params.storeId, req.body));
   } catch (error: any) {
-    console.error('[Channels] POST error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Stores] POST /stores/:storeId/channels:', error.message);
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
 app.delete('/admin/stores/:storeId/channels/:channelId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { storeId, channelId } = req.params;
-    const now = admin.firestore.FieldValue.serverTimestamp();
-
-    // Soft-delete every catalog instance in this channel so the public store
-    // stops showing them immediately without permanently destroying data.
-    const instancesSnap = await db.collection('admin_catalog_instances')
-      .where('storeId', '==', storeId)
-      .where('channelId', '==', channelId)
-      .get();
-
-    const batch = db.batch();
-    instancesSnap.docs.forEach(doc => {
-      batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
-    });
-    batch.delete(db.collection('storeChannels').doc(channelId));
-    await batch.commit();
-
-    res.json({ success: true, archivedInstances: instancesSnap.size });
+    res.json(await deleteStoreChannel(db, () => admin.firestore.FieldValue.serverTimestamp(), req.params.storeId, req.params.channelId));
   } catch (error: any) {
-    console.error('[Channels] DELETE error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Stores] DELETE /stores/:storeId/channels/:channelId:', error.message);
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

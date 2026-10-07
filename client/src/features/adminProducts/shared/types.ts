@@ -1,3 +1,4 @@
+import type { StoreRole } from "@shared/storeRoles";
 export interface Product {
   id: string;
   name: string;
@@ -21,7 +22,8 @@ export interface FulfillmentProvider {
   role: 'fulfillment' | 'mockup';
 }
 
-export type RoleType = 'internal' | 'marketplace' | 'partner' | 'external' | 'member';
+// Partner remains readable in older drafts; supported store roles come from STORE_ROLES.
+export type RoleType = StoreRole | 'partner';
 
 export interface Role {
   id: RoleType;
@@ -80,6 +82,7 @@ export interface ProductsContextValue {
   providers: FulfillmentProvider[];
   providersLoading: boolean;
   providersError: string | null;
+  destinationError: string | null;
   selectedProviders: string[];
   setSelectedProviders: (providers: string[]) => void;
   selectedRole: RoleType | null;

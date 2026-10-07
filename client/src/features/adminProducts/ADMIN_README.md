@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 6, 2026 (Fulfillment card sandbox fixes).
+Last updated: October 6, 2026 (Role/store/channel sandbox fixes).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -71,6 +71,12 @@ Choose Printify or Printful, then Smart Sync to refresh that supplier's lookup t
 Configured reports server credential configuration; Unknown indicates that configuration could not be checked. Supplier totals and timestamps reflect the selected supplier. Errors remain visible and do not produce a success notification. Keep the page open during an explicit sync; historical completed supplier jobs do not automatically trigger a QRG rebuild on return.
 
 These changes are sandbox-only pending the combined release. Include the new catalogSyncs composite index when releasing. No live supplier connectivity was tested.
+
+## Role, Store, and Channel
+
+The Products card lists supported store roles from `shared/storeRoles.ts`: Internal, External, Member, and Marketplace. Changing the role clears its store/channel/collection. Selecting another store clears its channel and collection; selecting another channel clears its collection. The existing builder snapshot still saves/restores this metadata. A late default or create/delete response does not replace a newer selection. Request failures are displayed in the card. All products clears the collection selection.
+
+Store creation rejects duplicate normalized names. Channel names are unique within a store; a collision with another store uses a distinct stored ID without renaming existing records. The shared writer supports existing legacy partner-store parents. Deletion checks ownership, archives the affected catalog instances, and leaves other destinations alone. Both route families use the same writer and retain admin authentication. These changes remain sandbox-only.
 
 ## BUILD FLOW
 
@@ -322,6 +328,20 @@ Handles: order confirmations, shipping notifications, claim code delivery, welco
 ---
 
 ## Recent Changes Log
+
+### October 6, 2026 — Role/store/channel wiring and blast-radius checks (sandbox)
+
+Unified this card's role choices with server validation, centralized destination state transitions, corrected channel deletion routing, guarded delayed requests, and displayed read/write failures. Shared admin/public-path store operations prevent overwrites, validate parents/ownership, preserve legacy IDs/partner parents, update channel counts, and handle large archival batches. 99 local tests and both builds passed; no live deployment. The separate legacy Store Builder listing and collection flows still require their own review.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/storeRoles.ts`, `shared/types.ts`, `ProductsContext.tsx` | Shared supported roles and consistent destination state |
+| `modules/StoreChannelDropdownModule.tsx` | Dependent queries, visible errors, correct delete URL, guarded mutations |
+| `functions/src/services/store-channels.ts` | Common validated store/channel operations |
+| `functions/src/routes/admin-stores.ts`, `functions/src/routes/public-stores.ts` | Existing routes delegate to the common operations |
+| `ProductsContext.test.ts`, `modules/StoreChannelDropdownModule.test.ts`, `functions/src/services/__tests__/store-channels.test.ts` | Destination and backend blast-radius regression coverage |
+| `functions/src/index.ts`, `README.md`, `MANIFEST.json` | Sandbox build marker, behavior documentation, integrity manifest |
 
 ### October 6, 2026 — Fulfillment card wiring (sandbox)
 

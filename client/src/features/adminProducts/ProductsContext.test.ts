@@ -32,3 +32,42 @@ describe('Fulfillment provider configuration and refresh', () => {
     expect(m.invalidate).toHaveBeenCalledWith({ queryKey: ['products'] });
   });
 });
+
+describe('Destination selection blast radius', () => {
+  const store = { id: 'a', name: 'Store A', roleType: 'internal' as const, isActive: true };
+  const channel = { id: 'legacy-channel', name: 'General', storeId: 'a', isActive: true };
+  async function selectDestination() {
+    await act(async () => { value.setSelectedRole('internal'); value.setSelectedStore(store); value.setSelectedChannel(channel); value.setSelectedCollection({ name: 'Summer' }); });
+  }
+  it('clears child selections on role/store changes for every caller', async () => {
+    m.fetch.mockResolvedValue([]); await mount(); await selectDestination();
+    expect(value.selectedCollection?.name).toBe('Summer');
+    await act(async () => { value.setSelectedStore({ ...store, id: 'b' }); });
+    expect(value.selectedChannel).toBeNull(); expect(value.selectedCollection).toBeNull();
+    await selectDestination(); await act(async () => { value.setSelectedRole('external'); });
+    expect(value.selectedStore).toBeNull(); expect(value.selectedChannel).toBeNull(); expect(value.selectedCollection).toBeNull();
+  });
+  it('restores role/store/channel/collection together, preserving legacy IDs and unrelated fulfillment choice', async () => {
+    m.fetch.mockResolvedValue([]); await mount(); await selectDestination();
+    expect(value.selectedStore).toEqual(store); expect(value.selectedChannel).toEqual(channel); expect(value.selectedCollection?.name).toBe('Summer');
+    expect(value.selectedProviders).toEqual(['printful']);
+  });
+  it('rejects a mismatched channel during draft restoration without retaining a collection', async () => {
+    m.fetch.mockResolvedValue([]); await mount();
+    await act(async () => { value.setSelectedStore(store); value.setSelectedChannel({ ...channel, storeId: 'other' }); value.setSelectedCollection({ name: 'Old' }); });
+    expect(value.selectedChannel).toBeNull(); expect(value.selectedCollection).toBeNull(); expect(value.destinationError).toContain('does not belong');
+  });
+  it('does not let late default loading overwrite restored destination metadata', async () => {
+    let resolve!: (data: any) => void;
+    m.fetch.mockImplementation((path: string) => path.startsWith('/stores?') ? new Promise(y => { resolve = y; }) : Promise.resolve([]));
+    await mount(); await selectDestination();
+    await act(async () => { resolve([{ ...store, id: 'qr-gear', name: 'QR Gear' }]); });
+    expect(value.selectedStore?.id).toBe('a'); expect(value.selectedChannel?.id).toBe('legacy-channel');
+  });
+  it('surfaces missing routes instead of converting their 404 errors into empty lists', async () => {
+    m.fetch.mockResolvedValue([]); await mount(); m.fetch.mockRejectedValue(new Error('404 missing route'));
+    await expect(value.api.fetchStores('internal')).rejects.toThrow('404');
+    await expect(value.api.fetchChannels('a')).rejects.toThrow('404');
+    await expect(value.api.fetchCollections('a', 'c')).rejects.toThrow('404');
+  });
+});
