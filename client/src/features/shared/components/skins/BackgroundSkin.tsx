@@ -1,4 +1,4 @@
-import { Trash2, Image, Crop } from "lucide-react";
+import { Archive, Image, Crop } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CardSkinProps } from "./types";
@@ -47,28 +47,28 @@ export function BackgroundCardSkin({ item, actions, isActionPending }: CardSkinP
         <div className="flex gap-1">
           {actions?.onCrop && (
             <Button
-              size="icon"
+              size="default"
               variant="outline"
-              className="flex-1"
+              className="flex-1 min-h-[44px]"
               onClick={handleCrop}
               disabled={isActionPending}
               data-testid={`button-crop-${item.id}`}
               title="Crop (9:16)"
             >
-              <Crop className="h-3 w-3" />
+              <Crop className="h-4 w-4 mr-1" />Crop
             </Button>
           )}
           {actions?.onDelete && (
             <Button
-              size="icon"
+              size="default"
               variant="ghost"
-              className="flex-1 text-destructive"
+              className="flex-1 min-h-[44px] text-destructive"
               onClick={handleArchive}
               disabled={isActionPending}
               data-testid={`button-archive-${item.id}`}
               title="Archive"
             >
-              <Trash2 className="h-3 w-3" />
+              <Archive className="h-4 w-4 mr-1" />Archive
             </Button>
           )}
         </div>

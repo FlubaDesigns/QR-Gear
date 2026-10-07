@@ -1,9 +1,9 @@
 import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { ImagePlus } from "lucide-react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArchiveGrfDialog } from "@/features/shared/components/ArchiveGrfDialog";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
 import { ImageUploader, type UploadParams } from "@/features/shared/components/utilities/ImageUploader";
@@ -114,22 +114,6 @@ function SourceImagesTabInner() {
   });
 
   const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
-
-  // ── Archive mutation ───────────────────────────────────────────────────────
-
-  const archiveMutation = useMutation({
-    mutationFn: (id: string) =>
-      adminFetch(`/graphics/${id}/archive`, { method: "PATCH" }),
-    onSuccess: () => {
-      setArchiveId(null);
-      toast({ title: "Image archived" });
-      queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
-    },
-    onError: (error: Error) => {
-      console.error("[SourceImagesTab] Archive error:", error.message);
-      toast({ title: "Archive failed", description: error.message, variant: "destructive" });
-    },
-  });
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -281,7 +265,7 @@ function SourceImagesTabInner() {
                 onCrop:   () => handleStartCrop(item),
                 onDelete: () => handleDelete(item.id),
               }}
-              isActionPending={archiveMutation.isPending}
+              isActionPending={!!archiveId}
             />
           )}
         />
@@ -300,21 +284,7 @@ function SourceImagesTabInner() {
         aspectRatio={9 / 16}
         title="Crop Source Image"
       />
-      <AlertDialog open={!!archiveId} onOpenChange={open => { if (!open && !archiveMutation.isPending) setArchiveId(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Archive this source image?</AlertDialogTitle>
-            <AlertDialogDescription>It will be hidden from the Source library. The stored file and its existing crops will remain.</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="min-h-[44px]" disabled={archiveMutation.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction className="min-h-[44px]" disabled={archiveMutation.isPending} onClick={event => {
-              event.preventDefault();
-              if (archiveId) archiveMutation.mutate(archiveId);
-            }}>{archiveMutation.isPending ? 'Archiving…' : 'Archive image'}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ArchiveGrfDialog grfId={archiveId} onClose={() => setArchiveId(null)} queryKey={ORIGINALS_QK} />
     </SinglePaneViewer>
   );
 }

@@ -546,12 +546,12 @@ export default function AdminSchemaKeys() {
                     },
                     {
                       surface: "Library › Backgrounds",
-                      code: "1·1·1·1",
+                      code: "1·1·1·0",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
+                      view: "ScrollGridView",
                       skin: "BackgroundCardSkin",
-                      shape: "BackgroundShape",
-                      note: "",
+                      shape: "None",
+                      note: "Flat cards; shared crop editor and archive confirmation",
                     },
                     {
                       surface: "Library › Cropped Images",
