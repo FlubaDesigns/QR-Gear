@@ -24,7 +24,7 @@ export function ArchiveGrfDialog({ grfId, onClose, queryKey }: {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Archive this image?</AlertDialogTitle>
-          <AlertDialogDescription>It will be hidden from this library tab. The stored file and existing crops will remain.</AlertDialogDescription>
+          <AlertDialogDescription>It will be hidden from this library tab. The stored file, existing crops, and uses in products or websites will remain.</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel className="min-h-[44px]" disabled={archive.isPending}>Cancel</AlertDialogCancel>

@@ -1,12 +1,11 @@
-import { useState } from "react";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { useEffect, useState } from "react";
 import { SinglePaneViewer } from "./viewers/SinglePaneViewer";
 import { SkinHorizontalView } from "./views/SkinHorizontalView";
 import type { SkinItem, SkinActions, CardSkinProps } from "./skins/types";
 
 // VVS Viewer code: 1·2·1
 // SinglePane + HorizontalScroll + Shape popup.
-// Owns: selection state, prev/next navigation, optional confirm dialog.
+// Owns: selection by asset ID and prev/next navigation. Archive confirmation belongs to the shared GRF dialog.
 // Does NOT own: popup UI, detail content — those belong to the Shape layer.
 
 type CardSkinComponent = React.ComponentType<CardSkinProps>;
@@ -38,12 +37,6 @@ export interface SkinHorizontalViewerProps {
   isLoading?: boolean;
   emptyMessage?: string;
   emptyIcon?: React.ReactNode;
-  /** When set, archive/delete actions show a confirm dialog before firing */
-  confirmAction?: {
-    type: "archive" | "delete";
-    title: string;
-    description: string;
-  };
   /** Optional header rendered above the scroll strip (e.g. filter controls) */
   header?: React.ReactNode;
   className?: string;
@@ -59,36 +52,21 @@ export function SkinHorizontalViewer({
   isLoading,
   emptyMessage,
   emptyIcon,
-  confirmAction,
   header,
   className,
 }: SkinHorizontalViewerProps) {
-  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [showConfirm, setShowConfirm]     = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedIndex = items.findIndex(item => item.id === selectedId);
+  const selectedItem = items[selectedIndex] ?? null;
+  useEffect(() => {
+    if (selectedId && !selectedItem) setSelectedId(null);
+  }, [selectedId, selectedItem]);
+  const hasPrev = selectedIndex > 0;
+  const hasNext = selectedIndex >= 0 && selectedIndex < items.length - 1;
 
-  const selectedItem = selectedIndex !== null ? items[selectedIndex] : null;
-  const hasPrev      = selectedIndex !== null && selectedIndex > 0;
-  const hasNext      = selectedIndex !== null && selectedIndex < items.length - 1;
-
-  const handlePrev  = () => { if (hasPrev) setSelectedIndex(selectedIndex! - 1); };
-  const handleNext  = () => { if (hasNext) setSelectedIndex(selectedIndex! + 1); };
-  const handleClose = () => setSelectedIndex(null);
-
-  const handleConfirm = () => {
-    if (selectedItem && confirmAction) {
-      if (confirmAction.type === "archive") actions.onArchive?.(selectedItem.id);
-      else                                   actions.onDelete?.(selectedItem.id);
-    }
-    setShowConfirm(false);
-    handleClose(); // Close shape popup immediately — item will vanish after query invalidates
-  };
-
-  // Intercept destructive actions to show confirm dialog when configured
-  const shapeActions: SkinActions = {
-    ...actions,
-    onArchive: confirmAction?.type === "archive" ? () => setShowConfirm(true) : actions.onArchive,
-    onDelete:  confirmAction?.type === "delete"  ? () => setShowConfirm(true) : actions.onDelete,
-  };
+  const handlePrev = () => { if (hasPrev) setSelectedId(items[selectedIndex - 1].id); };
+  const handleNext = () => { if (hasNext) setSelectedId(items[selectedIndex + 1].id); };
+  const handleClose = () => setSelectedId(null);
 
   return (
     <SinglePaneViewer className={className}>
@@ -97,9 +75,9 @@ export function SkinHorizontalViewer({
       <SkinHorizontalView
         items={items}
         CardSkin={CardSkin}
-        onSelect={(_, index) => setSelectedIndex(index)}
+        onSelect={(item) => setSelectedId(item.id)}
         selectedId={selectedItem?.id ?? null}
-        actions={shapeActions}
+        actions={actions}
         isActionPending={isActionPending}
         cardWidth={cardWidth}
         isLoading={isLoading}
@@ -109,40 +87,19 @@ export function SkinHorizontalViewer({
 
       {/* Shape owns the popup presentation entirely */}
       <Shape
-        open={selectedIndex !== null}
+        open={!!selectedItem}
         item={selectedItem}
-        actions={shapeActions}
+        actions={actions}
         onClose={handleClose}
         onPrev={handlePrev}
         onNext={handleNext}
         hasPrev={hasPrev}
         hasNext={hasNext}
         isActionPending={isActionPending}
-        itemIndex={selectedIndex ?? 0}
+        itemIndex={Math.max(0, selectedIndex)}
         totalItems={items.length}
       />
 
-      {/* Confirm dialog — system-level, not popup content */}
-      {confirmAction && (
-        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>{confirmAction.title}</AlertDialogTitle>
-              <AlertDialogDescription>{confirmAction.description}</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel data-testid="button-confirm-cancel">Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleConfirm}
-                className={confirmAction.type === "delete" ? "bg-destructive hover:bg-destructive/90" : ""}
-                data-testid="button-confirm-action"
-              >
-                {confirmAction.type === "archive" ? "Archive" : "Delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
     </SinglePaneViewer>
   );
 }

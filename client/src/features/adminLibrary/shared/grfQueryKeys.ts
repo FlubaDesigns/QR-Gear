@@ -9,3 +9,5 @@ export const ORIGINALS_QK   = ['admin', 'graphics', GRF_FILTER_ORIGINALS.channel
 export const CROPPED_QK     = ['admin', 'graphics', GRF_FILTER_CROPPED.channel,     GRF_FILTER_CROPPED.purpose]     as const;
 export const BACKGROUNDS_QK = ['admin', 'graphics', GRF_FILTER_BACKGROUNDS.channel, GRF_FILTER_BACKGROUNDS.purpose] as const;
 export const TEMPLATES_QK   = ['admin', 'graphics', GRF_FILTER_TEMPLATES.channel,   GRF_FILTER_TEMPLATES.purpose]   as const;
+
+export const GRAPHICS_QK = ["library", "/api/admin", "assets", "grf"] as const;

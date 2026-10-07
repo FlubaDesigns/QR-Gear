@@ -1,11 +1,10 @@
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, ImageIcon } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ImageIcon } from "lucide-react";
 import { AdminGraphicDetailSkin } from "../skins/AdminGraphicSkins";
 import type { GalleryShapeProps } from "../SkinHorizontalViewer";
 
 // VVS Shape layer — AdminGraphic data type.
-// Owns: Dialog container, image preview, prev/next controls, counter badge.
+// Owns: Dialog container, image preview and counter badge.
 // Delegates: all detail metadata to AdminGraphicDetailSkin.
 
 export function AdminGraphicShape({
@@ -24,10 +23,11 @@ export function AdminGraphicShape({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
-        className="max-w-2xl w-[95vw] max-h-[90vh] overflow-hidden p-0"
+        className="max-w-2xl w-[95vw] max-h-[90dvh] overflow-y-auto p-0 [&>button]:h-11 [&>button]:w-11"
         aria-describedby={undefined}
       >
-        <div className="relative w-full overflow-hidden">
+        <DialogTitle className="sr-only">{item?.name || "Graphic details"}</DialogTitle>
+        <div className="relative w-full">
           {/* Image preview */}
           <div className="relative aspect-square sm:aspect-video bg-muted flex items-center justify-center overflow-hidden">
             {item?.primaryImage ? (
@@ -39,29 +39,6 @@ export function AdminGraphicShape({
               />
             ) : (
               <ImageIcon className="h-24 w-24 text-muted-foreground" />
-            )}
-
-            {hasPrev && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="absolute left-2 top-1/2 -translate-y-1/2"
-                onClick={onPrev}
-                data-testid="button-shape-prev"
-              >
-                <ChevronLeft className="h-5 w-5" />
-              </Button>
-            )}
-            {hasNext && (
-              <Button
-                variant="secondary"
-                size="icon"
-                className="absolute right-2 top-1/2 -translate-y-1/2"
-                onClick={onNext}
-                data-testid="button-shape-next"
-              >
-                <ChevronRight className="h-5 w-5" />
-              </Button>
             )}
 
             <div className="absolute bottom-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
