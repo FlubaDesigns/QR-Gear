@@ -1,3 +1,4 @@
+import { BLD_LAYOUTS } from "@shared/bldCodes";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -215,14 +216,14 @@ export function LayoutModeChoiceStep({
   const modes = [
     {
       id: "zone" as const,
-      label: "Zone",
+      label: BLD_LAYOUTS.Z,
       description: "Content is organized in separate top, middle, and bottom bands. Best for clean, structured designs.",
       icon: Layers,
     },
     {
       id: "freeform" as const,
-      label: "Freeform",
-      description: "All content shares the full canvas. Best for creative, overlapping designs.",
+      label: BLD_LAYOUTS.P,
+      description: "All content shares the full design area. Best for creative, overlapping designs.",
       icon: Maximize,
     },
   ];

@@ -1,3 +1,4 @@
+import { BLD_LAYOUTS } from "@shared/bldCodes";
 import { useRef, useState, useCallback, useEffect } from "react";
 import { Type, Move, Maximize2, Upload, X, ImageIcon, Loader2, FolderOpen, FolderPlus, Trash2, Check, Save, ArrowUp, ArrowDown } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -620,7 +621,7 @@ export function ProductGraphicTextModule() {
     >
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Choose how to design your product graphic. Zone locks text to top/bottom. Canvas lets you freely position the QR and add an image.
+          Choose how to design your product graphic. {BLD_LAYOUTS.Z} locks text to top/bottom. {BLD_LAYOUTS.P} lets you freely position the QR and add an image.
         </p>
 
         <div className="inline-flex gap-1 p-1 bg-muted rounded-md w-full" data-testid="toggle-layout-mode">
@@ -635,7 +636,7 @@ export function ProductGraphicTextModule() {
             data-testid="button-layout-zone"
           >
             <Maximize2 className="h-4 w-4" />
-            Zone
+            {BLD_LAYOUTS.Z}
           </button>
           <button
             type="button"
@@ -648,13 +649,13 @@ export function ProductGraphicTextModule() {
             data-testid="button-layout-freeform"
           >
             <Move className="h-4 w-4" />
-            Pallet
+            {BLD_LAYOUTS.P}
           </button>
         </div>
 
         {!state.content.graphicLayoutMode && (
           <p className="text-sm text-muted-foreground py-1">
-            Tap Zone or Canvas to get started.
+            Tap {BLD_LAYOUTS.Z} or {BLD_LAYOUTS.P} to get started.
           </p>
         )}
 

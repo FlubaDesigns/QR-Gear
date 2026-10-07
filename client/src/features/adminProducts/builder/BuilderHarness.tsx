@@ -1,3 +1,4 @@
+import { BLD_LAYOUTS } from "@shared/bldCodes";
 import { SaveDraftDialog } from './modules/SaveDraftDialog';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -91,8 +92,8 @@ function getSectionSummary(key: SectionKey, state: BuilderState): string {
     }
     case "design":
       if (state.loadedTemplate) return `Template: ${state.loadedTemplate.name || "loaded"}`;
-      if (state.content?.graphicLayoutMode === "zone") return "Zone layout set";
-      if (state.content?.graphicLayoutMode === "freeform") return "Freeform layout set";
+      if (state.content?.graphicLayoutMode === "zone") return `${BLD_LAYOUTS.Z} layout set`;
+      if (state.content?.graphicLayoutMode === "freeform") return `${BLD_LAYOUTS.P} layout set`;
       if (state.loadedGraphic) return "Graphic loaded";
       if (state.loadedBackground) return "Background loaded";
       return "Not configured";
