@@ -230,7 +230,9 @@ function buildListingPayload(product: AmazonListingProduct, marketplaceId: strin
     item_name: [{ value: product.title, language_tag: 'en_US', marketplace_id: marketplaceId }],
     brand: [{ value: product.brandName, marketplace_id: marketplaceId }],
     condition_type: [{ value: product.condition, marketplace_id: marketplaceId }],
-    list_price: [{ currency: product.currencyCode, value: product.price, marketplace_id: marketplaceId }],
+    purchasable_offer: [{ currency: product.currencyCode, marketplace_id: marketplaceId, audience: 'ALL',
+      our_price: [{ schedule: [{ value_with_tax: product.price }] }],
+    }],
     fulfillment_availability: [{ fulfillment_channel_code: 'DEFAULT', quantity: product.quantity, marketplace_id: marketplaceId }],
   };
 
@@ -253,10 +255,9 @@ function buildListingPayload(product: AmazonListingProduct, marketplaceId: strin
   if (product.imageUrls?.length > 0) {
     attributes.main_product_image_locator = [{ media_location: product.imageUrls[0], marketplace_id: marketplaceId }];
     if (product.imageUrls.length > 1) {
-      attributes.other_product_image_locator_1 = product.imageUrls.slice(1, 8).map((url, i) => ({
-        media_location: url,
-        marketplace_id: marketplaceId,
-      }));
+      product.imageUrls.slice(1, 8).forEach((url, i) => {
+        attributes[`other_product_image_locator_${i + 1}`] = [{ media_location: url, marketplace_id: marketplaceId }];
+      });
     }
   }
 

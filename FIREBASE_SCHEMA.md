@@ -4,6 +4,23 @@ Firestore schema reference. Sections explicitly marked **planned** document appr
 
 ---
 
+## Marketplace publishing records — sandbox wiring
+
+Existing collections remain the publishing contract; there is no second catalog or seller credential store.
+
+| Collection | Identity and ownership | Fields used by the shared publishing path |
+|---|---|---|
+| `surfaces` | `masterProductId` is the existing source `admin_catalog_instances` document ID; `sku` must match that instance's canonical QRG identity. | Listing content, `retailPrice`, currency, enabled platforms and existing marketplace settings. `colors`, `sizes`, `options` retain the normalized product choices for review. `readinessErrors` reports blocked or missing selections. These projections do not allocate identities or create variant combinations. |
+| `surfaceVariants` | Existing children reference `surfaceId`. | Existing variant contract is retained. Provider variation payloads are not implemented; these records must not be silently dropped during publication. |
+| `marketplaceAccounts` | Selected account ID and platform own OAuth seller/shop credentials. | Server reads existing platform-specific connected state, seller/shop IDs and refresh tokens. Rotated Etsy refresh tokens are stored here only. Account list responses omit token/secret/verifier fields. |
+| `marketplaceListings` | One record per surface/account. New IDs are deterministic hashes of that pair; existing canonical IDs are reused. | `surfaceId`, `accountId`, `platform`, `qrgCode`, `marketplaceSku`, `productInstanceId`, title, price, status, external identity/URL and latest job reference. `publishOptions` retains Etsy taxonomy/shipping/return policy IDs and maker/era selections for retries. `externalCreateAttempted` prevents blind recreation when Etsy's POST outcome is unknown and no external ID is saved. |
+| `marketplaceSyncJobs` | Each explicit attempt references the same listing, surface, account, platform and QRG identity. | Queued → running → completed/failed, attempts, timestamps, provider result and error. A listing lock prevents overlapping jobs. Failed jobs are not automatically retried; an explicit retry creates an auditable new attempt. |
+| `marketplaceSyncLogs` | Written by the shared job service, linked to job/listing/account/platform. | Level, message and creation time. No seller tokens, request headers or credentials in job/log records. |
+
+Amazon acceptance records a Pending listing; an Etsy draft stays Draft. Only a confirmed active provider result records an Active listing and Published surface. Unsupported variation publication and remote delisting fail visibly. Legacy surface push histories are read only for existing external identity reconciliation; all new outcomes go through listings/jobs/logs. Existing data is not bulk migrated or deleted by these code changes.
+
+---
+
 ## Partner Member Storefronts and Builders — planned
 
 **Owner direction: October 7, 2026.** A partner website such as Kingdom Connects will give each of its members access to their own mini storefront and builder. This is the foundation for the second integration push. The partner-site experience is not implemented by this documentation change.

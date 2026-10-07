@@ -34,6 +34,7 @@ export interface Surface {
   productId?: string;
   artifactId?: string;
   mosaicId?: string;
+  /** Existing field stores the source admin_catalog_instances document ID. */
   masterProductId: string;
   title: string;
   subtitle?: string;
@@ -58,6 +59,9 @@ export interface Surface {
   status: SurfaceStatus;
   readinessScore?: number;
   readinessErrors: string[];
+  colors?: string[];
+  sizes?: string[];
+  options?: Array<{ name: string; type: string; values: Array<{ value: string; label: string; hex?: string | null }> }>;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -107,6 +111,12 @@ export interface MarketplaceAccount {
 
 export interface MarketplaceListing {
   id: string;
+  qrgCode?: string;
+  marketplaceSku?: string;
+  productInstanceId?: string;
+  publishOptions?: { taxonomyId?: number; shippingProfileId?: number; returnPolicyId?: number; whoMade?: string; whenMade?: string };
+  /** Prevent blind recreation if Etsy creation returned an unknown outcome. */
+  externalCreateAttempted?: boolean;
   surfaceId: string;
   accountId: string;
   platform: MarketplacePlatform;

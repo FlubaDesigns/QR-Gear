@@ -259,6 +259,12 @@ export async function getEtsyShopInfo(
 export async function pushListingToEtsy(
   credentials: EtsyCredentials,
   product: EtsyListingProduct,
+  persistence: {
+    existingListingId?: number;
+    onRefreshToken: (refreshToken: string) => Promise<void>;
+    onBeforeCreate: () => Promise<void>;
+    onListingCreated: (listingId: number) => Promise<void>;
+  },
 ): Promise<EtsyPushResult> {
   const keystring = process.env.ETSY_KEYSTRING;
   if (!keystring) {
@@ -272,6 +278,7 @@ export async function pushListingToEtsy(
     const tokens = await refreshAccessToken(credentials.refreshToken);
     accessToken = tokens.access_token;
     newRefreshToken = tokens.refresh_token || credentials.refreshToken;
+    await persistence.onRefreshToken(newRefreshToken);
   } catch (err: any) {
     return { success: false, error: `Token refresh failed: ${err.message}` };
   }
@@ -294,7 +301,7 @@ export async function pushListingToEtsy(
     .slice(0, 13);
 
   const listingPayload: Record<string, any> = {
-    quantity: product.quantity > 0 ? product.quantity : 100,
+    quantity: product.quantity,
     title: product.title.slice(0, 140),
     description: product.description,
     price: parseFloat(product.price.toFixed(2)),
@@ -312,10 +319,12 @@ export async function pushListingToEtsy(
   if (product.materials?.length) listingPayload.materials = product.materials.slice(0, 13);
   if (product.sku) listingPayload.sku = [product.sku];
 
-  let listingId: number;
+  let listingId = persistence.existingListingId;
   try {
-    const createResp = await fetch(`${ETSY_API_BASE}/v3/application/shops/${shopId}/listings`, {
-      method: 'POST',
+    if (!listingId) await persistence.onBeforeCreate();
+    const listingPath = `${ETSY_API_BASE}/v3/application/shops/${shopId}/listings`;
+    const createResp = await fetch(listingId ? `${listingPath}/${listingId}` : listingPath, {
+      method: listingId ? 'PATCH' : 'POST',
       headers,
       body: JSON.stringify(listingPayload),
     });
@@ -327,12 +336,35 @@ export async function pushListingToEtsy(
       return { success: false, error: `Listing creation failed (${createResp.status}): ${errMsg}` };
     }
 
-    listingId = createData?.listing_id;
+    listingId = createData?.listing_id || listingId;
     if (!listingId) {
       return { success: false, error: 'Etsy did not return a listing_id after creation.' };
     }
+    await persistence.onListingCreated(listingId);
   } catch (err: any) {
     return { success: false, error: `Network error creating listing: ${err.message}` };
+  }
+
+  // Price, quantity and SKU belong to inventory, including single-product listings.
+  // Read first so a legacy listing with variations is never flattened by this path.
+  try {
+    const inventoryUrl = `${ETSY_API_BASE}/v3/application/listings/${listingId}/inventory`;
+    const inventoryResp = await fetch(inventoryUrl, { headers });
+    if (!inventoryResp.ok) throw new Error(`Inventory read failed (${inventoryResp.status}).`);
+    const inventory = await inventoryResp.json() as any;
+    if (inventory.products?.length !== 1 || inventory.products[0].property_values?.length) {
+      throw new Error('Existing Etsy inventory has variations or is incomplete; reconcile it before updating.');
+    }
+    const existingOffering = inventory.products[0].offerings?.[0];
+    const offering = { price: product.price, quantity: product.quantity, is_enabled: true,
+      ...(existingOffering?.readiness_state_id ? { readiness_state_id: existingOffering.readiness_state_id } : {}) };
+    const update = await fetch(inventoryUrl, { method: 'PUT', headers, body: JSON.stringify({
+      products: [{ sku: product.sku || '', property_values: [], offerings: [offering] }],
+      price_on_property: [], quantity_on_property: [], sku_on_property: [],
+    }) });
+    if (!update.ok) throw new Error(`Inventory update failed (${update.status}): ${await update.text()}`);
+  } catch (error: any) {
+    return { success: false, listingId, error: error.message };
   }
 
   // ── Step 2: Upload Images ─────────────────────────────────────────────────
@@ -414,7 +446,8 @@ export async function pushListingToEtsy(
   const listingUrl = `https://www.etsy.com/listing/${listingId}`;
 
   return {
-    success: true,
+    success: finalState === 'active',
+    ...(finalState !== 'active' ? { error: warnings.join('; ') || 'Etsy listing remains a draft.' } : {}),
     listingId,
     state: finalState,
     url: listingUrl,

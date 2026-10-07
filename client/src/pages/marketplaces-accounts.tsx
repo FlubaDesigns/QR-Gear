@@ -836,7 +836,6 @@ function PushToAmazonDialog({
 }) {
   const { toast } = useToast();
   const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
 
   const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
     queryKey: ["/api/admin/surfaces/accounts"],
@@ -857,7 +856,6 @@ function PushToAmazonDialog({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-amazon`, {
         accountId: selectedAccountId,
-        ...(skuOverride ? { sku: skuOverride } : {}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Push failed");
@@ -873,7 +871,11 @@ function PushToAmazonDialog({
           variant: "destructive",
         });
       }
-      onClose();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/logs"] });
+      if (data.success) onClose();
     },
     onError: (err: Error) =>
       toast({ title: "Push failed", description: err.message, variant: "destructive" }),
@@ -882,7 +884,6 @@ function PushToAmazonDialog({
   const handleClose = () => {
     if (pushMutation.isPending) return;
     setSelectedAccountId("");
-    setSkuOverride(surfaceSku || "");
     onClose();
   };
 
@@ -937,12 +938,12 @@ function PushToAmazonDialog({
               <div className="space-y-1">
                 <Label className="text-xs">SKU</Label>
                 <Input
-                  value={skuOverride}
-                  onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder="Leave blank to auto-assign from surface SKU"
+                  value={surfaceSku || ""}
+                  readOnly
+                  aria-label="Product QRG identity"
                   data-testid="input-push-sku"
                 />
-                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
+                <p className="text-xs text-muted-foreground">This is the saved product QRG identity.</p>
               </div>
             </>
           )}
@@ -986,7 +987,6 @@ function PushToEbayDialog({
 }) {
   const { toast } = useToast();
   const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
 
   const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
     queryKey: ["/api/admin/surfaces/accounts"],
@@ -1007,7 +1007,6 @@ function PushToEbayDialog({
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-ebay`, {
         accountId: selectedAccountId,
-        ...(skuOverride ? { sku: skuOverride } : {}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Push failed");
@@ -1026,7 +1025,11 @@ function PushToEbayDialog({
           variant: "destructive",
         });
       }
-      onClose();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/logs"] });
+      if (data.success) onClose();
     },
     onError: (err: Error) =>
       toast({ title: "Push failed", description: err.message, variant: "destructive" }),
@@ -1035,7 +1038,6 @@ function PushToEbayDialog({
   const handleClose = () => {
     if (pushMutation.isPending) return;
     setSelectedAccountId("");
-    setSkuOverride(surfaceSku || "");
     onClose();
   };
 
@@ -1090,12 +1092,12 @@ function PushToEbayDialog({
               <div className="space-y-1">
                 <Label className="text-xs">SKU</Label>
                 <Input
-                  value={skuOverride}
-                  onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder="Leave blank to auto-assign from surface SKU"
+                  value={surfaceSku || ""}
+                  readOnly
+                  aria-label="Product QRG identity"
                   data-testid="input-ebay-push-sku"
                 />
-                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
+                <p className="text-xs text-muted-foreground">This is the saved product QRG identity.</p>
               </div>
             </>
           )}
@@ -1139,7 +1141,6 @@ function PushToEtsyDialog({
 }) {
   const { toast } = useToast();
   const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
   const [taxonomyId, setTaxonomyId] = useState("");
   const [shippingProfileId, setShippingProfileId] = useState("");
   const [returnPolicyId, setReturnPolicyId] = useState("");
@@ -1170,7 +1171,6 @@ function PushToEtsyDialog({
         ...(returnPolicyId ? { returnPolicyId: parseInt(returnPolicyId, 10) } : {}),
         whoMade,
         whenMade,
-        ...(skuOverride ? { sku: skuOverride } : {}),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Push failed");
@@ -1188,7 +1188,11 @@ function PushToEtsyDialog({
       } else {
         toast({ title: "Etsy push failed", description: data.error || "Unknown error", variant: "destructive" });
       }
-      onClose();
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/logs"] });
+      if (data.success) onClose();
     },
     onError: (err: Error) =>
       toast({ title: "Push failed", description: err.message, variant: "destructive" }),
@@ -1197,7 +1201,6 @@ function PushToEtsyDialog({
   const handleClose = () => {
     if (pushMutation.isPending) return;
     setSelectedAccountId("");
-    setSkuOverride(surfaceSku || "");
     setTaxonomyId("");
     setShippingProfileId("");
     setReturnPolicyId("");
@@ -1322,12 +1325,12 @@ function PushToEtsyDialog({
               <div className="space-y-1">
                 <Label className="text-xs">SKU</Label>
                 <Input
-                  value={skuOverride}
-                  onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder="Leave blank to auto-assign from surface SKU"
+                  value={surfaceSku || ""}
+                  readOnly
+                  aria-label="Product QRG identity"
                   data-testid="input-etsy-push-sku"
                 />
-                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
+                <p className="text-xs text-muted-foreground">This is the saved product QRG identity.</p>
               </div>
             </>
           )}
@@ -1382,9 +1385,13 @@ function GenerateFromProductDialog({
     data: instances = [],
     isLoading: instancesLoading,
     error: instancesError,
-  } = useQuery<AdminInstancePreview[]>({
+  } = useQuery<{ instances: AdminInstancePreview[] }, Error, AdminInstancePreview[]>({
     queryKey: ["/api/admin/catalog-instances"],
     enabled: open,
+    select: (response) => {
+      if (!Array.isArray(response.instances)) throw new Error("Invalid product response.");
+      return response.instances;
+    },
   });
 
   const generateMutation = useMutation({

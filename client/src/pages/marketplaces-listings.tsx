@@ -66,11 +66,12 @@ export function ListingsSection() {
       const res = await apiRequest("POST", "/api/admin/surfaces/jobs", { listingId, action });
       return res.json();
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
       const label = variables.action === "create" ? "Publish" : variables.action === "update" ? "Sync" : variables.action;
-      toast({ title: `${label} job queued` });
+      toast({ title: data.success ? `${label}: ${data.listingStatus}` : `${label} failed`, description: data.error, variant: data.success ? "default" : "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/logs"] });
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
@@ -312,10 +313,11 @@ export function JobsSection() {
       const res = await apiRequest("POST", `/api/admin/surfaces/jobs/${jobId}/retry`, {});
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/jobs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
-      toast({ title: "Job re-queued for retry" });
+      toast({ title: data.success ? `Retry: ${data.listingStatus}` : "Retry failed", description: data.error, variant: data.success ? "default" : "destructive" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/logs"] });
     },
     onError: (err: Error) => toast({ title: "Retry failed", description: err.message, variant: "destructive" }),
   });
@@ -432,11 +434,11 @@ interface SyncLogData {
 export function LogsSection() {
   const [levelFilter, setLevelFilter] = useState<string>("all");
 
-  const { data: logs = [], isLoading } = useQuery<SyncLogData[]>({
+  const { data: logs = [], isLoading, error, refetch } = useQuery<SyncLogData[]>({
     queryKey: ["/api/admin/surfaces/logs", levelFilter !== "all" ? levelFilter : undefined].filter(Boolean),
     queryFn: async () => {
       const params = levelFilter !== "all" ? `?level=${levelFilter}` : "";
-      const res = await fetch(`/api/admin/surfaces/logs${params}`, { credentials: "include" });
+      const res = await apiRequest("GET", `/api/admin/surfaces/logs${params}`);
       if (!res.ok) throw new Error("Failed to fetch logs");
       return res.json();
     },
@@ -474,6 +476,11 @@ export function LogsSection() {
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      ) : error ? (
+        <div role="alert" className="space-y-2 text-sm text-destructive">
+          <p>Could not load logs: {error.message}</p>
+          <Button variant="outline" onClick={() => refetch()}>Retry</Button>
+        </div>
       ) : logs.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">

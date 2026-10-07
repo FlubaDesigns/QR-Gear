@@ -63,6 +63,7 @@ export interface NormalizedProduct {
   printifyBlueprintId: string | null;
   printfulProductId: string | null;
   manufacturer: string | null;
+  selectionErrors: string[];
 }
 
 export type SupportedMarketplace = 'ebay' | 'etsy' | 'amazon';
@@ -291,7 +292,7 @@ export async function resolveAndNormalizeForPublishing(
  * returns a canonical NormalizedProduct ready for Surface draft generation.
  *
  * Throws with a descriptive message if the instance is not found.
- * Packet load is best-effort — missing packet is non-fatal.
+ * A missing referenced packet fails the read rather than losing saved product data.
  */
 export async function normalizeProductForPublishing(
   instanceId: string,
@@ -313,27 +314,13 @@ export async function normalizeProductForPublishing(
   const resolved = instance.resolved || {};
   const baseSnapshot = instance.baseSnapshot || {};
 
-  // 2. Load linked packet (best-effort — non-fatal if missing)
+  // A referenced packet is required; failed reads must not erase product configuration.
   let packet: any = null;
   const packetId: string | null = instance.currentPacketId || null;
   if (packetId) {
-    try {
-      const packetDoc = await db
-        .collection(PRODUCT_PACKETS_COLLECTION)
-        .doc(packetId)
-        .get();
-      if (packetDoc.exists) {
-        packet = packetDoc.data() as any;
-      } else {
-        console.warn(
-          `[SurfaceGenerator] packet ${packetId} not found for instance ${instanceId} — continuing without packet data`,
-        );
-      }
-    } catch (err: any) {
-      console.warn(
-        `[SurfaceGenerator] could not load packet ${packetId} for instance ${instanceId}: ${err.message}`,
-      );
-    }
+    const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+    if (!packetDoc.exists) throw new Error(`[SurfaceGenerator] Linked packet ${packetId} was not found.`);
+    packet = packetDoc.data();
   }
 
   // 3. Title + description — always from resolved (the canonical merged state)
@@ -349,31 +336,19 @@ export async function normalizeProductForPublishing(
   const resolvedColors: string[] = resolved.colors || [];
   const resolvedSizes: string[] = resolved.sizes || [];
   const adminColors: string[] | null =
-    Array.isArray(instance.enabledColors) && instance.enabledColors.length > 0
+    Array.isArray(instance.enabledColors)
       ? instance.enabledColors
       : null;
   const adminSizes: string[] | null =
-    Array.isArray(instance.enabledSizes) && instance.enabledSizes.length > 0
+    Array.isArray(instance.enabledSizes)
       ? instance.enabledSizes
       : null;
   const colors = adminColors ?? resolvedColors;
   const sizes = adminSizes ?? resolvedSizes;
 
-  // 6. Retail price
-  //    Priority: resolved.pricing.customerPrice → packet.pricing.customerPrice
-  //              → baseSnapshot.maxPrice → baseSnapshot.minPrice → 0
-  let retailPrice = 0;
-  const resolvedPricing = resolved.pricing || null;
-  const packetPricing = packet?.pricing || null;
-  if (resolvedPricing?.customerPrice) {
-    retailPrice = parseFloat(resolvedPricing.customerPrice) || 0;
-  } else if (packetPricing?.customerPrice) {
-    retailPrice = parseFloat(packetPricing.customerPrice) || 0;
-  } else if (baseSnapshot.maxPrice) {
-    retailPrice = parseFloat(baseSnapshot.maxPrice) || 0;
-  } else if (baseSnapshot.minPrice) {
-    retailPrice = parseFloat(baseSnapshot.minPrice) || 0;
-  }
+  // Customer price only. Missing retail pricing must not fall back to supplier cost.
+  const retailPrice = Number(resolved.pricing?.customerPrice ?? packet?.pricing?.customerPrice ?? 0);
+  if (!Number.isFinite(retailPrice) || retailPrice < 0) throw new Error('[SurfaceGenerator] Invalid customer price.');
 
   // 7. Structured options — from packet.options (built by the product builder)
   const options = packet?.options || [];
@@ -431,6 +406,10 @@ export async function normalizeProductForPublishing(
     printifyBlueprintId,
     printfulProductId,
     manufacturer,
+    selectionErrors: [
+      ...(adminColors?.length === 0 && resolvedColors.length ? ['No colors are enabled on this product.'] : []),
+      ...(adminSizes?.length === 0 && resolvedSizes.length ? ['No sizes are enabled on this product.'] : []),
+    ],
   };
 }
 
@@ -543,9 +522,21 @@ export function createSurfaceDraftFromNormalizedProduct(
 
     // ── Status ───────────────────────────────────────────────────────────────
     status: 'draft',
-    readinessErrors: [],
+    colors: normalized.colors,
+    sizes: normalized.sizes,
+    options: normalized.options,
+    readinessErrors: normalized.selectionErrors,
     isActive: true,
     createdAt: now,
     updatedAt: now,
   };
+}
+
+/** Guard shared by readiness and execution until provider variant payloads are implemented. */
+export function marketplaceSelectionErrors(product: NormalizedProduct, hasSurfaceVariants: boolean): string[] {
+  return [
+    ...product.selectionErrors,
+    ...(product.colors.length || product.sizes.length || product.options.length || hasSurfaceVariants
+      ? ['Size/color variation publishing is not wired for this marketplace yet. Your saved selections are preserved; nothing was published.'] : []),
+  ];
 }

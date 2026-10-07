@@ -147,7 +147,13 @@ Builds the embeddable widget runtime for selling QR Gear products on external we
 ---
 
 ### #8 — Marketplace Expansion
-**Status: Queued**
+**Status: In progress — sandbox wiring repaired October 7, 2026; not production-ready**
+
+Current pass joins direct Push and Jobs around selected OAuth accounts, canonical QRG products, shared listing/job/log records and explicit retries. The product picker, route ordering, authenticated Logs and retail-price handoffs are repaired. Saved selections remain intact; unsupported variations and remote delisting now fail visibly. No live publication or Main deployment was performed.
+
+Still to do: implement provider-specific variation payloads with canonical variant identities, complete provider category/processing-profile requirements, wire remote delisting, and verify account-to-listing behavior in provider test environments. Amazon accepted submissions need later status reconciliation. Review the security and order dependencies below before production release.
+
+The following paragraph records the original expansion scope:
 
 The platform has adapter stubs for Etsy, eBay, and Amazon but no working sync pipeline. This task builds the canonical marketplace listing types and a real sync pipeline — internal product representation → MarketplaceListing. Etsy is the first fully connected marketplace (highest ROI). Creates the channel mapping system so one product published everywhere starts from one source of truth. Amazon and eBay follow Etsy's adapter pattern.
 

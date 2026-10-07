@@ -275,9 +275,14 @@ export async function pushListingToEbay(
       if (offers.length > 0) {
         existingOfferId = offers[0].offerId;
       }
+    } else {
+      const data = await offerListResp.json() as any;
+      if (offerListResp.status !== 404 || !data.errors?.some((error: any) => error.errorId === 25713)) {
+        return { success: false, sku, error: `Existing offer lookup failed (${offerListResp.status}); no new offer was created.` };
+      }
     }
   } catch (err: any) {
-    console.warn(`[eBay Push] Could not check existing offers for SKU ${sku}: ${err.message}`);
+    return { success: false, sku, error: `Could not check existing offers: ${err.message}` };
   }
 
   // ── Step 3: Create or Update Offer ────────────────────────────────────────
@@ -338,6 +343,7 @@ export async function pushListingToEbay(
     }
 
     const listingId: string = publishData?.listingId || '';
+    if (!listingId) return { success: false, sku, offerId, error: 'eBay did not return a listing ID; verify the offer before retrying.' };
     const warnings: string[] = (publishData?.warnings || []).map((w: any) => w.message || JSON.stringify(w));
 
     return {
@@ -378,7 +384,7 @@ function buildInventoryItemPayload(product: EbayListingProduct): Record<string, 
   return {
     availability: {
       shipToLocationAvailability: {
-        quantity: product.quantity > 0 ? product.quantity : 100,
+        quantity: product.quantity,
       },
     },
     condition: mapConditionToEbay(product.condition),
@@ -391,7 +397,7 @@ function buildOfferPayload(product: EbayListingProduct, sku: string): Record<str
     sku,
     marketplaceId: EBAY_MARKETPLACE_ID,
     format: product.listingFormat || 'FIXED_PRICE',
-    availableQuantity: product.quantity > 0 ? product.quantity : 100,
+    availableQuantity: product.quantity,
     categoryId: product.categoryId,
     listingDescription: product.description,
     listingPolicies: {} as Record<string, any>,
