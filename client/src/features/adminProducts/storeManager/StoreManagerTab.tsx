@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { RoleType, Store as StoreType, Channel, Collection } from "../shared/types";
 import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 
-interface AdminInstance {
+export interface AdminInstance {
   id: string;
   storeId?: string;
   storeName?: string;
@@ -464,7 +464,7 @@ export function InstanceCard({
         <button
           onClick={() => setDeleteOpen(true)}
           className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded"
-          title="Remove from store"
+          title="Delete product and affected builds" aria-label="Delete product and affected builds"
           data-testid={`button-delete-${instance.id}`}
         >
           <Trash2 className="h-4 w-4" />

@@ -40,7 +40,7 @@ export const BUILD_SUBNAV: SubNavItem[] = [
 
 export const PLACE_SUBNAV: SubNavItem[] = [
   { label: "Store Builder", href: "/admin/store-builder", icon: Store },
-  { label: "Library", href: "/admin/store-library", icon: LayoutGrid },
+  { label: "Store Products", href: "/admin/store-library", icon: LayoutGrid },
   { label: "Partners", href: "/admin/partners", icon: Users },
   { label: "External Sites", href: "/admin/external-sites", icon: Globe },
   { label: "Marketplaces", href: "/admin/marketplaces", icon: MapPin },

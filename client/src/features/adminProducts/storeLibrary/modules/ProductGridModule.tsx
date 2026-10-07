@@ -1,146 +1,55 @@
-import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import {
-  StoreProductSkin,
-  StoreProductItem,
-  StoreProductViewToggle,
-  StoreProductViewLayout,
-} from "@/features/shared/components/skins/StoreProductSkin";
-import { useStoreLibraryContext, ProductInfo } from "../StoreLibraryContext";
-import { adminFetch } from "@/lib/adminFetch";
-import { queryClient } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useRef, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { adminFetch } from '@/lib/adminFetch';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
+import { InstanceCard, type AdminInstance } from '../../storeManager/StoreManagerTab';
+import { refreshStoreViews } from '@/features/storeBuilder/storeQueries';
+import { useStoreLibraryContext } from '../StoreLibraryContext';
+import { PublishStatusBadge } from '../components/PublishStatusBadge';
 
-
-function productToSkinItem(product: ProductInfo): StoreProductItem {
-  return {
-    id: product.id,
-    name: product.name,
-    imageUrl: product.imageUrl || "",
-    subtitle: product.baseProductId ? `Product: ${product.baseProductId}` : undefined,
-    colorCount: product.enabledColors?.length,
-    sizes: product.enabledSizes,
-    publishStatus: product.publishStatus ?? null,
-    lastPublishedAt: product.lastPublishedAt ?? null,
-    publishError: product.publishError ?? null,
-    printifyProductId: product.printifyProductId ?? null,
-  };
+type StoreProduct = AdminInstance & { printifyProductId?: string; publishStatus?: 'synced' | 'pending' | 'error'; lastPublishedAt?: string; publishError?: string };
+function PublishStatus({ product }: { product: StoreProduct }) {
+  const client = useQueryClient(), { toast } = useToast(), lock = useRef(false);
+  const publish = useMutation({ mutationFn: () => adminFetch(`/qrg/republish/${encodeURIComponent(product.id)}`, {method:'POST'}),
+    onSuccess: async () => { await refreshStoreViews(client); toast({title:'Product synced to Printify'}); },
+    onError: (error: Error) => toast({title:'Republish failed',description:error.message,variant:'destructive'}),
+    onSettled: () => { lock.current = false; },
+  });
+  if (!product.printifyProductId) return null;
+  return <div className="rounded-md border p-3 space-y-2"><p className="text-sm">Printify</p><PublishStatusBadge {...product}
+    onRepublish={() => { if (!lock.current) { lock.current = true; publish.mutate(); } }} isRepublishing={publish.isPending} /></div>;
 }
-
 export function ProductGridModule() {
-  const [viewLayout, setViewLayout] = useState<StoreProductViewLayout>("grid");
-  const [pendingDeleteItem, setPendingDeleteItem] = useState<StoreProductItem | null>(null);
-  const [republishingIds, setRepublishingIds] = useState<Set<string>>(new Set());
-
-  const {
-    selectedStore,
-    selectedChannel,
-    selectedProducts,
-    addToSelection,
-    removeFromSelection,
-  } = useStoreLibraryContext();
-  const { toast } = useToast();
-
-  const productsQueryKey = `/api/admin/stores/${selectedStore?.id}/channels/${selectedChannel?.name}/products`;
-
-  const { data: products = [], isLoading, error } = useQuery<ProductInfo[]>({
-    queryKey: [productsQueryKey],
-    enabled: !!selectedStore && !!selectedChannel?.name,
-  });
-
-  const republishMutation = useMutation({
-    mutationFn: (instanceId: string) =>
-      adminFetch(`/qrg/republish/${instanceId}`, { method: "POST" }),
-    onMutate: (instanceId: string) => {
-      setRepublishingIds((prev) => new Set(prev).add(instanceId));
-    },
-    onSuccess: (_data, instanceId) => {
-      setRepublishingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(instanceId);
-        return next;
-      });
-      queryClient.invalidateQueries({ queryKey: [productsQueryKey] });
-      toast({ title: "Republish queued", description: "The product is being synced to Printify." });
-    },
-    onError: (err: Error, instanceId) => {
-      setRepublishingIds((prev) => {
-        const next = new Set(prev);
-        next.delete(instanceId);
-        return next;
-      });
-      toast({ title: "Republish failed", description: err.message, variant: "destructive" });
+  const { selectedStore, selectedChannel, destinationError, loadingChannels } = useStoreLibraryContext();
+  const client = useQueryClient();
+  const [search, setSearch] = useState('');
+  const query = useQuery<{instances:StoreProduct[]}>({
+    queryKey:['admin-instances',selectedStore?.id,selectedChannel?.id ?? null,null],
+    enabled:!!selectedStore && !destinationError && !loadingChannels,
+    queryFn:async () => {
+      const params = new URLSearchParams({storeId:selectedStore!.id});
+      if (selectedChannel) params.set('channelId',selectedChannel.id);
+      const data = await adminFetch<{instances:StoreProduct[]}>(`/catalog-instances?${params}`);
+      if (!Array.isArray(data.instances)) throw new Error('Invalid product response'); return data;
     },
   });
-
-  if (!selectedStore || !selectedChannel) {
-    return null;
-  }
-
-  const selectedIds = new Set(selectedProducts.map((p) => p.id));
-
-  const handleSelect = (item: StoreProductItem) => {
-    const product = products.find((p) => p.id === item.id);
-    if (!product) return;
-    if (selectedIds.has(product.id)) {
-      removeFromSelection(product.id);
-    } else {
-      addToSelection(product);
-    }
-  };
-
-  const handleDeleteRequest = (item: StoreProductItem) => {
-    setPendingDeleteItem(item);
-  };
-
-  const handleRepublish = (item: StoreProductItem) => {
-    if (republishingIds.has(item.id)) return;
-    republishMutation.mutate(item.id);
-  };
-
-  const skinItems = products.map(productToSkinItem);
-
-  const viewToggle = (
-    <StoreProductViewToggle layout={viewLayout} onChange={setViewLayout} />
-  );
-
-  return (
-    <>
-      <CollapsibleModule
-        title="Products"
-        badge={products.length > 0 ? `${products.length} items` : undefined}
-        defaultOpen={true}
-        headerRight={viewToggle}
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8" data-testid="loader-products">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : error ? (
-          <div className="text-sm text-destructive p-2" data-testid="error-products">
-            Failed to load products
-          </div>
-        ) : (
-          <StoreProductSkin
-            items={skinItems}
-            selectedIds={selectedIds}
-            onSelect={handleSelect}
-            onDelete={handleDeleteRequest}
-            onRepublish={handleRepublish}
-            republishingIds={republishingIds}
-            layout={viewLayout}
-            onLayoutChange={setViewLayout}
-            showViewToggle={false}
-            gridHeight="400px"
-            emptyMessage="No products assigned to this channel yet"
-          />
-        )}
-      </CollapsibleModule>
-
-      <DeleteBuildDialog target={pendingDeleteItem ? { kind: 'catalog-instances', id: pendingDeleteItem.id } : null} onClose={() => setPendingDeleteItem(null)} onDeleted={() => { if (pendingDeleteItem) removeFromSelection(pendingDeleteItem.id); }} />
-    </>
-  );
+  if (!selectedStore) return <p className="text-sm text-muted-foreground">Choose a store to see its saved products.</p>;
+  if (destinationError) return null;
+  if (loadingChannels || query.isLoading) return <p role="status">Loading products…</p>;
+  if (query.error) return <div role="alert" className="space-y-2"><p>Could not load store products.</p><Button className="h-12" onClick={() => query.refetch()}>Retry</Button></div>;
+  const products = query.data?.instances || [];
+  const visible = products.filter(p => `${p.resolved?.title || ''} ${p.id} ${p.collectionName || ''}`.toLowerCase().includes(search.toLowerCase()));
+  const refresh = () => { void refreshStoreViews(client); };
+  return <div className="min-w-0 space-y-4">
+    <div className="flex flex-wrap items-center justify-between gap-2"><h2 className="font-semibold [overflow-wrap:anywhere]">{selectedStore.name}{selectedChannel ? ` / ${selectedChannel.name}` : ' / All channels'}</h2><Button variant="outline" className="h-12" disabled={query.isFetching} onClick={() => query.refetch()}>{query.isFetching ? 'Refreshing…' : 'Refresh'}</Button></div>
+    <Input className="h-12 text-base" aria-label="Find store products" placeholder="Find a product…" value={search} onChange={e => setSearch(e.target.value)} />
+    <p className="text-sm text-muted-foreground">{visible.length} product{visible.length === 1 ? '' : 's'}</p>
+    {!products.length ? <p>No products assigned here yet.</p> : !visible.length ? <p>No products match your search.</p> :
+      <div className="grid min-w-0 grid-cols-1 xl:grid-cols-2 gap-4">{visible.map(product => <div key={product.id} className="min-w-0 space-y-2">
+        {!selectedChannel && <p className="text-sm [overflow-wrap:anywhere]">{product.channelName || 'Needs a channel'}{product.collectionName ? ` / ${product.collectionName}` : ''}</p>}
+        <InstanceCard instance={product} onDeleted={refresh} onMoved={refresh} /><PublishStatus product={product} />
+      </div>)}</div>}
+  </div>;
 }

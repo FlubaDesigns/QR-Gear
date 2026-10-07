@@ -1,103 +1,25 @@
-import { Button } from "@/components/ui/button";
-import { Building2, Users, Globe, Store, Layers, ShoppingBag } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useStoreLibraryContext, StoreType, StoreInfo, ChannelInfo } from "../StoreLibraryContext";
-import { CustomDropdown } from "@/components/ui/custom-dropdown";
-
-const storeTypes: { type: StoreType; label: string; icon: typeof Building2 }[] = [
-  { type: "internal", label: "Internal", icon: Building2 },
-  { type: "marketplace", label: "Marketplace", icon: ShoppingBag },
-  { type: "partner", label: "Partner", icon: Globe },
-  { type: "member", label: "Member", icon: Users },
-];
+import { Button } from '@/components/ui/button';
+import { CustomDropdown } from '@/components/ui/custom-dropdown';
+import { STORE_ROLES } from '@shared/storeRoles';
+import { useStoreLibraryContext } from '../StoreLibraryContext';
 
 export function StoreTypeFilterModule() {
-  const { 
-    selectedType, 
-    setSelectedType, 
-    selectedStore, 
-    setSelectedStore,
-    selectedChannel,
-    setSelectedChannel,
-  } = useStoreLibraryContext();
-  const { data: stores = [] } = useQuery<StoreInfo[]>({
-    queryKey: ["/api/admin/stores", { roleType: selectedType }],
-  });
-
-  const { data: channels = [] } = useQuery<ChannelInfo[]>({
-    queryKey: ["/api/admin/stores", selectedStore?.id, "channels"],
-    enabled: !!selectedStore,
-  });
-
-  const storeOptions = stores.map(store => ({
-    value: store.id,
-    label: store.name,
-    icon: <Store className="h-4 w-4 flex-shrink-0" />,
-  }));
-
-  const channelOptions = channels.map(channel => ({
-    value: channel.id,
-    label: channel.name,
-    icon: <Layers className="h-4 w-4 flex-shrink-0" />,
-  }));
-
-  const handleStoreChange = (storeId: string) => {
-    const store = stores.find(s => s.id === storeId);
-    if (store) {
-      const storeWithType: StoreInfo = {
-        id: store.id,
-        name: store.name,
-        type: (store as any).roleType || store.type || selectedType,
-        description: store.description,
-      };
-      setSelectedStore(storeWithType);
-    } else {
-      setSelectedStore(null);
-    }
-  };
-
-  const handleChannelChange = (channelId: string) => {
-    const channel = channels.find(c => c.id === channelId);
-    setSelectedChannel(channel || null);
-  };
-
-  return (
-    <div className="space-y-3" data-testid="module-store-type-filter">
-      <div className="flex flex-wrap gap-2">
-        {storeTypes.map(({ type, label, icon: Icon }) => (
-          <Button
-            key={type}
-            variant={selectedType === type ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedType(type)}
-            className="flex-1 min-w-[90px]"
-            data-testid={`button-type-${type}`}
-          >
-            <Icon className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="truncate">{label}</span>
-          </Button>
-        ))}
-      </div>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <CustomDropdown
-          value={selectedStore?.id || ""}
-          onChange={handleStoreChange}
-          options={storeOptions}
-          placeholder="Select a store..."
-          data-testid="dropdown-store"
-        />
-        
-        {selectedStore && (
-          <CustomDropdown
-            value={selectedChannel?.id || ""}
-            onChange={handleChannelChange}
-            options={channelOptions}
-            placeholder="Select a channel..."
-            data-testid="dropdown-channel"
-          />
-        )}
-      </div>
+  const ctx = useStoreLibraryContext();
+  return <div className="min-w-0 space-y-3" data-testid="module-store-type-filter">
+    <div className="grid grid-cols-2 gap-2">{STORE_ROLES.map(role => <Button key={role.id}
+      className="min-h-12 h-auto whitespace-normal" variant={ctx.selectedType === role.id ? 'default' : 'outline'}
+      aria-pressed={ctx.selectedType === role.id} onClick={() => ctx.setSelectedType(role.id)} data-testid={`button-type-${role.id}`}>
+      {role.name}
+    </Button>)}</div>
+    <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="min-w-0"><p className="text-sm mb-2">Store</p><CustomDropdown value={ctx.selectedStore?.id || ''}
+        options={ctx.stores.map(s => ({value:s.id,label:s.name}))} loading={ctx.loadingStores}
+        onChange={id => ctx.setSelectedStore(ctx.stores.find(s => s.id === id) || null)} placeholder="Choose a store…" data-testid="dropdown-store" /></div>
+      {ctx.selectedStore && <div className="min-w-0"><p className="text-sm mb-2">Channel</p><CustomDropdown value={ctx.selectedChannel?.id || ''}
+        options={[{value:'',label:'All channels'},...ctx.channels.map(c => ({value:c.id,label:c.name}))]} loading={ctx.loadingChannels}
+        onChange={id => ctx.setSelectedChannel(ctx.channels.find(c => c.id === id) || null)} placeholder="All channels" data-testid="dropdown-channel" /></div>}
     </div>
-  );
+    {ctx.destinationError && <div role="alert" className="space-y-2"><p>{ctx.destinationError}</p><Button className="h-12" variant="outline" onClick={ctx.retryDestinations}>Retry</Button></div>}
+    {!ctx.loadingStores && !ctx.destinationError && !ctx.stores.length && <p className="text-sm text-muted-foreground">No stores for this role yet.</p>}
+  </div>;
 }
