@@ -1023,7 +1023,7 @@ export function ProductsModule() {
                 );
               })()}
 
-              {SHELF_CREATION_ENABLED && (addingShelf ? (
+              {addingShelf ? (
                 <div className="flex items-center gap-2 pt-1" data-testid="add-shelf-form">
                   <Input
                     autoFocus
@@ -1065,12 +1065,14 @@ export function ProductsModule() {
                   variant="outline"
                   className="w-full"
                   onClick={() => setAddingShelf(true)}
+                  disabled={!SHELF_CREATION_ENABLED}
+                  title={SHELF_CREATION_ENABLED ? undefined : "Shelf creation is dormant"}
                   data-testid="button-add-shelf"
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Add Shelf
                 </Button>
-              ))}
+              )}
             </div>
           )}
         </>
