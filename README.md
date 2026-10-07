@@ -374,3 +374,5 @@ Place's Library is now labeled Store Products, including its page title and brea
 Validation: 179 client tests, TypeScript and production build passed. Source and mocked interaction checks cover destination failures, old links, URL changes, shared refresh and publication status; no rendered phone check or live deployment. Sandbox branch only.
 
 October 7, 2026 naming update: the owner named Store Builder’s product-choice tab **Products**. Its tab label and heading use that name; the existing route, member-products record and shared editor are unchanged.
+
+October 7, 2026 navigation update: Partners now has its own main admin tab, alongside Run, Build, Place, Sell and System. Main destinations are defined in adminNavConfig for mobile and desktop; Partners is removed from Place’s subnavigation, keeps /admin/partners, and highlights its own mode. The six mobile targets share the viewport width. This changes navigation and the page title only; partner records and schema remain unchanged.

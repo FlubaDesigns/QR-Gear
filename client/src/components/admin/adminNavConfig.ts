@@ -1,4 +1,5 @@
 import {
+  Zap, Hammer, ShoppingCart,
   Package,
   Image,
   Box,
@@ -28,6 +29,15 @@ export interface SubNavItem {
   icon: typeof Package;
 }
 
+export const ADMIN_MAIN_NAV: SubNavItem[] = [
+  { label: "Run", icon: Zap, href: "/admin" },
+  { label: "Build", icon: Hammer, href: "/admin/products" },
+  { label: "Place", icon: MapPin, href: "/admin/store-builder" },
+  { label: "Partners", icon: Users, href: "/admin/partners" },
+  { label: "Sell", icon: ShoppingCart, href: "/admin/orders" },
+  { label: "System", icon: Settings, href: "/admin/settings" },
+];
+
 export const BUILD_SUBNAV: SubNavItem[] = [
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Library", href: "/admin/library", icon: Image },
@@ -41,7 +51,6 @@ export const BUILD_SUBNAV: SubNavItem[] = [
 export const PLACE_SUBNAV: SubNavItem[] = [
   { label: "Store Builder", href: "/admin/store-builder", icon: Store },
   { label: "Store Products", href: "/admin/store-library", icon: LayoutGrid },
-  { label: "Partners", href: "/admin/partners", icon: Users },
   { label: "External Sites", href: "/admin/external-sites", icon: Globe },
   { label: "Marketplaces", href: "/admin/marketplaces", icon: MapPin },
 ];
@@ -63,6 +72,7 @@ export const SYSTEM_SUBNAV: SubNavItem[] = [
 ];
 
 const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
+  { prefixes: ["/admin/partners"], mode: "Partners" },
   {
     prefixes: [
       "/admin/products",
@@ -80,7 +90,6 @@ const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
     prefixes: [
       "/admin/store-builder",
       "/admin/store-library",
-      "/admin/partners",
       "/admin/marketplaces",
       "/admin/external-sites",
     ],
