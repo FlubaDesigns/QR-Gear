@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useAdminBlanksController } from './useAdminBlanksController';
 import { BlankPickerModal } from '../builder/modules/BlankPickerModal';
 import { queryClient } from '@/lib/queryClient';
+import AdminBlanks from '@/pages/admin-blanks';
 
 const m = vi.hoisted(() => ({ data: {} as Record<string, any>, api: vi.fn(), toast: vi.fn() }));
 vi.mock('@/lib/queryClient', async () => {
@@ -22,6 +23,17 @@ vi.mock('@/components/ui/dialog', () => ({
 vi.mock('@/features/shared/components/skins/BlankPickerRowSkin', () => ({
   BlankPickerRowSkin: (p: any) => React.createElement('blank-row', p),
 }));
+
+vi.mock('@/components/AdminShell', () => ({ default: (p: any) => React.createElement('main', null, p.children) }));
+vi.mock('@/components/admin/AdminSectionSubNav', () => ({ default: () => null }));
+vi.mock('@/components/ui/scroll-area', () => ({ ScrollArea: (p: any) => React.createElement('div', null, p.children), ScrollBar: () => null }));
+vi.mock('@/components/ui/alert-dialog', () => {
+  const part = (p: any) => React.createElement('div', null, p.children);
+  return { AlertDialog: (p: any) => p.open ? part(p) : null, AlertDialogContent: part, AlertDialogHeader: part, AlertDialogTitle: part, AlertDialogDescription: part, AlertDialogFooter: part };
+});
+vi.mock('@/features/shared/components/skins/AdminSourceBlankSkin', () => ({ AdminSourceBlankSkin: (p: any) => React.createElement('source-card', p) }));
+vi.mock('@/features/shared/components/skins/AdminCatalogBlankSkin', () => ({ AdminCatalogBlankSkin: (p: any) => React.createElement('catalog-card', p) }));
+vi.mock('@/features/shared/components/views/ScrollGridView', () => ({ ScrollGridView: (p: any) => React.createElement('div', null, ...p.items.map((item: any) => React.createElement(React.Fragment, { key: item.id }, p.renderItem(item)))) }));
 
 let tree: ReactTestRenderer;
 let controller: ReturnType<typeof useAdminBlanksController>;
@@ -56,6 +68,11 @@ beforeEach(() => {
       m.data['/api/admin/catalogs'] = { catalogs: m.data['/api/admin/catalogs'].catalogs.map((c: any) =>
         url === `/api/admin/catalogs/${c.id}/blanks` ? { ...c, blankIds: [...c.blankIds, ...body.blankIds] } : c) };
       return { json: async () => ({ total: 1 }) };
+    }
+    if (method === 'DELETE') {
+      m.data['/api/admin/catalogs'].catalogs = m.data['/api/admin/catalogs'].catalogs.map((c: any) =>
+        url === `/api/admin/catalogs/${c.id}/blanks` ? { ...c, blankIds: c.blankIds.filter((id: string) => !body.blankIds.includes(id)) } : c);
+      return { json: async () => ({ total: 0 }) };
     }
     return { json: async () => m.data[url] };
   });
@@ -110,4 +127,47 @@ it('popup shows its inherited destination in the title with only a source select
   expect(selects).toHaveLength(1);
   expect(selects[0].props['data-testid']).toBe('modal-select-source-catalog');
   expect(selects[0].findAllByType('option').map(o => o.props.value)).toEqual(['', 'members', 'empty']);
+});
+
+it('uses saved images and actual cost, exposes missing members and keeps provider tables out of writes', async () => {
+  const product = m.data['/api/master-catalog'][0].items[0];
+  product.minPrice = '12.50'; product.images = ['https://images/original.png'];
+  const catalog = m.data['/api/admin/catalogs'].catalogs[1];
+  catalog.blankImages = { qrg_11001: [] }; catalog.blankIds.push('qrg_11999');
+  await mount('members');
+  expect(controller.sourceItemMap.get('qrg_11001')).toMatchObject({ price: 12.5, cost: null, images: [], primaryImageUrl: null });
+  expect(controller.catalogItems.find(item => item.catalogKey === 'qrg_11999')).toMatchObject({ unavailable: true });
+  await act(async () => { await controller.onImagesBulkSave('qrg_11001', []); });
+  expect(m.api).toHaveBeenCalledWith('PUT', '/api/admin/catalogs/members/blank-images', { blankId: 'qrg_11001', images: [], restore: false });
+  expect(m.api.mock.calls.every(([, url]) => String(url).startsWith('/api/admin/catalogs/'))).toBe(true);
+});
+
+it('adds from the selected source without sending provider snapshots', async () => {
+  await mount('primary'); act(() => controller.setSourceCatalogId('members'));
+  await act(async () => controller.onAddToCatalog('qrg_11001'));
+  expect(m.api).toHaveBeenCalledWith('POST', '/api/admin/catalogs/primary/blanks', { blankIds: ['qrg_11001'], sourceCatalogId: 'members' });
+});
+
+it('shows a read failure instead of treating it as an empty catalog', async () => {
+  queryClient.removeQueries({ queryKey: ['/api/master-catalog'] }); m.api.mockRejectedValueOnce(new Error('Catalog offline'));
+  await mount('primary'); await vi.waitFor(() => expect(controller.loadError).toContain('Catalog offline'));
+});
+
+async function mountPage() {
+  await act(async () => { tree = create(React.createElement(QueryClientProvider, { client: queryClient }, React.createElement(AdminBlanks))); });
+}
+const byTestId = (id: string) => tree.root.findAll(n => n.type === 'button' || n.type === 'select').find(n => n.props['data-testid'] === id)!;
+it('confirms removal, clears confirmation on destination changes, and includes unavailable references in Clear All', async () => {
+  m.data['/api/admin/catalogs'].catalogs[1].blankIds.push('qrg_11999');
+  await mountPage();
+  act(() => byTestId('select-target-catalog').props.onChange({ target: { value: 'members' } }));
+  const card = tree.root.findAllByType('catalog-card')[0];
+  act(() => card.props.onRemove(card.props.item.catalogKey));
+  expect(m.api).not.toHaveBeenCalled(); expect(byTestId('button-confirm-remove-blanks')).toBeDefined();
+  act(() => byTestId('select-target-catalog').props.onChange({ target: { value: 'empty' } }));
+  expect(byTestId('button-confirm-remove-blanks')).toBeUndefined(); expect(m.api).not.toHaveBeenCalled();
+  act(() => byTestId('select-target-catalog').props.onChange({ target: { value: 'members' } }));
+  act(() => byTestId('button-clear-all').props.onClick());
+  await act(async () => byTestId('button-confirm-remove-blanks').props.onClick());
+  expect(m.api).toHaveBeenCalledWith('DELETE', '/api/admin/catalogs/members/blanks', { blankIds: ['qrg_11001', 'qrg_11999'] });
 });

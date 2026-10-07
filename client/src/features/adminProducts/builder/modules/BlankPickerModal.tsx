@@ -20,7 +20,7 @@ interface BlankPickerModalProps {
 
 function BlankPickerInner({ targetCatalogId, onOpenChange }: Pick<BlankPickerModalProps, "targetCatalogId" | "onOpenChange">) {
   const {
-    loadingCatalog,
+    loadingCatalog, loadError, reload, addBlanksMutation,
     catalogs,
     activeCatalog,
     hasCatalogSelected,
@@ -49,23 +49,24 @@ function BlankPickerInner({ targetCatalogId, onOpenChange }: Pick<BlankPickerMod
       const id = String(scrollItem.id);
       const selectItem = sourceItemMap.get(id);
       if (!selectItem) return null;
-      const product = allProductMap.get(id) || allProductMap.get(`pf:${id}`);
+      const product = allProductMap.get(id);
       const blankKey = product ? resolveBlankKey(id, product) : id;
       const inTarget = catalogBlankSet.has(blankKey);
 
       return (
         <BlankPickerRowSkin
           key={id}
-          item={selectItem as any}
+          item={selectItem}
           isSelected={inTarget}
-          onSelect={() => { if (validTargetId && !inTarget) onAddToCatalog(blankKey); }}
+          selectDisabled={!validTargetId || addBlanksMutation.isPending}
+          onSelect={() => { if (validTargetId && !inTarget && !addBlanksMutation.isPending) onAddToCatalog(blankKey); }}
           selectLabel={validTargetId ? "Add" : undefined}
           selectedLabel={validTargetId ? "Added" : undefined}
           disableWhenSelected={!!validTargetId}
         />
       );
     },
-    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, validTargetId, resolveBlankKey]
+    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, validTargetId, resolveBlankKey, addBlanksMutation.isPending]
   );
 
   return (
@@ -78,10 +79,10 @@ function BlankPickerInner({ targetCatalogId, onOpenChange }: Pick<BlankPickerMod
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
-        <DialogTitle className="text-base font-semibold">Add Blank to {targetName}</DialogTitle>
-        <Button size="icon" variant="ghost" onClick={() => onOpenChange(false)} data-testid="modal-blank-picker-close">
+        <Button size="icon" className="h-12 w-12" aria-label="Close blank picker" variant="ghost" onClick={() => onOpenChange(false)} data-testid="modal-blank-picker-close">
           <X className="h-4 w-4" />
         </Button>
+        <DialogTitle className="text-base font-semibold">Add Blank to {targetName}</DialogTitle>
       </div>
 
       {/* Scrollable body — everything scrolls together */}
@@ -143,7 +144,7 @@ function BlankPickerInner({ targetCatalogId, onOpenChange }: Pick<BlankPickerMod
           </div>
 
           {/* Blank list */}
-          {loadingCatalog ? (
+          {loadError ? (<Card className="p-4" role="alert"><p>Could not load blanks: {loadError}</p><Button onClick={reload}>Retry</Button></Card>) : loadingCatalog ? (
             <div className="space-y-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-14 w-full rounded-md" />
@@ -173,7 +174,7 @@ export function BlankPickerModal({ targetCatalogId, open, onOpenChange }: BlankP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={[
-          "p-0 overflow-hidden flex flex-col",
+          "p-0 overflow-hidden flex flex-col [&>button]:hidden",
           // Desktop: centered dialog
           "sm:max-w-lg sm:w-[95vw] sm:max-h-[88vh] sm:rounded-lg",
           // Mobile: full-width bottom sheet anchored to bottom

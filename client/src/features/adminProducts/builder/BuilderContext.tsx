@@ -582,7 +582,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     const provider =
       productProvider ||
       (!rawProvider || rawProvider === 'both' ? 'printify' : rawProvider);
-    adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}`)
+    adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}${product.catalogId && product.catalogId !== "all" ? `&catalogId=${encodeURIComponent(product.catalogId)}` : ""}`)
       .then(options => {
         setState(prev => {
           if (!isCurrent() || prev.selectedProduct?.docId !== docId) return prev;
@@ -897,7 +897,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     setSelectedChannel((metadata.selectedChannel ?? null) as Channel | null);
     setSelectedCollection((metadata.selectedCollection ?? null) as Collection | null);
 
-    const product = resolvedProduct ? { ...resolvedProduct, fulfillmentProvider: metadata.fulfillmentProvider ?? resolvedProduct.fulfillmentProvider } : null;
+    const product = resolvedProduct ? { ...resolvedProduct, catalogId: metadata.selectedCatalogId && metadata.selectedCatalogId !== "all" ? metadata.selectedCatalogId : resolvedProduct.catalogId, images: Array.isArray(working.images) ? working.images : resolvedProduct.images, fulfillmentProvider: metadata.fulfillmentProvider ?? resolvedProduct.fulfillmentProvider } : null;
     // Always re-fetch options on load — the saved product may have stale/partial
     // placements (e.g. only 'front' from a previous session). Setting optionsLoaded:false
     // above is not enough because needsOptionsFetch was computed from the original value.

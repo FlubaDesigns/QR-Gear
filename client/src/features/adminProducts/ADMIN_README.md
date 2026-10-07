@@ -1,8 +1,17 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Left-hand Blanks controls; Assembly/GRF documentation and manifest reconciliation).
+Last updated: October 7, 2026 (Schema-backed Blanks/Catalogs operations and product handoff).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
+
+## Blanks and Catalogs — current sandbox behavior
+
+- `functions/src/services/admin-catalog-routes.ts` owns catalog writes for both server adapters. `shared/catalogs.ts` owns catalog fields and overlay cleanup. Writes use QRG master document IDs and Firestore transactions. Provider tables supply lookups only.
+- `shared/masterCatalog.ts` projects master records; `shared/adapters/catalog.adapter.ts` supplies the shared card model. Blanks and Products display Our cost and saved title/description/image choices. Catalog copies retain colors. Empty saved selections are intentional.
+- `catalog-tier-products.ts` reads the same QRG masters and catalog overrides for members. `catalog-color-options.ts` constrains live fulfillment options to catalog colors; the builder includes the owning catalog on new selection, provider changes and draft reload. Saved draft images survive reload.
+- Removing one blank or clearing a catalog requires confirmation identifying the destination. Changing catalogs cancels confirmation. Missing masters stay visible as unavailable references and can be removed. All per-blank overlays are cleared with membership. Assigned catalogs cannot be deleted; deleting an unassigned default clears that default.
+- Blanks and Catalogs show failed reads with Retry rather than an empty-data message. Add Blank keeps its inherited destination, has one left-side 48px close button, and copies from the selected source without saving provider snapshots. No automatic insertion into Primary.
+- Removed superseded catalog mutation handlers and unused migration endpoints. Shelf remains dormant. Changes are sandbox-only pending the owner's Main release.
 
 ## Required Reading
 

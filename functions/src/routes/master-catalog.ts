@@ -1,3 +1,4 @@
+import { catalogColorOptions } from "../services/catalog-color-options";
 import { Request, Response } from 'express';
 import express from 'express';
 import { db, isEmbroideryPlacement, normalizePlacements } from '../core';
@@ -1011,7 +1012,7 @@ export function register(app: express.Express): void {
         model: product.model || null,
         category: product.qrgCategory || product.category || null,
         availableSizes,
-        availableColors,
+        availableColors: await catalogColorOptions(db, req.query.catalogId, docId, availableColors),
         providerMappings: isProviderObj ? pm : null,
         printLocations,
         provider: {

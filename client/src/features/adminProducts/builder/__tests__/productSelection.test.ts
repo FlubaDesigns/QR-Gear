@@ -374,3 +374,16 @@ describe('Product cards and draft handoff', () => {
     expect(mocks.apiRequest.mock.calls.at(-1)?.[2]).toEqual({ blankId: 'qrg_11002', title: 'Other catalog title' });
   });
 });
+
+describe('Catalog choices through fulfillment and draft reload', () => {
+  it('sends the owning catalog to options lookup and restores intentionally empty saved images', async () => {
+    await mount();
+    await act(async () => current.selectProduct({ ...blank(), catalogId: 'catalog' }));
+    expect(mocks.adminFetch).toHaveBeenCalledWith('/master-catalog/products/qrg_11001/options?provider=printify&catalogId=catalog');
+    await resolveOptions(0, { ...options(), availableColors: [] });
+    expect(current.state.selectedProduct?.availableColors).toEqual([]);
+    await act(async () => current.loadFromWorkingState({ images: [], metadata: { selectedCatalogId: 'catalog', fulfillmentProvider: 'printify' }, qrConfig: {}, graphics: {}, layoutConfig: {} }, { ...blank(), images: ['https://images/master.png'] }));
+    expect(current.state.selectedProduct?.images).toEqual([]);
+    expect(mocks.adminFetch).toHaveBeenLastCalledWith('/master-catalog/products/qrg_11001/options?provider=printify&catalogId=catalog');
+  });
+});

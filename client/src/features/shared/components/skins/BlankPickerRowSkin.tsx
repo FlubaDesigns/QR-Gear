@@ -26,6 +26,7 @@ export interface BlankPickerRowSkinProps {
   selectLabel?: React.ReactNode;
   selectedLabel?: React.ReactNode;
   disableWhenSelected?: boolean;
+  selectDisabled?: boolean;
 }
 
 export function BlankPickerRowSkin({
@@ -38,6 +39,7 @@ export function BlankPickerRowSkin({
   selectLabel,
   selectedLabel,
   disableWhenSelected,
+  selectDisabled,
 }: BlankPickerRowSkinProps) {
   return (
     <div
@@ -78,7 +80,7 @@ export function BlankPickerRowSkin({
             )}
             {item.price != null && (
               <p className="text-xs text-muted-foreground" data-testid={`text-row-price-${item.id}`}>
-                · ${item.price.toFixed(2)}
+                · Our cost ${item.price.toFixed(2)}
               </p>
             )}
             {tier && (
@@ -95,9 +97,9 @@ export function BlankPickerRowSkin({
         <Button
           size="sm"
           variant={isSelected ? "secondary" : "default"}
-          className="flex-shrink-0"
+          className="flex-shrink-0 min-h-12 min-w-12"
           onClick={onSelect}
-          disabled={isSelected && !!disableWhenSelected}
+          disabled={selectDisabled || (isSelected && !!disableWhenSelected)}
           data-testid={`button-row-select-${item.id}`}
         >
           {isSelected ? (

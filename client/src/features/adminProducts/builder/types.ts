@@ -133,6 +133,8 @@ export interface ProviderLayout {
 }
 
 export interface CatalogProduct {
+  /** Catalog supplying this selection; its saved color choices constrain fulfillment lookups. */
+  catalogId?: string | null;
   id: number;
   /** Firestore document ID — always send this as sourceMasterId to build-session endpoints */
   docId?: string;

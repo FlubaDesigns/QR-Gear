@@ -1,3 +1,4 @@
+import { resolveDisplayText } from "@shared/descriptionLayers";
 import { masterBlankImages, resolveCatalogImages } from "@shared/productImages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
@@ -30,19 +31,9 @@ import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getLookupBlankKey, getProductSnapshotKey, isQRGBlankId } from "@shared/blankKeys";
-import { normalizeProductColors, normalizeProductSizes } from "@shared/adapters/catalog.adapter";
-import { resolveDisplayText } from "@shared/descriptionLayers";
+import { catalogToSelectItem } from "@shared/adapters/catalog.adapter";
+import type { AdminCatalog } from "@shared/catalogs";
 import { BlankPickerModal } from "./BlankPickerModal";
-
-interface AdminCatalog {
-  id: string;
-  name: string;
-  blankIds: string[];
-  blankDescriptions?: Record<string, string>;
-  blankTitles?: Record<string, string>;
-  blankImages?: Record<string, string[]>;
-  blankTiers?: Record<string, string>;
-}
 
 // Shelf creation is dormant until the owner chooses to enable it.
 const SHELF_CREATION_ENABLED = false;
@@ -80,55 +71,6 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
   }
   return "unisex";
 }
-
-function catalogToSelectItem(
-  p: CatalogProduct,
-  adminCatalogDescription?: string | null,
-  adminCatalogTitle?: string | null,
-  adminCatalogImages?: string[] | null,
-): ProductSelectItem {
-  const parsedCost = p.minPrice == null ? NaN : Number(p.minPrice);
-  const minPrice = Number.isFinite(parsedCost) ? parsedCost : null;
-  const raw = p as any;
-  const effectiveImages = resolveCatalogImages(masterBlankImages(raw), adminCatalogImages);
-  const providerDescription = p.description || null;
-  const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
-    ? adminCatalogDescription
-    : null;
-  const effectiveDescription = resolveDisplayText({ catalogValue: normalizedAdminDesc, providerValue: providerDescription }).value;
-  const providerTitle = p.title || raw.name || "";
-  const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0
-    ? adminCatalogTitle
-    : null;
-  const effectiveTitle = resolveDisplayText({ catalogValue: normalizedAdminTitle, providerValue: providerTitle }).value;
-  return {
-    id: (p as any).docId || String(p.id),
-    name: effectiveTitle,
-    providerTitle,
-    adminCatalogTitle: normalizedAdminTitle,
-    price: minPrice,
-    cost: null,
-    manufacturer: p.brand || raw.manufacturer || null,
-    madeInUSA: p.madeInUSA ?? false,
-    primaryImageUrl: effectiveImages[0] ?? null,
-    images: effectiveImages,
-    description: effectiveDescription,
-    providerDescription,
-    adminCatalogDescription: normalizedAdminDesc,
-    availableColors: normalizeProductColors(raw),
-    availableSizes: normalizeProductSizes(raw),
-    defaultColor: (() => {
-      const colorMap = raw.colorMap;
-      if (Array.isArray(colorMap) && colorMap.length > 0) {
-        return (colorMap[0] as any).colorName || colorMap[0].name || null;
-      }
-      const first = (p.availableColors || raw.colors || [])[0];
-      if (!first) return null;
-      return typeof first === 'string' ? first : (first.name || (first as any).colorName || null);
-    })(),
-  };
-}
-
 
 interface CatalogCategoryResponse {
   name: string;
@@ -567,7 +509,7 @@ export function ProductsModule() {
       const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
       const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
       const adminImages = activeCatalog?.blankImages?.[blankKey] ?? null;
-      map.set(canonicalId, { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages), catalog: withGender, blankKey });
+      map.set(canonicalId, { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages, activeCatalog?.blankColors?.[blankKey]), catalog: withGender, blankKey });
     });
     return map;
   }, [activeProducts, activeCatalog, catalogKeyMap, activeCatalogBlankIdSet]);
@@ -775,6 +717,7 @@ export function ProductsModule() {
     // fields below; card display overrides are not provider truth.
     const curatedProduct = {
       ...entry.catalog,
+      catalogId: activeCatalog?.id ?? null,
       fulfillmentProvider: selectedProvider,
       images: entry.selectItem.images ?? [],
       imageUrl: entry.selectItem.primaryImageUrl,

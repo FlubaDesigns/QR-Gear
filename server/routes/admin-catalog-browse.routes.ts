@@ -1,3 +1,4 @@
+import { catalogColorOptions } from "../../functions/src/services/catalog-color-options";
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
@@ -1029,7 +1030,7 @@ export function registerAdminCatalogBrowseRoutes(app: Express): void {
         model: product.model || null,
         category: product.qrgCategory || product.category || null,
         availableSizes,
-        availableColors,
+        availableColors: await catalogColorOptions(fsDb, req.query.catalogId, docId, availableColors),
         providerMappings: isPmObj ? pmData : null,
         printLocations,
         provider: {

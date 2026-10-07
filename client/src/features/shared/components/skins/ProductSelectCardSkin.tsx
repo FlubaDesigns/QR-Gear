@@ -914,7 +914,7 @@ function PreviewModal({
                         const selected = item.availableColors
                           .filter(c => selectedColorNames.has(c.name))
                           .map(c => ({ name: c.name, hex: c.hex || '' }));
-                        onColorsSave(item.id, selected);
+                        void onColorsSave(item.id, selected).catch(() => { /* Owner mutation reports save errors. */ });
                       }}
                       data-testid={`button-save-colors-${item.id}`}
                     >

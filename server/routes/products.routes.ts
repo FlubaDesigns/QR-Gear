@@ -1,3 +1,4 @@
+import { masterCatalogProduct } from "../../shared/masterCatalog";
 import type { Express } from "express";
 import { storage } from "../storage";
 import { generateTextQRCode, generateImageQRCode, validateQRContent } from "../lib/qr-generator";
@@ -638,61 +639,8 @@ export function registerProductRoutes(app: Express): void {
         }
         if (!categories[category]) categories[category] = [];
 
-        // Resolve fields — handle both CF schema (printifyBlueprintId/printfulProductId/colors/images)
-        // and legacy Express schema (printifyId/printfulId/availableColors/imageUrl)
-        const blueprintId = p.printifyBlueprintId ?? p.blueprintId ?? null;
-        const printfulId = p.printfulProductId ?? p.printfulId ?? null;
-        const resolvedId = blueprintId ?? printfulId;
-        const colors = p.colors ?? p.availableColors ?? [];
-        const sizes = p.sizes ?? p.availableSizes ?? [];
-        const printifyImages: string[] = p.printifyImages ?? [];
-        const printfulImages: string[] = p.printfulImages ?? [];
-        const allImages: string[] = p.images ?? [...printifyImages, ...printfulImages];
-        const imageUrl = (allImages.length > 0 ? allImages[0] : null) ?? p.imageUrl ?? null;
-        const madeInUSA = p.madeInUSA ?? ((p.originCountry || '').toUpperCase() === 'US');
-        const availableVia: string[] = (p.availableVia ?? (
-          printfulId != null && blueprintId != null ? ['printify', 'printful'] :
-          blueprintId != null ? ['printify'] : ['printful']
-        )).map((v: string) => v.toLowerCase());
-        const fulfillmentProvider = p.fulfillmentProvider ?? (blueprintId != null ? 'printify' : 'printful');
-        const providers = p.providers ?? availableVia;
-
-        categories[category].push({
-          docId: doc.id,
-          // QRG identity fields
-          qrgBlankId: p.qrgBlankId ?? null,
-          qrgCategory: p.qrgCategory ?? null,
-          categorySource: p.categorySource ?? null,
-          providerMappings: p.providerMappings ?? [],
-          canonicalTitle: p.canonicalTitle ?? null,
-          // Images per provider
-          printifyImages,
-          printfulImages,
-          // Legacy + compat fields
-          qrgId: p.qrgId ?? null,
-          id: resolvedId,
-          title: (p.canonicalTitle || p.title || "").trim(),
-          description: (p.description || "").trim() || null,
-          brand: p.brand ?? null,
-          model: p.model ?? null,
-          originCountry: p.originCountry ?? null,
-          imageUrl,
-          madeInUSA,
-          blueprintId,
-          printfulId,
-          printProviderId: p.printProviderId ?? null,
-          minPrice: p.minPrice != null ? String(p.minPrice) : null,
-          maxPrice: p.maxPrice != null ? String(p.maxPrice) : null,
-          colorCount: colors.length,
-          availableColors: colors,
-          availableSizes: sizes,
-          fulfillmentProvider,
-          availableVia,
-          providers,
-          // Per-carrier sub-objects — single source of truth
-          printify: p.printify ?? null,
-          printful: p.printful ?? null,
-        });
+        if (p.isActive === false || p.status === 'archived') continue;
+        categories[category].push(masterCatalogProduct(doc.id, p));
       }
 
       // QRG categories first, then legacy order

@@ -12,6 +12,7 @@ export interface CatalogBlankItem {
   isPrintful?: boolean;
   hasMockupMapping?: boolean;
   qrgBlankId?: string | null;
+  unavailable?: boolean;
 }
 
 export interface AdminCatalogBlankSkinProps {
@@ -47,6 +48,7 @@ export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalog
 
       <div className="px-1 py-1 bg-muted/80">
         <p className="text-[10px] text-foreground truncate leading-tight">{item.title}</p>
+        {item.unavailable && <p className="text-xs text-destructive font-semibold">Unavailable</p>}
         {item.subtitle && (
           <p className="text-[9px] text-muted-foreground truncate leading-tight">{item.subtitle}</p>
         )}

@@ -253,6 +253,14 @@ The Canonical Core is the ONLY truth.
 
 🔚 END OF README — EXECUTION BEGINS
 
+## Blanks and Catalogs — sandbox, October 7, 2026
+
+Blanks and its Catalogs tab now share transactional catalog operations between Express and Cloud Functions. Catalog membership uses canonical QRG master document IDs; Printful/Printify tables remain lookup inputs, never destinations for catalog edits. Copy and duplicate preserve every owned overlay, including color choices and intentionally empty image selections. Removal clears those overlays even when a master blank is missing. Catalog deletion protects assigned catalogs and clears a deleted default atomically. Adding to a selected catalog has no hidden Primary-catalog side effect.
+
+Blanks, Add Blank, Products and member tier choices use the shared master projection and catalog adapter. Cards show **Our cost**. Saved catalog images and colors are respected, including during fulfillment-option lookup and draft image restoration. Single-item removal and Clear All require a catalog-specific confirmation; changing the destination cancels it. Read failures have retry controls; missing master references remain visible and removable. The blank picker has one 48px close control on the left.
+
+Superseded catalog writers, duplicate tier editors, provider-ID catalog resolvers and unused catalog migration endpoints were removed. The dormant shelf workflow remains. Focused tests cover both server prefixes, provider/master immutability, failed bulk-operation rollback, concurrent changes, overlay cleanup, missing blanks, removal scoping, option filtering and product/draft handoff. This work is held on `sandbox/products-fulfillment`; it does not deploy or modify Main.
+
 ## Schema documentation integrity — October 7, 2026
 
 Owner accessibility preference: left-handed, one-finger phone use. Put close/remove X controls on the left with at least 44px tap targets as each screen is updated. Blanks catalog-card removal and the shared product preview close control now follow this preference.
