@@ -573,10 +573,10 @@ export default function AdminSchemaKeys() {
                       surface: "Library › Templates",
                       code: "1·1·1·1",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
+                      view: "ScrollGridView",
                       skin: "TemplateCardSkin",
-                      shape: "ModalView + TemplateDetailSkin",
-                      note: "",
+                      shape: "TemplateShape + TemplateDetailSkin",
+                      note: "Shared template display, deletion, and Products loading",
                     },
                     {
                       surface: "Library › Images",

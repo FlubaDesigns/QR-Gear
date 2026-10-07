@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
@@ -9,9 +10,10 @@ vi.mock('../../ProductsContext', () => ({ useProductsContext: () => m.context })
 let value: ReturnType<typeof useBuilderContext>, tree: ReactTestRenderer;
 function Probe() { value = useBuilderContext(); return null; }
 function Harness() {
+  const [queryClient] = React.useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }));
   const [selectedProviders, setSelectedProviders] = React.useState(['printful']);
   m.context = { ...m.context, selectedProviders, setSelectedProviders };
-  return React.createElement(BuilderProvider, null, React.createElement(Probe));
+  return React.createElement(QueryClientProvider, { client: queryClient }, React.createElement(BuilderProvider, null, React.createElement(Probe)));
 }
 const product = { docId: 'qrg_11001', qrgBlankId: '11001', title: 'Shirt', id: 71, blueprintId: 71, printfulId: 99,
   fulfillmentProvider: 'both', providerMappings: { printify: { blueprintId: 71 }, printful: { productId: 99 } } };

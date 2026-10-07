@@ -1,3 +1,4 @@
+import { projectTemplateDisplay } from '../../../shared/templateDisplay';
 import type { Express } from "express";
 import { storage } from "../../storage";
 import { isAdmin } from "../../firebaseAuth";
@@ -21,10 +22,12 @@ export function registerQrTemplatesRoutes(app: Express): void {
         const ts = t.textStyle as Record<string, any> | null;
         const packetId = ts?.packetId || null;
         const packetSnapshot = ts?.packetSnapshot || null;
+        const packet = packetSnapshot ? { ...packetSnapshot, id: packetId } : null;
         return {
           ...t,
           packetId,
-          packet: packetSnapshot ? { ...packetSnapshot, id: packetId } : null,
+          packet,
+          ...projectTemplateDisplay({ ...t, packet }),
         };
       });
       res.json({ templates });

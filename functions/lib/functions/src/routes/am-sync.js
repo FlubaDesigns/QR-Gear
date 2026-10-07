@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
+const templateDisplay_1 = require("../../../shared/templateDisplay");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const printful_1 = require("../services/printful");
@@ -193,7 +194,7 @@ function register(app) {
                     id: data.packetId || null,
                     qrContent: data.qrContent || null,
                     productName: data.productName || data.name || null,
-                    compositeUrl: data.artworkUrl || data.thumbnailUrl || data.compositeUrl || null,
+                    compositeUrl: data.compositeUrl || data.artworkUrl || null,
                     priorityMockupUrl: data.priorityMockupUrl || null,
                     blueprintId: data.blueprintId || null,
                     printProviderId: data.printProviderId || null,
@@ -230,33 +231,17 @@ function register(app) {
                 } : null;
                 if (!packet)
                     noPacket++;
-                // ── Normalized picker display fields ────────────────────────────────────
-                // These are derived independently of packet so the frontend card always
-                // has a reliable title and image regardless of packet completeness.
-                const previewTitle = data.productName ||
-                    data.name ||
-                    packet?.productName ||
-                    'Untitled Template';
-                const previewImageUrl = data.priorityMockupUrl ||
-                    data.compositeUrl ||
-                    data.thumbnailUrl ||
-                    data.artworkUrl ||
-                    packet?.priorityMockupUrl ||
-                    packet?.compositeUrl ||
-                    null;
-                if (previewImageUrl)
+                const preview = (0, templateDisplay_1.projectTemplateDisplay)({ ...data, packet });
+                if (preview.previewImageUrl)
                     withPreview++;
                 if (!data.productName && !data.name)
                     withFallbackTitle++;
-                const previewPrice = data.pricing?.customerPrice ?? null;
                 return {
                     id: d.id,
                     ...data,
                     packetId: data.packetId || null,
                     packet,
-                    previewTitle,
-                    previewImageUrl,
-                    previewPrice,
+                    ...preview,
                 };
             });
             console.log(`[/admin/templates] returned ${templates.length} templates | withPreview=${withPreview} | fallbackTitle=${withFallbackTitle} | noPacket=${noPacket}`);

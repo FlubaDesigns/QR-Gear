@@ -1,62 +1,14 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import { FolderOpen, Loader2, Image, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ModalView } from "@/features/shared/components/views/ModalView";
+import { ModalView } from "@/features/shared/components/shapes/ModalView";
+import { DeleteTemplateDialog } from "@/features/shared/components/DeleteTemplateDialog";
+import { useTemplateLibrary, templateToSkinItem, type LibraryTemplate } from "@/features/shared/templateLibrary";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { TemplateCardSkin } from "@/features/shared/components/skins/TemplateSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
 import { useBuilderContext } from "../BuilderContext";
-import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
-
-// Packet restoration consumes builderSnapshot; display projections are for thumbnails only.
-type PacketInfo = Record<string, any>;
-
-interface TemplateItem {
-  builderSnapshot?: Record<string, any>;
-  id: string;
-  name?: string;
-  productName?: string;
-  thumbnailUrl?: string;
-  artworkUrl?: string;
-  updatedAt?: string;
-  createdAt?: string;
-  packetId?: string;
-  packet?: PacketInfo | null;
-  previewTitle?: string;
-  previewImageUrl?: string | null;
-  previewPrice?: number | null;
-}
-
-function templateToSkinItem(item: TemplateItem): SkinItem {
-  const primaryImage =
-    item.previewImageUrl ||
-    item.packet?.priorityMockupUrl ||
-    item.packet?.compositeUrl ||
-    item.thumbnailUrl ||
-    item.artworkUrl ||
-    null;
-
-  const name =
-    item.previewTitle ||
-    item.packet?.productName ||
-    item.productName ||
-    item.name ||
-    "Untitled Template";
-
-  const price: number | null =
-    typeof item.previewPrice === "number" ? item.previewPrice : null;
-
-  return {
-    id: item.id,
-    packetId: item.packetId || undefined,
-    name,
-    primaryImage,
-    qrContent: item.packet?.qrContent || null,
-    price,
-    metadata: item,
-  };
-}
 
 interface LoadTemplateModuleProps {
   open?: boolean;
@@ -77,58 +29,21 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
     if (onExternalOpenChange) onExternalOpenChange(v);
   };
 
-  const [templates, setTemplates] = useState<TemplateItem[]>([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const { data: templates = [], isLoading: loadingTemplates, error } = useTemplateLibrary(open);
   const [selecting, setSelecting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-
-
-  const fetchTemplates = useCallback(async () => {
-    setLoadingTemplates(true);
-    try {
-      const data = await adminFetch<{ templates: TemplateItem[] }>("/templates");
-      setTemplates(data.templates || []);
-    } catch {
-      toast({ title: "Could not load templates", variant: "destructive" });
-    } finally {
-      setLoadingTemplates(false);
-    }
-  }, [toast]);
-
-  useEffect(() => {
-    if (open) fetchTemplates();
-  }, [open, fetchTemplates]);
 
   const handleSelect = async (skinItem: SkinItem) => {
     if (selecting || busy || deletingId) return;
     setSelecting(true);
     try {
-      await startFromTemplate(skinItem.metadata as TemplateItem);
+      await startFromTemplate(skinItem.metadata as LibraryTemplate);
       setOpen(false);
       toast({ title: 'Template loaded', description: 'A separate draft is ready to edit.' });
     } catch (error: any) {
       toast({ title: 'Could not load template', description: error.message, variant: 'destructive' });
     } finally { setSelecting(false); }
   };
-
-  const handleDelete = useCallback(
-    async (skinItem: SkinItem) => {
-      const item = skinItem.metadata as TemplateItem;
-      if (!window.confirm(`Delete template "${skinItem.name}"? This cannot be undone.`)) return;
-
-      setDeletingId(item.id);
-      try {
-        await adminFetch(`/templates/${item.id}`, { method: "DELETE" });
-        setTemplates((prev) => prev.filter((t) => t.id !== item.id));
-        toast({ title: "Template deleted" });
-      } catch (err: any) {
-        toast({ title: "Delete failed", description: err.message, variant: "destructive" });
-      } finally {
-        setDeletingId(null);
-      }
-    },
-    [toast]
-  );
 
   const skinItems: SkinItem[] = templates.map(templateToSkinItem);
 
@@ -160,12 +75,13 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
 
       <ModalView
         open={open}
-        onOpenChange={value => { if (!selecting && !busy) setOpen(value); }}
+        onOpenChange={value => { if (!selecting && !busy && !deletingId) setOpen(value); }}
         title="Choose a Template"
         maxWidth="sm:max-w-2xl"
         className="max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!translate-x-0 max-sm:!translate-y-0 max-sm:!w-full max-sm:!max-w-full max-sm:!rounded-t-2xl max-sm:!rounded-b-none max-sm:!h-[88svh] max-sm:!max-h-[88svh]"
       >
         <div className="p-4 overflow-y-auto h-full">
+          {error && <p role="alert" className="text-destructive">Failed to load templates: {error.message}</p>}
           <ScrollGridView
             items={skinItems}
             isLoading={loadingTemplates}
@@ -185,11 +101,12 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
                 <Button
                   variant="destructive"
                   size="icon"
-                  className="absolute top-1 right-1 z-10"
-                  disabled={deletingId === skinItem.id || selecting}
+                  className="absolute top-1 right-1 z-10 h-11 w-11"
+                  aria-label={`Delete ${skinItem.name}`}
+                  disabled={!!deletingId || selecting || !!busy}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDelete(skinItem);
+                    setDeletingId(skinItem.id);
                   }}
                   data-testid={`button-delete-template-${skinItem.id}`}
                 >
@@ -201,13 +118,14 @@ export function LoadTemplateModule({ open: externalOpen, onOpenChange: onExterna
                 </Button>
                 <TemplateCardSkin
                   item={skinItem}
-                  onClick={() => !selecting && handleSelect(skinItem)}
+                  onClick={() => !selecting && !deletingId && !busy && handleSelect(skinItem)}
                 />
               </div>
             )}
           />
         </div>
       </ModalView>
+      <DeleteTemplateDialog templateId={deletingId} onClose={() => setDeletingId(null)} />
     </div>
   );
 }

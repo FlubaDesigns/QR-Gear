@@ -47,7 +47,7 @@ interface BuilderContextValue {
   setProductTitle: (title: string | null, source?: TextLayerSource) => void;
   resetBuilder: () => Promise<void>;
   resumeSession: (id: string) => Promise<void>;
-  startFromTemplate: (template: { packet?: any; packetId?: string; builderSnapshot?: any }) => Promise<void>;
+  startFromTemplate: (template: { packet?: any; packetId?: string | null; builderSnapshot?: any }) => Promise<void>;
   busy: string | null;
   beginBuildActivity: (label: string) => () => void;
   saveDraft: (name: string) => Promise<void>;
@@ -1000,7 +1000,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     });
   }, [switchBuild, loadFromPacketData, loadFromWorkingState, setActiveSession, setActivePacketId]);
 
-  const startFromTemplate = useCallback(async (template: { packet?: any; packetId?: string; builderSnapshot?: any }) => {
+  const startFromTemplate = useCallback(async (template: { packet?: any; packetId?: string | null; builderSnapshot?: any }) => {
     await switchBuild('Loading template…', async () => {
       let packet = { ...template.packet, builderSnapshot: template.builderSnapshot || template.packet?.builderSnapshot };
       if (!packet?.builderSnapshot && template.packetId) {

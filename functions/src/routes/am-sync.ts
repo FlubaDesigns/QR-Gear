@@ -1,3 +1,4 @@
+import { projectTemplateDisplay } from '../../../shared/templateDisplay';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -171,7 +172,7 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
         id: data.packetId || null,
         qrContent: data.qrContent || null,
         productName: data.productName || data.name || null,
-        compositeUrl: data.artworkUrl || data.thumbnailUrl || data.compositeUrl || null,
+        compositeUrl: data.compositeUrl || data.artworkUrl || null,
         priorityMockupUrl: data.priorityMockupUrl || null,
         blueprintId: data.blueprintId || null,
         printProviderId: data.printProviderId || null,
@@ -209,38 +210,16 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
 
       if (!packet) noPacket++;
 
-      // ── Normalized picker display fields ────────────────────────────────────
-      // These are derived independently of packet so the frontend card always
-      // has a reliable title and image regardless of packet completeness.
-
-      const previewTitle =
-        data.productName ||
-        data.name ||
-        packet?.productName ||
-        'Untitled Template';
-
-      const previewImageUrl =
-        data.priorityMockupUrl ||
-        data.compositeUrl ||
-        data.thumbnailUrl ||
-        data.artworkUrl ||
-        packet?.priorityMockupUrl ||
-        packet?.compositeUrl ||
-        null;
-
-      if (previewImageUrl) withPreview++;
+      const preview = projectTemplateDisplay({ ...data, packet });
+      if (preview.previewImageUrl) withPreview++;
       if (!data.productName && !data.name) withFallbackTitle++;
-
-      const previewPrice: number | null = (data.pricing as any)?.customerPrice ?? null;
 
       return {
         id: d.id,
         ...data,
         packetId: data.packetId || null,
         packet,
-        previewTitle,
-        previewImageUrl,
-        previewPrice,
+        ...preview,
       };
     });
 
