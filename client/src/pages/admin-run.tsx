@@ -25,12 +25,16 @@ import {
   CheckCircle,
   Trash2,
   FileText,
+  ListChecks,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import AdminShell from "@/components/AdminShell";
+import PriorityQueue from "@/components/admin/AdminPriorityQueue";
 import { adminFetch } from "@/lib/adminFetch";
 import { formatCurrency, formatTrend } from "@/lib/admin-utils";
 import { queryClient } from "@/lib/queryClient";
@@ -361,6 +365,7 @@ function InProgressSection() {
 
 export default function AdminRun() {
   const [, navigate] = useLocation();
+  const [showTodoList, setShowTodoList] = useState(false);
 
   return (
     <AdminShell
@@ -371,6 +376,23 @@ export default function AdminRun() {
       noPadding={false}
     >
       <div className="space-y-6">
+        <section className="space-y-3">
+          <Button
+            type="button"
+            className="w-full min-h-[72px] justify-start whitespace-normal rounded-xl px-5 py-4 text-xl"
+            aria-expanded={showTodoList}
+            aria-controls="admin-todo-list"
+            onClick={() => setShowTodoList((open) => !open)}
+            data-testid="button-dashboard-todo"
+          >
+            <ListChecks aria-hidden="true" className="mr-2" />
+            To-Do List
+            {showTodoList ? <ChevronUp aria-hidden="true" className="ml-auto" /> : <ChevronDown aria-hidden="true" className="ml-auto" />}
+          </Button>
+          <div id="admin-todo-list" hidden={!showTodoList}>
+            {showTodoList && <PriorityQueue />}
+          </div>
+        </section>
         <MetricsSection />
 
         <InProgressSection />

@@ -20,7 +20,14 @@ export interface QueueItem {
 }
 
 async function buildQueue(): Promise<QueueItem[]> {
-  const items: QueueItem[] = [];
+  const items: QueueItem[] = [{
+    id: 'connect-to-surfaces',
+    title: 'Connect to surfaces',
+    reason: 'Complete QR Gear surface connections and verify the linked selling destinations.',
+    priority: 'next',
+    category: 'place',
+    href: '/admin/marketplaces',
+  }];
 
   const settled = await Promise.allSettled([
     // 1. Stripe Connect — check if live secret key is set

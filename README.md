@@ -406,3 +406,10 @@ Validation: 186 client tests, TypeScript and production build passed. Shared sch
 ## Partner member integration foundation — sandbox, October 7, 2026
 
 The dedicated [Partner Member Storefronts and Builders](FIREBASE_SCHEMA.md#partner-member-storefronts-and-builders--planned) section records the owner's planned partner-site → individual-member → mini storefront/builder relationship. Both partner and authenticated member identity are required context; existing store, builder, product and asset references remain the source of truth. This is documentation, not runtime provisioning or a migration. Website integration and the expanded member experience belong to the second push; the current tab review is limited to schema consistency and wiring defects. No navigation redesign or external-site implementation is included.
+
+
+## Dashboard To-Do List — sandbox, October 7, 2026
+
+The current `/admin` Run dashboard now has a full-width, 72px-minimum To-Do List button above the metrics. It expands the existing authenticated Priority Queue, previously stranded on the unused older dashboard page. `AdminPriorityQueue.tsx` is the shared renderer; the older page imports it rather than retaining a duplicate implementation. Task cards and Refresh have large tap targets. Read failures and malformed responses show an explicit error with Retry, and opening the list uses the existing query cache without scheduled polling.
+
+The existing queue includes the owner's **Connect to surfaces** reminder, linked to Marketplaces. It is a persistent code-backed reminder, not a newly introduced task collection or completion editor. No marketplace account was connected or listing published by adding it. QRG/BLD/GRF/Assembly schemas are unchanged. Held in sandbox for the combined release.

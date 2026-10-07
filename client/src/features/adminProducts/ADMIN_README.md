@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Marketplace wiring, sandbox).
+Last updated: October 7, 2026 (Marketplace wiring and Dashboard To-Do List, sandbox).
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -386,6 +386,15 @@ Order confirmations and shipping notices use `email_templates` and `email_logs`,
 ---
 
 ## Recent Changes Log
+
+### October 7, 2026 — Dashboard To-Do List (sandbox)
+
+Run now displays a full-width To-Do List button above metrics, with a minimum 72px height. It expands the existing server queue and includes **Connect to surfaces**, linking to Marketplaces. The queue renderer moved out of the unused older dashboard into one shared component. It retains priority ordering, uses accessible 64px-minimum task buttons and a 48px Refresh control, and shows failures with Retry. The reminder lives in the existing queue response; there is no new task collection or automatic completion claim. No scheduled polling is added.
+
+Files: `client/src/pages/admin-run.tsx`, `client/src/pages/admin.tsx`, `client/src/components/admin/AdminPriorityQueue.tsx`, `functions/src/routes/admin-dashboard.ts`, `client/src/lib/__tests__/adminTodo.test.ts`, `functions/src/services/__tests__/admin-dashboard.test.ts`, `README.md`, `MANIFEST.json`.
+
+Validation: React interaction and HTTP authorization/repeated-read tests use controlled API/database fixtures. Changes remain in sandbox, with no live marketplace action or Main deployment.
+
 
 ### October 7, 2026 — Partner member schema foundation (sandbox)
 
