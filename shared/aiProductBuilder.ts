@@ -1,4 +1,11 @@
 /** AI proposes edits to the existing build snapshot; never a second product. */
+/** One rulebook feeds both the admin Rules tab and every AI build prompt. */
+export const AI_BUILD_RULES = [
+  'QRG tables are the only source for product blanks, colors, sizes, blank images and product specifications.',
+  'Never read Printify or Printful tables or query their APIs to select or describe a blank, including as a fallback.',
+  'If a required value is missing, request it through QRG table logic. Only that logic may import from provider tables. Read and use the resulting value from QRG; never bypass QRG or invent a value.',
+  'Use only actual color and size combinations recorded in QRG. Keep the existing QRG identity and the canonical BLD, GRF and Assembly records.',
+] as const;
 export const AI_PRODUCT_FIELDS = {
   title: { label: 'Product title', path: ['title'], max: 140 },
   description: { label: 'Product description', path: ['description'], max: 5000 },
@@ -57,5 +64,5 @@ export function applyAiProductProposal(working: any, proposal: AiProductProposal
   return next;
 }
 export function aiProductPrompt(prompt: string, working: any, previous?: AiProductProposal): string {
-  return `Help the admin create a QR Gear product. Return only JSON matching {"message":"explanation or a clarifying question","changes":{}}. Allowed changes and limits: ${JSON.stringify(AI_PRODUCT_FIELDS)}. Omit fields that should remain unchanged. Ask a question with empty changes if details are missing. Do not invent product facts, prices, IDs, media, URLs or provider capabilities. Do not publish or execute code. The admin reviews changes before applying them to the existing draft. Product context: ${aiProductContext(working)}. Previous suggestion: ${JSON.stringify(previous ?? null)}. Admin request: ${prompt}`;
+  return `Help the admin create a QR Gear product. Mandatory build rules: ${JSON.stringify(AI_BUILD_RULES)}. Return only JSON matching {"message":"explanation or a clarifying question","changes":{}}. Allowed changes and limits: ${JSON.stringify(AI_PRODUCT_FIELDS)}. Omit fields that should remain unchanged. Ask a question with empty changes if details are missing. Do not invent product facts, prices, IDs, media, URLs or provider capabilities. Do not publish or execute code. The admin reviews changes before applying them to the existing draft. Product context: ${aiProductContext(working)}. Previous suggestion: ${JSON.stringify(previous ?? null)}. Admin request: ${prompt}`;
 }
