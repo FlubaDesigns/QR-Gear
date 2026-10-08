@@ -1,3 +1,4 @@
+import { APPAREL_SIZE_ORDER, DEFAULT_SIZE_UPCHARGES } from '@shared/storefrontTypes';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
@@ -31,6 +32,7 @@ interface BrandLabelPricing {
 }
 
 interface PricingSettings {
+  sizeUpcharges: Record<string, number>;
   markupPercent: number;
   markupFixed: number;
   additionalPlacementCost: number;
@@ -50,6 +52,7 @@ export default function AdminPricing() {
     queryKey: ["/api/pricing-settings"],
   });
 
+  const [sizeUpcharges, setSizeUpcharges] = useState<Record<string, number>>(DEFAULT_SIZE_UPCHARGES);
   const [markupPercent, setMarkupPercent] = useState<string>("");
   const [markupFixed, setMarkupFixed] = useState<string>("");
   const [additionalPlacementCost, setAdditionalPlacementCost] = useState<string>("");
@@ -68,6 +71,7 @@ export default function AdminPricing() {
   const [initialized, setInitialized] = useState(false);
 
   if (settings && !initialized) {
+    setSizeUpcharges(settings.sizeUpcharges || DEFAULT_SIZE_UPCHARGES);
     setMarkupPercent(String(settings.markupPercent));
     setMarkupFixed(String(settings.markupFixed));
     setAdditionalPlacementCost(String(settings.additionalPlacementCost));
@@ -87,7 +91,7 @@ export default function AdminPricing() {
 
   const saveMutation = useMutation({
     mutationFn: async (data: PricingSettings) => {
-      const res = await apiRequest("POST", "/api/pricing-settings", data);
+      const res = await apiRequest("POST", "/api/admin/pricing-settings", data);
       return res.json();
     },
     onSuccess: () => {
@@ -101,6 +105,7 @@ export default function AdminPricing() {
 
   const handleSave = () => {
     saveMutation.mutate({
+      sizeUpcharges,
       markupPercent: parseFloat(markupPercent) || 0,
       markupFixed: parseFloat(markupFixed) || 0,
       additionalPlacementCost: parseFloat(additionalPlacementCost) || 0,
@@ -277,6 +282,19 @@ export default function AdminPricing() {
                 Charged when a full graphic image is uploaded to the center area (behind or replacing the QR code)
               </p>
             </div>
+          </div>
+        </AdminSectionCard>
+
+        <AdminSectionCard title="Size Price Increases" icon={DollarSign} description="Added to the base product price for the selected size.">
+          <div className="grid grid-cols-3 gap-4">
+            {APPAREL_SIZE_ORDER.map(size => (
+              <div key={size} className="space-y-2">
+                <Label htmlFor={`size-price-${size}`}>{size} ($)</Label>
+                <Input id={`size-price-${size}`} type="number" min="0" step="0.01"
+                  value={sizeUpcharges[size] ?? 0}
+                  onChange={e => setSizeUpcharges(current => ({ ...current, [size]: Math.max(0, Number(e.target.value) || 0) }))} />
+              </div>
+            ))}
           </div>
         </AdminSectionCard>
 
