@@ -37,6 +37,10 @@ describe('saved product lead photo', () => {
     expect(() => leadPhotoPatch({}, url, 'asset')).toThrow('saved build');
     expect(() => leadPhotoPatch({ ...packet, builderSnapshot: { ...packet.builderSnapshot, qrConfig: { selectedColor: { name: 'Black.admin' } } } }, url, 'asset')).toThrow('safely');
   });
+  it('uses the actual saved mockup size when the older layout leaves it implicit', () => {
+    const older = { ...packet, builderSnapshot: { ...packet.builderSnapshot, layoutConfig: { ...packet.builderSnapshot.layoutConfig, placementSizes: {} } } };
+    expect(leadPhotoPatch(older, url, 'asset').patch['mockupsByColor.Black.front.medium']).toBe(url);
+  });
   it('registers the right output format before patching and rebuilding the existing product', async () => {
     request.mockResolvedValueOnce({ instance: { id: 'instance' } }).mockResolvedValueOnce({ packet })
       .mockResolvedValueOnce({ grfId: 'GRF-21221-000100', asset: { publicUrl: url } }).mockResolvedValueOnce({ success: true }).mockResolvedValueOnce({ success: true });

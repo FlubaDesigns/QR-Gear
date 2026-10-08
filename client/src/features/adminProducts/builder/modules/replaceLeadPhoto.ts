@@ -8,12 +8,15 @@ export function leadPhotoPatch(packet: Record<string, any>, publicUrl: string, g
   const snapshot = packet.builderSnapshot;
   const placement = snapshot?.layoutConfig?.selectedPlacements?.find((key: string) => FRONT_PLACEMENTS.includes(key));
   const color = snapshot?.qrConfig?.selectedColor?.name;
-  const size = snapshot?.layoutConfig?.placementSizes?.[placement];
-  if (!placement || !color || !size) throw new Error('The saved build needs a front placement, color and print size.');
+  if (!placement || !color) throw new Error('The saved build needs a front placement and color.');
   const colors = packet.mockupsByColor || {};
   const colorKey = Object.keys(colors).find(key => key.toLowerCase() === color.toLowerCase()) || color;
-  if ([colorKey, size].some(key => /[.\[\]*~/]/.test(key))) throw new Error('This saved color or size cannot be updated safely.');
   const sizes = colors[colorKey]?.[placement] || {};
+  // Older builds store their resolved size only in the generated mockup map.
+  const savedSize = Object.keys(sizes).find(key => key !== 'lifestyle' && typeof sizes[key] === 'string' && sizes[key].startsWith('https://'));
+  const size = snapshot?.layoutConfig?.placementSizes?.[placement] || savedSize;
+  if (!size) throw new Error('The saved build has no front mockup size. Generate its preview first.');
+  if ([colorKey, size].some(key => /[.\[\]*~/]/.test(key))) throw new Error('This saved color or size cannot be updated safely.');
   const patch: Record<string, string> = {
     priorityMockupUrl: publicUrl,
     storeFrontGrfId: grfId,
