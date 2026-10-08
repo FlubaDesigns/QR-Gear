@@ -389,6 +389,20 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Close gaps found while adapting the Air Force build
+
+Follow the same shared AI Build Rules when adapting a completed reference: Save as New, verify destination, identify the correct Library/Cropped asset in the target environment, replace subject copy without duplicating a baked-in title, and verify every generated gallery artifact. The draft name is separate from the store title. Output now exposes the existing product title and description controls without requiring a catalog card. Generate uses the captured product title for the new landing slug; existing content title remains a legacy fallback.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/aiProductBuilder.ts` | Extend the one shared rulebook with observed workflow gaps |
+| `client/src/features/adminProducts/builder/modules/CreateGraphicsModule.tsx` | Expose existing product text setters in Output |
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Derive the new landing slug from the captured product title |
+| `client/src/features/adminProducts/builder/__tests__/commandButtons.test.ts` | Verify resumed-draft metadata controls without catalog data |
+| `functions/src/index.ts` | Sandbox deployment marker |
+
+
 ### October 8, 2026 — Keep all generated images after mockups arrive
 
 Products already generated and saved the shirt artwork, standalone QR and landing proof. The shared storefront gallery now appends those packet images after selected-color mockups instead of returning early with only mockups. It preserves API order, deduplicates URLs and excludes other-color mockups when switching colors. The existing generation workflow and source packet remain authoritative.
