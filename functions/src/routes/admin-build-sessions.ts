@@ -1,6 +1,6 @@
 import { resolveBuildDestination, destinationMetadata } from '../services/build-destination';
 import { resolveInstance as resolveFields } from '../services/instance-resolver';
-import { buildPacketImageOrder, instanceCatalogImages, masterBlankImages, resolveCatalogImages } from "../../../shared/productImages";
+import { buildPacketImageOrder, masterBlankImages, resolveCatalogImages } from "../../../shared/productImages";
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
 import { readGeneratedBuild, existingBuildInstance, saveBuildInstance, saveGeneratedBuildArtifact } from '../services/build-session-state';
@@ -894,8 +894,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         .where('currentPacketId', '==', packetId).limit(1).get();
       if (!instanceSnap.empty) {
         const instRef = instanceSnap.docs[0].ref;
-        const instData = instanceSnap.docs[0].data();
-        const updatedImages = buildPacketImageOrder({ ...packet, ...packetUpdate }, instanceCatalogImages(instData));
+        const updatedImages = buildPacketImageOrder({ ...packet, ...packetUpdate });
         await instRef.update({
           'resolved.images': updatedImages,
           updatedAt: FieldValue.serverTimestamp(),
