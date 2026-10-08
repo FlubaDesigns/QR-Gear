@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 import { useProductGraphicPreview } from "@/hooks/useProductGraphicPreview";
-import type { TextStyle } from "@/features/shared/graphics/productGraphicRenderer";
+import type { TextStyle, RenderOptions } from "@/features/shared/graphics/productGraphicRenderer";
 
 interface TextOverlay {
   text: string;
@@ -21,6 +21,7 @@ interface TextOverlay {
 }
 
 export interface GraphicPreviewViewProps {
+  renderOptions?: RenderOptions;
   backgroundColor?: string;
   backgroundImage?: string;
   headerStyle?: TextOverlay;
@@ -73,6 +74,7 @@ function toTextStyle(overlay?: TextOverlay): TextStyle | null {
 }
 
 export function GraphicPreviewView({
+  renderOptions,
   backgroundColor = "#1a1a2e",
   backgroundImage,
   headerStyle,
@@ -96,7 +98,9 @@ export function GraphicPreviewView({
   const aspectClass =
     aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-square";
 
-  const { dataUrl, isLoading } = useProductGraphicPreview({
+  const dimensions = renderOptions?.providerLayout?.dimensions;
+  const { dataUrl, isLoading, error } = useProductGraphicPreview({
+    renderOptions,
     qrContent: qrContent || "https://qrgear.app",
     qrColor:
       backgroundColor && getLuminance(backgroundColor) < 0.5
@@ -124,14 +128,13 @@ export function GraphicPreviewView({
   return (
     <div
       className={`relative w-full max-w-[280px] sm:max-w-[200px] mx-auto ${aspectClass} rounded-lg overflow-hidden border-2 border-border shadow-lg ${className}`}
-      style={
-        backgroundImage
-          ? { background: `url(${backgroundImage}) center/cover` }
-          : undefined
-      }
+      style={{
+        ...(backgroundImage ? { background: `url(${backgroundImage}) center/cover` } : { backgroundColor }),
+        ...(dimensions ? { aspectRatio: `${dimensions.widthPx} / ${dimensions.heightPx}` } : {}),
+      }}
       data-testid="graphic-preview-view"
     >
-      {isLoading && !dataUrl ? (
+      {error ? <p role="alert" className="p-3 text-sm text-destructive">{error}</p> : isLoading && !dataUrl ? (
         <div className="absolute inset-0 flex items-center justify-center bg-muted/50">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
