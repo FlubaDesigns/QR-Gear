@@ -5,8 +5,8 @@ export function imageUrls(images: unknown): string[] {
     .filter((url): url is string => typeof url === 'string' && url.trim().length > 0).map(url => url.trim())));
 }
 
-export function resolveProductImages(layers: { mockups?: unknown; proofs?: unknown; catalog?: unknown }): string[] {
-  return imageUrls([...imageUrls(layers.mockups), ...imageUrls(layers.proofs), ...imageUrls(layers.catalog)]);
+export function resolveProductImages(layers: { mockups?: unknown; proofs?: unknown }): string[] {
+  return imageUrls([...imageUrls(layers.mockups), ...imageUrls(layers.proofs)]);
 }
 
 /** An empty selection is intentional. Only a missing override inherits the originals. */
@@ -27,14 +27,13 @@ export function instanceCatalogImages(instance: Record<string, any>): string[] {
 }
 
 const PLACEMENT_ORDER = ['front', 'front-center', 'back', 'left_sleeve', 'right_sleeve'];
-export function buildPacketImageOrder(packet: Record<string, any>, catalogImages: unknown = [], additionalMockups: unknown = []): string[] {
+export function buildPacketImageOrder(packet: Record<string, any>, additionalMockups: unknown = []): string[] {
   const placements = packet.placementMockupUrls || {};
   const keys = Object.keys(placements);
   const orderedKeys = [...PLACEMENT_ORDER.filter(key => keys.includes(key)), ...keys.filter(key => !PLACEMENT_ORDER.includes(key))];
   return resolveProductImages({
     mockups: [packet.lifestyleMockupUrl, ...imageUrls(additionalMockups), ...orderedKeys.map(key => placements[key]), packet.priorityMockupUrl],
     proofs: [packet.compositeUrl || packet.productGraphicUrl, ...Object.values(packet.sleeveCompositeUrls || {}), packet.sleeveCompositeUrl, packet.qrOnlyUrl, packet.landingPageSnapshotUrl],
-    catalog: catalogImages,
   });
 }
 
