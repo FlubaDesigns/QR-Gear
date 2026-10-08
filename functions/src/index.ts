@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261008-sandbox-generated-gallery';
+const _BUILD_ID = '20261008-sandbox-build-parity';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
