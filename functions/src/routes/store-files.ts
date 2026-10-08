@@ -1,5 +1,5 @@
 import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
-import { buildPacketImageOrder, resolveProductImages } from "../../../shared/productImages";
+import { buildPacketImageOrder, resolveProductImages, packetLeadColor } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -79,7 +79,8 @@ function extractPacketMockups(pkt: Record<string, any>): {
     return { mockupsByColor: null, mockupImages: buildPacketImageOrder(pkt), defaultColor: null };
   }
 
-  const defaultColor = Object.keys(result)[0];
+  const savedLeadColor = packetLeadColor(pkt);
+  const defaultColor = savedLeadColor && result[savedLeadColor] ? savedLeadColor : Object.keys(result)[0];
   const first = result[defaultColor];
   const mockupImages: string[] = [];
   if (first.front) mockupImages.push(first.front);

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { adminFetch } from '@/lib/adminFetch';
 import { leadPhotoPatch, replaceLeadPhoto } from './replaceLeadPhoto';
-import { buildPacketImageOrder } from '@shared/productImages';
+import { buildPacketImageOrder, packetLeadColor } from '@shared/productImages';
 
 vi.mock('@/lib/adminFetch', () => ({ adminFetch: vi.fn() }));
 const request = vi.mocked(adminFetch);
@@ -24,6 +24,21 @@ beforeEach(() => {
 });
 
 describe('saved product lead photo', () => {
+  it('adds a new lead color without overwriting the old color, print or QR', () => {
+    const before = JSON.stringify(packet);
+    const older = { ...packet, builderSnapshot: { ...packet.builderSnapshot, layoutConfig: { ...packet.builderSnapshot.layoutConfig, placementSizes: {} } } };
+    const { patch, color } = leadPhotoPatch(older, url, 'asset', 'Military Green');
+    expect(color).toBe('Military Green');
+    expect(patch['mockupsByColor.Military Green.front.medium']).toBe(url);
+    expect(patch).not.toHaveProperty('mockupsByColor.Black.front.medium');
+    expect(JSON.stringify(packet)).toBe(before);
+  });
+  it('opens the saved lead color even when another color was cached first', () => {
+    const updated = { ...packet, priorityMockupUrl: url, mockupsByColor: { ...packet.mockupsByColor, 'Military Green': { front: { medium: url } } } };
+    expect(packetLeadColor(updated)).toBe('Military Green');
+    expect(packetLeadColor({ ...packet, priorityMockupUrl: null })).toBe('Black');
+    expect(packetLeadColor({})).toBeNull();
+  });
   it('replaces only display references and keeps print, QR, other colors and lifestyle intact', () => {
     const before = JSON.stringify(packet);
     const { patch } = leadPhotoPatch(packet, url, 'GRF-21221-000100');

@@ -15,6 +15,7 @@ import { useCreatePacket } from "./useCreatePacket";
 import { replaceLeadPhoto } from './replaceLeadPhoto';
 import { queryClient } from '@/lib/queryClient';
 import { refreshBuildLibrary } from '@/features/adminLibrary/shared/grfQueryKeys';
+import { packetLeadColor } from '@shared/productImages';
 
 interface HostingTier {
   code: string;
@@ -58,11 +59,13 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
   const [leadPhoto, setLeadPhoto] = useState<File | null>(null);
+  const [leadPhotoColor, setLeadPhotoColor] = useState('');
   const [savingLeadPhoto, setSavingLeadPhoto] = useState(false);
   const [leadPhotoError, setLeadPhotoError] = useState<string | null>(null);
   const leadPhotoInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     setLeadPhoto(null);
+    setLeadPhotoColor('');
     setLeadPhotoError(null);
     if (leadPhotoInput.current) leadPhotoInput.current.value = '';
   }, [state.activePacketId]);
@@ -158,6 +161,7 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
           .filter((c): c is string => typeof c === 'string' && c.length > 0);
         const str = (v: unknown): string => (typeof v === 'string' ? v : '');
         const strOrNull = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
+        setLeadPhotoColor(packetLeadColor(p) || '');
         setPacketResult({
           packetId: state.activePacketId ?? '',
           landingPageUrl: str(p.qrContent) || str(p.landingPageUrl),
@@ -229,7 +233,9 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
     setLeadPhotoError(null);
     const packetId = packetResult.packetId;
     try {
-      const result = await replaceLeadPhoto(packetId, state.committedInstanceId, leadPhoto);
+      const color = leadPhotoColor || state.selectedColor?.name;
+      if (!color || !state.selectedProduct?.availableColors.some(option => option.name === color)) throw new Error('Choose an available shirt color.');
+      const result = await replaceLeadPhoto(packetId, state.committedInstanceId, leadPhoto, color);
       setPacketResult(prev => prev?.packetId === packetId ? { ...prev,
         priorityMockupUrl: result.url, placementMockupUrls: result.placementMockupUrls,
         lifestyleMockupUrl: result.lifestyleMockupUrl } : prev);
@@ -414,7 +420,13 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
             </div>
             <div className="space-y-3 rounded-md border p-4">
               <label htmlFor="lead-photo-input" className="block text-base font-semibold">Replace lead photo</label>
-              <p className="text-sm text-muted-foreground">Choose the first storefront photo for the saved shirt color. Your print design and QR page stay the same.</p>
+              <p className="text-sm text-muted-foreground">Choose the photo and matching shirt color shown first in the store and on the product page. Your print design and QR page stay the same.</p>
+              <label htmlFor="lead-photo-color" className="block text-sm font-medium">Lead photo shirt color</label>
+              <select id="lead-photo-color" className="w-full min-h-12 rounded-md border bg-background px-3"
+                value={leadPhotoColor || state.selectedColor?.name || ''} disabled={savingLeadPhoto}
+                onChange={event => setLeadPhotoColor(event.target.value)}>
+                {state.selectedProduct.availableColors.map(color => <option key={color.name} value={color.name}>{color.name}</option>)}
+              </select>
               <input id="lead-photo-input" ref={leadPhotoInput} type="file" accept="image/png,image/jpeg,image/webp"
                 className="block w-full min-h-12 text-sm" disabled={savingLeadPhoto || packetResult.priorityMockupLoading}
                 onChange={event => { setLeadPhoto(event.target.files?.[0] || null); setLeadPhotoError(null); }} />

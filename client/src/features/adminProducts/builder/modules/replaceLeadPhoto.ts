@@ -4,16 +4,17 @@ import { GRF_PACKET_SLOTS, GRF_IMAGE_MAX_BYTES, mimeToGrfFormat, normalizeMimeTy
 const FRONT_PLACEMENTS = ['front', 'front-center', 'chest', 'front_center'];
 
 /** Only saved display fields change. Print files, QR content and the Assembly stay intact. */
-export function leadPhotoPatch(packet: Record<string, any>, publicUrl: string, grfId: string) {
+export function leadPhotoPatch(packet: Record<string, any>, publicUrl: string, grfId: string, selectedColor?: string) {
   const snapshot = packet.builderSnapshot;
   const placement = snapshot?.layoutConfig?.selectedPlacements?.find((key: string) => FRONT_PLACEMENTS.includes(key));
-  const color = snapshot?.qrConfig?.selectedColor?.name;
+  const color = selectedColor || snapshot?.qrConfig?.selectedColor?.name;
   if (!placement || !color) throw new Error('The saved build needs a front placement and color.');
   const colors = packet.mockupsByColor || {};
   const colorKey = Object.keys(colors).find(key => key.toLowerCase() === color.toLowerCase()) || color;
   const sizes = colors[colorKey]?.[placement] || {};
   // Older builds store their resolved size only in the generated mockup map.
-  const savedSize = Object.keys(sizes).find(key => key !== 'lifestyle' && typeof sizes[key] === 'string' && sizes[key].startsWith('https://'));
+  const sourceSizes = colors[snapshot?.qrConfig?.selectedColor?.name]?.[placement] || {};
+  const savedSize = Object.keys({ ...sourceSizes, ...sizes }).find(key => key !== 'lifestyle' && typeof (sizes[key] || sourceSizes[key]) === 'string' && (sizes[key] || sourceSizes[key]).startsWith('https://'));
   const size = snapshot?.layoutConfig?.placementSizes?.[placement] || savedSize;
   if (!size) throw new Error('The saved build has no front mockup size. Generate its preview first.');
   if ([colorKey, size].some(key => /[.\[\]*~/]/.test(key))) throw new Error('This saved color or size cannot be updated safely.');
@@ -32,7 +33,7 @@ export function leadPhotoPatch(packet: Record<string, any>, publicUrl: string, g
   return { patch, placement, color };
 }
 
-export async function replaceLeadPhoto(packetId: string, instanceId: string, file: File) {
+export async function replaceLeadPhoto(packetId: string, instanceId: string, file: File, selectedColor?: string) {
   const mimeType = normalizeMimeType(file.type);
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) throw new Error('Choose a PNG, JPEG or WebP photo.');
   if (!file.size || file.size > GRF_IMAGE_MAX_BYTES) throw new Error('Choose a photo between 1 byte and 20 MB.');
@@ -42,7 +43,7 @@ export async function replaceLeadPhoto(packetId: string, instanceId: string, fil
   const packet = data.packet;
   if (!packet) throw new Error('The saved packet could not be read.');
   // Validate the destination before uploading an asset.
-  leadPhotoPatch(packet, '', '');
+  leadPhotoPatch(packet, '', '', selectedColor);
   const imageUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => typeof reader.result === 'string' ? resolve(reader.result) : reject(new Error('Could not read this photo.'));
@@ -55,7 +56,7 @@ export async function replaceLeadPhoto(packetId: string, instanceId: string, fil
   });
   if (!uploaded.grfId || !uploaded.asset?.publicUrl) throw new Error('The photo upload returned no saved asset.');
   const url = uploaded.asset.publicUrl;
-  const { patch, placement, color } = leadPhotoPatch(packet, url, uploaded.grfId);
+  const { patch, placement, color } = leadPhotoPatch(packet, url, uploaded.grfId, selectedColor);
   await adminFetch(`/packets/${packetId}`, { method: 'PATCH', json: patch });
   await adminFetch(`/catalog-instances/${instanceId}/rebuild-images`, { method: 'POST', json: {} });
   return { url, color, placementMockupUrls: { ...packet.placementMockupUrls, [placement]: url },

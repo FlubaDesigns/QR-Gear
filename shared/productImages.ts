@@ -27,6 +27,15 @@ export function instanceCatalogImages(instance: Record<string, any>): string[] {
 }
 
 const PLACEMENT_ORDER = ['front', 'front-center', 'back', 'left_sleeve', 'right_sleeve'];
+/** The saved lead photo identifies its shirt color; cached map order cannot change it. */
+export function packetLeadColor(packet: Record<string, any>): string | null {
+  const colors = packet.mockupsByColor || {};
+  const match = Object.keys(colors).find(color => Object.values(colors[color] || {}).some((sizes: any) =>
+    Object.entries(sizes || {}).some(([size, url]) => size !== 'lifestyle' && !!packet.priorityMockupUrl && url === packet.priorityMockupUrl)));
+  const saved = packet.builderSnapshot?.qrConfig?.selectedColor?.name;
+  return match || Object.keys(colors).find(color => color.toLowerCase() === saved?.toLowerCase()) || Object.keys(colors)[0] || null;
+}
+
 export function buildPacketImageOrder(packet: Record<string, any>, additionalMockups: unknown = []): string[] {
   const placements = packet.placementMockupUrls || {};
   const keys = Object.keys(placements);
