@@ -389,7 +389,7 @@ export function ProductGraphicTextModule() {
                 <Slider
                   value={[sizeVal]}
                   onValueChange={([v]) => safeSetContent({ qrSizePercent: v })}
-                  min={30}
+                  min={MIN_SAFE_QR_SIZE_PERCENT}
                   max={55}
                   step={1}
                   data-testid="slider-admin-qr-size"
@@ -448,7 +448,7 @@ export function ProductGraphicTextModule() {
 
             <div className="mt-2 rounded-md border border-blue-500/20 bg-blue-500/10 p-2">
               <p className="text-[11px] text-blue-100" data-testid="text-admin-qr-guardrail-notice">
-                Readability guardrails are active. QR size cannot go below {MIN_SAFE_QR_SIZE_PERCENT}% to protect scan reliability.
+                QR size can be adjusted down to {MIN_SAFE_QR_SIZE_PERCENT}%. Scan readability depends on the final print size and the clear border around the code.
               </p>
             </div>
           </div>
