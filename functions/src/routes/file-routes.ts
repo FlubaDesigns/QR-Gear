@@ -1,6 +1,6 @@
 import { createAdminImageLibrary } from '../services/admin-image-library';
 import { registerAdminImageRoutes } from '../services/admin-image-routes';
-import { buildPacketImageOrder, instanceCatalogImages } from "../../../shared/productImages";
+import { buildPacketImageOrder } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -166,12 +166,11 @@ export async function processQueueInBackground(): Promise<void> {
                   const instanceRef = db.collection('admin_catalog_instances').doc(ownerInstanceId);
                   const instanceSnap = await instanceRef.get();
                   if (instanceSnap.exists) {
-                    const instanceData = instanceSnap.data() || {};
                     const newImages = buildPacketImageOrder({
                       ...packetData,
                       priorityMockupUrl: bestUrl,
                       lifestyleMockupUrl: mockupResult.lifestyleMockupUrl || packetData.lifestyleMockupUrl,
-                    }, instanceCatalogImages(instanceData));
+                    });
                     await instanceRef.update({
                       'resolved.images': newImages,
                       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
