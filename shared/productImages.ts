@@ -32,8 +32,8 @@ export function buildPacketImageOrder(packet: Record<string, any>, additionalMoc
   const keys = Object.keys(placements);
   const orderedKeys = [...PLACEMENT_ORDER.filter(key => keys.includes(key)), ...keys.filter(key => !PLACEMENT_ORDER.includes(key))];
   return resolveProductImages({
-    mockups: [packet.lifestyleMockupUrl, ...imageUrls(additionalMockups), ...orderedKeys.map(key => placements[key]), packet.priorityMockupUrl],
-    proofs: [packet.compositeUrl || packet.productGraphicUrl, ...Object.values(packet.sleeveCompositeUrls || {}), packet.sleeveCompositeUrl, packet.qrOnlyUrl, packet.landingPageSnapshotUrl],
+    mockups: [...orderedKeys.map(key => placements[key]), packet.priorityMockupUrl, packet.lifestyleMockupUrl, ...imageUrls(additionalMockups)],
+    proofs: [packet.compositeUrl || packet.productGraphicUrl, ...Object.values(packet.sleeveCompositeUrls || {}), packet.sleeveCompositeUrl, packet.landingPageSnapshotUrl, packet.qrOnlyUrl],
   });
 }
 

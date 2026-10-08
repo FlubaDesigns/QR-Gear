@@ -488,10 +488,6 @@ export default function ShopProductPage() {
                   <Truck className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
                   Premium print quality
                 </li>
-                <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Shield className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                  Yours alone — not sold in stores
-                </li>
               </ul>
             </div>
 

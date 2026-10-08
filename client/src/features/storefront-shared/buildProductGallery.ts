@@ -136,8 +136,8 @@ export function buildProductGallery(
   }
   if (product.mockupsByColor) {
     const mockup = findColorMockup(product.mockupsByColor, selectedColor);
-    if (mockup?.lifestyle) add({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
     if (mockup?.front) add({ url: mockup.front, label: 'Front', alt: `${productName} — front`, type: 'mockup' });
+    if (mockup?.lifestyle) add({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
     (mockup?.angles || []).forEach((url, i) => add({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' }));
   }
   // Products already supplies the packet's generated images in canonical order.

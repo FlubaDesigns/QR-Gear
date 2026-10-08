@@ -26,7 +26,7 @@ import { buildStructuredOptions, deriveCardMode } from '../../../shared/storefro
  *   { [colorKey]: { lifestyle?, front?, angles?: string[] } }
  *
  * Also returns an ordered `mockupImages` array built from the first (default) color:
- *   [lifestyle, front, ...other placements]
+ *   [front, lifestyle, ...other placements]
  * and the `defaultColor` key so the API can advertise which color is pre-selected.
  */
 function extractPacketMockups(pkt: Record<string, any>): {
@@ -82,8 +82,8 @@ function extractPacketMockups(pkt: Record<string, any>): {
   const defaultColor = Object.keys(result)[0];
   const first = result[defaultColor];
   const mockupImages: string[] = [];
-  if (first.lifestyle) mockupImages.push(first.lifestyle);
   if (first.front) mockupImages.push(first.front);
+  if (first.lifestyle) mockupImages.push(first.lifestyle);
   (first.angles || []).forEach((u) => mockupImages.push(u));
 
   return { mockupsByColor: result, mockupImages: buildPacketImageOrder(pkt, mockupImages), defaultColor };
