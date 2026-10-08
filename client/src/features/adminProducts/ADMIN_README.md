@@ -988,3 +988,7 @@ The AI Builder has an AI Build Rules tab using the same shared rules supplied to
 ### Isolated backend startup — October 8, 2026
 
 Functions explicitly include the existing shared-schema runtime dependencies (Drizzle and Zod). The application boot is checked outside the repository so root dependencies cannot mask missing deployment packages. Authorization Engine project validation uses the central runtime resolver, including FIREBASE_CONFIG deployments. Seventeen affected validation/authentication/configuration checks passed.
+
+### Canonical QRG options — October 8, 2026
+
+The product-options route now uses the existing shared QRG color/size projection instead of a duplicate seven-digit parser. This restores actual labels for canonical four-digit SSCC variant rows such as the saved Navy combinations. No provider-table reads are added.
