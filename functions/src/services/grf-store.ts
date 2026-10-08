@@ -77,6 +77,14 @@ const GRF_COUNTERS_COLLECTION = 'grf_counters';
 async function registerGrfAsset(
   opts: RegisterGrfAssetOptions,
 ): Promise<RegisterGrfAssetResult> {
+  // Builder image uploads can remain inline in a saved layer. Treat them as
+  // validated bytes, never as a URL used in a Firestore equality query.
+  if (opts.sourceUrl?.startsWith('data:')) {
+    if (opts.imageData) throw new Error('Provide exactly one GRF source.');
+    const inlineMime = /^data:([^;]+);base64,/.exec(opts.sourceUrl)?.[1];
+    const decoded = decodeLibraryImage(opts.sourceUrl, opts.mimeType || inlineMime || '');
+    opts = { ...opts, sourceUrl: undefined, ...decoded };
+  }
   const {
     assetClass, mediaType, channel, purpose, format,
     sourceUrl, imageData,
