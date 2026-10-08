@@ -551,6 +551,18 @@ export function useCreatePacket({
         const packetPatch: Record<string, any> = {
           placementMockupUrls,
           priorityMockupUrl: primaryMockupUrl,
+          mockupsByColor: {
+            [snapshot.qrConfig.selectedColor.name]: Object.fromEntries(
+              allPlacements.flatMap((placement, index) => {
+                const data = results[index];
+                if (!data?.success || !data?.mockupUrl) return [];
+                return [[placement, {
+                  [snapshot.layoutConfig.placementSizes[placement] || 'medium']: data.mockupUrl,
+                  ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
+                }]];
+              }),
+            ),
+          },
         };
         if (lifestyleMockupUrl) packetPatch.lifestyleMockupUrl = lifestyleMockupUrl;
 
