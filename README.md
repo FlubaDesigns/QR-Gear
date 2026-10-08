@@ -490,3 +490,7 @@ Supplier requests, marketplace publishing and outbound email are disabled there.
 The embedded Printify credential fallback was removed; Main requires its configured
 credential when this change is eventually promoted. No Main deployment is authorized
 by this sandbox update. The Functions Firebase Admin SDK is aligned with the root project at 13.6 to support keyless deployment credentials. Sandbox deployment and browser acceptance remain pending.
+
+### Sandbox runtime update — October 8, 2026
+
+Functions now target Node.js 22 with Canvas 3.2.3 and Firebase Admin 13.6 (aligned with the application). The backend compile, focused regression checks and a real transparent PNG render exercise the update. Frontend build tooling remains on Node.js 20. Deployment uses the existing dedicated sandbox runtime identity. Navy is the first acceptance build; rebuilding Army is deferred until the owner reviews Navy. Main is unchanged.
