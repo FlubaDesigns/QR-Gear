@@ -1,3 +1,4 @@
+import { sortProductSizes, sizeUpcharge } from '@shared/storefrontTypes';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
@@ -77,6 +78,7 @@ interface StoreProduct {
   qrProductType: string;
   price: number | null;
   availableSizes: string[];
+  sizeUpcharges?: Record<string, number>;
   availableColors: string[];
   availablePlacements: string[];
   defaultColor: string | null;
@@ -155,8 +157,8 @@ export default function ShopProductPage() {
 
     const sizeOpt = product.options?.find(o => o.name === 'size');
     const defaultSize =
-      sizeOpt?.values.find(v => v.available)?.label ??
-      product.availableSizes?.[0] ??
+      sortProductSizes(sizeOpt?.values.filter(v => v.available).map(v => v.label) || [])[0] ??
+      sortProductSizes(product.availableSizes || [])[0] ??
       null;
     if (defaultSize) setSelectedSize(defaultSize);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -344,7 +346,7 @@ export default function ShopProductPage() {
         }
       : null);
 
-  const sizeOption = product.options?.find(o => o.name === 'size') ??
+  const rawSizeOption = product.options?.find(o => o.name === 'size') ??
     (product.availableSizes?.length
       ? {
           name: 'size',
@@ -353,6 +355,14 @@ export default function ShopProductPage() {
           values: product.availableSizes.map(s => ({ label: s, available: true })),
         }
       : null);
+
+  const sizeOption = rawSizeOption ? { ...rawSizeOption } : null;
+  if (sizeOption) {
+    const labels = sortProductSizes(sizeOption.values.map(v => v.label));
+    sizeOption.values = labels.map(label => sizeOption.values.find(v => v.label === label)!);
+  }
+  const selectedUpcharge = sizeUpcharge(selectedSize, product.sizeUpcharges || {});
+  const selectedPrice = product.price === null ? null : Math.round((product.price + selectedUpcharge) * 100) / 100;
 
   // Build breadcrumb crumbs from product channel/collection data
   const breadcrumbs = (() => {
@@ -483,7 +493,7 @@ export default function ShopProductPage() {
             <div>
               {product.price !== null ? (
                 <p className="text-3xl font-bold text-foreground" data-testid="text-product-price">
-                  ${product.price.toFixed(2)}
+                  ${selectedPrice!.toFixed(2)}
                 </p>
               ) : (
                 <p className="text-lg text-muted-foreground" data-testid="text-price-unavailable">
@@ -590,7 +600,7 @@ export default function ShopProductPage() {
                           onClick={() => sv.available && onSizePick(sv.label)}
                           data-testid={`button-size-${sv.label.toLowerCase()}`}
                         >
-                          {sv.label}
+                          {sv.label}{sizeUpcharge(sv.label, product.sizeUpcharges || {}) > 0 ? ` (+$${sizeUpcharge(sv.label, product.sizeUpcharges || {})})` : ''}
                         </Button>
                       ))}
                     </div>
@@ -684,7 +694,7 @@ export default function ShopProductPage() {
                   <ShoppingCart className="h-5 w-5 mr-2" />
                 )}
                 {product.price
-                  ? `Add to Cart — $${(product.price * quantity).toFixed(2)}`
+                  ? `Add to Cart — $${(selectedPrice! * quantity).toFixed(2)}`
                   : "Price Not Available"}
               </Button>
 
