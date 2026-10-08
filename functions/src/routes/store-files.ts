@@ -1,4 +1,4 @@
-import { buildPacketImageOrder, resolveProductImages, instanceCatalogImages, imageUrls } from "../../../shared/productImages";
+import { buildPacketImageOrder, resolveProductImages } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -86,7 +86,7 @@ function extractPacketMockups(pkt: Record<string, any>): {
   if (first.front) mockupImages.push(first.front);
   (first.angles || []).forEach((u) => mockupImages.push(u));
 
-  return { mockupsByColor: result, mockupImages: buildPacketImageOrder(pkt, [], mockupImages), defaultColor };
+  return { mockupsByColor: result, mockupImages: buildPacketImageOrder(pkt, mockupImages), defaultColor };
 }
 
 /**
@@ -121,10 +121,6 @@ function tryFlatMockupsByColor(
 app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { linkId } = req.params;
-
-    // Helper: normalize images array (items may be strings or {url} objects)
-    const toUrlArr = (imgs: any[]): string[] =>
-      (imgs || []).map((img: any) => (typeof img === 'string' ? img : img?.url || null)).filter(Boolean);
 
     // ── Primary: admin_catalog_instances ────────────────────────────────────
     const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
@@ -166,8 +162,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
 
       const allImages = resolveProductImages({
-        mockups: packetMockupImages.length ? packetMockupImages : [packetMockupUrl, ...imageUrls(resolved.images)],
-        catalog: instanceCatalogImages(d),
+        mockups: packetMockupImages,
       });
 
       const bColors = toStrArr(d.enabledColors || resolved.colors || []);
@@ -262,7 +257,6 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
       const lifestyleUrl: string | null = link.lifestyleMockupUrl || null;
       const flatMockupUrl: string | null = link.mockupUrl || packetImageUrl || null;
-      const storedImages = toUrlArr(link.images || []);
 
       const mergedPlacementUrls: Record<string, string> = {
         ...packetPlacementMockupUrls,
@@ -296,7 +290,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         }
       }
 
-      const allImages = resolveProductImages({ mockups: mockupImages, catalog: storedImages });
+      const allImages = resolveProductImages({ mockups: mockupImages });
 
       res.json({
         id: linkDoc.id,
@@ -533,8 +527,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             const rawSizes = d.enabledSizes || resolved.sizes || [];
 
             const allImages = resolveProductImages({
-              mockups: pktMockupImages1.length ? pktMockupImages1 : [packetImageUrl, ...imageUrls(resolved.images)],
-              catalog: instanceCatalogImages(d),
+              mockups: pktMockupImages1,
             });
 
             const l1Colors = toStringArray(rawColors);
@@ -664,8 +657,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             }
 
             const allImagesCh = resolveProductImages({
-              mockups: pktMockupImages2.length ? pktMockupImages2 : [packetImageUrl, ...imageUrls(resolved.images)],
-              catalog: instanceCatalogImages(d),
+              mockups: pktMockupImages2,
             });
 
             const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
@@ -761,8 +753,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           }
 
           const allImagesSt = resolveProductImages({
-            mockups: pktMockupImages3.length ? pktMockupImages3 : [packetImageUrl, ...imageUrls(resolved.images)],
-            catalog: instanceCatalogImages(d),
+            mockups: pktMockupImages3,
           });
 
           const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
