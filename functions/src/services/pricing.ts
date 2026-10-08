@@ -25,6 +25,7 @@ export async function getCatalogInstancePrice(instanceId: string, selectedSize?:
 
   interface CustomizationPricing {
   productId: string;
+  selectedSize?: string;
   productLine?: string;
   hasTextAbove?: boolean;
   hasTextBelow?: boolean;
@@ -47,8 +48,8 @@ async function calculateAuthoritativePrice(customization: CustomizationPricing):
     // This value is the single source of truth for retail pricing and is never recalculated from base costs."
     const customerPrice = parseFloat(product.customerPrice || product.customer_price || '0');
     if (customerPrice > 0) {
-      // customerPrice is the FINAL authoritative price - no upcharges added
-      return customerPrice;
+      // The saved price is the base retail price; only the selected size is added.
+      return Math.round((customerPrice + sizeUpcharge(customization.selectedSize, await getSizeUpcharges())) * 100) / 100;
     }
     
     // Fallback: Calculate from base costs only if customerPrice is not set
@@ -98,7 +99,7 @@ async function calculateAuthoritativePrice(customization: CustomizationPricing):
       }
     }
     
-    return Math.round(price * 100) / 100;
+    return Math.round((price + sizeUpcharge(customization.selectedSize, await getSizeUpcharges())) * 100) / 100;
   } catch (error) {
     console.error('[Pricing] Error calculating price:', error);
     return null;
