@@ -1,4 +1,5 @@
 import { resolveBuildDestination } from './build-destination';
+import { decodeLibraryImage } from './image-validation';
 import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { createHash } from 'crypto';
 import { prepareAssemblyDefinition } from './assembly-records';
@@ -82,7 +83,14 @@ export async function validatePacketContent(db: Firestore, packet: Record<string
   if (JSON.stringify(expected) !== JSON.stringify(asm.mappings)) throw new Error('Assembly content differs from the generated packet. Regenerate it.');
   for (const layer of extractBuilderLayers(snapshot)) if (layer.imageUrl && layer.assetKey) {
     const asset = assets[packet[layer.assetKey]];
-    if (![asset?.sourceUrl, asset?.publicUrl].includes(layer.imageUrl)) throw new Error(`Slot ${layer.instance.seq} file differs from the rendered image.`);
+    let matches = [asset?.sourceUrl, asset?.publicUrl].includes(layer.imageUrl);
+    if (!matches && layer.imageUrl.startsWith('data:') && asset?.contentHash) {
+      // Registration gives an inline upload a permanent URL. Bind it to the
+      // rendered bytes by hash instead of comparing two different URL forms.
+      const { imageData } = decodeLibraryImage(layer.imageUrl, asset.mimeType);
+      matches = createHash('sha256').update(Buffer.from(imageData, 'base64')).digest('hex') === asset.contentHash;
+    }
+    if (!matches) throw new Error(`Slot ${layer.instance.seq} file differs from the rendered image.`);
   }
   const composite = (await db.collection('grf_assets').doc(packet.compositeGrfId || '__missing__').get()).data();
   if (!composite || composite.isActive === false || inspectGrfAsset(composite).length || composite.grfId !== packet.compositeGrfId || composite.publicUrl !== packet.compositeUrl) throw new Error('Composite file is missing or differs from the registered GRF.');
