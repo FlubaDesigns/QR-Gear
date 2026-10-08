@@ -6,11 +6,12 @@ import { db } from '../core';
 const PRINTFUL_API_BASE = 'https://api.printful.com';
 
 let _cachedPrintfulKey: string | null = null;
+let _cachedPrintfulStoreId: string | null = null;
 let _printfulKeyLastFetch = 0;
 const PRINTFUL_KEY_CACHE_TTL = 60000;
 
-async function getPrintfulApiKeyFromFirestore(): Promise<string | null> {
-  requireLiveCommerce('Printful requests');
+async function getPrintfulApiKeyFromFirestore(mockupOnly = false): Promise<string | null> {
+  if (!mockupOnly) requireLiveCommerce('Printful requests');
   const now = Date.now();
   if (_cachedPrintfulKey && (now - _printfulKeyLastFetch) < PRINTFUL_KEY_CACHE_TTL) {
     return _cachedPrintfulKey;
@@ -21,6 +22,7 @@ async function getPrintfulApiKeyFromFirestore(): Promise<string | null> {
       const data = doc.data()!;
       if (data.printfulApiKey && data.printfulApiKey.length > 10) {
         _cachedPrintfulKey = data.printfulApiKey;
+        _cachedPrintfulStoreId = data.printfulStoreId ? String(data.printfulStoreId) : null;
         _printfulKeyLastFetch = now;
         return _cachedPrintfulKey;
       }
@@ -37,9 +39,9 @@ function getPrintfulApiKey(): string {
   return key;
 }
 
-async function getPrintfulApiKeyAsync(): Promise<string> {
-  requireLiveCommerce('Printful requests');
-  const firestoreKey = await getPrintfulApiKeyFromFirestore();
+async function getPrintfulApiKeyAsync(mockupOnly = false): Promise<string> {
+  if (!mockupOnly) requireLiveCommerce('Printful requests');
+  const firestoreKey = await getPrintfulApiKeyFromFirestore(mockupOnly);
   if (firestoreKey) return firestoreKey;
   const key = process.env.PRINTFUL_API_KEY;
   if (!key) throw new Error('PRINTFUL_API_KEY not configured');
@@ -48,7 +50,7 @@ async function getPrintfulApiKeyAsync(): Promise<string> {
 
 // Get Printful Store ID - fallback for Cloud Functions environment
 function getPrintfulStoreId(): string {
-  return process.env.PRINTFUL_STORE_ID || '17456917';
+  return _cachedPrintfulStoreId || process.env.PRINTFUL_STORE_ID || '';
 }
 
 interface PrintfulMockupTask {
@@ -71,8 +73,8 @@ interface PrintfulVariant {
 }
 
 class PrintfulClient {
-  private async getHeaders() {
-    const key = await getPrintfulApiKeyAsync();
+  private async getHeaders(mockupOnly = false) {
+    const key = await getPrintfulApiKeyAsync(mockupOnly);
     return {
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
@@ -89,8 +91,11 @@ class PrintfulClient {
   }
 
   private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
+    const mockupOnly = (method === 'POST' && /^\/mockup-generator\/create-task\/\d+(?:\?|$)/.test(endpoint)) ||
+      (method === 'GET' && endpoint.startsWith('/mockup-generator/task?'));
+    if (!mockupOnly) requireLiveCommerce('Printful catalog or commerce request');
     const url = `${PRINTFUL_API_BASE}${endpoint}`;
-    const headers = await this.getHeaders();
+    const headers = await this.getHeaders(mockupOnly);
     const options: RequestInit = { method, headers };
     if (body) options.body = JSON.stringify(body);
     
