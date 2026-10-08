@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261008-sandbox-qrg-rules';
+const _BUILD_ID = '20261008-sandbox-isolated-boot';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
