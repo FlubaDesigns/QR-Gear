@@ -25,7 +25,6 @@ import { registerDesignRoutes } from "./routes/designs.routes";
 import { registerGiftRoutes } from "./routes/gifts.routes";
 import { registerPricingRoutes } from "./routes/pricing.routes";
 import { registerMiscRoutes } from "./routes/misc.routes";
-import { registerBrainRoutes } from "./routes/brain.routes";
 import { registerAdminCatalogInstanceRoutes } from "./routes/admin-catalog-instances.routes";
 import { registerMemberCatalogInstanceRoutes } from "./routes/member-catalog-instances.routes";
 import { registerAdminBuildSessionRoutes } from "./routes/admin-build-sessions.routes";
@@ -56,7 +55,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerGiftRoutes(app);
   registerPricingRoutes(app);
   registerMiscRoutes(app);
-  registerBrainRoutes(app);
   registerAdminCatalogInstanceRoutes(app);
   registerMemberCatalogInstanceRoutes(app);
   registerAdminBuildSessionRoutes(app);

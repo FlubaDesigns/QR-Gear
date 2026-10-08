@@ -1,8 +1,10 @@
+import { requireLiveCommerce } from '../runtime-config';
+import { validateEtsySettings } from '../../../shared/etsy';
 import { marketplaceSalePrice } from '../../../shared/surfaces';
 import { pushListingToAmazon, checkAmazonListing, amazonCredentials, amazonProductFromSurface } from './amazon-sp-api';
 import { pushListingToEbay, checkEbayListing, type EbayListingIdentity } from './ebay-api';
 import type { MarketplaceVariant } from './marketplace-variants';
-import { pushListingToEtsy } from './etsy-api';
+import { pushListingToEtsy, checkEtsyListing, etsyCredentials } from './etsy-api';
 import type { MarketplacePlatform } from '../constants';
 
 export interface PublishResult {
@@ -33,8 +35,12 @@ export async function publishMarketplaceListing(
   variants: MarketplaceVariant[] = [],
   action = 'create',
 ): Promise<PublishResult> {
+  requireLiveCommerce('Marketplace publishing');
   if (account.platform !== platform || !account.isActive) throw new Error('Marketplace account is inactive or does not match this listing.');
   if (!account[`${platform}Connected`] || !account[`${platform}RefreshToken`]) throw new Error(`Connect this ${platform} account before publishing.`);
+  if (platform === 'etsy' && ['check_status', 'delete'].includes(action)) {
+    return checkEtsyListing(etsyCredentials(account), listing.externalListingId, listing.marketplaceSku, action === 'delete', persist.etsyToken);
+  }
   if (platform === 'amazon' && ['check_status', 'delete'].includes(action)) {
     return await checkAmazonListing(amazonCredentials(account), listing.marketplaceSku,
       listing.amazonItems || (listing.externalListingId === listing.marketplaceSku ? [{ sku: listing.marketplaceSku }] : []),
@@ -81,20 +87,14 @@ export async function publishMarketplaceListing(
     }, sku, persist.ebayOffer, { offers: listing.ebayOffers || (listing.externalOfferId ? [{ sku, offerId: listing.externalOfferId }] : []), inventoryItemGroupKey: listing.ebayInventoryItemGroupKey, externalListingId: listing.externalListingId }, persist.ebayPrepared);
     return { ...result, listingStatus: result.success ? result.listingStatus || 'pending' : 'error', ...(result.listingId ? { externalListingId: result.listingId, externalUrl: `https://www.ebay.com/itm/${result.listingId}` } : {}) };
   }
-  const options = listing.publishOptions || {};
-  for (const key of ['taxonomyId', 'shippingProfileId']) {
-    if (!Number.isSafeInteger(options[key]) || options[key] <= 0) throw new Error(`Set Etsy ${key} using Push to Etsy before publishing or retrying.`);
-  }
-  if (!account.etsyShopId) throw new Error('Reconnect Etsy to record your Shop ID.');
-  const result = await pushListingToEtsy({ accessToken: '', refreshToken: account.etsyRefreshToken, shopId: account.etsyShopId, shopName: account.etsyShopName || '', userId: account.etsyUserId || '' }, {
-    ...common, tags: surface.tags || [], taxonomyId: options.taxonomyId, shippingProfileId: options.shippingProfileId,
-    returnPolicyId: options.returnPolicyId, whoMade: options.whoMade || 'i_did', whenMade: options.whenMade || 'made_to_order', sku,
+  const settings = validateEtsySettings(listing.publishOptions);
+  const result = await pushListingToEtsy(etsyCredentials(account), {
+    ...common, ...settings, tags: surface.tags || [], sku, variants,
   }, {
     existingListingId: listing.externalListingId ? Number(listing.externalListingId) : undefined,
-    onRefreshToken: persist.etsyToken,
-    onBeforeCreate: persist.etsyCreateAttempt,
+    onRefreshToken: persist.etsyToken, onBeforeCreate: persist.etsyCreateAttempt,
     onListingCreated: id => persist.externalListing(String(id)),
   });
-  return { ...result, sku, listingStatus: result.state === 'active' ? 'active' : result.listingId ? 'draft' : 'error',
+  return { ...result, sku, listingStatus: result.success ? (result.state === 'active' ? 'active' : 'delisted') : 'error',
     ...(result.listingId ? { externalListingId: String(result.listingId), externalUrl: result.url } : {}) };
 }

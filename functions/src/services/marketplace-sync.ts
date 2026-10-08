@@ -1,10 +1,11 @@
+import { validateEtsySettings } from '../../../shared/etsy';
 import { resolveMarketplaceVariants } from './marketplace-variants';
 import { refreshListingFees } from './marketplace-fees';
 import { marketplaceSalePrice } from '../../../shared/surfaces';
 import { createHash } from 'crypto';
 import { db } from '../core';
 import { SURFACES_COLLECTION, MARKETPLACE_ACCOUNTS_COLLECTION, MARKETPLACE_LISTINGS_COLLECTION, MARKETPLACE_SYNC_JOBS_COLLECTION, MARKETPLACE_SYNC_LOGS_COLLECTION, SURFACE_VARIANTS_COLLECTION, type MarketplacePlatform, type SyncJobAction } from '../constants';
-import { normalizeProductForPublishing, marketplaceSelectionErrors } from './surface-generator';
+import { normalizeProductForPublishing } from './surface-generator';
 import { publishMarketplaceListing, type PublishResult } from './marketplace-publisher';
 
 export class MarketplaceError extends Error {
@@ -58,23 +59,10 @@ export async function getOrCreateMarketplaceListing(surfaceId: string, accountId
   });
 }
 
-function publishOptions(input: Record<string, any>) {
-  const result: Record<string, any> = {};
-  for (const key of ['taxonomyId', 'shippingProfileId', 'returnPolicyId']) {
-    if (input[key] != null) {
-      const value = Number(input[key]);
-      if (!Number.isSafeInteger(value) || value <= 0) throw new MarketplaceError(`Invalid ${key}.`);
-      result[key] = value;
-    }
-  }
-  for (const key of ['whoMade', 'whenMade']) if (typeof input[key] === 'string') result[key] = input[key];
-  return result;
-}
-
 /** Hold one listing lock and await the attempt while the HTTP request is alive. */
 export async function runMarketplaceJob(listingId: string, action: SyncJobAction, options: Record<string, any> = {}) {
   const jobRef = jobs().doc(), listingRef = listings().doc(listingId);
-  const savedOptions = publishOptions(options);
+  const savedOptions = Object.keys(options).length ? validateEtsySettings(options) : {};
   await db.runTransaction(async tx => {
     const snap = await tx.get(listingRef);
     if (!snap.exists) throw new MarketplaceError('Listing not found.', 404);
@@ -118,18 +106,12 @@ export async function executeSyncJob(jobId: string): Promise<void> {
         listing.qrgCode !== surface.sku || listing.marketplaceSku !== surface.sku || job.productInstanceId !== surface.masterProductId) {
       throw new MarketplaceError('Listing, job and product identity do not match.');
     }
-    if (['delete', 'check_status'].includes(job.action) && !['ebay', 'amazon'].includes(job.platform)) throw new MarketplaceError('Remote status and removal are available for eBay and Amazon.');
     if (!['create', 'update', 'full_sync', 'sync_inventory', 'delete', 'check_status'].includes(job.action)) throw new MarketplaceError('Unsupported marketplace job action.');
     let resolvedVariants: Awaited<ReturnType<typeof resolveMarketplaceVariants>> = [];
     if (product) {
       const variants = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', job.surfaceId).get();
-      if (['ebay', 'amazon'].includes(job.platform)) {
-        if (!variants.empty) throw new MarketplaceError('Legacy surface variant overrides must be reconciled with the built product before publishing.');
-        resolvedVariants = await resolveMarketplaceVariants(product, db);
-      } else {
-        const selectionErrors = marketplaceSelectionErrors(product, !variants.empty);
-        if (selectionErrors.length) throw new MarketplaceError(selectionErrors.join(' '));
-      }
+      if (!variants.empty) throw new MarketplaceError('Legacy surface variant overrides must be reconciled with the built product before publishing.');
+      resolvedVariants = await resolveMarketplaceVariants(product, db);
     }
     result = await publishMarketplaceListing(job.platform as MarketplacePlatform, surface, account, listing, {
       amazonItems: async items => { await listingRef.update({ amazonItems: items, amazonRemovalRequested: false, remoteStatus: 'Submission processing', externalListingId: surface.sku, updatedAt: now() }); },
@@ -159,7 +141,7 @@ export async function executeSyncJob(jobId: string): Promise<void> {
     tx.update(jobRef, { status: result.success ? 'completed' : 'failed', result: storedResult,
       errorMessage: result.error || null, completedAt: timestamp, updatedAt: timestamp });
     tx.update(listingRef, { status: result.listingStatus, lastSyncAt: timestamp, updatedAt: timestamp,
-      errorMessage: result.error || null, ...((job.platform === 'ebay' && result.success) || (job.platform === 'amazon' && result.amazonItems && ['check_status', 'delete'].includes(job.action)) ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
+      errorMessage: result.error || null, ...((['ebay', 'etsy'].includes(job.platform) && result.success) || (job.platform === 'amazon' && result.amazonItems && ['check_status', 'delete'].includes(job.action)) ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
       ...(result.amazonItems ? { amazonItems: result.amazonItems } : {}),
       ...(result.externalListingId ? { externalListingId: result.externalListingId } : {}),
       ...(result.externalUrl ? { externalUrl: result.externalUrl } : {}) });

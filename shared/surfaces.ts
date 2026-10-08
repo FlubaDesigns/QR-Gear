@@ -1,3 +1,4 @@
+import type { EtsySellerSettings } from "./etsy";
 import type {
   MarketplacePlatform,
   SurfaceStatus,
@@ -192,7 +193,7 @@ export interface MarketplaceListing {
   qrgCode?: string;
   marketplaceSku?: string;
   productInstanceId?: string;
-  publishOptions?: { amazon?: AmazonSellerSettings; ebay?: EbaySellerSettings; taxonomyId?: number; shippingProfileId?: number; returnPolicyId?: number; whoMade?: string; whenMade?: string };
+  publishOptions?: Partial<EtsySellerSettings> & { amazon?: AmazonSellerSettings; ebay?: EbaySellerSettings };
   /** Prevent blind recreation if Etsy creation returned an unknown outcome. */
   externalCreateAttempted?: boolean;
   surfaceId: string;

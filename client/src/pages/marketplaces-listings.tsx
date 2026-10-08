@@ -1,3 +1,4 @@
+import { EtsySetupDialog } from "./marketplaces-etsy";
 import { AmazonSetupDialog } from "./marketplaces-amazon";
 import { EbaySetupDialog } from "./marketplaces-ebay";
 import { useState } from "react";
@@ -12,7 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Plus, Trash2, Settings, RefreshCw, Loader2, ExternalLink, CheckCircle, AlertCircle, Link2, ListChecks, ScrollText, Play, Clock, XCircle, Info, AlertTriangle, RotateCcw } from "lucide-react";
 import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
-import { GenerateFromProductDialog, MarketplaceItemSetup, PushToEtsyDialog } from "./marketplaces-accounts";
+import { GenerateFromProductDialog, MarketplaceItemSetup } from "./marketplaces-accounts";
 import type { MarketplaceAccount, SurfaceData, ListingData, MarketplacePlatform } from "./marketplaces-accounts";
 
 const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string }> = {
@@ -111,7 +112,7 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
   const publishListing = (listing: ListingData, action: string) => {
     if (listing.platform === "amazon" && !listing.publishOptions?.amazon) { setAmazonListing(listing); return; }
     if (listing.platform === "ebay" && !listing.publishOptions?.ebay) { setEbayListing(listing); return; }
-    if (listing.platform === "etsy" && (!listing.publishOptions?.taxonomyId || !listing.publishOptions?.shippingProfileId)) {
+    if (listing.platform === "etsy" && (!listing.publishOptions?.taxonomyId || !listing.publishOptions?.shippingProfileId || !listing.publishOptions?.readinessStateId)) {
       setEtsyListing(listing);
     } else publishMutation.mutate({ listingId: listing.id, action });
   };
@@ -266,7 +267,11 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
                         <Button variant="outline" disabled={publishMutation.isPending || listing.status === "syncing"} onClick={() => publishMutation.mutate({ listingId: listing.id, action: "check_status" })} data-testid={`button-ebay-status-${listing.id}`}>Check eBay status</Button>
                         {(listing.externalListingId || listing.externalOfferId || listing.ebayOffers?.length) && listing.status !== "delisted" && <Button variant="outline" disabled={publishMutation.isPending || listing.status === "syncing"} onClick={() => { if (window.confirm("End this listing on eBay? It will stop being available for sale. Your product and listing history will remain.")) publishMutation.mutate({ listingId: listing.id, action: "delete" }); }} data-testid={`button-ebay-end-${listing.id}`}>End eBay listing</Button>}
                       </> : <Button variant="outline" onClick={() => checkMutation.mutate(listing.surfaceId)} disabled={checkMutation.isPending}>Check</Button>}
-                      {listing.platform === "etsy" && <Button variant="outline" onClick={() => setEtsyListing(listing)} disabled={listing.status === "syncing"}>Etsy Settings</Button>}
+                      {listing.platform === "etsy" && <>
+                        <Button variant="outline" onClick={() => setEtsyListing(listing)} disabled={listing.status === "syncing"} data-testid={`button-etsy-setup-${listing.id}`}>Etsy Setup</Button>
+                        <Button variant="outline" disabled={!listing.externalListingId || publishMutation.isPending || listing.status === "syncing"} onClick={() => publishMutation.mutate({ listingId: listing.id, action: "check_status" })} data-testid={`button-etsy-status-${listing.id}`}>Check Etsy status</Button>
+                        {listing.externalListingId && listing.status !== "delisted" && <Button variant="outline" disabled={publishMutation.isPending || listing.status === "syncing"} onClick={() => { if (window.confirm("Stop selling this listing on Etsy? Your product and listing history will remain.")) publishMutation.mutate({ listingId: listing.id, action: "delete" }); }} data-testid={`button-etsy-end-${listing.id}`}>End Etsy listing</Button>}
+                      </>}
                       <Button className="min-h-12" variant="outline" disabled={feeMutation.isPending || listing.status === "syncing"} onClick={() => feeMutation.mutate(listing.id)} data-testid={`button-fees-${listing.id}`}>
                         <RefreshCw className="mr-2 h-4 w-4" />{feeMutation.isPending && feeMutation.variables === listing.id ? "Checking fees…" : "Refresh item fees"}
                       </Button>
@@ -339,7 +344,7 @@ export function ListingsSection({ onOpenAccounts }: { onOpenAccounts?: () => voi
       </DialogContent></Dialog>}
       {amazonListing && <AmazonSetupDialog key={amazonListing.id} listing={amazonListing} onClose={() => setAmazonListing(null)} />}
       {ebayListing && <EbaySetupDialog key={ebayListing.id} listing={ebayListing} onClose={() => setEbayListing(null)} />}
-      {etsyListing && <PushToEtsyDialog key={etsyListing.id} open onClose={() => setEtsyListing(null)} surfaceId={etsyListing.surfaceId} surfaceTitle={etsyListing.title || getSurfaceTitle(etsyListing.surfaceId)} surfaceSku={etsyListing.marketplaceSku} accountId={etsyListing.accountId} publishOptions={etsyListing.publishOptions} />}
+      {etsyListing && <EtsySetupDialog key={etsyListing.id} listing={etsyListing} onClose={() => setEtsyListing(null)} />}
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="[&>button]:left-4 [&>button]:right-auto [&>button]:h-12 [&>button]:w-12">

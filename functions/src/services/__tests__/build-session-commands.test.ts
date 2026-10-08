@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 const m = vi.hoisted(() => ({ collection: vi.fn(), add: vi.fn(), update: vi.fn(), batchUpdate: vi.fn(), sessions: [] as any[], masterExists: true, saved: {} as any }));
@@ -25,6 +25,7 @@ beforeEach(() => {
     return query;
   });
 });
+afterEach(() => vi.unstubAllEnvs());
 describe('production build-session command routes', () => {
   it('preserves select-to-resume behavior for existing callers', async () => {
     const res = await request(app).post('/admin/build-sessions/from-master').send({ sourceMasterId: 'qrg_11001' });
@@ -63,5 +64,23 @@ describe('production build-session command routes', () => {
     m.saved.status = 'committed';
     const res = await request(app).patch('/admin/build-sessions/old').send({ working: snapshot(), draftName: 'Not yet' });
     expect(res.status).toBe(409); expect(m.update).not.toHaveBeenCalled();
+  });
+});
+
+describe('persistent sandbox drafts', () => {
+  it('keeps unnamed new drafts without expiration', async () => {
+    vi.stubEnv('QRGEAR_ENVIRONMENT', 'sandbox');
+    const res = await request(app).post('/admin/build-sessions/from-master').send({ sourceMasterId: 'qrg_11001', forceNew: true });
+    expect(res.status).toBe(200); expect(m.saved.expiresAt).toBeNull();
+  });
+  it('clears old expiration when a draft is autosaved', async () => {
+    vi.stubEnv('QRGEAR_ENVIRONMENT', 'sandbox');
+    const res = await request(app).patch('/admin/build-sessions/old').send({ working: snapshot() });
+    expect(res.status).toBe(200); expect(m.update).toHaveBeenCalledWith(expect.objectContaining({ expiresAt: null }));
+  });
+  it('rejects age-based cleanup without changing any draft', async () => {
+    vi.stubEnv('QRGEAR_ENVIRONMENT', 'sandbox');
+    const res = await request(app).post('/admin/build-sessions/cleanup');
+    expect(res.status).toBe(409); expect(m.batchUpdate).not.toHaveBeenCalled();
   });
 });

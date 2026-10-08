@@ -1,3 +1,4 @@
+import { AiProductBuilder } from './modules/AiProductBuilder';
 import { BLD_LAYOUTS } from "@shared/bldCodes";
 import { SaveDraftDialog } from './modules/SaveDraftDialog';
 import { useToast } from '@/hooks/use-toast';
@@ -220,7 +221,7 @@ function DesignColorPicker() {
   );
 }
 
-function BuilderModules() {
+function BuilderModules({ aiBuilder = false }: { aiBuilder?: boolean }) {
   const { state, resetBuilder } = useBuilderContext();
   const { toast } = useToast();
   const [saveOpen, setSaveOpen] = useState(false);
@@ -311,6 +312,7 @@ function BuilderModules() {
         <SaveDraftDialog open={saveOpen} onOpenChange={setSaveOpen} />
 
         <BuilderSummaryCard />
+        {aiBuilder && <AiProductBuilder key={state.activeSessionId || "new"} />}
 
         <LoadSavedModule open={savedOpen} onOpenChange={setSavedOpen} hideCard />
         <LoadTemplateModule open={templateOpen} onOpenChange={setTemplateOpen} hideCard />
@@ -392,11 +394,11 @@ function BuilderModules() {
   );
 }
 
-export function BuilderHarness() {
+export function BuilderHarness({ aiBuilder = false }: { aiBuilder?: boolean }) {
   return (
     <BuilderProvider>
       <InlineDebugBoundary label="BuilderModules">
-        <BuilderModules />
+        <BuilderModules aiBuilder={aiBuilder} />
       </InlineDebugBoundary>
     </BuilderProvider>
   );

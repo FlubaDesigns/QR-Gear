@@ -1,3 +1,4 @@
+import { requireLiveCommerce } from '../runtime-config';
 import { Resend } from 'resend';
 import type { Firestore } from 'firebase-admin/firestore';
 import { createHash, randomUUID } from 'crypto';
@@ -9,6 +10,7 @@ function getResendApiKey(): string {
 }
 
 function getResendClient(): Resend | null {
+  requireLiveCommerce('Outbound email');
   const apiKey = getResendApiKey();
   if (!apiKey || apiKey.length < 10) {
     return null;

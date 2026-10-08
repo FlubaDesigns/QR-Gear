@@ -478,3 +478,15 @@ Product Fees API estimates are stored separately for each sellable child SKU, wi
 Validation: **330 backend tests and 208 client tests passed**, including mocked Amazon schema/HTTP, validation failures, identity persistence, async status/removal, fee ownership and rendered control interactions. Root TypeScript, Functions compilation and frontend production build passed. No real seller account was authorized, listing submitted/removed, or Main/live hosting changed. This is sandbox source, pending a real connected-seller test and device acceptance. Etsy variations, processing-profile requirements and remote status/removal remain outstanding; the existing Marketplace Expansion roadmap is updated.
 
 Primary references: [Product Type Definitions](https://developer-docs.amazon.com/sp-api/lang-en_EN/docs/retrieve-a-product-type-definition), [listing submissions and variations](https://developer-docs.amazon/sp-api/lang-en_US/docs/submit-listings-data), [Listings Items PUT/preview](https://developer-docs.amazon/sp-api/reference/putlistingsitem), [listing management/status](https://developer-docs.amazon.com/sp-api/lang-en_EN/docs/manage-product-listings-guide), and [listing deletion](https://developer-docs.amazon/sp-api/docs/delete-a-listing). These supersede the earlier Amazon gap notes above.
+
+## Persistent isolated sandbox — October 8, 2026
+
+The current admin/tab, marketplace and AI Builder working changes are carried forward
+on `sandbox/products-fulfillment`. The isolated Firebase deployment targets
+`qr-gear-sandbox`, with its own Auth, Firestore, Storage and runtime account. Runtime
+configuration rejects cross-project storage and a sandbox pointed at Main. Sandbox
+build sessions have no age-based expiry; explicit deletion remains available.
+Supplier requests, marketplace publishing and outbound email are disabled there.
+The embedded Printify credential fallback was removed; Main requires its configured
+credential when this change is eventually promoted. No Main deployment is authorized
+by this sandbox update. Sandbox deployment and browser acceptance remain pending.

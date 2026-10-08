@@ -1,54 +1,67 @@
-import { Request, Response, NextFunction } from 'express';
-  import express from 'express';
-  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { PLATFORM_STORE_ID } from '../constants';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { printfulClient } from '../services/printful';
-  import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
-  import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
-  import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
-  import type { MockupRequest, MockupResult } from '../services/mockup-generator';
-  import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
-  import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
-  import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
-  import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+import type { Express, Request, Response } from 'express';
+import crypto from 'crypto';
+import { db } from '../core';
+import { requireAdmin } from '../middleware';
+import { ADMIN_BUILD_SESSIONS_COLLECTION } from '../constants';
+import { brainRequest } from '../services/brain-client';
+import { aiProductContext, aiProductPrompt, validateAiProductProposal, type AiProductRequest } from '../../../shared/aiProductBuilder';
 
-  export function register(app: express.Express): void {
-  // ============ BRAIN PROXY ENDPOINTS ============
-app.post("/brain/submit", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const secret = process.env.FLUBA_SITE_SECRET;
-    const brainUrl = process.env.FLUBA_BRAIN_URL;
-    if (!secret || !brainUrl) {
-      res.status(503).json({ error: "Brain proxy not configured" });
-      return;
-    }
-    const crypto = await import("crypto");
-    const body = {
-      action: req.body.action,
-      payload: req.body.payload,
-      prompt: req.body.prompt,
-    };
-    const raw = JSON.stringify(body);
-    const sig = crypto.createHmac("sha256", secret).update(raw).digest("hex");
-    const r = await fetch(brainUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-site-id": PLATFORM_STORE_ID,
-        "x-signature": sig,
-      },
-      body: raw,
-    });
-    const data = await r.json();
-    res.json(data);
-  } catch (err: any) {
-    console.error("[Brain Proxy CF] Error:", err.message);
-    res.status(500).json({ error: "Brain proxy failed" });
-  }
-});
-
-
-  }
-  
+export function register(app: Express): void {
+  const path = '/admin/build-sessions/:id/ai';
+  app.get(path, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const snap = await db.collection(ADMIN_BUILD_SESSIONS_COLLECTION).doc(req.params.id).get();
+      if (!snap.exists) { res.status(404).json({ error: 'Build session not found' }); return; }
+      res.json({ ai: snap.data()!.ai ?? null });
+    } catch (error: any) { res.status(500).json({ error: error.message }); }
+  });
+  app.post(path, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const ref = db.collection(ADMIN_BUILD_SESSIONS_COLLECTION).doc(req.params.id);
+      const { prompt, retry } = req.body;
+      if (!retry && (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 4000)) { res.status(400).json({ error: 'Describe your product in 1–4000 characters.' }); return; }
+      const ai = await db.runTransaction(async tx => {
+        const snap = await tx.get(ref);
+        if (!snap.exists) throw new Error('Build session not found.');
+        const session = snap.data()!;
+        if (!['working', 'artifact_ready'].includes(session.status)) throw new Error('Open an editable product draft first.');
+        if (retry) {
+          if (!session.ai || session.ai.status !== 'submitting') throw new Error('There is no interrupted request to retry.');
+          return session.ai as AiProductRequest;
+        }
+        if (session.ai && ['submitting', 'pending'].includes(session.ai.status)) throw new Error('Check or retry the existing AI request first.');
+        const next: AiProductRequest = { idempotencyKey: crypto.randomUUID(), prompt: prompt.trim(), status: 'submitting',
+          base: aiProductContext(session.working), brainPrompt: aiProductPrompt(prompt.trim(), session.working, session.ai?.proposal) };
+        tx.update(ref, { ai: next });
+        return next;
+      });
+      const result = await brainRequest(String(req.headers['x-firebase-appcheck'] || ''), { prompt: ai.brainPrompt, idempotencyKey: ai.idempotencyKey });
+      if (typeof result.requestId !== 'string' || !result.requestId) throw new Error('Brain did not return a request identity. Retry this request.');
+      const next = { ...ai, requestId: result.requestId, status: 'pending' as const };
+      await ref.update({ ai: next });
+      res.status(202).json({ ai: next });
+    } catch (error: any) { res.status(400).json({ error: error.message }); }
+  });
+  app.post(`${path}/check`, requireAdmin, async (req: Request, res: Response) => {
+    try {
+      const ref = db.collection(ADMIN_BUILD_SESSIONS_COLLECTION).doc(req.params.id);
+      const snap = await ref.get();
+      const ai = snap.data()?.ai as AiProductRequest | undefined;
+      if (!ai?.requestId) { res.status(400).json({ error: 'No accepted AI request to check.' }); return; }
+      if (ai.status !== 'pending') { res.json({ ai }); return; }
+      const result = await brainRequest(String(req.headers['x-firebase-appcheck'] || ''), { requestId: ai.requestId });
+      if (result.requestId !== ai.requestId) throw new Error('Brain response identity mismatch.');
+      let next = ai;
+      if (['failed', 'error', 'blocked'].includes(result.status)) next = { ...ai, status: 'failed', error: String(result.error || 'Brain could not complete this request.').slice(0, 1000) };
+      else if (['completed', 'complete', 'done', 'success'].includes(result.status)) {
+        try { next = { ...ai, status: 'ready', proposal: validateAiProductProposal(result.response ?? result.result) }; }
+        catch (error: any) { next = { ...ai, status: 'failed', error: error.message }; }
+      }
+      await db.runTransaction(async tx => {
+        const current = (await tx.get(ref)).data()?.ai;
+        if (current?.idempotencyKey === ai.idempotencyKey && current.status === 'pending') tx.update(ref, { ai: next });
+      });
+      res.json({ ai: next });
+    } catch (error: any) { res.status(502).json({ error: error.message }); }
+  });
+}

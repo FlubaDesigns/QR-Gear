@@ -496,14 +496,6 @@ app.get('/render/png/download', async (req: Request, res: Response): Promise<voi
   try { res.status(501).json({ error: "Server-side PNG rendering not available in Cloud Function environment" }); } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/brain/submit', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { input, context } = req.body;
-    const doc = await db.collection('brain_inbox').add({ input, context, siteId: PLATFORM_STORE_ID, status: 'pending', createdAt: new Date().toISOString() });
-    res.json({ requestId: doc.id, status: 'submitted' });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
 app.get('/admin/test-mockup-sizes', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try { res.json({ sizes: { front: { width: 4500, height: 5400 }, back: { width: 4500, height: 5400 } } }); } catch (e: any) { res.status(500).json({ error: e.message }); }
 });

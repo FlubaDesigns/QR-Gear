@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 7, 2026 (Amazon selling setup, variations, item fees, status/removal and Cloud Storage upload integrity, sandbox).
+Last updated: October 8, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -388,6 +388,28 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### October 8, 2026 — Persistent isolated sandbox
+
+The sandbox carries forward the existing admin navigation, tab and product-builder
+work. It uses its own Firebase resources; build drafts remain available until
+explicitly deleted, including unnamed drafts. Cleanup cannot abandon sandbox work
+based on age. Supplier requests, marketplace publishing and outbound email are
+blocked in this environment. Canonical product IDs and assembly logic are unchanged.
+Deployment verification and the Navy build are still pending.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/runtime-config.ts` | Validate deployment project, bucket, origin and commerce boundary |
+| `functions/src/core.ts` | Use the deployment's own Firebase and storage configuration |
+| `functions/src/middleware.ts` | Sandbox origins and commerce request boundary |
+| `functions/src/routes/admin-build-sessions.ts` | Preserve sandbox drafts and use sandbox QR/storage destinations |
+| `functions/src/routes/deploy-proof.ts` | Report actual deployed project |
+| `functions/src/services/printify.ts`, `printful.ts`, `email.ts`, `marketplace-publisher.ts` | Prevent sandbox outbound commerce |
+| `functions/src/index.ts`, `functions/package.json` | Dedicated sandbox runtime and deployment version |
+
+
 
 ### October 7, 2026 — Cloud Storage upload integrity (sandbox)
 

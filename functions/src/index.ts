@@ -1,9 +1,10 @@
-const _BUILD_ID = '20261007-amazon-selling-sandbox';
+const _BUILD_ID = '20261008-persistent-sandbox';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
+import { isSandboxRuntime } from './runtime-config';
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
-import { corsMiddleware, apiPrefixMiddleware } from './middleware';
+import { corsMiddleware, apiPrefixMiddleware, sandboxCommerceMiddleware } from './middleware';
 
 import { register as registerWidget } from './routes/widget';
 import { register as registerPartner } from './routes/partner';
@@ -73,6 +74,7 @@ app.use(corsMiddleware);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: false }));
 app.use(apiPrefixMiddleware);
+app.use(sandboxCommerceMiddleware);
 
 registerWidget(app);
 registerPartner(app);
@@ -143,6 +145,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
 
 export const api = onRequest(
   {
+    ...(isSandboxRuntime() ? { serviceAccount: 'qrgear-runtime@qr-gear-sandbox.iam.gserviceaccount.com' } : {}),
     timeoutSeconds: 3600,
     memory: '1GiB',
     cors: true,

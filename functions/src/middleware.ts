@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { admin, db } from './core';
+import { isSandboxRuntime } from './runtime-config';
 
-export const ALLOWED_ORIGINS = [
+export const ALLOWED_ORIGINS = isSandboxRuntime() ? ['https://qr-gear-sandbox.web.app', 'https://qr-gear-sandbox.firebaseapp.com'] : [
   'https://qrgear-c1ffd.web.app',
   'https://qrgear-c1ffd.firebaseapp.com',
   'https://qrgear.com',
@@ -94,4 +95,13 @@ export async function verifyMemberAuthCF(req: Request, memberId: string): Promis
     return { authorized: false, error: 'Forbidden' };
   }
   return { authorized: true, userId: user.uid };
+}
+
+/** Keep product editing available while blocking live commerce entry points. */
+export function sandboxCommerceMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (isSandboxRuntime() && /^(?:\/checkout(?:\/|$)|\/public\/packet-checkout(?:\/|$)|\/connect(?:\/|$)|\/webhooks(?:\/|$))/.test(req.path)) {
+    res.status(409).json({ error: 'Purchases and live commerce are disabled in this sandbox.' });
+    return;
+  }
+  next();
 }

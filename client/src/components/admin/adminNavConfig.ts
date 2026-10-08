@@ -1,5 +1,5 @@
 import {
-  Zap, Hammer, ShoppingCart,
+  Zap, Hammer, ShoppingCart, Sparkles,
   Package,
   Image,
   Box,
@@ -30,6 +30,7 @@ export interface SubNavItem {
 
 export const ADMIN_MAIN_NAV: SubNavItem[] = [
   { label: "Run", icon: Zap, href: "/admin" },
+  { label: "AI Builder", icon: Sparkles, href: "/admin/ai-builder" },
   { label: "Build", icon: Hammer, href: "/admin/products" },
   { label: "Place", icon: MapPin, href: "/admin/store-builder" },
   { label: "Partners", icon: Users, href: "/admin/partners" },
@@ -70,6 +71,7 @@ export const SYSTEM_SUBNAV: SubNavItem[] = [
 ];
 
 const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
+  { prefixes: ["/admin/ai-builder"], mode: "AI Builder" },
   { prefixes: ["/admin/partners"], mode: "Partners" },
   {
     prefixes: [

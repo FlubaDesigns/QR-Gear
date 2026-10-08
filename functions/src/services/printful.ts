@@ -1,3 +1,4 @@
+import { isSandboxRuntime, requireLiveCommerce } from '../runtime-config';
 import { db } from '../core';
 
   // ============ PRINTFUL CLIENT (No Replit Dependencies) ============
@@ -9,6 +10,7 @@ let _printfulKeyLastFetch = 0;
 const PRINTFUL_KEY_CACHE_TTL = 60000;
 
 async function getPrintfulApiKeyFromFirestore(): Promise<string | null> {
+  requireLiveCommerce('Printful requests');
   const now = Date.now();
   if (_cachedPrintfulKey && (now - _printfulKeyLastFetch) < PRINTFUL_KEY_CACHE_TTL) {
     return _cachedPrintfulKey;
@@ -28,6 +30,7 @@ async function getPrintfulApiKeyFromFirestore(): Promise<string | null> {
 }
 
 function getPrintfulApiKey(): string {
+  requireLiveCommerce('Printful requests');
   if (_cachedPrintfulKey) return _cachedPrintfulKey;
   const key = process.env.PRINTFUL_API_KEY;
   if (!key) throw new Error('PRINTFUL_API_KEY not configured');
@@ -35,6 +38,7 @@ function getPrintfulApiKey(): string {
 }
 
 async function getPrintfulApiKeyAsync(): Promise<string> {
+  requireLiveCommerce('Printful requests');
   const firestoreKey = await getPrintfulApiKeyFromFirestore();
   if (firestoreKey) return firestoreKey;
   const key = process.env.PRINTFUL_API_KEY;
@@ -76,6 +80,7 @@ class PrintfulClient {
   }
 
   get isConfigured(): boolean {
+    if (isSandboxRuntime()) return false;
     try {
       if (_cachedPrintfulKey) return true;
       const key = process.env.PRINTFUL_API_KEY;

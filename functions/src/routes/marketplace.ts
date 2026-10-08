@@ -1,3 +1,5 @@
+import { validateEtsySettings } from '../../../shared/etsy';
+import { etsyCredentials, getEtsySetupOptions, validateEtsyShopSettings } from '../services/etsy-api';
 import { amazonCredentials, getAmazonSetupOptions, validateAmazonSettings, buildAmazonSubmissions, previewAmazonSubmissions, amazonProductFromSurface } from '../services/amazon-sp-api';
 import { getEbaySetupOptions, createEbayInventoryLocation } from '../services/ebay-api';
 import { resolveMarketplaceVariants } from '../services/marketplace-variants';
@@ -287,7 +289,7 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     try {
       const product = await normalizeProductForPublishing(surface.masterProductId, db);
       if (product.sku !== surface.sku) errors.push('Surface QRG identity does not match its product.');
-      if (surface.enabledPlatforms?.length && surface.enabledPlatforms.every((platform: string) => ['amazon', 'ebay'].includes(platform))) {
+      if (surface.enabledPlatforms?.length && surface.enabledPlatforms.every((platform: string) => ['amazon', 'ebay', 'etsy'].includes(platform))) {
         if (variants.length) errors.push('Legacy surface variants need reconciliation with the built product.');
         await resolveMarketplaceVariants(product, db);
       } else errors.push(...marketplaceSelectionErrors(product, variants.length > 0));
@@ -330,7 +332,7 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
 
     const newStatus = surface.status === 'published' ? 'published' : errors.length === 0 ? 'ready' : 'draft';
     await db.collection(SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
-    res.json({ ready: errors.length === 0, errors, status: newStatus, ...(surface.enabledPlatforms?.some((platform: string) => ['ebay', 'amazon'].includes(platform)) ? { note: 'Item checks only. Marketplace Setup and publishing validate the selected seller requirements.' } : {}) });
+    res.json({ ready: errors.length === 0, errors, status: newStatus, ...(surface.enabledPlatforms?.some((platform: string) => ['ebay', 'amazon', 'etsy'].includes(platform)) ? { note: 'Item checks only. Marketplace Setup and publishing validate the selected seller requirements.' } : {}) });
   } catch (error: any) {
     console.error('[Surfaces] POST check-readiness error:', error);
     res.status(500).json({ error: error.message });
@@ -510,6 +512,42 @@ app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Res
     console.error('[Marketplace] Create listing failed:', error.message);
     res.status(error instanceof MarketplaceError ? error.status : 500).json({ error: error.message });
   }
+});
+
+async function etsySetupContext(listingId: string) {
+  const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), snap = await listingRef.get();
+  if (!snap.exists) throw new MarketplaceError('Listing not found.', 404);
+  const listing = snap.data()!;
+  if (listing.platform !== 'etsy') throw new MarketplaceError('This is not an Etsy listing.');
+  const accountRef = db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(listing.accountId), account = (await accountRef.get()).data();
+  const credentials = etsyCredentials(account || {});
+  const surface = (await db.collection(SURFACES_COLLECTION).doc(listing.surfaceId).get()).data();
+  if (!surface) throw new MarketplaceError('Item setup is missing.', 404);
+  const product = await normalizeProductForPublishing(surface.masterProductId, db);
+  if (product.sku !== surface.sku || listing.marketplaceSku !== surface.sku) throw new MarketplaceError('Listing and product identity do not match.');
+  const variants = await resolveMarketplaceVariants(product, db);
+  const persist = async (token: string) => { await accountRef.update({ etsyRefreshToken: token, updatedAt: new Date().toISOString() }); };
+  return { listingRef, listing, surface, variants, credentials, persist };
+}
+app.get('/admin/surfaces/listings/:listingId/etsy-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await etsySetupContext(req.params.listingId);
+    const options = await getEtsySetupOptions(context.credentials, context.persist);
+    res.json({ options, variants: context.variants, settings: context.listing.publishOptions || {}, shopName: context.credentials.shopName });
+  } catch (error: any) { console.error('[Etsy setup] Load failed:', error.message); res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+app.patch('/admin/surfaces/listings/:listingId/etsy-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const settings = validateEtsySettings(req.body.settings), context = await etsySetupContext(req.params.listingId);
+    validateEtsyShopSettings(settings, await getEtsySetupOptions(context.credentials, context.persist), context.surface.currency || 'USD');
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(context.listingRef);
+      if (!snap.exists || snap.data()!.status === 'syncing') throw new MarketplaceError('Wait for the running job before saving setup.', 409);
+      if (snap.data()!.accountId !== context.listing.accountId) throw new MarketplaceError('Seller changed. Reload setup.', 409);
+      tx.update(context.listingRef, { publishOptions: settings, updatedAt: new Date().toISOString() });
+    });
+    res.json({ success: true });
+  } catch (error: any) { console.error('[Etsy setup] Save failed:', error.message); res.status(error instanceof MarketplaceError ? error.status : 400).json({ error: error.message }); }
 });
 
 async function amazonSetupContext(listingId: string) {

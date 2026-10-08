@@ -21,7 +21,8 @@ import { readGeneratedBuild, existingBuildInstance, saveBuildInstance, saveGener
 
 import express, { Request, Response } from 'express';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { db, storage } from '../core';
+import { db, storage, STORAGE_BUCKET_NAME } from '../core';
+import { isSandboxRuntime, resolveRuntimeConfig } from '../runtime-config';
 import { requireAdmin } from '../middleware';
 import { cfGeneratePrintifyComposite, cfUploadBufferToStorage } from '../services/composite-image';
 import { allocateQrgInstance } from '../services/qrg-instance-allocator';
@@ -184,7 +185,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         const doc = existing.docs[0];
         const d = doc.data();
         // Touch lastActiveAt and back-fill blankKey/catalogId if the session predates those fields
-        const existingPatch: Record<string, any> = { lastActiveAt: FieldValue.serverTimestamp() };
+        const existingPatch: Record<string, any> = { lastActiveAt: FieldValue.serverTimestamp(), ...(isSandboxRuntime() ? { expiresAt: null } : {}) };
         if (bodyBlankKey && !d.blankKey) existingPatch.blankKey = bodyBlankKey;
         if (catalogId && !d.catalogId) existingPatch.catalogId = catalogId;
         await doc.ref.update(existingPatch);
@@ -227,7 +228,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const master = masterDoc.data()!;
 
       const now = FieldValue.serverTimestamp();
-      const expiresAt = Timestamp.fromDate(
+      const expiresAt = isSandboxRuntime() ? null : Timestamp.fromDate(
         new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
       );
 
@@ -299,7 +300,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       const source = sourceDoc.data()!;
       const now = FieldValue.serverTimestamp();
-      const expiresAt = Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+      const expiresAt = isSandboxRuntime() ? null : Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
 
       const newSession = {
         sessionType: 'admin_build',
@@ -366,6 +367,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         lastActiveAt: FieldValue.serverTimestamp(),
       };
 
+      if (isSandboxRuntime()) updatePayload.expiresAt = null;
       if (working && typeof working === 'object') {
         updatePayload.working = sanitizeForFirestore(working);
         console.log(`[BuildSessions] patch ${id} | working keys: ${Object.keys(updatePayload.working).join(',')}`);
@@ -374,7 +376,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       if (draftName !== undefined) {
         updatePayload.draftName = draftName.trim();
         // An explicitly saved draft remains resumable until the admin deletes it.
-        updatePayload.expiresAt = draftName.trim() ? null : Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 86400000));
+        updatePayload.expiresAt = isSandboxRuntime() || draftName.trim() ? null : Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 86400000));
       }
 
       await ref.update(updatePayload);
@@ -572,7 +574,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         instanceNumber: previousInstance.instanceNumber, qrgBaseCode: previousInstance.qrgBaseCode,
         variantCode: previousInstance.variantCode ?? null, qrgFullCode: previousInstance.qrgFullCode ?? null,
       } : await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
-      const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
+      const qrgScanUrl  = `${resolveRuntimeConfig().origin}/scan/${qrgIdentity.qrgBaseCode}`;
       console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
 
       // ── Gate 3: Register GRF assets from packet (BLOCKING — Assembly requires real IDs) ──
@@ -775,6 +777,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
   // ── Cleanup stale sessions ────────────────────────────────────────────────
   app.post('/admin/build-sessions/cleanup', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+    if (isSandboxRuntime()) { res.status(409).json({ error: 'Sandbox drafts are retained until you explicitly delete them.' }); return; }
     try {
       const cutoff = Timestamp.fromDate(
         new Date(Date.now() - SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
@@ -812,7 +815,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const qrContent: string = packet.qrContent;
       if (!qrContent) { res.status(400).json({ error: 'Packet has no qrContent' }); return; }
 
-      const STORAGE_BUCKET = 'qrgear-c1ffd.firebasestorage.app';
+      const STORAGE_BUCKET = STORAGE_BUCKET_NAME;
       const folder = `content/canvas/admin/${packetId}`;
 
       const resolveImageUrl = (url: string): string => {
@@ -901,7 +904,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       // ── 6. Auto re-publish to Printify if instances are already live ─────────
       // Fire-and-forget: response goes out immediately, republish runs in background
-      import('../services/printify-republish').then(({ republishAllInstancesForPacket }) => {
+      if (!isSandboxRuntime()) import('../services/printify-republish').then(({ republishAllInstancesForPacket }) => {
         republishAllInstancesForPacket(packetId).catch((e: any) =>
           console.error('[AutoRepublish] background error for packet', packetId, e.message)
         );

@@ -7,7 +7,7 @@ vi.mock('../../core', () => ({ get db() { return context.db; } }));
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next() }));
 vi.mock('../amazon-sp-api', async importOriginal => ({ ...await importOriginal<any>(), pushListingToAmazon: vi.fn(), getAmazonSetupOptions: vi.fn(), previewAmazonSubmissions: vi.fn(), checkAmazonListing: vi.fn() }));
 vi.mock('../ebay-api', () => ({ pushListingToEbay: vi.fn(), checkEbayListing: vi.fn(), getEbaySetupOptions: vi.fn() }));
-vi.mock('../etsy-api', () => ({ pushListingToEtsy: vi.fn() }));
+vi.mock('../etsy-api', async original => ({ ...await original<any>(), pushListingToEtsy: vi.fn(), getEtsySetupOptions: vi.fn(), checkEtsyListing: vi.fn() }));
 import { register } from '../../routes/marketplace';
 import { getOrCreateMarketplaceListing, runMarketplaceJob, retryFailedJob } from '../marketplace-sync';
 import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct } from '../surface-generator';
@@ -65,7 +65,7 @@ describe('Marketplace product and job handoff', () => {
     const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create');
     expect(result.success).toBe(false); expect(result.error).toContain('canonical blank'); expect(pushListingToAmazon).not.toHaveBeenCalled();
     const readiness = await request(app).post('/admin/surfaces/s/check-readiness').send({}).expect(200);
-    expect(readiness.body.ready).toBe(false); expect(readiness.body.errors.join(' ')).toContain('variation publishing');
+    expect(readiness.body.ready).toBe(false); expect(readiness.body.errors.join(' ')).toContain('canonical blank');
   });
   it('leaves failures failed until explicit retry and rejects concurrent jobs', async () => {
     const listing = await getOrCreateMarketplaceListing('s', 'a');
@@ -88,22 +88,22 @@ describe('Marketplace product and job handoff', () => {
     expect(pushListingToEbay).toHaveBeenCalledWith(expect.objectContaining({ refreshToken: 'ebay-selected' }), expect.objectContaining({ price: 35, quantity: 0 }), sku, expect.any(Function), expect.any(Object), expect.any(Function));
   });
   it('retains Etsy settings and partial external identity for retry', async () => {
-    fixture.store.set('marketplaceAccounts/a', { platform: 'etsy', isActive: true, etsyConnected: true, etsyRefreshToken: 'etsy-selected', etsyShopId: 'shop' });
+    fixture.store.set('marketplaceAccounts/a', { platform: 'etsy', isActive: true, etsyConnected: true, etsyRefreshToken: 'etsy-selected', etsyShopId: '456' });
     vi.mocked(pushListingToEtsy).mockImplementation(async (_account, _product, persistence) => {
       await persistence.onRefreshToken('rotated'); await persistence.onBeforeCreate(); await persistence.onListingCreated(123);
       return { success: false, listingId: 123, state: 'draft', error: 'Image upload failed' };
     });
-    const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create', { taxonomyId: 9, shippingProfileId: 10 });
-    expect(result.success).toBe(false); expect(result.listingStatus).toBe('draft');
+    const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create', { taxonomyId: 9, shippingProfileId: 10, readinessStateId: 4, whoMade: 'someone_else', whenMade: 'made_to_order', quantity: 5, autoRenew: false, productionPartnerIds: [] });
+    expect(result.success).toBe(false); expect(result.listingStatus).toBe('error');
     expect(fixture.store.get('marketplaceAccounts/a').etsyRefreshToken).toBe('rotated');
     expect(fixture.store.get(`marketplaceListings/${listing.id}`).externalListingId).toBe('123');
     vi.mocked(pushListingToEtsy).mockResolvedValue({ success: true, listingId: 123, state: 'active' }); await retryFailedJob(result.id);
     expect(pushListingToEtsy).toHaveBeenLastCalledWith(expect.objectContaining({ refreshToken: 'rotated' }), expect.objectContaining({ taxonomyId: 9, shippingProfileId: 10 }), expect.objectContaining({ existingListingId: 123 }));
   });
   it('blocks blind Etsy retries after unknown create outcome', async () => {
-    fixture.store.set('marketplaceAccounts/a', { platform: 'etsy', isActive: true, etsyConnected: true, etsyRefreshToken: 'token', etsyShopId: 'shop' });
+    fixture.store.set('marketplaceAccounts/a', { platform: 'etsy', isActive: true, etsyConnected: true, etsyRefreshToken: 'token', etsyShopId: '456' });
     vi.mocked(pushListingToEtsy).mockImplementation(async (_a, _p, persistence) => { await persistence.onBeforeCreate(); throw new Error('Connection lost'); });
-    const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create', { taxonomyId: 9, shippingProfileId: 10 });
+    const listing = await getOrCreateMarketplaceListing('s', 'a'); const result = await runMarketplaceJob(listing.id, 'create', { taxonomyId: 9, shippingProfileId: 10, readinessStateId: 4, whoMade: 'someone_else', whenMade: 'made_to_order', quantity: 5, autoRenew: false, productionPartnerIds: [] });
     await expect(retryFailedJob(result.id)).rejects.toThrow('unknown outcome'); expect(pushListingToEtsy).toHaveBeenCalledTimes(1);
   });
   it('does not claim remote deletion succeeded or discard linked records', async () => {

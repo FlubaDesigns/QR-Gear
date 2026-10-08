@@ -12,6 +12,7 @@ import Widget from "@/pages/widget";
 import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
 import ViewDynamic from "@/pages/view-dynamic";
+import AdminAiBuilder from "@/pages/admin-ai-builder";
 import AdminProducts from "@/pages/admin-products";
 import AdminPricing from "@/pages/admin-pricing";
 import LibraryPage from "@/features/adminLibrary/LibraryPage";
@@ -130,6 +131,7 @@ function Router() {
       <Route path="/admin">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
       <Route path="/admin/run">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/dashboard">{() => <Redirect to="/admin" />}</Route>
+      <Route path="/admin/ai-builder">{() => <AdminRoute><AdminAiBuilder /></AdminRoute>}</Route>
       <Route path="/admin/products">{() => <AdminRoute><AdminProducts /></AdminRoute>}</Route>
       <Route path="/admin/pricing">{() => <AdminRoute><AdminPricing /></AdminRoute>}</Route>
       <Route path="/admin/library">{() => <AdminRoute><LibraryPage /></AdminRoute>}</Route>

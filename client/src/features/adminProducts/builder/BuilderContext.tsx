@@ -1,3 +1,4 @@
+import { applyAiProductProposal, type AiProductProposal } from '@shared/aiProductBuilder';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBuildCatalog, resolveBuildProduct } from './restoreProduct';
 import { isQRGBlankId } from '@shared/blankKeys';
@@ -50,6 +51,7 @@ interface BuilderContextValue {
   startFromTemplate: (template: { packet?: any; packetId?: string | null; builderSnapshot?: any }) => Promise<void>;
   busy: string | null;
   beginBuildActivity: (label: string) => () => void;
+  applyAiProposal: (proposal: AiProductProposal, base: string) => void;
   saveDraft: (name: string) => Promise<void>;
   saveWorking: (draftName?: string) => Promise<Record<string, any>>;
   loadFromPacketData: (packetData: Record<string, any>, resolvedProduct?: CatalogProduct | null) => void;
@@ -246,6 +248,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }
     return snapshot;
   }, [state, selectedRole, selectedStore, selectedChannel, selectedCollection, persistWorking]);
+
+  const applyAiProposal = useCallback((proposal: AiProductProposal, base: string) => {
+    if (activityRef.current) throw new Error('Wait for the current build action to finish.');
+    const current = currentStateRef.current;
+    if (!current.activeSessionId || !['working', 'artifact_ready'].includes(current.sessionStatus || '')) throw new Error('Open an editable draft first.');
+    const next = applyAiProductProposal(buildWorkingSnapshot(current, { selectedRole, selectedStore, selectedChannel, selectedCollection }), proposal, base);
+    setState(prev => ({ ...prev, adminCatalogTitle: next.title, titleSource: next.titleSource,
+      productDescription: next.description, adminCatalogDescription: next.adminCatalogDescription,
+      descriptionSource: next.descriptionSource, content: { ...prev.content, ...next.graphics.content } }));
+  }, [selectedRole, selectedStore, selectedChannel, selectedCollection]);
 
   const saveDraft = useCallback(async (name: string) => {
     if (!name.trim()) throw new Error('Enter a draft name.');
@@ -1025,7 +1037,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const value = useMemo<BuilderContextValue>(() => ({
     state,
     qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference,
-    busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate,
+    busy, beginBuildActivity, applyAiProposal, saveDraft, resumeSession, startFromTemplate,
     autoSaveFailed,
     autoSaveError,
     activeProviders: selectedProviders,
@@ -1060,7 +1072,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     loadFromPacketData,
     loadFromWorkingState,
     api,
-  }), [state, qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference, busy, beginBuildActivity, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
+  }), [state, qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference, busy, beginBuildActivity, applyAiProposal, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
 
   return (
     <BuilderContext.Provider value={value}>

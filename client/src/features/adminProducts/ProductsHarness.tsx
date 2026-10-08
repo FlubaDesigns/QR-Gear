@@ -4,12 +4,14 @@ import { StoreChannelDropdownModule } from "./modules/StoreChannelDropdownModule
 import { BuilderHarness } from "./builder/BuilderHarness";
 
 interface ProductsHarnessProps {
+  aiBuilder?: boolean;
   showHeader?: boolean;
   showBuilder?: boolean;
   showSync?: boolean;
 }
 
 function ProductsHarnessInner({
+  aiBuilder = false,
   showHeader = true,
   showBuilder = true,
   showSync = true,
@@ -35,7 +37,7 @@ function ProductsHarnessInner({
 
       {showBuilder && (
         <div className="glass-card">
-          <BuilderHarness />
+          <BuilderHarness aiBuilder={aiBuilder} />
         </div>
       )}
     </div>
