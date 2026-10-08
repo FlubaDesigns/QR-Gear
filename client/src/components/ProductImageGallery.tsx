@@ -132,7 +132,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
               <img
                 src={img.url}
                 alt={img.alt || `Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </button>
           ))}
@@ -220,9 +220,8 @@ export default function ProductImageGallery({ images, className }: ProductImageG
     );
   }
 
-  const objectFit = images[currentIndex]?.type === 'mockup' || images[currentIndex]?.type === 'graphic'
-    ? 'object-contain'
-    : 'object-cover';
+  // Every generated asset must remain visible in full, including portrait landing pages.
+  const objectFit = 'object-contain';
 
   if (images.length === 1) {
     return (
@@ -235,7 +234,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           <img
             src={images[0].url}
             alt={images[0].alt || "Product image"}
-            className={`w-full h-full ${images[0].type === 'mockup' || images[0].type === 'graphic' ? 'object-contain' : 'object-cover'}`}
+            className="w-full h-full object-contain"
             data-testid="img-product-single"
           />
           {/* Zoom hint — visible on hover (desktop) and always on mobile */}
@@ -348,7 +347,7 @@ export default function ProductImageGallery({ images, className }: ProductImageG
               <img
                 src={img.url}
                 alt={img.alt || `Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </button>
           ))}
