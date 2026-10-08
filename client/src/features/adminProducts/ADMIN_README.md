@@ -396,7 +396,7 @@ work. It uses its own Firebase resources; build drafts remain available until
 explicitly deleted, including unnamed drafts. Cleanup cannot abandon sandbox work
 based on age. Supplier requests, marketplace publishing and outbound email are
 blocked in this environment. Canonical product IDs and assembly logic are unchanged.
-Deployment verification and the Navy build are still pending.
+The backend Firebase Admin SDK is aligned with the root at 13.6 for keyless authorization. Deployment verification and the Navy build are still pending.
 
 #### Files Changed
 | File | Change |

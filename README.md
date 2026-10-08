@@ -489,4 +489,4 @@ build sessions have no age-based expiry; explicit deletion remains available.
 Supplier requests, marketplace publishing and outbound email are disabled there.
 The embedded Printify credential fallback was removed; Main requires its configured
 credential when this change is eventually promoted. No Main deployment is authorized
-by this sandbox update. Sandbox deployment and browser acceptance remain pending.
+by this sandbox update. The Functions Firebase Admin SDK is aligned with the root project at 13.6 to support keyless deployment credentials. Sandbox deployment and browser acceptance remain pending.
