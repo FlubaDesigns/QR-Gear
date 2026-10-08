@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createGrfRegistrar } from '../grf-store';
-import { GRF_IMAGE_MAX_BYTES, normalizeMimeType, parseGrfId } from '../../../../shared/GRF_engine';
+import { GRF_IMAGE_MAX_BYTES, GRF_PACKET_SLOTS, normalizeMimeType, parseGrfId } from '../../../../shared/GRF_engine';
 function fixture() {
   const docs = new Map<string, any>();
   const files = new Map<string, { bytes: Buffer; mime: string }>();
@@ -20,6 +20,22 @@ const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR
 const otherPng = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==', 'base64');
 const upload = (f: ReturnType<typeof fixture>, image = png, name = 'original.png') => f.registerSourceImage({ imageUrl: 'data:image/png;base64,' + image.toString('base64'), mimeType: 'image/png', originalFilename: name });
 describe('Source library registration', () => {
+  it('stores inline builder layer uploads as bytes and reuses them on catalog retry', async () => {
+    const f = fixture();
+    const bytes = Buffer.concat([png, Buffer.alloc(2048)]);
+    const input = { ...GRF_PACKET_SLOTS.background, sourceUrl: 'data:image/png;base64,' + bytes.toString('base64'), mimeType: 'image/png' };
+    const first = await f.registerGrfAsset(input);
+    const retry = await f.registerGrfAsset(input);
+    expect(retry.grfId).toBe(first.grfId);
+    expect(f.files.size).toBe(1);
+    expect(f.files.get(first.storagePath!)?.bytes).toEqual(bytes);
+    expect(first.publicUrl).toMatch(/^https:\/\//);
+    const asset = f.docs.get(`grf_assets/${first.grfId}`);
+    expect(asset.sourceUrl).toBe(first.publicUrl);
+    expect(asset.contentHash).toMatch(/^[a-f0-9]{64}$/);
+    await expect(f.registerGrfAsset({ ...input, sourceUrl: 'data:image/png;base64,bm90LWltYWdl' })).rejects.toThrow('bytes do not match');
+    expect(f.files.size).toBe(1);
+  });
   it('preserves original bytes and filename and reuses identical uploads', async () => {
     const f = fixture(); const first = await upload(f); const second = await upload(f, png, 'second-name.png');
     expect(second.grfId).toBe(first.grfId); expect(f.files.size).toBe(1);
