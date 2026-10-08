@@ -520,3 +520,8 @@ Product and landing-page canvas previews and exports now preserve saved font wei
 ### QR zone clearance — October 8, 2026
 
 The shared shirt layout now measures the top zone against the QR background edge and reserves the rendered CTA line height below it. This keeps top artwork clear even at its lowest allowed position and prevents larger CTA text from rising into the QR border. Preview and export use the same geometry; the QR size and center remain unchanged.
+
+
+### Generated product galleries — October 8, 2026
+
+Built-product galleries now contain only the linked packet's generated mockups, artwork, QR image, and landing proof. Blank catalog photos are neither appended nor used when generation is unavailable; original catalog selections remain intact for blank browsing. All store gallery images and thumbnails preserve their full aspect ratio, including portrait QR landing images. An empty product gallery explicitly reports generated images unavailable.
