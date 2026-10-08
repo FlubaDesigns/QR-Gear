@@ -555,3 +555,8 @@ Storefront color changes and Products priority mockups now use the same saved-pa
 ## Armed Forces build methodology — October 8, 2026
 
 The shared AI Build Rules retain the owner's reusable content order: establishment date (`EST. MONTH DAY, YEAR`), `UNITED STATES / BRANCH NAME`, motto, translation or meaning, role/purpose, and legacy. This guides future builds and AI prompts; it does not insert placeholder wording into existing products or individual pages.
+
+
+## QR Play storefront preview — sandbox, October 8, 2026
+
+The product detail response now projects the linked packet’s existing `playMediaUrl`. `PhoneMockupCard` displays YouTube/Vimeo sources as embedded players and direct media as native video, with a correctly sized phone screen, muted autoplay while visible, playback controls, and a Watch full video link. Direct files and YouTube previews stop after 15 seconds; Vimeo retains its own controls. Missing or failed direct media is explicit. Non-video destination images retain their existing behavior. No product, QR, BLD, GRF, QRG or Assembly records are rewritten. Focused API and React regressions cover the saved source, playable media selection, offscreen cleanup, errors and image products.

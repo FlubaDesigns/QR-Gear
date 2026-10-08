@@ -139,6 +139,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let packetLandingPageSnapshotUrl: string | null = null;
       let packetCompositeUrl: string | null = null;
       let packetQrOnlyUrl: string | null = null;
+      let packetPlayMediaUrl: string | null = null;
 
       if (d.currentPacketId) {
         try {
@@ -154,6 +155,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
             packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
             packetCompositeUrl = pkt.compositeUrl || pkt.productGraphicUrl || null;
             packetQrOnlyUrl = pkt.qrOnlyUrl || null;
+            packetPlayMediaUrl = pkt.playMediaUrl || null;
             if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
           }
         } catch (e: any) {
@@ -183,6 +185,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
         compositeUrl: packetCompositeUrl,
         qrCodeUrl: packetQrOnlyUrl,
+        playMediaUrl: packetPlayMediaUrl,
         qrProductType: packetQrProductType,
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes: bSizes,
