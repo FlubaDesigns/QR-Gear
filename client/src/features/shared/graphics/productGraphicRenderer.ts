@@ -1,4 +1,5 @@
 import { loadGoogleFonts } from '@/lib/fontLoader';
+import { printArtworkFrame, type PrintSize } from '@shared/printSizing';
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
@@ -55,6 +56,7 @@ export interface RenderOptions {
   backgroundColor?: string;
   transparent?: boolean;
   placement?: string;
+  placementSize?: PrintSize;
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
@@ -333,6 +335,18 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   if (!transparent && backgroundColor) {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // Scale the entire composition once, preserving relative QR/text/image geometry.
+  // Transparent margins are baked into the full-size file; the provider must not
+  // apply a second scale when placing that file on the same print-area canvas.
+  if (options.placementSize) {
+    const frame = printArtworkFrame(providerLayout || {}, options.placementSize);
+    ctx.translate(frame.left, frame.top);
+    ctx.scale(frame.artworkWidth / W, frame.artworkHeight / H);
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.clip();
   }
 
   const qrImgSize = 1000;

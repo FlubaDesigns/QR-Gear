@@ -563,7 +563,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   // Fetch QRG-native options for a product — single source of truth for placements,
   // colors, sizes, and variant mappings. Called by selectProduct, loadFromWorkingState,
   // and loadFromPacketData. Responses belong to one selection and provider request.
-  const fetchOptionsForProduct = useCallback((product: CatalogProduct) => {
+  const fetchOptionsForProduct = useCallback((product: CatalogProduct, refreshPrintSpecs = false) => {
     const docId = product.docId;
     const selectionVersion = selectionVersionRef.current;
     const optionsVersion = ++optionsVersionRef.current;
@@ -594,7 +594,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     const provider =
       productProvider ||
       (!rawProvider || rawProvider === 'both' ? 'printify' : rawProvider);
-    adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}${product.catalogId && product.catalogId !== "all" ? `&catalogId=${encodeURIComponent(product.catalogId)}` : ""}`)
+    adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}${refreshPrintSpecs ? '&refreshPrintSpecs=true' : ''}${product.catalogId && product.catalogId !== "all" ? `&catalogId=${encodeURIComponent(product.catalogId)}` : ""}`)
       .then(options => {
         setState(prev => {
           if (!isCurrent() || prev.selectedProduct?.docId !== docId) return prev;
@@ -855,7 +855,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       const product = prev.selectedProduct;
       if (!product?.docId) return prev;
       // Schedule the fetch after this state update so placementsLoading is already true
-      setTimeout(() => fetchOptionsForProduct(product), 0);
+      setTimeout(() => fetchOptionsForProduct(product, true), 0);
       return { ...prev, placementsLoading: true, placementsError: null, placementsRestoreWarning: null };
     });
   }, [fetchOptionsForProduct]);

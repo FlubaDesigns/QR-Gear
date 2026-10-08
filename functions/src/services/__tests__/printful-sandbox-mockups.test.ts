@@ -10,8 +10,10 @@ describe('Sandbox provider boundary', () => {
     const client = new PrintfulClient();
     await client.createMockupTask(71,[123],[{ placement: 'front', image_url: 'https://example.test/art.png' }]);
     expect(fetch).toHaveBeenCalledTimes(1);
+    await client.getPrintfiles(71);
+    expect(fetch).toHaveBeenCalledTimes(2);
     await expect(client.getProduct(71)).rejects.toThrow('disabled');
     await expect(getPrintfulApiKeyAsync()).rejects.toThrow('disabled');
-    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 });

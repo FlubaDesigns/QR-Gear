@@ -91,7 +91,8 @@ class PrintfulClient {
   }
 
   private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
-    const mockupOnly = (method === 'POST' && /^\/mockup-generator\/create-task\/\d+(?:\?|$)/.test(endpoint)) ||
+    const mockupOnly = (method === 'GET' && /^\/mockup-generator\/printfiles\/\d+(?:\?|$)/.test(endpoint)) ||
+      (method === 'POST' && /^\/mockup-generator\/create-task\/\d+(?:\?|$)/.test(endpoint)) ||
       (method === 'GET' && endpoint.startsWith('/mockup-generator/task?'));
     if (!mockupOnly) requireLiveCommerce('Printful catalog or commerce request');
     const url = `${PRINTFUL_API_BASE}${endpoint}`;

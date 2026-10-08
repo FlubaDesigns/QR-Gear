@@ -115,6 +115,10 @@ export function useCreatePacket({
   const handleCreatePacket = async () => {
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
+    if (state.placementsLoading || state.placementsError) {
+      setError(state.placementsError || 'Wait for QRG print specifications to finish loading.');
+      return;
+    }
 
     // ── Gate: QRG blank identity must exist before any schema write ────────
     const product = state.selectedProduct as any;

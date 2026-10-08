@@ -1,4 +1,5 @@
 import { catalogColorOptions } from "../services/catalog-color-options";
+import { resolveQrgPrintSpecs } from '../services/qrg-print-specs';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db, isEmbroideryPlacement, normalizePlacements } from '../core';
@@ -959,6 +960,14 @@ export function register(app: express.Express): void {
           providerPlacementId: 'front', sourceTable: `${requestedProvider}_print_placements`,
           layoutSource: 'emergency_fallback', dpi: 300,
         }];
+      }
+
+      // Product-specific dimensions are imported by QRG, never by the AI or UI.
+      // A cached generic rectangle cannot certify print support for offered sizes.
+      if (requestedProvider === 'printful') {
+        printLocations = await resolveQrgPrintSpecs(product, doc.ref,
+          id => printfulClient.getPrintfiles(id), req.query.refreshPrintSpecs === 'true');
+        layoutSource = 'qrg_verified_printfiles';
       }
 
       // 7. Build response — schema-first: QRG identity leads, provider IDs are metadata only

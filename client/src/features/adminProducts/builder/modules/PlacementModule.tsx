@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { printArtworkFrame } from '@shared/printSizing';
 import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -167,7 +168,7 @@ export function PlacementModule() {
         {!isLoading && state.placementsError && (
           <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
-            <span className="flex-1">{state.placementsError} — placements defaulted to standard.</span>
+            <span className="flex-1">{state.placementsError} — refresh QRG print specifications before generating.</span>
             <Button
               size="sm"
               variant="ghost"
@@ -207,7 +208,9 @@ export function PlacementModule() {
             {state.selectedProduct.layoutSource && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground pl-4" data-testid="text-layout-source">
                 <span>
-                  {state.selectedProduct.layoutSource === 'provider_product_locations'
+                    {state.selectedProduct.layoutSource === 'qrg_verified_printfiles'
+                      ? 'Source: QRG verified printer specifications for all offered sizes'
+                      : state.selectedProduct.layoutSource === 'provider_product_locations'
                     ? `Source: ${state.selectedProduct.fulfillmentProvider || 'provider'} product catalog${state.selectedProduct.providerProductId ? ` (ID ${state.selectedProduct.providerProductId})` : ''}`
                     : state.selectedProduct.layoutSource === 'legacy_printPositions'
                       ? 'Source: cached print positions (may be stale)'
@@ -249,6 +252,15 @@ export function PlacementModule() {
             const isSelected = selectedPlacements.includes(placement.id);
             const placementType = placementConfig[placement.id] || "qr";
             const placementSize = placementSizes[placement.id] || "medium";
+            const savedPlacement = productPlacements?.find(p => (p.id || p.type) === placement.id);
+            let printSizeText = 'Print dimensions unavailable — refresh from QRG.';
+            try {
+              const frame = printArtworkFrame(savedPlacement || {}, placementSize);
+              const inches = (n: number) => Number(n.toFixed(2));
+              printSizeText = frame.artworkWidthIn && frame.artworkHeightIn && frame.widthIn && frame.heightIn
+                ? `Design: ${inches(frame.artworkWidthIn)} × ${inches(frame.artworkHeightIn)} in · Print area: ${inches(frame.widthIn)} × ${inches(frame.heightIn)} in`
+                : `Design: ${frame.artworkWidth} × ${frame.artworkHeight} px · Physical dimensions unavailable in QRG`;
+            } catch { /* Show the missing-data message instead of invented dimensions. */ }
             const isQrOnly = (QR_ONLY_PLACEMENTS as string[]).includes(placement.id);
             const hasMethods = placement.methods && placement.methods.length > 1;
             const selectedMethod = state.placementMethods[placement.id] || (placement.methods?.[0]?.method ?? 'dtg');
@@ -324,7 +336,7 @@ export function PlacementModule() {
                     )}
 
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-muted-foreground">Size:</span>
+                      <span className="text-xs text-muted-foreground">Design size:</span>
                       <div className="flex gap-1">
                         {SIZE_OPTIONS.map((size) => (
                           <Button
@@ -341,6 +353,9 @@ export function PlacementModule() {
                         ))}
                       </div>
                     </div>
+
+                    <p className="text-xs text-muted-foreground" data-testid={`print-size-${placement.id}`}>{printSizeText}</p>
+                    <p className="text-xs text-muted-foreground">M leaves a margin around the complete design. L uses the available area. Shirt size is selected separately.</p>
 
                     {placement.methods && placement.methods.length > 0 && (
                       <div className="space-y-1">

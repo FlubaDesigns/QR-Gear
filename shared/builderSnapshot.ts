@@ -56,7 +56,9 @@ export function buildWorkingSnapshot(state: Record<string, any>, ctx: BuilderSna
       selectedPlacements: state.selectedPlacements,
       providerLayouts: Object.fromEntries((state.selectedProduct?.placements || [])
         .filter((p: any) => state.selectedPlacements?.includes(p.id) && p.dimensions)
-        .map((p: any) => [p.id, { dimensions: p.dimensions, providerPlacementId: p.providerPlacement || p.id, provider: p.provider }])),
+        .map((p: any) => [p.id, { dimensions: p.dimensions, printArea: p.printArea, safeArea: p.safeArea, dpi: p.dpi,
+          layoutSource: p.layoutSource, sourceTable: p.sourceTable,
+          providerPlacementId: p.providerPlacementId || p.providerPlacement || p.id, provider: p.provider }])),
       placementConfig: state.placementConfig,
       placementSizes: state.placementSizes,
       placementMethods: state.placementMethods,
@@ -143,6 +145,7 @@ export function productGraphicOptions(value: any, qrContent: string, placement?:
   return {
     qrContent, qrColor: 'black', transparent: true,
     placement: placement || snapshot.layoutConfig.selectedPlacements[0],
+    placementSize: snapshot.layoutConfig.placementSizes?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || 'medium',
     headerStyle: c.headerStyle?.enabled ? c.headerStyle : null,
     footerStyle: c.footerStyle?.enabled ? c.footerStyle : null,
     backgroundColor: snapshot.qrConfig.selectedColor?.hex,
