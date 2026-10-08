@@ -389,6 +389,16 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Preserve generated shirt color
+
+The existing Generate callback saves returned provider proofs into the packet's existing `mockupsByColor` color/placement map using the captured build color. The store selects that generated default color before the first available catalog color. Sandbox preparation initializes an empty placement table through its existing seed route, keeping dimensions in the existing QRG options flow and leaving the sizing calculation unchanged.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/adminProducts/builder/modules/useCreatePacket.ts` | Save returned proofs under their captured color and placement |
+| `client/src/pages/shop-product.tsx` | Prefer the generated packet's default color |
+
 ### October 8, 2026 — Saved build parity and provider mockups
 
 The builder preview uses the same snapshot projection and print dimensions as Generate. The QR percentage calculation is unchanged. The priority handoff takes packet and placement, reads their saved artwork and QRG variant, and returns the actual provider result or error. Only mockup task creation/status is permitted in sandbox. The shared AI Build Rules require reading existing code, resuming the existing build, inspecting the requested reference, using Generate and verifying the returned shirt mockup before claiming completion. URL artwork remains separate.
