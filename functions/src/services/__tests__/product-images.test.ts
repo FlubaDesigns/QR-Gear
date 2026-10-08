@@ -44,10 +44,10 @@ beforeEach(() => {
 });
 
 describe('Image layers through catalog and product routes', () => {
-  it('orders generated product images, artwork/proof, and only the curated catalog selection', async () => {
+  it('shows only generated product images and proofs while preserving catalog selections', async () => {
     const res = await request(app).post('/admin/catalog-instances/product/rebuild-images').send({});
     expect(res.status).toBe(200);
-    expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual(['lifestyle', 'front', 'back', 'artwork', 'proof', 'keep']);
+    expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual(['lifestyle', 'front', 'back', 'artwork', 'proof']);
     expect(m.rows.admin_catalog_instances.product.baseSnapshot.images).toEqual(['keep']);
     expect(m.rows.catalogs.primary.blankImages.qrg_11111).toEqual(['keep']);
     expect(m.rows.master_catalog.qrg_11111.images).toEqual(['keep', 'removed']);
@@ -57,13 +57,13 @@ describe('Image layers through catalog and product routes', () => {
     await request(app).post('/admin/catalog-instances/product/rebuild-images').send({});
     m.rows.productPackets.packet = { priorityMockupUrl: 'new-mockup', compositeUrl: 'new-artwork' };
     await request(app).post('/admin/catalog-instances/product/rebuild-images').send({});
-    expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual(['new-mockup', 'new-artwork', 'keep']);
+    expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual(['new-mockup', 'new-artwork']);
     expect(instanceCatalogImages(m.rows.admin_catalog_instances.product)).toEqual(['keep']);
   });
-  it('uses curated images when generation has no images, respecting an empty selection', async () => {
+  it('does not substitute catalog photos when generation has no images', async () => {
     m.rows.productPackets.packet = {};
     await request(app).post('/admin/catalog-instances/product/rebuild-images').send({});
-    expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual(['keep']);
+    expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual([]);
     m.rows.admin_catalog_instances.product.baseSnapshot.images = [];
     await request(app).post('/admin/catalog-instances/product/rebuild-images').send({});
     expect(m.rows.admin_catalog_instances.product.resolved.images).toEqual([]);
@@ -78,7 +78,7 @@ describe('Image layers through catalog and product routes', () => {
     expect(m.rows.catalogs.primary.blankImages).not.toHaveProperty('qrg_11111');
     expect(resolveCatalogImages(['keep', 'removed'], m.rows.catalogs.primary.blankImages.qrg_11111)).toEqual(['keep', 'removed']);
   });
-  it('deduplicates URLs across tiers and handles string and object catalog images', () => {
-    expect(buildPacketImageOrder({ lifestyleMockupUrl: 'same', priorityMockupUrl: 'same', compositeUrl: 'art', sleeveCompositeUrls: { left_sleeve: 'left', right_sleeve: 'right' }, sleeveCompositeUrl: 'left' }, [{ url: 'same' }, { url: 'keep' }, 'keep'])).toEqual(['same', 'art', 'left', 'right', 'keep']);
+  it('deduplicates generated mockups and proofs', () => {
+    expect(buildPacketImageOrder({ lifestyleMockupUrl: 'same', priorityMockupUrl: 'same', compositeUrl: 'art', sleeveCompositeUrls: { left_sleeve: 'left', right_sleeve: 'right' }, sleeveCompositeUrl: 'left' }, [{ url: 'same' }, { url: 'extra-mockup' }, 'extra-mockup'])).toEqual(['same', 'extra-mockup', 'art', 'left', 'right']);
   });
 });
