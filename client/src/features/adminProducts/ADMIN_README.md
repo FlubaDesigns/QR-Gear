@@ -393,6 +393,10 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Preserve the Armed Forces content methodology
+
+Added the owner's establishment date → branch → motto → meaning → role/purpose → legacy order to the existing shared AI Build Rules (`shared/aiProductBuilder.ts`). It is reusable methodology for future builds, not an edit to an individual product or landing page. Use subject-specific supplied or verified content and never publish the placeholders.
+
 ### October 8, 2026 — Restore saved-design storefront color previews
 
 Products and storefront color changes share the saved packet's front artwork, print dimensions and QRG Printful variant mapping. Each product retains its own graphic when its shirt color changes. Heather colors stay distinct; request failures now have a visible retry action. Store cards display complete names with consistent photo framing. The saved builder, pricing, IDs, QR destinations and proof gallery remain unchanged. Focused tests cover distinct artwork on the same shirt/color, missing mapping/artwork/dimensions, gallery retention and lead-photo preservation.

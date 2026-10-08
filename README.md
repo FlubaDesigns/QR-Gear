@@ -550,3 +550,8 @@ The shared AI Build Rules now cover Save as New versus Resume, destination verif
 ## Storefront color mockups — sandbox, October 8, 2026
 
 Storefront color changes and Products priority mockups now use the same saved-packet request resolver. It uses the packet's exact placement artwork and print dimensions plus the selected color's canonical QRG Printful variant. The storefront no longer relies on legacy blueprint/artwork fallbacks or provider catalog lookups for this request. Cache entries remain scoped to the existing packet and color, and Heather colors remain distinct. Failed previews show a retry control; superseded requests cannot replace the current selection. Product cards show complete names and consistently frame mockup photos. Prices, QR destinations, generated proofs and product identities are unchanged.
+
+
+## Armed Forces build methodology — October 8, 2026
+
+The shared AI Build Rules retain the owner's reusable content order: establishment date (`EST. MONTH DAY, YEAR`), `UNITED STATES / BRANCH NAME`, motto, translation or meaning, role/purpose, and legacy. This guides future builds and AI prompts; it does not insert placeholder wording into existing products or individual pages.
