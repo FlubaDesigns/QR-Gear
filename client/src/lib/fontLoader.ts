@@ -7,7 +7,7 @@ export function loadGoogleFont(fontName: string): Promise<void> {
   if (loads.has(fontName)) return loads.get(fontName)!;
   const link = document.createElement('link');
   link.rel = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}&display=swap`;
+  link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}${fontName === 'Oswald' ? ':wght@200;300;400;500;600;700' : ''}&display=swap`;
   const promise = new Promise<void>((resolve, reject) => {
     const timeout = window.setTimeout(() => fail(), 20000);
     const fail = () => { window.clearTimeout(timeout); reject(new Error(`Could not load font: ${fontName}`)); };
@@ -16,6 +16,7 @@ export function loadGoogleFont(fontName: string): Promise<void> {
       try {
         const faces = await document.fonts.load(`16px ${JSON.stringify(fontName)}`);
         if (!faces.length) { fail(); return; }
+        if (fontName === "Oswald") await Promise.all([500, 600, 700, 800].map(weight => document.fonts.load(`${weight} 16px "Oswald"`)));
         window.clearTimeout(timeout); resolve();
       } catch { fail(); }
     };
