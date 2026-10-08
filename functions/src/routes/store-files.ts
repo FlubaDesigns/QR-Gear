@@ -14,7 +14,7 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { buildStructuredOptions, deriveCardMode, sortProductSizes } from '../../../shared/storefrontTypes';
+import { buildStructuredOptions, deriveCardMode, sortProductSizes, sizeUpcharge } from '../../../shared/storefrontTypes';
 
 /**
  * Convert a productPackets.mockupsByColor nested structure into the flat frontend format.
@@ -308,7 +308,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrCodeUrl: link.qrOnlyUrl || null,
         qrProductType: link.qrProductState || 'qr-basics',
         price: price !== null ? Math.round(price * 100) / 100 : null,
-        availableSizes,
+        availableSizes: sortProductSizes(availableSizes),
+        sizeUpcharges: await getSizeUpcharges(),
         availableColors,
         availablePlacements,
         defaultColor: link.defaultColor || null,
@@ -435,7 +436,7 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
       res.json({
         productId: productId || linkId,
         linkId,
-        price: Math.round(price * 100) / 100,
+        price: Math.round((price + sizeUpcharge(selectedSize, await getSizeUpcharges())) * 100) / 100,
         name: link.productName || 'Untitled Product',
         imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
         selectedColor: selectedColor || link.defaultColor || null,
