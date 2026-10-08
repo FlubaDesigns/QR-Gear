@@ -111,7 +111,7 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
     if (generationRequestHandled.current || pricingLoading || state.placementsLoading) return;
     generationRequestHandled.current = true;
     onGenerateHandled?.();
-    if (packetResult || state.activePacketId || state.sessionStatus === 'committed') return;
+    if (packetResult || (state.activePacketId && sessionStatus !== 'working') || state.sessionStatus === 'committed') return;
     if (!canCreate) {
       toast({ title: 'Complete the build first', description: validationErrors.join('. '), variant: 'destructive' });
       return;
@@ -220,7 +220,7 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
       defaultOpen
     >
       <div className="space-y-4">
-        {!packetResult && !state.activePacketId && (
+        {!packetResult && (!state.activePacketId || sessionStatus === 'working') && (
           <>
             {validationErrors.length > 0 && (
               <div className="p-4 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
