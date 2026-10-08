@@ -148,7 +148,7 @@ export function useCreatePacket({
         return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
       };
 
-      const landingPageSlug = generateSlug(content.title || 'product') + '-' + Date.now().toString(36);
+      const landingPageSlug = generateSlug(snapshot.title || content.title || 'product') + '-' + Date.now().toString(36);
       const isPlayMode = state.qrProductState === "qr_play";
 
       // Upload any base64 background to Storage before it touches any Firestore write.
