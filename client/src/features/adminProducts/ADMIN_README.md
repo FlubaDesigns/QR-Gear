@@ -389,6 +389,18 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Saved build parity and provider mockups
+
+The builder preview uses the same snapshot projection and print dimensions as Generate. The QR percentage calculation is unchanged. The priority handoff takes packet and placement, reads their saved artwork and QRG variant, and returns the actual provider result or error. Only mockup task creation/status is permitted in sandbox. The shared AI Build Rules require reading existing code, resuming the existing build, inspecting the requested reference, using Generate and verifying the returned shirt mockup before claiming completion. URL artwork remains separate.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/aiProductBuilder.ts` | One execution rulebook for all product AI prompts and Rules UI |
+| `ProductGraphicTextModule.tsx`, `GraphicPreviewView.tsx`, `useProductGraphicPreview.ts` | Preview consumes Generate's rendering inputs |
+| `useCreatePacket.ts`, `pp-builder.ts`, `mockup-generator.ts`, `printful.ts` | Saved packet/QRG handoff and real provider errors |
+
+
 ### October 8, 2026 — Persistent isolated sandbox
 
 The sandbox carries forward the existing admin navigation, tab and product-builder
