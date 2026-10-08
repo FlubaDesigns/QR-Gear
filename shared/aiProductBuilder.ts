@@ -1,6 +1,8 @@
 /** AI proposes edits to the existing build snapshot; never a second product. */
 /** One rulebook feeds both the admin Rules tab and every AI build prompt. */
 export const AI_BUILD_RULES = [
+  'Operate the existing Products build system. Read its current implementation and trace the saved build through preview, Generate, provider handoff and store display before proposing code changes. Reuse existing calculations and schema services; do not invent a second sizing formula, renderer, product record or build path.',
+  'Resume the existing saved build when continuing work. The same captured build inputs must drive preview and generated print artwork. Product dimensions and variant mappings come from QRG; layout belongs to BLD, assets to GRF, bindings to Assembly, and the completed offer to the packet. Keep those responsibilities intact.',
   'QRG tables are the only source for product blanks, colors, sizes, blank images and product specifications.',
   'Never read Printify or Printful tables or query their APIs to select or describe a blank, including as a fallback.',
   'If a required value is missing, request it through QRG table logic. Only that logic may import from provider tables. Read and use the resulting value from QRG; never bypass QRG or invent a value.',
@@ -8,6 +10,9 @@ export const AI_BUILD_RULES = [
   'Treat supplied font sizes, weights, spacing, scales and position percentages as starting suggestions unless the admin explicitly locks a value. Adapt them to the actual subject, artwork, background and available space; never hard-code one subject\'s final adjustments as defaults for other builds.',
   'Keep text readable and within its background or print area. Adjust size, line breaks, spacing and position to avoid clipping, collisions, and covering important artwork such as a seal, logo, face or emblem. Preserve the intended wording and visual hierarchy; explain material adjustments.',
   'Inspect the actual rendered shirt graphic and QR landing-page previews separately. Confirm fit at phone viewing size and keep the QR clear and scannable before using the existing Products Generate workflow for the store output. Do not claim visual fit from numeric settings alone; if a preview cannot be inspected, state that limitation.',
+  'When an existing product is named as the reference, open and inspect its actual shirt and URL images before adapting the build. Keep the shirt print canvas, shirt mockup and URL canvas distinct; never infer one canvas size or layout from another.',
+  'Run the existing Products Generate action to produce the store artifacts. Send that saved placement artwork through the provider mockup handoff using the saved QRG color, placement and print dimensions, including in the sandbox. A real provider mockup must return and be attached to the same packet before the shirt preview is complete. Artwork on a colored rectangle, a blank catalog photo, a queued job, or a saved packet is not a completed shirt mockup.',
+  'Verify the returned shirt mockup against the saved build and verify the store reads that packet. Report provider failures exactly and leave the mockup step incomplete. Never claim a handoff succeeded without the returned result. If your available tools cannot inspect code, operate Generate or verify a mockup, say which step remains unverified rather than improvising another build.',
 ] as const;
 export const AI_PRODUCT_FIELDS = {
   title: { label: 'Product title', path: ['title'], max: 140 },
