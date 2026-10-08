@@ -49,6 +49,7 @@ app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<
       if (price === null && productId) {
         const pricingInput: CustomizationPricing = {
           productId,
+          selectedSize: customization.productSize,
           productLine: customization.productLine || 'text',
           hasTextAbove: customization.hasTextAbove || false,
           hasTextBelow: customization.hasTextBelow || false,
@@ -136,6 +137,7 @@ app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response):
       if (price === null && productId) {
         const pricingInput: CustomizationPricing = {
           productId,
+          selectedSize: customization.productSize,
           productLine: customization.productLine || 'text',
           hasTextAbove: customization.hasTextAbove || false,
           hasTextBelow: customization.hasTextBelow || false,
