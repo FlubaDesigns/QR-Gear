@@ -6,6 +6,7 @@ import {
 } from "@/features/shared/graphics/productGraphicRenderer";
 
 interface UseProductGraphicPreviewOptions {
+  renderOptions?: RenderOptions;
   qrContent?: string;
   qrColor?: "black" | "white";
   headerStyle?: TextStyle | null;
@@ -69,6 +70,7 @@ export function useProductGraphicPreview(
     enabled = true,
     debounceMs = 400,
   } = options;
+  const renderOptionsKey = options.renderOptions ? JSON.stringify(options.renderOptions) : null;
 
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -134,7 +136,7 @@ export function useProductGraphicPreview(
           graphicLayoutMode,
         };
 
-        const result = await renderProductGraphic(renderOpts);
+        const result = await renderProductGraphic(renderOptionsKey ? JSON.parse(renderOptionsKey) : renderOpts);
 
         if (currentId === generationId.current) {
           setDataUrl(result);
@@ -154,6 +156,7 @@ export function useProductGraphicPreview(
       }
     };
   }, [
+    renderOptionsKey,
     qrContent,
     qrColor,
     headerStyle?.text,
