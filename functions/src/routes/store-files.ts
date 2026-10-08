@@ -7,14 +7,14 @@ import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_I
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
+  import { calculateAuthoritativePrice, getAuthoritativePrice, getSizeUpcharges, getCatalogInstancePrice } from '../services/pricing';
   import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
   import type { MockupRequest, MockupResult } from '../services/mockup-generator';
   import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { buildStructuredOptions, deriveCardMode } from '../../../shared/storefrontTypes';
+import { buildStructuredOptions, deriveCardMode, sortProductSizes } from '../../../shared/storefrontTypes';
 
 /**
  * Convert a productPackets.mockupsByColor nested structure into the flat frontend format.
@@ -169,7 +169,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       });
 
       const bColors = toStrArr(d.enabledColors || resolved.colors || []);
-      const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
+      const bSizes = sortProductSizes(toStrArr(d.enabledSizes || resolved.sizes || []));
 
       res.json({
         id: instanceDoc.id,
@@ -186,6 +186,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrProductType: packetQrProductType,
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes: bSizes,
+        sizeUpcharges: await getSizeUpcharges(),
         availableColors: bColors,
         availablePlacements: [],
         defaultColor: packetDefaultColor,
@@ -385,7 +386,7 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
       res.json({
         productId: linkId,
         linkId,
-        price: Math.round(price * 100) / 100,
+        price: await getCatalogInstancePrice(linkId, selectedSize),
         name: resolved.title || 'Untitled',
         imageUrl: heroImageUrl,
         selectedColor: selectedColor || null,
