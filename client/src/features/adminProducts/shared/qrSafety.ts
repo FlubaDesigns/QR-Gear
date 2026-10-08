@@ -1,6 +1,6 @@
 export type QrSafetyStatus = "safe" | "caution" | "risky";
 
-export const MIN_SAFE_QR_SIZE_PERCENT = 35;
+export const MIN_SAFE_QR_SIZE_PERCENT = 25;
 export const MAX_SAFE_QR_SIZE_PERCENT = 100;
 
 export function clampQrPercent(value: number) {
@@ -43,7 +43,7 @@ export function getQrSafetyAssessment({
 
   if (qrSizePercent < 30) {
     score -= 45;
-    tips.push("QR is too small. Raise it to at least 35–40% for more reliable scanning.");
+    tips.push("At this size, verify the finished graphic scans and keep a clear border around the QR.");
   } else if (qrSizePercent < 40) {
     score -= 20;
     tips.push("QR is on the small side. Bigger is safer, especially for print.");
