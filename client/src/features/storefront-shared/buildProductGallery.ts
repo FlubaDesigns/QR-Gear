@@ -34,9 +34,9 @@ function normalizeImageUrl(item: string | { url?: string; alt?: string }): strin
   return item?.url || null;
 }
 
-/** Strip common color name prefixes and normalize to lowercase (e.g. "Solid Black" → "black"). */
+/** Strip the optional Solid prefix; Heather remains a distinct shirt color. Normalize and normalize to lowercase (e.g. "Solid Black" → "black"). */
 function normalizeColorName(name: string): string {
-  return name.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+  return name.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
 }
 
 /**

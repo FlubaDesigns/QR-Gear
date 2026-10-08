@@ -1,3 +1,4 @@
+import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { buildPacketImageOrder, resolveProductImages } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -13,7 +14,6 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { COLOR_HEX_MAP } from '../../../shared/colorUtils';
 import { buildStructuredOptions, deriveCardMode } from '../../../shared/storefrontTypes';
 
 /**
@@ -879,11 +879,11 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
     const { linkId } = req.params;
     const { colorName } = req.body;
 
-    if (!colorName) { res.status(400).json({ error: 'colorName is required' }); return; }
+    if (typeof colorName !== 'string' || !colorName.trim()) { res.status(400).json({ error: 'colorName is required' }); return; }
 
     // Normalize helper — matches buildProductGallery's normalizeColorName
     const norm = (s: string) =>
-      s.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+      s.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
     const targetNorm = norm(colorName);
 
     // ── Load packet from admin_catalog_instances ──────────────────────────
@@ -940,37 +940,18 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
       return;
     }
 
-    const artworkUrl: string | null =
-      packetData.artworkUrl || packetData.compositeUrl || packetData.productGraphicUrl || null;
-    const blueprintId: number | null =
-      packetData.blueprintId ||
-      (instanceData?.baseSnapshot?.printifyBlueprintId ?? null);
-
-    if (!artworkUrl || !blueprintId) {
-      res.json({ success: false, error: 'Insufficient packet data for mockup generation — artwork or blueprintId missing', colorName });
+    const enabledColors = (instanceData?.enabledColors || instanceData?.resolved?.colors || [])
+      .map((value: any) => typeof value === 'string' ? value : value?.name || value?.label);
+    if (!enabledColors.includes(colorName)) {
+      res.status(400).json({ success: false, error: 'Color is not enabled for this product', colorName });
       return;
     }
-
-    const printProviderId: number = packetData.printProviderId || 39;
-    const fulfillmentProvider: string = packetData.fulfillmentProvider || 'printify';
-    const colorHex: string = (COLOR_HEX_MAP as Record<string, string>)[colorName]
-      || (COLOR_HEX_MAP as Record<string, string>)[colorName.toLowerCase()]
-      || '#ffffff';
-
-    console.log(`[StoreColorMockup] Generating for ${colorName} (${colorHex}) on ${linkId}`);
-
-    const result = await generateMockupFromPrintful({
-      blueprintId,
-      printProviderId,
-      colorName,
-      colorHex,
-      artworkUrl,
-      artworkVariant: 'black',
-      fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      placement: 'front',
-      qrSize: 'medium',
-      hasCompositeGraphic: true,
-    });
+    const sourceMasterId = packetMockupSourceId(packetData);
+    const masterDoc = await db.collection('master_catalog').doc(sourceMasterId).get();
+    if (!masterDoc.exists) throw new Error('QRG blank not found');
+    const request = buildPacketMockupRequest(packetData, masterDoc.data()!, 'front', colorName);
+    const result = await generateMockupFromPrintful(request);
+    if (!result.mockupUrl) throw new Error('Printful returned no color mockup');
 
     // ── Save back to packet (3-level format) ──────────────────────────────
     if (result.mockupUrl && packetId) {
@@ -999,7 +980,7 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
     });
   } catch (e: any) {
     console.error('[StoreColorMockup] Error:', e.message);
-    res.json({ success: false, error: e.message, colorName: req.body?.colorName });
+    res.status(502).json({ success: false, error: e.message, colorName: req.body?.colorName });
   }
 });
 

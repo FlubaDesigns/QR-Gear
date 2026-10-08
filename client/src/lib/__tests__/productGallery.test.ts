@@ -21,3 +21,10 @@ describe('generated packet gallery', () => {
     expect(buildProductGallery({ imageUrl: 'a', packetImageUrl: 'a' }).map(i => i.url)).toEqual(['a']);
   });
 });
+
+
+it('keeps Red and Heather Red mockups separate', () => {
+  const product = { mockupsByColor: { Red: { front: 'red' }, 'Heather Red': { front: 'heather-red' } } };
+  expect(buildProductGallery(product, 'Heather Red').map(i => i.url)).toEqual(['heather-red']);
+  expect(buildProductGallery(product, 'Red').map(i => i.url)).toEqual(['red']);
+});

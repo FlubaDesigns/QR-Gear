@@ -393,6 +393,20 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Restore saved-design storefront color previews
+
+Products and storefront color changes share the saved packet's front artwork, print dimensions and QRG Printful variant mapping. Each product retains its own graphic when its shirt color changes. Heather colors stay distinct; request failures now have a visible retry action. Store cards display complete names with consistent photo framing. The saved builder, pricing, IDs, QR destinations and proof gallery remain unchanged. Focused tests cover distinct artwork on the same shirt/color, missing mapping/artwork/dimensions, gallery retention and lead-photo preservation.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/builderSnapshot.ts` | Shared saved-packet mockup request resolver |
+| `functions/src/routes/pp-builder.ts`, `functions/src/routes/store-files.ts` | Reuse canonical QRG and placement artwork handoff |
+| `client/src/pages/shop-product.tsx` | Visible retry and stale-request handling |
+| `client/src/features/storefront-shared/buildProductGallery.ts` | Keep Heather colors distinct |
+| `client/src/features/storefront/ProductCard.tsx` | Full card titles and consistent photo framing |
+| `client/src/lib/__tests__/packetMockup.test.ts`, `client/src/lib/__tests__/productGallery.test.ts` | Focused mockup and gallery checks |
+
 ### October 8, 2026 — Close gaps found while adapting the Air Force build
 
 Follow the same shared AI Build Rules when adapting a completed reference: Save as New, verify destination, identify the correct Library/Cropped asset in the target environment, replace subject copy without duplicating a baked-in title, and verify every generated gallery artifact. The draft name is separate from the store title. Output now exposes the existing product title and description controls without requiring a catalog card. Generate uses the captured product title for the new landing slug; existing content title remains a legacy fallback.

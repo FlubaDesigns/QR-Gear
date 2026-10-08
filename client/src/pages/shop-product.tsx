@@ -114,6 +114,8 @@ export default function ShopProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [mockupFetching, setMockupFetching] = useState(false);
+  const [mockupError, setMockupError] = useState<string | null>(null);
+  const mockupRequestId = useRef(0);
   // Local mockup cache — starts from API data, enriched on-demand as colors are picked
   const [localMockupsByColor, setLocalMockupsByColor] = useState<
     Record<string, { front?: string; lifestyle?: string; angles?: string[] }> | null
@@ -137,6 +139,9 @@ export default function ShopProductPage() {
   // Initialise selection once per product load — use options[] contract first, fallback to raw fields
   useEffect(() => {
     if (!product) return;
+    mockupRequestId.current += 1;
+    setMockupFetching(false);
+    setMockupError(null);
     // Seed local mockup cache from API data
     setLocalMockupsByColor(product.mockupsByColor ?? null);
 
@@ -159,20 +164,23 @@ export default function ShopProductPage() {
 
   // Normalize color name the same way buildProductGallery does
   const normalizeColorKey = (s: string) =>
-    s.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+    s.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
 
   // Returns true if the color already has a mockup in the local cache
   const isMockupCached = (color: string): boolean => {
     if (!localMockupsByColor) return false;
     const target = normalizeColorKey(color);
     return Object.keys(localMockupsByColor).some(
-      (key) => normalizeColorKey(key.split('_')[0]) === target,
+      (key) => normalizeColorKey(key.split('_')[0]) === target && !!localMockupsByColor[key]?.front,
     );
   };
 
   const handleColorChange = async (color: string) => {
+    const requestId = ++mockupRequestId.current;
     setSelectedColor(color);
     setColorError(false);
+    setMockupError(null);
+    setMockupFetching(false);
     if (!linkId || isMockupCached(color)) return;
     setMockupFetching(true);
     try {
@@ -181,22 +189,20 @@ export default function ShopProductPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ colorName: color }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.mockupUrl) {
-          setLocalMockupsByColor((prev) => ({
-            ...(prev ?? {}),
-            [color]: {
-              front: data.mockupUrl,
-              ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
-            },
-          }));
-        }
-      }
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.mockupUrl) throw new Error('Color mockup unavailable');
+      if (requestId !== mockupRequestId.current) return;
+      setLocalMockupsByColor((prev) => ({
+        ...(prev ?? {}),
+        [color]: {
+          front: data.mockupUrl,
+          ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
+        },
+      }));
     } catch {
-      // Silent — gallery will fall back to generic images
+      if (requestId === mockupRequestId.current) setMockupError(`We couldn't load the ${color} shirt preview. Please try again.`);
     } finally {
-      setMockupFetching(false);
+      if (requestId === mockupRequestId.current) setMockupFetching(false);
     }
   };
 
@@ -404,6 +410,12 @@ export default function ShopProductPage() {
                 </div>
               )}
             </Card>
+            {mockupError && (
+              <div role="alert" className="mt-3 text-sm text-destructive">
+                <p>{mockupError}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => selectedColor && handleColorChange(selectedColor)}>Retry preview</Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">
