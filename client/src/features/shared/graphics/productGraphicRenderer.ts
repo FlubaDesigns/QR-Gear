@@ -306,6 +306,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     headerActive,
     footerActive,
     subBottomActive,
+    subBottomLineHeight: scaledFontSize(subBottomFontSize, W) * 1.3,
     // Zone mode: positionLR/UD implicit center per BLD.md — pass 50 regardless of stored value
     // Palette mode: prefer stored BLD positionLR/UD when at canonical 1200×1800 dimensions
     qrPositionX: graphicLayoutMode === "zone" ? 50 : resolvedQrPositionX,
