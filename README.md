@@ -525,3 +525,10 @@ The shared shirt layout now measures the top zone against the QR background edge
 ### Generated product galleries — October 8, 2026
 
 Built-product galleries now contain only the linked packet's generated mockups, artwork, QR image, and landing proof. Blank catalog photos are neither appended nor used when generation is unavailable; original catalog selections remain intact for blank browsing. All store gallery images and thumbnails preserve their full aspect ratio, including portrait QR landing images. An empty product gallery explicitly reports generated images unavailable.
+
+
+### One Products build path — October 8, 2026
+
+All AI product work must read and follow `AI_BUILD_RULES` in `shared/aiProductBuilder.ts`; that same rulebook feeds the admin Rules tab and prompts. Resume the existing build and trace the existing implementation before proposing changes. Reuse its QRG/BLD/GRF/Assembly pipeline and Generate action. A returned, verified provider shirt mockup is required before claiming the physical preview is complete.
+
+Admin graphic preview now receives `productGraphicOptions(buildWorkingSnapshot(...))`, the same projection used by Generate, including the selected print dimensions, QR color and styling. Existing QR sizing math is preserved. Priority mockups read the persisted packet's placement artwork, dimensions and selected color and resolve the supplier variant from QRG. They no longer discard placement or conceal provider errors. Sandbox permits only Printful mockup task creation/status; catalog and commerce calls remain blocked. Its existing credential store is connected securely through the Authorization Engine without logging keys, copying unrelated credentials, changing IAM or deploying Main.
