@@ -506,3 +506,9 @@ Functions explicitly include the existing shared-schema runtime dependencies (Dr
 ### Canonical QRG options — October 8, 2026
 
 The product-options route now uses the existing shared QRG color/size projection instead of a duplicate seven-digit parser. This restores actual labels for canonical four-digit SSCC variant rows such as the saved Navy combinations. No provider-table reads are added.
+
+
+
+### Navy typography in sandbox
+
+Product and landing-page canvas previews and exports now preserve saved font weights and letter spacing. Oswald loads its available weights before drawing; spacing scales with export dimensions and resets between text blocks. Navy's supplied design values remain in its saved builder snapshot. Focused coverage: `client/src/lib/__tests__/navyTypography.test.ts`.
