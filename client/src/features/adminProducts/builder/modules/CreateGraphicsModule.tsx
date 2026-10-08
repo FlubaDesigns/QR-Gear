@@ -12,6 +12,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PacketResultDisplay } from "./PacketResultDisplay";
 import { useCreatePacket } from "./useCreatePacket";
+import { replaceLeadPhoto } from './replaceLeadPhoto';
+import { queryClient } from '@/lib/queryClient';
+import { refreshBuildLibrary } from '@/features/adminLibrary/shared/grfQueryKeys';
 
 interface HostingTier {
   code: string;
@@ -48,12 +51,21 @@ export interface PacketResult {
 }
 
 export function CreateGraphicsModule({ generateRequested = false, onGenerateHandled }: { generateRequested?: boolean; onGenerateHandled?: () => void } = {}) {
-  const { state, setContent, setProductTitle, setProductDescription, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, resumeSession, setActivePacketId, setActiveSession } = useBuilderContext();
+  const { state, setContent, setProductTitle, setProductDescription, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, resumeSession, setActivePacketId, setActiveSession, beginBuildActivity } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
+  const [leadPhoto, setLeadPhoto] = useState<File | null>(null);
+  const [savingLeadPhoto, setSavingLeadPhoto] = useState(false);
+  const [leadPhotoError, setLeadPhotoError] = useState<string | null>(null);
+  const leadPhotoInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    setLeadPhoto(null);
+    setLeadPhotoError(null);
+    if (leadPhotoInput.current) leadPhotoInput.current.value = '';
+  }, [state.activePacketId]);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
@@ -155,6 +167,8 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
           pricing: p.pricing as PricingBreakdown,
           priorityMockupUrl: strOrNull(p.priorityMockupUrl),
           priorityMockupLoading: false,
+          lifestyleMockupUrl: strOrNull(p.lifestyleMockupUrl),
+          placementMockupUrls: (p.placementMockupUrls as Record<string, string> | null) ?? null,
           compositeUrl: strOrNull(p.compositeUrl),
           assemblyId: strOrNull(p.assemblyId),
           printifyProductId: strOrNull(p.printifyProductId),
@@ -205,6 +219,29 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
     } catch (err: any) {
       toast({ title: 'Could not save as new', description: err.message || 'Please try again.', variant: 'destructive' });
     } finally { setIsCloningSession(false); }
+  };
+
+  const handleLeadPhoto = async () => {
+    if (!leadPhoto || !packetResult || !state.committedInstanceId || savingLeadPhoto) return;
+    let finish: () => void;
+    try { finish = beginBuildActivity('Saving lead photo…'); } catch { return; }
+    setSavingLeadPhoto(true);
+    setLeadPhotoError(null);
+    const packetId = packetResult.packetId;
+    try {
+      const result = await replaceLeadPhoto(packetId, state.committedInstanceId, leadPhoto);
+      setPacketResult(prev => prev?.packetId === packetId ? { ...prev,
+        priorityMockupUrl: result.url, placementMockupUrls: result.placementMockupUrls,
+        lifestyleMockupUrl: result.lifestyleMockupUrl } : prev);
+      void refreshBuildLibrary(queryClient);
+      void queryClient.invalidateQueries({ predicate: query => query.queryKey.some(key => typeof key === 'string' && /catalog-instances|\/shop\//.test(key)) });
+      setLeadPhoto(null);
+      if (leadPhotoInput.current) leadPhotoInput.current.value = '';
+      toast({ title: 'Lead photo saved', description: `The new photo is first for ${result.color}.` });
+    } catch (error: any) {
+      console.error('[Products] Lead photo save failed:', error);
+      setLeadPhotoError(error.message || 'Could not save the lead photo.');
+    } finally { setSavingLeadPhoto(false); finish(); }
   };
 
 
@@ -373,6 +410,17 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
                   : <Copy className="h-3.5 w-3.5 mr-1.5" />
                 }
                 Save as New
+              </Button>
+            </div>
+            <div className="space-y-3 rounded-md border p-4">
+              <label htmlFor="lead-photo-input" className="block text-base font-semibold">Replace lead photo</label>
+              <p className="text-sm text-muted-foreground">Choose the first storefront photo for the saved shirt color. Your print design and QR page stay the same.</p>
+              <input id="lead-photo-input" ref={leadPhotoInput} type="file" accept="image/png,image/jpeg,image/webp"
+                className="block w-full min-h-12 text-sm" disabled={savingLeadPhoto || packetResult.priorityMockupLoading}
+                onChange={event => { setLeadPhoto(event.target.files?.[0] || null); setLeadPhotoError(null); }} />
+              {leadPhotoError && <p role="alert" className="text-sm text-destructive">{leadPhotoError} The photo is kept here so you can retry.</p>}
+              <Button className="min-h-12" onClick={handleLeadPhoto} disabled={!leadPhoto || savingLeadPhoto || packetResult.priorityMockupLoading}>
+                {savingLeadPhoto ? 'Saving lead photo…' : leadPhotoError ? 'Retry photo save' : 'Save lead photo'}
               </Button>
             </div>
           </div>

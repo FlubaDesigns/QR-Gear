@@ -45,6 +45,10 @@ The combined regression run exposed one outdated product-images test adapter; it
 
 ## Required Reading
 
+### Saved product lead photo — October 8, 2026
+
+Products → Output provides Replace lead photo for a committed build. It registers the uploaded PNG/JPEG/WebP through the existing GRF output/store/front service, updates only the saved color's front mockup and display references, then rebuilds the existing instance's gallery. Shirt artwork, QR content, Assembly and other color/lifestyle images are retained. The current packet/instance link is checked before upload. Failed saves remain visible with the selected file available for retry. Resume now restores both placement and lifestyle previews.
+
 Before making any changes to this project, read these files in full:
 
 | File | Purpose |
