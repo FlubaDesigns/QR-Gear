@@ -48,7 +48,7 @@ export interface PacketResult {
 }
 
 export function CreateGraphicsModule({ generateRequested = false, onGenerateHandled }: { generateRequested?: boolean; onGenerateHandled?: () => void } = {}) {
-  const { state, setContent, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, resumeSession, setActivePacketId, setActiveSession } = useBuilderContext();
+  const { state, setContent, setProductTitle, setProductDescription, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, resumeSession, setActivePacketId, setActiveSession } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
@@ -222,6 +222,28 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
       <div className="space-y-4">
         {!packetResult && (!state.activePacketId || sessionStatus === 'working') && (
           <>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium">Product title</span>
+              <input
+                className="w-full min-h-12 rounded-md border bg-background px-3 py-2"
+                value={state.adminCatalogTitle ?? state.masterTitle ?? state.selectedProduct.title ?? ''}
+                onChange={event => setProductTitle(event.target.value, 'manual')}
+                disabled={isCreating || !['working', 'artifact_ready'].includes(sessionStatus || '')}
+                maxLength={140}
+                data-testid="input-output-product-title"
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium">Product description</span>
+              <textarea
+                className="w-full min-h-28 rounded-md border bg-background px-3 py-2"
+                value={state.productDescription ?? state.masterDescription ?? ''}
+                onChange={event => setProductDescription(event.target.value, 'manual')}
+                disabled={isCreating || !['working', 'artifact_ready'].includes(sessionStatus || '')}
+                maxLength={5000}
+                data-testid="textarea-output-product-description"
+              />
+            </label>
             {validationErrors.length > 0 && (
               <div className="p-4 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
                 <p className="text-base font-semibold text-amber-700 dark:text-amber-300 mb-3">Complete these items first:</p>
