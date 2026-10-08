@@ -273,6 +273,7 @@ export function UnifiedGraphic({
     headerActive,
     footerActive,
     subBottomActive,
+    subBottomLineHeight: 34 * 1.3,
     qrPositionX,
     qrPositionY,
     qrSizePercent: resolvedQrSizePercent,
