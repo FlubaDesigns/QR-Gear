@@ -142,8 +142,9 @@ export default function ShopProductPage() {
 
     const colorOpt = product.options?.find(o => o.name === 'color');
     const defaultColor =
-      colorOpt?.values.find(v => v.available)?.label ??
+      colorOpt?.values.find(v => v.available && v.label.toLowerCase() === product.defaultColor?.toLowerCase())?.label ??
       product.defaultColor ??
+      colorOpt?.values.find(v => v.available)?.label ??
       null;
     if (defaultColor) setSelectedColor(defaultColor);
 
