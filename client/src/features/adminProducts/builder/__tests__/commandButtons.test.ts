@@ -30,6 +30,22 @@ beforeEach(() => {
 afterEach(() => { if (tree) act(() => tree.unmount()); });
 const button = (id: string) => tree.root.findAll(n => n.type === 'button' && n.props['data-testid'] === id)[0];
 describe('button wiring and generation handoff', () => {
+  it('a resumed draft exposes saved product text without needing a loaded catalog card', async () => {
+    m.context.state.adminCatalogTitle = 'Reference title';
+    m.context.state.productDescription = 'Reference description';
+    m.context.setProductTitle = vi.fn();
+    m.context.setProductDescription = vi.fn();
+    await act(async () => { tree = create(React.createElement(CreateGraphicsModule)); });
+    const title = tree.root.findByProps({ 'data-testid': 'input-output-product-title' });
+    const description = tree.root.findByProps({ 'data-testid': 'textarea-output-product-description' });
+    expect(title.props.value).toBe('Reference title');
+    expect(description.props.value).toBe('Reference description');
+    act(() => { title.props.onChange({ target: { value: 'New subject' } }); description.props.onChange({ target: { value: 'New description' } }); });
+    expect(m.context.setProductTitle).toHaveBeenCalledWith('New subject', 'manual');
+    expect(m.context.setProductDescription).toHaveBeenCalledWith('New description', 'manual');
+    expect(m.context.state.selectedProduct).toEqual({ docId: 'qrg_11001' });
+    expect(m.api).not.toHaveBeenCalled();
+  });
   it('top and bottom bars call the same Save and Generate actions, and switch to View for existing packets', async () => {
     const props = { onSave: vi.fn(), onNew: vi.fn(), onGenerate: vi.fn(), onOpenSaved: vi.fn(), onOpenTemplates: vi.fn(), onOpenOutput: vi.fn() };
     const render = () => React.createElement(React.Fragment, null, React.createElement(BuilderCommandStrip, props), React.createElement(BuilderBottomBar, props));
