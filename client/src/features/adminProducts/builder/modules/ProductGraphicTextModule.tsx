@@ -1,4 +1,6 @@
 import { BLD_LAYOUTS } from "@shared/bldCodes";
+import { buildWorkingSnapshot, productGraphicOptions } from '@shared/builderSnapshot';
+import type { RenderOptions } from '@/features/shared/graphics/productGraphicRenderer';
 import { useRef, useState, useCallback } from "react";
 import { Type, Move, Maximize2, Upload, X, ImageIcon, Loader2, FolderOpen, Save, ArrowUp, ArrowDown } from "lucide-react";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
@@ -121,7 +123,7 @@ function ZoneEditor({
 
 export function ProductGraphicTextModule() {
   const imageUpload = useAdminImageUpload();
-  const { state, setContent } = useBuilderContext();
+  const { state, setContent, selectedRole, selectedStore, selectedChannel, selectedCollection } = useBuilderContext();
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryTarget, setLibraryTarget] = useState<"header" | "footer" | "area" | null>(null);
   const [saveImageDataUrl, setSaveImageDataUrl] = useState<string | null>(null);
@@ -183,6 +185,15 @@ export function ProductGraphicTextModule() {
   const hasHeaderContent = (state.content.headerStyle as TextStyleConfig)?.enabled;
   const hasFooterContent = (state.content.footerStyle as TextStyleConfig)?.enabled;
   const showPreview = hasHeaderContent || hasFooterContent || !!adminAreaImageUrl || state.content.subBottomStyle?.enabled;
+  let previewOptions: RenderOptions | undefined;
+  let previewError: string | null = null;
+  if (showPreview) {
+    try {
+      const snapshot = buildWorkingSnapshot(state, { selectedRole, selectedStore, selectedChannel, selectedCollection });
+      previewOptions = productGraphicOptions(snapshot, state.content.url || 'https://qrgear.app') as RenderOptions;
+      if (!previewOptions.providerLayout?.dimensions) throw new Error('Select a print placement to preview its actual dimensions.');
+    } catch (error) { previewError = error instanceof Error ? error.message : String(error); }
+  }
 
   const isZoneMode = state.content.graphicLayoutMode === "zone";
   const effectiveQrSizePercent = isZoneMode ? sizeVal / 2 : sizeVal;
@@ -446,7 +457,8 @@ export function ProductGraphicTextModule() {
         {showPreview && (
           <div className="flex flex-col items-center py-2">
             <p className="text-xs text-muted-foreground mb-2">Product Graphic Preview</p>
-            <GraphicPreviewView
+            {previewError ? <p role="alert" className="text-sm text-destructive">{previewError}</p> : <GraphicPreviewView
+              renderOptions={previewOptions}
               backgroundColor={state.selectedColor?.hex || '#1a1a2e'}
               headerStyle={(state.content.headerStyle as TextStyleConfig) || headerDefaultStyle}
               footerStyle={(state.content.footerStyle as TextStyleConfig) || footerDefaultStyle}
@@ -462,7 +474,7 @@ export function ProductGraphicTextModule() {
               areaImageScale={areaSc}
               subBottomStyle={state.content.subBottomStyle}
               graphicLayoutMode={state.content.graphicLayoutMode || "zone"}
-            />
+            />}
             <p className="text-xs text-muted-foreground mt-2 text-center">
               This is how your product graphic will appear
             </p>
