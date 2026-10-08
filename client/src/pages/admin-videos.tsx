@@ -1,6 +1,6 @@
 import { DeleteBuildDialog, PendingAssetDeletions } from '@/features/shared/components/DeleteBuildDialog';
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Redirect } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -364,8 +364,7 @@ function VideosContent() {
 }
 
 export default function AdminVideosPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [, navigate] = useLocation();
+  const { isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
 
   if (authLoading) {
     return (
@@ -375,10 +374,8 @@ export default function AdminVideosPage() {
     );
   }
 
-  if (!user) {
-    navigate("/");
-    return null;
-  }
+  if (!isAuthenticated) return <Redirect to="/login?engine=1" />;
+  if (!isAdmin) return <Redirect to="/" />;
 
   return <VideosContent />;
 }

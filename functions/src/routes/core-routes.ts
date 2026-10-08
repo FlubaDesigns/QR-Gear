@@ -85,8 +85,10 @@ app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
     
     if (!userDoc.exists) {
       const newUser = {
-        email: decodedToken.email,
-        displayName: decodedToken.name || decodedToken.email?.split('@')[0],
+        // Engine/custom-token accounts may have neither optional identity field.
+        // Firestore rejects undefined values, which otherwise leaves /auth/user null.
+        email: decodedToken.email || null,
+        displayName: decodedToken.name || decodedToken.email?.split('@')[0] || null,
         isAdmin: ADMIN_USER_IDS.includes(decodedToken.uid),
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       };

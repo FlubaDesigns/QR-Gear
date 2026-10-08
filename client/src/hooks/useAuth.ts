@@ -39,9 +39,9 @@ export function useAuth() {
     retry: false,
   });
 
-  // Only consider loading until Firebase auth is checked
-  // Don't wait for API - admin status is determined by UID, not API
-  const isLoading = !authChecked;
+  // A restored Firebase session can precede its application profile. Keep
+  // protected pages loading until that profile (including admin status) resolves.
+  const isLoading = !authChecked || (!!firebaseUser && apiLoading);
 
   // Check admin from API response OR fallback to hardcoded UID check
   // The hardcoded check works immediately once firebaseUser is available
