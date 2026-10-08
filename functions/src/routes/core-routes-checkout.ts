@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
   import type { CustomizationPricing } from '../services/pricing';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
+  import { calculateAuthoritativePrice, getAuthoritativePrice, getCatalogInstancePrice } from '../services/pricing';
   import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
   import type { MockupRequest, MockupResult } from '../services/mockup-generator';
   import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
@@ -43,8 +43,10 @@ app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<
       const productName = customization.productName || 'Custom QR Product';
       const productImage = customization.productImage;
       
-      let price: number | null = null;
-      if (productId) {
+      let price: number | null = customization.linkId
+        ? await getCatalogInstancePrice(customization.linkId, customization.productSize)
+        : null;
+      if (price === null && productId) {
         const pricingInput: CustomizationPricing = {
           productId,
           productLine: customization.productLine || 'text',
@@ -128,8 +130,10 @@ app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response):
       const productName = customization.productName || 'Custom QR Product';
       const productImage = customization.productImage;
       
-      let price: number | null = null;
-      if (productId) {
+      let price: number | null = customization.linkId
+        ? await getCatalogInstancePrice(customization.linkId, customization.productSize)
+        : null;
+      if (price === null && productId) {
         const pricingInput: CustomizationPricing = {
           productId,
           productLine: customization.productLine || 'text',
