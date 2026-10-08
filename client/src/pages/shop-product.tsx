@@ -397,8 +397,9 @@ export default function ShopProductPage() {
               ) : displayImage ? (
                 <ProductImageGallery images={[{ url: displayImage, alt: product.name }]} />
               ) : (
-                <div className="aspect-square flex items-center justify-center bg-muted rounded-md">
+                <div className="aspect-square flex flex-col items-center justify-center gap-3 bg-muted rounded-md">
                   <QrCode className="h-24 w-24 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">Generated images unavailable</p>
                 </div>
               )}
             </Card>
