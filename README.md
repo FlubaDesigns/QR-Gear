@@ -512,3 +512,6 @@ The product-options route now uses the existing shared QRG color/size projection
 ### Navy typography in sandbox
 
 Product and landing-page canvas previews and exports now preserve saved font weights and letter spacing. Oswald loads its available weights before drawing; spacing scales with export dimensions and resets between text blocks. Navy's supplied design values remain in its saved builder snapshot. Reopened working drafts can regenerate even when they retain their previous packet reference. Focused coverage: `client/src/lib/__tests__/navyTypography.test.ts`.
+### Subject-aware build layout — October 8, 2026
+
+`shared/aiProductBuilder.ts` remains the single source for the AI Build Rules screen and AI prompts. Owner-supplied typography, scale and position values are starting suggestions unless explicitly locked. Adapt them to each subject and its actual artwork, retain the intended wording and hierarchy, and keep content readable, inside its boundaries and clear of important visual details. Review the rendered shirt graphic and QR landing page separately at phone viewing size before the existing Products Generate workflow. Numeric checks alone are not visual verification. This updates build guidance; it does not introduce an automatic layout engine or broaden the AI proposal fields.
