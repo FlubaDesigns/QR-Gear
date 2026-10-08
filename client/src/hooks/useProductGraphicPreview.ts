@@ -30,6 +30,7 @@ interface UseProductGraphicPreviewOptions {
     fontSize?: string;
     fontFamily?: string;
     fontWeight?: string;
+    letterSpacing?: number;
   };
   graphicLayoutMode?: "zone" | "freeform";
   enabled?: boolean;
@@ -129,6 +130,7 @@ export function useProductGraphicPreview(
           subBottomFontSize: subBottomStyle?.fontSize,
           subBottomFontFamily: subBottomStyle?.fontFamily,
           subBottomFontWeight: subBottomStyle?.fontWeight,
+          subBottomLetterSpacing: subBottomStyle?.letterSpacing,
           graphicLayoutMode,
         };
 
@@ -157,6 +159,8 @@ export function useProductGraphicPreview(
     headerStyle?.text,
     headerStyle?.enabled,
     headerStyle?.fontSize,
+    headerStyle?.fontWeight,
+    headerStyle?.letterSpacing,
     headerStyle?.fontFamily,
     headerStyle?.color,
     headerStyle?.strokeColor,
@@ -169,6 +173,8 @@ export function useProductGraphicPreview(
     footerStyle?.text,
     footerStyle?.enabled,
     footerStyle?.fontSize,
+    footerStyle?.fontWeight,
+    footerStyle?.letterSpacing,
     footerStyle?.fontFamily,
     footerStyle?.color,
     footerStyle?.strokeColor,
@@ -197,6 +203,7 @@ export function useProductGraphicPreview(
     subBottomStyle?.fontSize,
     subBottomStyle?.fontFamily,
     subBottomStyle?.fontWeight,
+    subBottomStyle?.letterSpacing,
     graphicLayoutMode,
     enabled,
     debounceMs,
