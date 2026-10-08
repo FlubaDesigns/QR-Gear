@@ -284,7 +284,7 @@ export function useCreatePacket({
             .filter((b: any) => b.enabled && b.text)
             .map((b: any) => ({
               text: b.text, enabled: b.enabled, fontFamily: b.fontFamily,
-              fontSize: b.fontSize, color: b.color, letterSpacing: b.letterSpacing,
+              fontSize: b.fontSize, fontWeight: b.fontWeight, color: b.color, letterSpacing: b.letterSpacing,
               strokeColor: b.strokeColor, strokeWidth: b.strokeWidth,
               verticalOffset: b.verticalOffset, horizontalOffset: b.horizontalOffset,
             }));
