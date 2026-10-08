@@ -15,10 +15,10 @@ export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: stri
 
 export function StoreProductCard({ product }: { product: StoreProduct }) {
   const href = `/shop/product/${product.id}`;
-  // Always use gallery logic so lifestyle/model shot leads; QR graphic never appears first
+  // Collection cards use the saved lead photo; color-specific mockups belong to the product gallery.
   const gallery = buildProductGallery(product as any);
-  const heroImage = gallery[0]?.url ?? product.imageUrl;
-  const heroType = gallery[0]?.type ?? 'mockup';
+  const heroImage = product.imageUrl || gallery[0]?.url;
+  const heroType = product.imageUrl ? 'mockup' : (gallery[0]?.type ?? 'mockup');
   const typeInfo = product.qrProductType ? QR_PRODUCT_TYPE_LABELS[product.qrProductType] : null;
 
   return (
