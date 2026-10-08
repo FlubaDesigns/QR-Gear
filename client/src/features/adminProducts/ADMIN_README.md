@@ -389,6 +389,16 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Store type follows the generated packet
+
+Product details and all catalog-instance listing paths project the linked packet’s saved QR product state into the existing storefront label format. QR Canvas builds are no longer displayed as QR Basics. Missing packet type remains unset.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/store-files.ts` | Read the linked packet’s QR product type on details and listings |
+| `functions/src/index.ts` | Sandbox deployment build marker |
+
 ### October 8, 2026 — Preserve generated shirt color
 
 The existing Generate callback saves returned provider proofs into the packet's existing `mockupsByColor` color/placement map using the captured build color. The store selects that generated default color before the first available catalog color. Sandbox preparation initializes an empty placement table through its existing seed route, keeping dimensions in the existing QRG options flow and leaving the sizing calculation unchanged.
