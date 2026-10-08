@@ -1,7 +1,8 @@
+import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
-import { PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
+import { PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION, MASTER_CATALOG_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -134,31 +135,45 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
 
 app.post('/admin/mockup/priority', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
-    if (!blueprintId || !colorName || !artworkUrl) {
-      res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" });
-      return;
+    const { packetId, placement } = req.body;
+    if (typeof packetId !== 'string' || !packetId || typeof placement !== 'string' || !placement) {
+      res.status(400).json({ error: 'packetId and placement are required' }); return;
     }
-    console.log(`[Priority Mockup CF] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
+    const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+    if (!packetDoc.exists) { res.status(404).json({ error: 'Generated packet not found' }); return; }
+    const packet = packetDoc.data()!;
+    const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
+    if (!snapshot.layoutConfig.selectedPlacements.includes(placement)) throw new Error('Placement does not belong to this saved build');
+    const sourceMasterId = snapshot.metadata.selectedProductDocId;
+    if (typeof sourceMasterId !== 'string' || !/^qrg_[1-6][1-9]\d{3}$/.test(sourceMasterId)) throw new Error('Saved build has no canonical QRG blank');
+    const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(sourceMasterId).get();
+    if (!masterDoc.exists) throw new Error('QRG blank not found');
+    const master = masterDoc.data()!;
+    const color = snapshot.qrConfig.selectedColor;
+    if (!color?.name) throw new Error('Saved build has no selected color');
+    const variants = Object.values(master.qrgVariants || {}) as any[];
+    const variant = variants.find(v => v.colorLabel === color.name && v.providerVariants?.printful?.variantId);
+    if (!variant) throw new Error(`QRG has no Printful variant for ${color.name}. Refresh it through QRG table logic.`);
+    const mapping = variant.providerVariants.printful;
+    const productId = Number(mapping.productId), variantId = Number(mapping.variantId);
+    if (!Number.isSafeInteger(productId) || productId <= 0 || !Number.isSafeInteger(variantId) || variantId <= 0) throw new Error('QRG Printful mapping is invalid');
+    const layout = snapshot.layoutConfig.providerLayouts?.[placement];
+    const width = layout?.dimensions?.widthPx, height = layout?.dimensions?.heightPx;
+    if (layout?.provider !== 'printful' || !layout.providerPlacementId || !Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+      throw new Error('Saved build is missing its Printful print-area dimensions');
+    }
+    const artworkUrl = packet.placementGraphicUrls?.[placement];
+    if (!artworkUrl) throw new Error('The saved placement has no generated print artwork');
     const result = await generateMockupFromPrintful({
-      blueprintId: parseInt(blueprintId),
-      printProviderId: printProviderId ? parseInt(printProviderId) : 0,
-      colorName,
-      colorHex,
-      artworkUrl,
-      artworkVariant: "black",
-      fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      hasCompositeGraphic: true,
+      blueprintId: productId, printProviderId: 0, colorName: color.name, colorHex: color.hex,
+      placement, artworkUrl, artworkVariant: 'black', fulfillmentProvider: 'printful', hasCompositeGraphic: true,
+      printfulVariantId: variantId, printArea: { width, height, placement: layout.providerPlacementId },
     });
-    console.log(`[Priority Mockup CF] Generated: ${(result as any).mockupUrl}`);
-    res.json({
-      success: true, mockupUrl: (result as any).mockupUrl,
-      lifestyleMockupUrl: (result as any).lifestyleUrl || null,
-      fromCache: false, generatedAt: new Date().toISOString(),
-    });
+    res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl,
+      fromCache: result.fromCache, generatedAt: new Date().toISOString() });
   } catch (error: any) {
-    console.error("[Priority Mockup CF] Error:", error);
-    res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
+    console.error('[Priority Mockup CF] Failed:', error.message);
+    res.status(502).json({ success: false, error: error.message, mockupUrl: null });
   }
 });
 
