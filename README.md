@@ -540,3 +540,8 @@ The store detail and collection cards read QR product type from the linked gener
 ### Complete generated galleries — October 8, 2026
 
 The shared storefront gallery combines selected-color mockups with the linked packet’s full generated image list. Shirt artwork, standalone QR and landing proof remain visible after mockups arrive. Duplicate and other-color mockups are excluded; generation and packet ownership are unchanged.
+
+
+### Reference builds and visible product metadata — October 8, 2026
+
+The shared AI Build Rules now cover Save as New versus Resume, destination verification, Library/Cropped asset selection in the target environment, preserving supplied wording and baked-in titles, and verifying the complete generated gallery. Output exposes the existing product title and description setters even when no catalog card is loaded. Generate derives a new landing slug from the captured product title, preventing a cloned reference title from naming the new subject URL. Existing draft, QRG, BLD, GRF, Assembly and packet storage remain the source of truth.
