@@ -7,6 +7,7 @@ interface TextOverlay {
   enabled: boolean;
   fontFamily: string;
   fontSize: string;
+  fontWeight?: string;
   color: string;
   warpPreset?: string;
   letterSpacing?: number;
@@ -44,6 +45,7 @@ export interface GraphicPreviewViewProps {
     fontSize?: string;
     fontFamily?: string;
     fontWeight?: string;
+    letterSpacing?: number;
   };
   graphicLayoutMode?: "zone" | "freeform";
 }
@@ -57,6 +59,7 @@ function toTextStyle(overlay?: TextOverlay): TextStyle | null {
     enabled: overlay.enabled,
     fontFamily: overlay.fontFamily || "Arial",
     fontSize: overlay.fontSize || "18px",
+    fontWeight: overlay.fontWeight,
     color: overlay.color || "#000000",
     letterSpacing: overlay.letterSpacing,
     strokeColor: overlay.strokeColor,
