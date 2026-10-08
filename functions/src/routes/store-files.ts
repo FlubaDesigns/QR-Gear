@@ -134,6 +134,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let packetMockupsByColor: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
       let packetMockupImages: string[] = [];
       let packetDefaultColor: string | null = null;
+      let packetQrProductType: string | null = null;
       let packetLandingPageSnapshotUrl: string | null = null;
       let packetCompositeUrl: string | null = null;
       let packetQrOnlyUrl: string | null = null;
@@ -147,6 +148,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
             packetMockupsByColor = extracted.mockupsByColor;
             packetMockupImages = extracted.mockupImages;
             packetDefaultColor = extracted.defaultColor;
+            packetQrProductType = pkt.qrProductState?.replace(/_/g, '-') || null;
             packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
             packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
             packetCompositeUrl = pkt.compositeUrl || pkt.productGraphicUrl || null;
@@ -180,7 +182,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
         compositeUrl: packetCompositeUrl,
         qrCodeUrl: packetQrOnlyUrl,
-        qrProductType: d.qrProductType || 'qr-basics',
+        qrProductType: packetQrProductType,
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes: bSizes,
         availableColors: bColors,
@@ -503,6 +505,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupsByColor1: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
             let pktMockupImages1: string[] = [];
             let pktDefaultColor1: string | null = null;
+            let pktQrProductType1: string | null = null;
 
             if (d.currentPacketId) {
               try {
@@ -513,6 +516,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                   pktMockupsByColor1 = extracted.mockupsByColor;
                   pktMockupImages1 = extracted.mockupImages;
                   pktDefaultColor1 = extracted.defaultColor;
+                  pktQrProductType1 = pkt.qrProductState?.replace(/_/g, '-') || null;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
@@ -542,7 +546,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               isFeatured: false,
               isSeasonalPromo: false,
               templateVariant: null,
-              qrProductType: 'qr-basics',
+              qrProductType: pktQrProductType1,
               qrCodeUrl: null,
               selectedColors: l1Colors,
               availableSizes: l1Sizes,
@@ -638,6 +642,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupsByColor2: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
             let pktMockupImages2: string[] = [];
             let pktDefaultColor2: string | null = null;
+            let pktQrProductType2: string | null = null;
 
             if (d.currentPacketId) {
               try {
@@ -648,6 +653,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                   pktMockupsByColor2 = extracted.mockupsByColor;
                   pktMockupImages2 = extracted.mockupImages;
                   pktDefaultColor2 = extracted.defaultColor;
+                  pktQrProductType2 = pkt.qrProductState?.replace(/_/g, '-') || null;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
@@ -672,7 +678,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               isFeatured: false,
               isSeasonalPromo: false,
               templateVariant: null,
-              qrProductType: 'qr-basics',
+              qrProductType: pktQrProductType2,
               qrCodeUrl: null,
               selectedColors: l2Colors,
               availableSizes: l2Sizes,
@@ -734,6 +740,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           let pktMockupsByColor3: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
           let pktMockupImages3: string[] = [];
           let pktDefaultColor3: string | null = null;
+            let pktQrProductType3: string | null = null;
 
           if (d.currentPacketId) {
             try {
@@ -744,6 +751,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                 pktMockupsByColor3 = extracted.mockupsByColor;
                 pktMockupImages3 = extracted.mockupImages;
                 pktDefaultColor3 = extracted.defaultColor;
+                  pktQrProductType3 = pkt.qrProductState?.replace(/_/g, '-') || null;
                 packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                 if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
               }
@@ -768,7 +776,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             isFeatured: false,
             isSeasonalPromo: false,
             templateVariant: null,
-            qrProductType: 'qr-basics',
+            qrProductType: pktQrProductType3,
             qrCodeUrl: null,
             selectedColors: l3Colors,
             availableSizes: l3Sizes,
