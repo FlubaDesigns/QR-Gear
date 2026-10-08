@@ -1,4 +1,27 @@
 import { db } from '../core';
+import { DEFAULT_SIZE_UPCHARGES, normalizeSize, sizeUpcharge } from '../../../shared/storefrontTypes';
+
+export async function getSizeUpcharges(): Promise<Record<string, number>> {
+  const settings = await db.collection('testSettings').doc('pricing').get();
+  return settings.data()?.sizeUpcharges ?? DEFAULT_SIZE_UPCHARGES;
+}
+
+export async function getCatalogInstancePrice(instanceId: string, selectedSize?: string | null): Promise<number | null> {
+  const instance = await db.collection('admin_catalog_instances').doc(instanceId).get();
+  if (!instance.exists) return null;
+  const data = instance.data()!;
+  const sizes = (data.enabledSizes || data.resolved?.sizes || []).map((s: any) => typeof s === 'string' ? s : s?.name || s?.label);
+  if (sizes.length && (!selectedSize || !sizes.some((s: string) => normalizeSize(s) === normalizeSize(selectedSize)))) {
+    throw new Error('Select an available product size');
+  }
+  let basePrice = data.resolved?.pricing?.customerPrice;
+  if (basePrice == null && data.currentPacketId) {
+    const packet = await db.collection('productPackets').doc(data.currentPacketId).get();
+    basePrice = packet.data()?.pricing?.customerPrice;
+  }
+  if (!Number.isFinite(Number(basePrice)) || Number(basePrice) <= 0) throw new Error('Product price is unavailable');
+  return Math.round((Number(basePrice) + sizeUpcharge(selectedSize, await getSizeUpcharges())) * 100) / 100;
+}
 
   interface CustomizationPricing {
   productId: string;
