@@ -60,6 +60,7 @@ function extractColorFromKey(key: string): string {
 function findColorMockup(
   mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[]; placement?: string }>,
   targetColor: string | null | undefined,
+  preferredFront?: string | null,
 ): { front?: string; lifestyle?: string; angles?: string[] } | null {
   const keys = Object.keys(mockupsByColor);
   if (keys.length === 0) return null;
@@ -86,6 +87,9 @@ function findColorMockup(
   }
 
   // Aggregate all matching placements into one result
+  // Saved uploads and supplier caches can use different spellings of the same color.
+  // The canonical lead wins within that color without overriding another selection.
+  matches.sort((a, b) => Number(mockupsByColor[b].front === preferredFront) - Number(mockupsByColor[a].front === preferredFront));
   const aggregated: { front?: string; lifestyle?: string; angles: string[] } = { angles: [] };
 
   for (const key of matches) {
@@ -135,7 +139,7 @@ export function buildProductGallery(
     });
   }
   if (product.mockupsByColor) {
-    const mockup = findColorMockup(product.mockupsByColor, selectedColor);
+    const mockup = findColorMockup(product.mockupsByColor, selectedColor, product.imageUrl);
     if (mockup?.front) add({ url: mockup.front, label: 'Front', alt: `${productName} — front`, type: 'mockup' });
     if (mockup?.lifestyle) add({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
     (mockup?.angles || []).forEach((url, i) => add({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' }));

@@ -7,6 +7,15 @@ const proofs = ['shirt-art', 'url-image', 'qr-code'];
 const source = { name: 'Navy', mockupsByColor: { Navy: navy, Black: black }, images: ['navy-front', 'navy-life', 'navy-back', ...proofs] };
 
 describe('generated packet gallery', () => {
+  it('prefers the saved model over a supplier cache alias only for its matching color', () => {
+    const product = { imageUrl: 'saved-green', images: ['saved-green', ...proofs], mockupsByColor: {
+      'military-green': { front: 'supplier-green', lifestyle: 'woman-green' },
+      'Military Green': { front: 'saved-green' },
+      Black: black,
+    } };
+    expect(buildProductGallery(product, 'Military Green').map(i => i.url)).toEqual(['saved-green', 'woman-green', ...proofs]);
+    expect(buildProductGallery(product, 'Black').map(i => i.url)).toEqual(['black-front', 'black-life', ...proofs]);
+  });
   it('keeps every generated proof alongside selected-color mockups without duplicates', () => {
     expect(buildProductGallery(source, 'Navy').map(i => i.url)).toEqual(['navy-front', 'navy-life', 'navy-back', ...proofs]);
   });
