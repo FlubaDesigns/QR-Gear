@@ -511,4 +511,4 @@ The product-options route now uses the existing shared QRG color/size projection
 
 ### Navy typography in sandbox
 
-Product and landing-page canvas previews and exports now preserve saved font weights and letter spacing. Oswald loads its available weights before drawing; spacing scales with export dimensions and resets between text blocks. Navy's supplied design values remain in its saved builder snapshot. Focused coverage: `client/src/lib/__tests__/navyTypography.test.ts`.
+Product and landing-page canvas previews and exports now preserve saved font weights and letter spacing. Oswald loads its available weights before drawing; spacing scales with export dimensions and resets between text blocks. Navy's supplied design values remain in its saved builder snapshot. Reopened working drafts can regenerate even when they retain their previous packet reference. Focused coverage: `client/src/lib/__tests__/navyTypography.test.ts`.
