@@ -536,3 +536,7 @@ Returned mockups are saved in the packet's existing color/placement map using th
 Admin graphic preview now receives `productGraphicOptions(buildWorkingSnapshot(...))`, the same projection used by Generate, including the selected print dimensions, QR color and styling. Existing QR sizing math is preserved. Priority mockups read the persisted packet's placement artwork, dimensions and selected color and resolve the supplier variant from QRG. They no longer discard placement or conceal provider errors. Sandbox permits only Printful mockup task creation/status; catalog and commerce calls remain blocked. Its existing credential store is connected securely through the Authorization Engine without logging keys, copying unrelated credentials, changing IAM or deploying Main.
 
 The store detail and collection cards read QR product type from the linked generated packet. They no longer invent a QR Basics label when a QR Canvas build is saved.
+
+### Complete generated galleries — October 8, 2026
+
+The shared storefront gallery combines selected-color mockups with the linked packet’s full generated image list. Shirt artwork, standalone QR and landing proof remain visible after mockups arrive. Duplicate and other-color mockups are excluded; generation and packet ownership are unchanged.
