@@ -1,6 +1,6 @@
 import { listCatalogInstances } from "../services/catalog-list";
 import { updateCatalogInstance } from '../services/catalog-instance-update';
-import { buildPacketImageOrder, instanceCatalogImages } from "../../../shared/productImages";
+import { buildPacketImageOrder } from "../../../shared/productImages";
 /**
  * Admin Catalog Instances — Production Routes
  *
@@ -385,7 +385,7 @@ export function register(app: express.Express): void {
           if (!packetDoc.exists) { skipped++; continue; }
 
           const pkt = packetDoc.data() as any;
-          const images = buildPacketImageOrder(pkt, instanceCatalogImages(instance));
+          const images = buildPacketImageOrder(pkt);
           if (images.length === 0) { skipped++; continue; }
 
           const qrgBaseCode: string | null = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
@@ -412,7 +412,7 @@ export function register(app: express.Express): void {
 
   // ── POST /admin/catalog-instances/:id/rebuild-images ────────────────────────
   // Reads the linked packet and rebuilds resolved.images in canonical order:
-  //   generated product images → artwork/proof → saved catalog photos
+  //   generated product images → artwork/proof (no catalog-photo fallback)
   // Also syncs resolved.qrgId from the packet. Safe to call any time after a packet
   // is created; the storefront gallery will reflect the update immediately.
   app.post('/admin/catalog-instances/:id/rebuild-images', requireAdmin, async (req: any, res: any): Promise<void> => {
@@ -432,7 +432,7 @@ export function register(app: express.Express): void {
       if (!packetDoc.exists) { res.status(404).json({ error: 'Packet not found' }); return; }
 
       const pkt = packetDoc.data() as any;
-      const images = buildPacketImageOrder(pkt, instanceCatalogImages(instance));
+      const images = buildPacketImageOrder(pkt);
       const qrgBaseCode: string | null = pkt.qrgBaseCode || pkt.qrgPacketCode || null;
 
       const update: Record<string, any> = {
