@@ -389,6 +389,16 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 8, 2026 — Keep all generated images after mockups arrive
+
+Products already generated and saved the shirt artwork, standalone QR and landing proof. The shared storefront gallery now appends those packet images after selected-color mockups instead of returning early with only mockups. It preserves API order, deduplicates URLs and excludes other-color mockups when switching colors. The existing generation workflow and source packet remain authoritative.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/storefront-shared/buildProductGallery.ts` | Combine color mockups and complete packet images |
+| `client/src/lib/__tests__/productGallery.test.ts` | Cover complete gallery, color switching and duplicate handling |
+
 ### October 8, 2026 — Store type follows the generated packet
 
 Product details and all catalog-instance listing paths project the linked packet’s saved QR product state into the existing storefront label format. QR Canvas builds are no longer displayed as QR Basics. Missing packet type remains unset.
