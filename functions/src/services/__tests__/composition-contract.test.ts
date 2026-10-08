@@ -11,8 +11,9 @@ import { updatePacketWithComposition } from '../composition-links';
 import { saveGeneratedBuildArtifact } from '../build-session-state';
 import { validateAssemblyMappings } from '../../../../shared/assemblyCodes';
 
-async function generatedFixture() {
+async function generatedFixture(inlineImage?: string) {
   const source = legacyFixture();
+  if (inlineImage) source.snapshot.graphics.content.footerStyle = { enabled: true, mode: 'image', imageUrl: inlineImage };
   const { db, store } = database({
     'master_catalog/master': source.store.get('master_catalog/master'),
     'productPackets/p': { buildSessionId: 's', builderSnapshot: source.snapshot, qrContent: 'https://example.com', compositeUrl: 'https://files/composite.png' },
@@ -27,6 +28,15 @@ async function generatedFixture() {
 }
 
 describe('schema chain enforcement', () => {
+  it('binds inline builder images to registered bytes and rejects changed content', async () => {
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNgAAIAAAUAAarVyFEAAAAASUVORK5CYII=';
+    const f = await generatedFixture('data:image/png;base64,' + png);
+    const packet = f.store.get('productPackets/p');
+    await expect(validatePacketComposition(f.db, 'p', packet)).resolves.toBeTruthy();
+    const changed = JSON.parse(JSON.stringify(packet));
+    changed.builderSnapshot.graphics.content.footerStyle.imageUrl = 'data:image/png;base64,' + Buffer.concat([Buffer.from(png, 'base64'), Buffer.from('changed')]).toString('base64');
+    await expect(validatePacketComposition(f.db, 'p', changed)).rejects.toThrow('file differs from the rendered image');
+  });
   it.each(['/admin', '/api/admin'])('reports the same BLD and slot problems through %s', async prefix => {
     const f = legacyFixture(), app = express(); app.use(express.json());
     registerCompositionRoutes(app, prefix, (_req, _res, next) => next(), { db: () => f.db, now: () => 'now' });
