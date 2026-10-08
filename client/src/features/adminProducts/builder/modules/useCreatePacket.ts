@@ -515,9 +515,7 @@ export function useCreatePacket({
       // Fire mockup generation for every selected placement in parallel (fire-and-forget).
       // When all results are in, save placementMockupUrls + lifestyleMockupUrl to the packet,
       // then call rebuild-images on the committed instance to update resolved.images immediately.
-      const allPlacements: string[] = (state.selectedPlacements && state.selectedPlacements.length > 0)
-        ? state.selectedPlacements
-        : ["front"];
+      const allPlacements: string[] = snapshot.layoutConfig.selectedPlacements;
       const capturedInstanceId = committedInstanceId;
       const capturedPacketId = packetId;
 
@@ -525,17 +523,8 @@ export function useCreatePacket({
         allPlacements.map((placement: string) =>
           adminFetch<any>("/mockup/priority", {
             method: "POST",
-            json: {
-              blueprintId: product?.blueprintId || 0,
-              printProviderId: product?.printProviderId || null,
-              colorName: state.selectedColor?.name || 'Black',
-              colorHex: state.selectedColor?.hex || '#000000',
-              placement: placement.toLowerCase(),
-              artworkUrl: productGraphicUrl,
-              qrSize: state.placementSizes?.[placement] || "medium",
-              fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-            },
-          }).catch(() => null)
+            json: { packetId: capturedPacketId, placement },
+          }).catch((error: Error) => ({ success: false, error: error.message }))
         )
       ).then(async (results) => {
         const placementMockupUrls: Record<string, string> = {};
@@ -553,7 +542,7 @@ export function useCreatePacket({
         const primaryMockupUrl = allPlacements.map(placement => placementMockupUrls[placement]).find(Boolean) || null;
 
         if (!primaryMockupUrl) {
-          const errorMsg = "Mockup generation failed for all placements";
+          const errorMsg = results.map((result: any, index: number) => `${allPlacements[index]}: ${result?.error || "No mockup returned"}`).join("; ");
           setPacketResult(prev => prev && prev.packetId === capturedPacketId ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
           toast({ title: "Mockup Generation Failed", description: errorMsg, variant: "destructive" });
           return;
