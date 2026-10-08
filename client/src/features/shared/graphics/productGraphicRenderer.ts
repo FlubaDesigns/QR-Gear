@@ -71,6 +71,7 @@ export interface RenderOptions {
   subBottomFontSize?: string;
   subBottomFontFamily?: string;
   subBottomFontWeight?: string;
+  subBottomLetterSpacing?: number;
   graphicLayoutMode?: "zone" | "freeform";
   /** Canonical BLD zone layout from working.bld.layout.zones.
    *  When canvas is 1200×1800 (canonical front), middle.size is preferred
@@ -190,6 +191,7 @@ function drawTextInZone(
 ) {
   const fSize = scaledFontSize(style.fontSize, canvasW);
   ctx.font = `${style.fontWeight || 'bold'} ${fSize}px ${style.fontFamily}`;
+  (ctx as any).letterSpacing = `${(style.letterSpacing || 0) * (canvasW / 1200) * 2.5}px`;
   ctx.textBaseline = "top";
   ctx.textAlign = "center";
 
@@ -245,6 +247,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomFontSize = "14px",
     subBottomFontFamily = "sans-serif",
     subBottomFontWeight = "400",
+    subBottomLetterSpacing = 0,
     graphicLayoutMode = "zone",
     bldZones,
     providerLayout,
@@ -404,6 +407,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     const sbFSize = scaledFontSize(subBottomFontSize, W);
     ctx.fillStyle = subBottomColor;
     ctx.font = `${subBottomFontWeight || "400"} ${sbFSize}px ${subBottomFontFamily || "sans-serif"}`;
+    (ctx as any).letterSpacing = `${subBottomLetterSpacing * (W / 1200) * 2.5}px`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(
