@@ -5,6 +5,9 @@ export const AI_BUILD_RULES = [
   'Never read Printify or Printful tables or query their APIs to select or describe a blank, including as a fallback.',
   'If a required value is missing, request it through QRG table logic. Only that logic may import from provider tables. Read and use the resulting value from QRG; never bypass QRG or invent a value.',
   'Use only actual color and size combinations recorded in QRG. Keep the existing QRG identity and the canonical BLD, GRF and Assembly records.',
+  'Treat supplied font sizes, weights, spacing, scales and position percentages as starting suggestions unless the admin explicitly locks a value. Adapt them to the actual subject, artwork, background and available space; never hard-code one subject\'s final adjustments as defaults for other builds.',
+  'Keep text readable and within its background or print area. Adjust size, line breaks, spacing and position to avoid clipping, collisions, and covering important artwork such as a seal, logo, face or emblem. Preserve the intended wording and visual hierarchy; explain material adjustments.',
+  'Inspect the actual rendered shirt graphic and QR landing-page previews separately. Confirm fit at phone viewing size and keep the QR clear and scannable before using the existing Products Generate workflow for the store output. Do not claim visual fit from numeric settings alone; if a preview cannot be inspected, state that limitation.',
 ] as const;
 export const AI_PRODUCT_FIELDS = {
   title: { label: 'Product title', path: ['title'], max: 140 },
