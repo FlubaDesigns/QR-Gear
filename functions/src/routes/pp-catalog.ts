@@ -260,7 +260,9 @@ app.post('/admin/catalog/sync', requireAdmin, async (req: Request, res: Response
 
 app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!printfulClient.isConfigured) { res.status(503).json({ error: "Printful API key not configured" }); return; }
+    // Reading the supplier catalog is allowed in sandbox; ordering remains guarded.
+    const catalogProducts = await printfulClient.getCatalogProducts();
+    if (!Array.isArray(catalogProducts)) throw new Error('Printful returned an invalid catalog');
     const latestSnapshot = await db.collection("catalogSyncs").orderBy("startedAt", "desc").limit(1).get();
     if (!latestSnapshot.empty) {
       const latest = latestSnapshot.docs[0].data();
@@ -281,12 +283,7 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
     (async () => {
       try {
         console.log('[Printful Sync CF] Starting full catalog sync...');
-        const headers = { 'Authorization': `Bearer ${await getPrintfulApiKeyAsync()}`, 'Content-Type': 'application/json' };
-        const catResp = await fetch('https://api.printful.com/products', { headers });
-        if (!catResp.ok) throw new Error(`Printful catalog API error: ${catResp.status}`);
-        const catData = await catResp.json();
-        if (!Array.isArray(catData.result)) throw new Error('Printful returned an invalid catalog');
-        const products = catData.result;
+        const products = catalogProducts;
         console.log(`[Printful Sync CF] Found ${products.length} products`);
 
         const existingSnap = await db.collection('printful_products').get();
@@ -306,12 +303,10 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
             let maxPrice: string | null = null;
             let variants: any[] = [];
             try {
-              const detailResp = await fetch(`https://api.printful.com/products/${pid}`, { headers });
-              if (!detailResp.ok) throw new Error(`Printful detail API error: ${detailResp.status}`);
+              const detailData = await printfulClient.getProduct(pid);
               {
-                const detailData = await detailResp.json();
-                if (!Array.isArray(detailData.result?.variants)) throw new Error(`Printful returned invalid variants for ${pid}`);
-                variants = detailData.result.variants;
+                if (!Array.isArray(detailData?.variants)) throw new Error(`Printful returned invalid variants for ${pid}`);
+                variants = detailData.variants;
                 if (variants.length > 0) {
                   const prices = variants.map((v: any) => parseFloat(v.price)).filter((p: number) => !isNaN(p) && p > 0);
                   if (prices.length > 0) {

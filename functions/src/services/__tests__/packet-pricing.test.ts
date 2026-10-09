@@ -2,7 +2,8 @@ import { expect, it, vi } from 'vitest';
 import { database } from './composition-fixture';
 import { buildWorkingSnapshot } from '../../../../shared/builderSnapshot';
 vi.mock('../../core', () => ({ db: {} }));
-vi.mock('../printful', () => ({ printfulClient: {}, getPrintfulApiKeyAsync: vi.fn() }));
+vi.mock('../printful', () => ({ printfulClient: {getProduct:vi.fn()}, getPrintfulApiKeyAsync: vi.fn() }));
+import { printfulClient } from '../printful';
 vi.mock('../printify', () => ({ printifyClient: {} }));
 import { calculatePacketPricing, priceNewPacket } from '../pricing';
 import { refreshQrgProviderPricing } from '../master-catalog';
@@ -73,4 +74,14 @@ it('always retains the automatic inside label regardless of the old position pre
 it('does not generate a product by silently dropping its inside label', async () => {
   const {db}=database({'testSettings/pricing':settings,'master_catalog/qrg_11001':master,'printful_products/71':{minPrice:10,maxPrice:12}});
   await expect(priceNewPacket(db,snapshot(),'https://storage/brand.png')).rejects.toThrow('verified inside label');
+});
+
+it('imports missing QRG provider costs through a read-only catalog lookup and reuses the saved result', async () => {
+  const {db,store}=database({'master_catalog/qrg_11001':{...master,providerMappings:{printful:{productId:'71'}}}});
+  vi.mocked(printfulClient.getProduct).mockResolvedValue({product:{id:71},variants:[{price:'10.00'},{price:'12.00'}]} as any);
+  const result=await refreshQrgProviderPricing(db,'qrg_11001','printful');
+  expect(result.providerMappings.printful).toMatchObject({minPrice:10,maxPrice:12});
+  expect(store.has('printful_products/71')).toBe(false);
+  vi.mocked(printfulClient.getProduct).mockClear();
+  await refreshQrgProviderPricing(db,'qrg_11001','printful');expect(printfulClient.getProduct).not.toHaveBeenCalled();
 });

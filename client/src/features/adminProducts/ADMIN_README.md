@@ -1218,3 +1218,9 @@ Candidate evidence: 67 focused backend checks and five React pricing checks pass
 | Packet and build-session routes, `composition-links.ts` | Server-owned generated packet pricing |
 | `client/src/pages/admin-pricing.tsx`, builder modules/types and shared Compose step | Existing controls, complete breakdown and saved hosting options |
 | Pricing, packet-route, catalog and checkout tests | Pricing and label regressions |
+
+### Sandbox catalog cost import follow-up
+
+Live pricing preview found all 22 seeded products lacked valid Printful lookup costs. Smart Sync then exposed an existing sandbox guard that labeled catalog reads as unconfigured. The Printful client now explicitly permits only GET /products and GET /products/:id alongside existing mockups in sandbox; order lookup, creation and production confirmation remain blocked. Smart Sync uses this same client. The QRG pricing importer reads missing costs from the mapped Printful product once and saves them on that provider mapping; later previews reuse the canonical range until a supplier lookup refresh replaces it. No hardcoded price is substituted.
+
+Live field verification: every one of the 22 configured numeric controls saved zero and retained it after reload; XS stayed unconfigured. All 23 field values then matched their original values after restoration and a second reload. No zero-price catalog apply occurred. The follow-up's 46 targeted tests passed, including catalog-read permission, blocked sandbox orders, QRG cost import/cache, labels and checkout. Live full-cost apply remains pending this follow-up deployment.

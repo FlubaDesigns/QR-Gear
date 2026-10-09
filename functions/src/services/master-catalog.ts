@@ -1286,11 +1286,28 @@ export async function enrichMasterCatalog(
 
 
 /** Targeted lookup import into the existing QRG record. Never changes its identity,
- * variants, images, catalog overlays, or provider selection; never calls a print API.
+ * variants, images, catalog overlays, or provider selection. Missing Printful costs
+ * can be read from the catalog; no order or production API is called.
  */
 export async function refreshQrgProviderPricing(database: any, docId: string, provider: 'printify' | 'printful') {
   if (!['printify', 'printful'].includes(provider)) throw new Error('Select a fulfillment provider before pricing.');
   if (!/^qrg_[1-6][1-9]\d{3}$/.test(docId)) throw new Error('Pricing requires a canonical QRG blank.');
+  const validRange = (value: any) => value?.minPrice != null && value?.maxPrice != null && value.minPrice !== '' && value.maxPrice !== '' &&
+    Number.isFinite(Number(value.minPrice)) && Number.isFinite(Number(value.maxPrice)) && Number(value.minPrice) >= 0 && Number(value.maxPrice) >= Number(value.minPrice);
+  let fetched: {productId:string;minPrice:number;maxPrice:number} | undefined;
+  if (provider === 'printful') {
+    const current = (await database.collection(MASTER_CATALOG_COLLECTION).doc(docId).get()).data();
+    const pm = current?.providerMappings;
+    const mapping = Array.isArray(pm) ? pm.find((m: any) => m.provider === provider) : pm?.[provider];
+    if (!/^\d+$/.test(String(mapping?.productId))) throw new Error('QRG Printful mapping is invalid.');
+    const lookup = (await database.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(String(mapping.productId)).get()).data();
+    if (!validRange(lookup) && !validRange(mapping)) {
+      const detail = await printfulClient.getProduct(Number(mapping.productId));
+      const prices = (detail?.variants || []).map(v => v.price == null || v.price === '' ? NaN : Number(v.price));
+      if (!prices.length || prices.some(p => !Number.isFinite(p) || p < 0)) throw new Error('Printful did not return valid variant costs for this product.');
+      fetched = {productId:String(mapping.productId),minPrice:Math.min(...prices),maxPrice:Math.max(...prices)};
+    }
+  }
   return database.runTransaction(async (tx: any) => {
     const ref = database.collection(MASTER_CATALOG_COLLECTION).doc(docId);
     const doc = await tx.get(ref), master = doc.data();
@@ -1302,6 +1319,10 @@ export async function refreshQrgProviderPricing(database: any, docId: string, pr
     if (provider === 'printful') {
       if (!/^\d+$/.test(String(mapping.productId))) throw new Error('QRG Printful mapping is invalid.');
       source = (await tx.get(database.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(String(mapping.productId)))).data();
+      if (!validRange(source)) {
+        if (validRange(mapping)) source = mapping;
+        else if (fetched?.productId === String(mapping.productId)) source = fetched;
+      }
     } else {
       const rows = await tx.get(database.collection(PRINTIFY_PROVIDERS_COLLECTION));
       const matches = rows.docs.map((d: any) => d.data()).filter((p: any) => String(p.blueprintId) === String(mapping.blueprintId) && String(p.providerId) === String(mapping.printProviderId));

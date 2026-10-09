@@ -104,7 +104,8 @@ class PrintfulClient {
   }
 
   private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
-    const mockupOnly = (method === 'GET' && /^\/mockup-generator\/printfiles\/\d+(?:\?|$)/.test(endpoint)) ||
+    const mockupOnly = (method === 'GET' && /^\/products(?:\/\d+)?$/.test(endpoint)) ||
+      (method === 'GET' && /^\/mockup-generator\/printfiles\/\d+(?:\?|$)/.test(endpoint)) ||
       (method === 'POST' && /^\/mockup-generator\/create-task\/\d+(?:\?|$)/.test(endpoint)) ||
       (method === 'GET' && endpoint.startsWith('/mockup-generator/task?'));
     if (!mockupOnly) requireLiveCommerce('Printful catalog or commerce request');
@@ -136,6 +137,10 @@ class PrintfulClient {
 
   async getProduct(productId: number): Promise<{ product: any; variants: PrintfulVariant[] }> {
     return this.request<{ product: any; variants: PrintfulVariant[] }>('GET', `/products/${productId}`);
+  }
+
+  async getCatalogProducts(): Promise<any[]> {
+    return this.request<any[]>('GET', '/products');
   }
 
   async getPrintfiles(productId: number): Promise<any> {
