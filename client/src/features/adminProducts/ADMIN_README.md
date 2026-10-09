@@ -1297,3 +1297,5 @@ The current sandbox comparison confirms that Main contains every commit in sandb
 Checkout now takes the actual provider placement and print-area coordinates from QRG. It checks that the saved artwork covers the same physical inches at sufficient resolution; a 300-DPI file for the same 12-by-16-inch area is not rejected merely because QRG's printer template uses 150 DPI. The saved artwork is unchanged. Size upcharges and retail price are resolved once through getCatalogInstancePrice; the duplicate pricing-settings read is removed. No new automated tests are added, per owner instruction. Live QRG refresh, cart and checkout behavior remain required after release.
 
 The QRG cart correction is validated with the root TypeScript compiler as well as the Functions build before deployment.
+
+Live cart correction: memberProfitShare is creator earnings, not a purchase discount. The cart now totals the saved server-priced line items without deducting that share; checkout continues to use the shared server quote and any explicit bundle offer. Army M Black and 2XL Black add successfully in Main.
