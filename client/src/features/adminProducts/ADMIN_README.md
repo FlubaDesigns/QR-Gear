@@ -393,6 +393,19 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 9, 2026 — Preserve existing Pricing settings, including zero
+
+Repaired the existing Pricing form and save handlers. Shared validation in the existing order/pricing schema rejects invalid amounts without replacing saved values. Removed duplicated pricing-save logic; the existing admin and compatibility URLs share one protected handler. No new screen, pricing record, pricing service or repricing engine was added. Missing settings remain editable in Admin; public pricing fails clearly. Sync/repricing remains a separate open item.
+
+#### Files Changed
+| Files | Change |
+|---|---|
+| `shared/schema-orders.ts` | Saved pricing contract without business defaults |
+| `client/src/pages/admin-pricing.tsx` | Preserve zero, validate input and show load failures |
+| `functions/src/routes/pp-pricing-packets.ts`, `members-library.ts`, `server/routes/pricing.routes.ts` | Consolidate existing readers/savers and use shared validation |
+| Focused form/API tests | Zero round trips, invalid input, incomplete configuration and protected saves |
+
+
 ### October 9, 2026 — Protect admin access and correct public navigation
 
 Shopping links and `/store` now lead to the public shop. Admin data/actions require the server admin policy, including a namespace guard for future routes. Removed auth bypass flags, the hardcoded client/Functions owner UID and development empty-list allow-all behavior. Client permission comes only from the verified identity’s server profile, with no access retained after a verification failure. Reused the products-page registrar instead of registering its handlers twice.

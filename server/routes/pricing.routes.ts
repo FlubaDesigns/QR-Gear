@@ -1,3 +1,4 @@
+import { pricingSettingsSchema } from '../../shared/schema-orders';
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
@@ -90,105 +91,27 @@ export function registerPricingRoutes(app: Express): void {
     }
   });
 
-  // ============ PRICING SETTINGS (public) ============
-  app.get("/api/pricing-settings", async (req: any, res) => {
+  const readPricing = async (_req: any, res: any) => {
     try {
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      
-      const doc = await firestoreDb.collection("testSettings").doc("pricing").get();
-      
-      const defaultSizeUpcharges: Record<string, number> = {
-        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12
-      };
-      
-      const defaultBrandLabelPricing = {
-        printifyInside: 0.55,
-        printifyOutside: 0.55,
-        printfulInside: 0.99,
-        printfulOutside: 2.49,
-      };
-
-      if (!doc.exists) {
-        return res.json({
-          markupPercent: 25,
-          markupFixed: 0,
-          additionalPlacementCost: 4,
-          textLineUpcharge: 2,
-          memberProfitShare: 0.25,
-          sizeUpcharges: defaultSizeUpcharges,
-          hostingTiers: [
-            { code: "1_year", name: "1 Year", price: 5 },
-            { code: "2_year", name: "2 Years", price: 8 },
-            { code: "3_year", name: "3 Years", price: 10 },
-          ],
-          brandLabelPricing: defaultBrandLabelPricing,
-        });
-      }
-      
-      const data = doc.data();
-      res.json({
-        ...data,
-        memberProfitShare: data?.memberProfitShare ?? 0.25,
-        sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
-        brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
-        preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
-      });
-    } catch (error: any) {
-      console.error("[Pricing Settings] Error getting settings:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/pricing-settings", isAdmin, async (req: any, res) => {
+      const { getFirestoreDb } = await import('../lib/firebase-admin');
+      const saved = await getFirestoreDb().collection('testSettings').doc('pricing').get();
+      if (_req.path.includes('/admin/')) { res.setHeader('Cache-Control', 'no-store'); res.json(saved.data() || {}); return; }
+    const parsed = pricingSettingsSchema.safeParse(saved.data());
+      if (!parsed.success) return res.status(409).json({ error: 'Saved pricing is incomplete or invalid. Review Admin Pricing configuration.' });
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({ ...saved.data(), ...parsed.data });
+    } catch (error: any) { res.status(503).json({ error: error.message }); }
+  };
+  app.get('/api/pricing-settings', readPricing);
+  app.get('/api/admin/pricing-settings', isAdmin, readPricing);
+  app.post(['/api/admin/pricing-settings', '/api/pricing-settings'], isAdmin, async (req: any, res) => {
+    const parsed = pricingSettingsSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ') });
     try {
-      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
-      
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      const admin = (await import("../lib/firebase-admin")).getFirebaseAdmin();
-      
-      const defaultSizeUpcharges: Record<string, number> = {
-        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12
-      };
-
-      const defaultBrandLabelPricing = {
-        printifyInside: 0.55,
-        printifyOutside: 0.55,
-        printfulInside: 0.99,
-        printfulOutside: 2.49,
-      };
-      
-      const settings = {
-        markupPercent: parseFloat(markupPercent) || 25,
-        markupFixed: parseFloat(markupFixed) || 0,
-        additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
-        textLineUpcharge: parseFloat(textLineUpcharge) || 2,
-        memberProfitShare: parseFloat(memberProfitShare) || 0.25,
-        sizeUpcharges: sizeUpcharges || defaultSizeUpcharges,
-        hostingTiers: hostingTiers || [
-          { code: "1_year", name: "1 Year", price: 5 },
-          { code: "2_year", name: "2 Years", price: 8 },
-          { code: "3_year", name: "3 Years", price: 10 },
-        ],
-        brandLabelPricing: brandLabelPricing || defaultBrandLabelPricing,
-        preferredLabelPosition: preferredLabelPosition || 'outside',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      
-      await firestoreDb.collection("testSettings").doc("pricing").set(settings, { merge: true });
-      
-      console.log("[Pricing Settings] Saved settings:", settings);
-      
-      res.json({
-        success: true,
-        settings,
-        message: "Pricing settings saved",
-      });
-    } catch (error: any) {
-      console.error("[Pricing Settings] Error saving settings:", error);
-      res.status(500).json({ error: error.message });
-    }
+      const { getFirestoreDb, getFirebaseAdmin } = await import('../lib/firebase-admin');
+      await getFirestoreDb().collection('testSettings').doc('pricing').set({ ...parsed.data, updatedAt: getFirebaseAdmin().firestore.FieldValue.serverTimestamp() }, { mergeFields: [...Object.keys(parsed.data), 'updatedAt'] });
+      res.json({ success: true, settings: parsed.data, message: 'Pricing settings saved' });
+    } catch (error: any) { res.status(503).json({ error: error.message }); }
   });
 
   app.post("/api/pricing-settings/sync", isAdmin, async (req: any, res) => {
@@ -244,107 +167,6 @@ export function registerPricingRoutes(app: Express): void {
       res.json({ success: true, message: `Synced pricing to ${totalUpdated} products` });
     } catch (error: any) {
       console.error("[PricingSync] Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // ============ TEST: PRICING SETTINGS (test endpoints) ============
-  app.get("/api/admin/pricing-settings", isAdmin, async (req: any, res) => {
-    try {
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      
-      const doc = await firestoreDb.collection("testSettings").doc("pricing").get();
-      
-      const defaultSizeUpcharges: Record<string, number> = {
-        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12
-      };
-      
-      const defaultBrandLabelPricing = {
-        printifyInside: 0.55,
-        printifyOutside: 0.55,
-        printfulInside: 0.99,
-        printfulOutside: 2.49,
-      };
-
-      if (!doc.exists) {
-        return res.json({
-          markupPercent: 25,
-          markupFixed: 0,
-          additionalPlacementCost: 4,
-          textLineUpcharge: 2,
-          memberProfitShare: 0.25,
-          sizeUpcharges: defaultSizeUpcharges,
-          hostingTiers: [
-            { code: "1_year", name: "1 Year", price: 5 },
-            { code: "2_year", name: "2 Years", price: 8 },
-            { code: "3_year", name: "3 Years", price: 10 },
-          ],
-          brandLabelPricing: defaultBrandLabelPricing,
-        });
-      }
-      
-      const data = doc.data();
-      res.json({
-        ...data,
-        memberProfitShare: data?.memberProfitShare ?? 0.25,
-        sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
-        brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
-        preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
-      });
-    } catch (error: any) {
-      console.error("[Pricing Settings TEST] Error getting settings:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/admin/pricing-settings", isAdmin, async (req: any, res) => {
-    try {
-      const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
-      
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      const admin = (await import("../lib/firebase-admin")).getFirebaseAdmin();
-      
-      const defaultSizeUpcharges: Record<string, number> = {
-        'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12
-      };
-
-      const defaultBrandLabelPricing = {
-        printifyInside: 0.55,
-        printifyOutside: 0.55,
-        printfulInside: 0.99,
-        printfulOutside: 2.49,
-      };
-      
-      const settings = {
-        markupPercent: parseFloat(markupPercent) || 25,
-        markupFixed: parseFloat(markupFixed) || 0,
-        additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
-        textLineUpcharge: parseFloat(textLineUpcharge) || 2,
-        memberProfitShare: parseFloat(memberProfitShare) || 0.25,
-        sizeUpcharges: sizeUpcharges || defaultSizeUpcharges,
-        hostingTiers: hostingTiers || [
-          { code: "1_year", name: "1 Year", price: 5 },
-          { code: "2_year", name: "2 Years", price: 8 },
-          { code: "3_year", name: "3 Years", price: 10 },
-        ],
-        brandLabelPricing: brandLabelPricing || defaultBrandLabelPricing,
-        preferredLabelPosition: preferredLabelPosition || 'outside',
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      };
-      
-      await firestoreDb.collection("testSettings").doc("pricing").set(settings, { merge: true });
-      
-      console.log("[Pricing Settings TEST] Saved settings:", settings);
-      
-      res.json({
-        success: true,
-        settings,
-        message: "Pricing settings saved",
-      });
-    } catch (error: any) {
-      console.error("[Pricing Settings TEST] Error saving settings:", error);
       res.status(500).json({ error: error.message });
     }
   });
