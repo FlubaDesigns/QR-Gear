@@ -1119,3 +1119,8 @@ Verification: focused sizing/import cases cover a 10 × 13.33 inch composition i
 ### QR Play product phone preview — October 8, 2026
 
 The storefront uses the current linked packet’s `playMediaUrl` for its phone preview. YouTube and Vimeo use their players; direct media uses the browser video player. The phone screen has an explicit flex height and room for embedded controls. Previews start muted when visible and motion preferences allow autoplay; direct and YouTube previews stop at 15 seconds. Watch full video opens the saved source. Direct playback errors and missing sources are visible. Saved media, shirt graphics and all canonical identities are unchanged. Seven focused API/React regressions cover this path.
+
+
+## Fresh storefront releases — sandbox, October 8, 2026
+
+Hosting now sends `no-cache, no-store, must-revalidate` for page URLs, including rewritten product links. Matching only `index.html` left `/shop/product/...` cached for an hour, allowing an older gallery to persist after deployment. The later `/assets/**` rule retains immutable caching for versioned bundles. Verify response headers on the actual product URL after deployment, not only `/index.html`, and use a fresh query URL when helping someone whose browser already holds the previous one-hour response.
