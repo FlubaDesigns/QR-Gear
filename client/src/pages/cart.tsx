@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   ShoppingCart, Trash2, Plus, Minus, Loader2, ShoppingBag,
-  ArrowRight, LogIn, Tag, ShieldCheck, Printer, QrCode,
+  LogIn, ShieldCheck, Printer, QrCode,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import StorefrontLayout from "@/components/StorefrontLayout";
@@ -27,20 +27,6 @@ export default function Cart() {
     queryKey: ["/api/cart"],
     enabled: isAuthenticated,
   });
-
-  const { data: memberStatus } = useQuery<{ isMember: boolean }>({
-    queryKey: ["/api/members/check-status"],
-    enabled: isAuthenticated,
-  });
-
-  const { data: pricingSettings } = useQuery<{ memberProfitShare?: number }>({
-    queryKey: ["/api/pricing-settings"],
-    enabled: isAuthenticated,
-  });
-
-  const isMember = memberStatus?.isMember === true;
-  const CREATOR_DISCOUNT = pricingSettings?.memberProfitShare ?? 0.25;
-  const discountLabel = `${Math.round(CREATOR_DISCOUNT * 100)}%`;
 
   const updateQuantityMutation = useMutation({
     mutationFn: async ({ id, quantity }: { id: string; quantity: number }) => {
@@ -104,8 +90,9 @@ export default function Cart() {
     const price = Number(item.price);
     return sum + (Number.isFinite(price) ? price : 0) * item.quantity;
   }, 0);
-  const discountAmount = isMember ? subtotal * CREATOR_DISCOUNT : 0;
-  const total = subtotal - discountAmount;
+  // Item prices are resolved by the shared server pricing service. Member profit
+  // share is an earnings setting, not a customer discount.
+  const total = subtotal;
 
   const handleRemove = (id: string) => {
     if (isAuthenticated) {
@@ -197,10 +184,7 @@ export default function Cart() {
                   <div className="sticky top-4 space-y-4">
                     <OrderSummaryCard
                       subtotal={subtotal}
-                      discountAmount={discountAmount}
                       total={total}
-                      isMember={isMember}
-                      discountLabel={discountLabel}
                       isAuthenticated={isAuthenticated}
                       onCheckout={handleCheckout}
                     />
@@ -213,10 +197,7 @@ export default function Cart() {
           {/* ── Mobile sticky footer (hidden on desktop) ── */}
           <MobileCheckoutFooter
             subtotal={subtotal}
-            discountAmount={discountAmount}
             total={total}
-            isMember={isMember}
-            discountLabel={discountLabel}
             isAuthenticated={isAuthenticated}
             onCheckout={handleCheckout}
           />
@@ -357,13 +338,10 @@ function TrustBadges() {
    Desktop Order Summary Card
 ───────────────────────────────────────── */
 function OrderSummaryCard({
-  subtotal, discountAmount, total, isMember, discountLabel, isAuthenticated, onCheckout,
+  subtotal, total, isAuthenticated, onCheckout,
 }: {
   subtotal: number;
-  discountAmount: number;
   total: number;
-  isMember: boolean;
-  discountLabel: string;
   isAuthenticated: boolean;
   onCheckout: () => void;
 }) {
@@ -371,29 +349,11 @@ function OrderSummaryCard({
     <div className="rounded-lg border bg-card p-5 space-y-4">
       <h2 className="font-semibold text-base">Order Summary</h2>
 
-      {isMember && (
-        <div
-          className="flex items-center gap-2 p-2.5 bg-emerald-50 dark:bg-emerald-900/20 rounded-md border border-emerald-200 dark:border-emerald-800"
-          data-testid="badge-member-discount"
-        >
-          <Tag className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-          <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
-            {discountLabel} Creator Discount applied
-          </span>
-        </div>
-      )}
-
       <div className="space-y-2 text-sm">
         <div className="flex justify-between">
           <span className="text-muted-foreground">Subtotal</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
-        {isMember && (
-          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-            <span>Creator Discount ({discountLabel})</span>
-            <span data-testid="text-member-savings">-${discountAmount.toFixed(2)}</span>
-          </div>
-        )}
         <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
           <span>Shipping</span>
           <span data-testid="text-shipping-free">FREE</span>
@@ -446,13 +406,10 @@ function OrderSummaryCard({
    Mobile Sticky Footer
 ───────────────────────────────────────── */
 function MobileCheckoutFooter({
-  subtotal, discountAmount, total, isMember, discountLabel, isAuthenticated, onCheckout,
+  subtotal, total, isAuthenticated, onCheckout,
 }: {
   subtotal: number;
-  discountAmount: number;
   total: number;
-  isMember: boolean;
-  discountLabel: string;
   isAuthenticated: boolean;
   onCheckout: () => void;
 }) {
@@ -470,12 +427,6 @@ function MobileCheckoutFooter({
           <span>Subtotal</span>
           <span>${subtotal.toFixed(2)}</span>
         </div>
-        {isMember && (
-          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-            <span>Creator Discount ({discountLabel})</span>
-            <span>-${discountAmount.toFixed(2)}</span>
-          </div>
-        )}
         <div className="flex justify-between text-emerald-600 dark:text-emerald-400 text-xs">
           <span>Shipping</span>
           <span>FREE</span>
