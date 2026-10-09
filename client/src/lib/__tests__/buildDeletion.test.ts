@@ -8,15 +8,15 @@ const crop = 'GRF-11421-000004';
 const bucketName = 'test-bucket';
 const url = (id: string) => `https://storage.googleapis.com/${bucketName}/grf/${id}/image.png`;
 const asset = (id: string, extra = {}) => ({ ...parseGrfId(id), grfId: id, publicUrl: url(id), storagePath: `grf/${id}/image.png`, isActive: true, ...extra });
-function fixture(initial: Record<string, any>) {
+function fixture(initial: Record<string, any>, onRead: (path: string) => Promise<void> = async () => {}) {
   const docs = new Map(Object.entries(initial));
   let failures = false;
   const deletedFiles: string[] = [];
   const collections = (parent = '') => [...new Set([...docs.keys()].filter(p => p.startsWith(parent ? parent + '/' : '')).map(p => p.slice(parent ? parent.length + 1 : 0).split('/')[0]))].map(id => collection(parent ? `${parent}/${id}` : id));
   const snap = (path: string): any => ({ id: path.split('/').pop(), exists: docs.has(path), data: () => docs.get(path), ref: ref(path) });
-  const ref = (path: string): any => ({ path, id: path.split('/').pop(), get: async () => snap(path), listCollections: async () => collections(path), set: async (data: any) => docs.set(path, data) });
+  const ref = (path: string): any => ({ path, id: path.split('/').pop(), get: async () => snap(path), listCollections: async () => { await onRead(path + ':collections'); return collections(path); }, set: async (data: any) => docs.set(path, data) });
   const collection = (path: string): any => ({ id: path.split('/').pop(), path, doc: (id: string) => ref(`${path}/${id}`),
-    get: async () => ({ docs: [...docs.keys()].filter(p => p.startsWith(path + '/') && p.split('/').length === path.split('/').length + 1).map(snap) }),
+    get: async () => { await onRead(path); return { docs: [...docs.keys()].filter(p => p.startsWith(path + '/') && p.split('/').length === path.split('/').length + 1).map(snap) }; },
     where: (key: string, _op: string, value: any) => ({ get: async () => ({ docs: (await collection(path).get()).docs.filter((d: any) => d.data()[key] === value) }) }) });
   const db: any = { collection, doc: ref, listCollections: async () => collections(), runTransaction: async (fn: any) => {
     const writes: (() => void)[] = [];
@@ -38,6 +38,34 @@ const build = () => ({
   'storeCollections/training': { name: 'My training collection' }, 'master_catalog/blank': { qrgBlankId: '11101' },
 });
 describe('coordinated GRF deletion', () => {
+  it('scans nested references concurrently with a bounded number of reads and stable review tokens', async () => {
+    const initial: Record<string, any> = { ...build(), 'websites/site': {}, 'websites/site/pages/home': { imageUrl: url(qr) } };
+    for (let i = 0; i < 32; i++) initial[`external_records/item-${i}`] = { title: `Record ${i}` };
+    let active = 0, peak = 0;
+    const f = fixture(initial, async () => { active++; peak = Math.max(peak, active); await new Promise(resolve => setTimeout(resolve, 1)); active--; });
+    const p = await f.preview(image);
+    expect(peak).toBeGreaterThan(1); expect(peak).toBeLessThanOrEqual(8);
+    expect(p.targets.some(t => t.id === qr)).toBe(false);
+    const reversed = fixture(Object.fromEntries(Object.entries(initial).reverse()));
+    expect((await reversed.preview(image)).token).toBe(p.token);
+    expect(f.docs.size).toBe(Object.keys(initial).length); expect(f.deletedFiles).toEqual([]);
+  });
+  it('fails closed when a nested reference read fails', async () => {
+    const f = fixture({ ...build(), 'websites/site': {}, 'websites/site/pages/home': { imageUrl: url(qr) } }, async path => {
+      if (path === 'websites/site/pages') throw new Error('Reference read unavailable');
+    });
+    await expect(f.preview(image)).rejects.toThrow('Reference read unavailable');
+    expect(f.docs.has('productPackets/packet')).toBe(true); expect(f.deletedFiles).toEqual([]);
+  });
+  it('ends a stalled scan with a visible error and no deletion', async () => {
+    vi.useFakeTimers();
+    try {
+      const f = fixture(build(), async () => new Promise(() => {}));
+      const result = expect(f.preview(image)).rejects.toMatchObject({ status: 503, message: expect.stringContaining('Nothing was deleted') });
+      await vi.advanceTimersByTimeAsync(45_001); await result;
+      expect(f.docs.has('productPackets/packet')).toBe(true); expect(f.deletedFiles).toEqual([]);
+    } finally { vi.useRealTimers(); }
+  });
   it('uses the same dependency cleanup when deletion starts from a catalog item or packet', async () => {
     for (const target of [{ kind: 'catalog-instances' as const, id: 'catalog-item' }, { kind: 'packets' as const, id: 'packet' }]) {
       const f = fixture(build()); const preview = await f.lifecycle.preview(target); await f.lifecycle.remove(target, preview.token);

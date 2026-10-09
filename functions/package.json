@@ -1,6 +1,6 @@
 {
   "name": "qrgear-functions",
-  "version": "1.0.382416",
+  "version": "1.0.382417",
   "main": "lib/functions/src/index.js",
   "engines": {
     "node": "22"

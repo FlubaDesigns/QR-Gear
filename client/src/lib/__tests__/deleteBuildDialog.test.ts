@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
-const mocks = vi.hoisted(() => ({ fetch: vi.fn(), invalidate: vi.fn(), toast: vi.fn(), pending: false, options: null as any, loading: false, refetch: vi.fn(), preview: { token: "reviewed", targets: [{ path: "grf_assets/asset", id: "asset", kind: "grf_assets", name: "Asset" }], retained: [], fileCount: 1, buildCount: 0 } }));
+const mocks = vi.hoisted(() => ({ fetch: vi.fn(), invalidate: vi.fn(), toast: vi.fn(), pending: false, options: null as any, query: null as any, loading: false, refetch: vi.fn(), preview: { token: "reviewed", targets: [{ path: "grf_assets/asset", id: "asset", kind: "grf_assets", name: "Asset" }], retained: [], fileCount: 1, buildCount: 0 } }));
 vi.mock('@/lib/adminFetch', () => ({ adminFetch: mocks.fetch }));
 vi.mock('@/hooks/use-toast', () => ({ useToast: () => ({ toast: mocks.toast }) }));
 vi.mock('@tanstack/react-query', () => ({
-  useQuery: () => ({ data: mocks.preview, isFetching: mocks.loading, refetch: mocks.refetch }),
+  useQuery: (options: any) => { mocks.query = options; return { data: mocks.preview, isFetching: mocks.loading, refetch: mocks.refetch }; },
   useQueryClient: () => ({ invalidateQueries: mocks.invalidate }),
   useMutation: (options: any) => { mocks.options = options; return { isPending: mocks.pending, mutate: (id: string) => options.mutationFn(id) }; },
 }));
@@ -19,6 +19,13 @@ function element(node: any, type: string): any {
 }
 beforeEach(() => { vi.clearAllMocks(); mocks.pending = false; mocks.loading = false; mocks.fetch.mockResolvedValue({ success: true }); });
 describe('shared library deletion confirmation', () => {
+  it('cancels the preview request with its dialog and surfaces one failed attempt', async () => {
+    DeleteBuildDialog({ target: { kind: 'packets', id: 'old-packet' }, onClose: vi.fn() });
+    const controller = new AbortController();
+    await mocks.query.queryFn({ signal: controller.signal });
+    expect(mocks.fetch).toHaveBeenCalledWith('/packets/old-packet/deletion-preview', { signal: controller.signal });
+    expect(mocks.query.retry).toBe(false);
+  });
   it('requires a finished impact check before enabling deletion', () => {
     mocks.loading = true;
     const tree = DeleteBuildDialog({ target: { kind: 'graphics', id: 'GRF-11431-000012' }, onClose: vi.fn() });

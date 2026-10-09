@@ -642,3 +642,8 @@ Profit now reads paid store-order revenue and all saved product price/cost estim
 Registry comparison found every displayed sandbox Graphics, BLD and Assembly ID on Main. The protected 22 products and their canonical dependencies are retained. Cleanup is a separate dependency-reviewed operation; this code does not delete registry or product records.
 
 Acceptance: provider history loads; Orchestration shows the 22 saved products; Profit and Routing show recorded data; Repricing displays a real canonical preview; anonymous admin access remains rejected; Main Hosting/API markers match the released source. Local checks and live verification must be reported separately.
+
+
+### Main cleanup dependency scan — 2026-10-09
+
+The shared build-deletion service now limits concurrent database RPCs to eight, discovers nested website references without holding parent slots, and sorts records before generating the review token. A scan that cannot finish within 45 seconds returns an explicit 503 error; incomplete scans never authorize deletion. Reference tokens and owned file paths are extracted once per record to avoid repeated parsing of supplier histories for each asset. The deletion dialog cancels abandoned preview requests and shows the first failure without silently repeating long scans. Existing shared-asset retention and transaction-time impact revalidation remain required. Focused tests cover concurrency bounds, stable tokens, nested reference failures, timeouts, cancellation, and existing deletion protections. No bulk cleanup or payment-mode change is implied by deploying this code.

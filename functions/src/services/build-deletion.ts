@@ -38,26 +38,54 @@ function files(record: RecordDoc, bucket: string): string[] {
   if (record.collection === 'grf_assets' && typeof record.data.storagePath === 'string' && !record.data.storagePath.includes('://')) paths.push(record.data.storagePath);
   return paths;
 }
-function tokens(record: RecordDoc, bucket: string) {
-  return new Set([...strings(record.data), ...files(record, bucket)]);
-}
-
 /** Discover references from actual saved records, including website subcollections.
  * Unrecognized record types can protect shared assets but cannot be cascaded. */
 async function readRecords(db: any, read: (ref: any) => Promise<any> = ref => ref.get()): Promise<RecordDoc[]> {
   const result: RecordDoc[] = [];
-  const visit = async (collection: any): Promise<void> => {
-    if (collection.id === JOBS) return;
-    const snapshot = await read(collection);
-    for (const doc of snapshot.docs) {
-      result.push({ path: doc.ref.path, id: doc.id, collection: collection.id, data: doc.data(), ref: doc.ref });
-      if (!FLAT_RECORDS.has(collection.id)) for (const child of await doc.ref.listCollections()) await visit(child);
+  // Bound actual RPCs, not recursive visits: a parent must release its slot
+  // before discovering children, otherwise a nested scan can deadlock.
+  const deadline = Date.now() + 45_000;
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  const rpc = async <T>(operation: () => Promise<T>): Promise<T> => {
+    if (active >= 8) await new Promise<void>(resolve => waiting.push(resolve));
+    else active++;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw new DeleteError('Dependency check timed out. Nothing was deleted; retry the preview.', 503);
+      return await Promise.race([operation(), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new DeleteError('Dependency check timed out. Nothing was deleted; retry the preview.', 503)), remaining);
+      })]);
+    } finally {
+      if (timer) clearTimeout(timer);
+      const next = waiting.shift();
+      if (next) next(); else active--;
     }
   };
-  for (const collection of await db.listCollections()) await visit(collection);
-  return result;
+  const visit = async (collection: any): Promise<void> => {
+    if (collection.id === JOBS) return;
+    const snapshot: any = await rpc(() => read(collection));
+    await Promise.all(snapshot.docs.map(async (doc: any) => {
+      result.push({ path: doc.ref.path, id: doc.id, collection: collection.id, data: doc.data(), ref: doc.ref });
+      if (!FLAT_RECORDS.has(collection.id)) {
+        const children: any = await rpc(() => doc.ref.listCollections());
+        await Promise.all(children.map(visit));
+      }
+    }));
+  };
+  const collections: any = await rpc(() => db.listCollections());
+  await Promise.all(collections.map(visit));
+  // Stable ordering keeps the reviewed token independent of RPC completion order.
+  return result.sort((a, b) => a.path.localeCompare(b.path));
 }
 export function planBuildDeletion(records: RecordDoc[], target: BuildTarget, bucket: string) {
+  // Supplier histories can be large. Extract each record's references once,
+  // rather than recursively parsing every value for every candidate asset.
+  const recordStrings = new Map(records.map(r => [r.path, strings(r.data)]));
+  const recordFiles = new Map(records.map(r => [r.path, files(r, bucket)]));
+  const recordLinks = new Map(records.map(r => [r.path, strings(r.data, '', true)]));
+  const recordTokens = new Map(records.map(r => [r.path, new Set([...recordStrings.get(r.path)!, ...recordFiles.get(r.path)!])]));
   const root = records.find(r => r.path === `${BUILD_TARGETS[target.kind]}/${target.id}`);
   if (!root) throw new DeleteError('Item not found.', 404);
   const assets = records.filter(r => r.collection === 'grf_assets');
@@ -73,30 +101,30 @@ export function planBuildDeletion(records: RecordDoc[], target: BuildTarget, buc
     // A Background record may share the original's file. Only its explicit ID
     // cascades uses; deleting the original/crop/output also follows URL uses.
     if (!asset.data.sourceGrfId || parseGrfId(asset.id).purpose !== '3') {
-      for (const value of [...files(asset, bucket), asset.data.publicUrl].filter(Boolean)) rootTokens.add(value);
+      for (const value of [...recordFiles.get(asset.path)!, asset.data.publicUrl].filter(Boolean)) rootTokens.add(value);
     }
   }
   const builds = records.filter(r => BUILD_RECORDS.has(r.collection));
-  const removed = new Set(builds.filter(r => r.path === root.path || Array.from(tokens(r, bucket)).some(t => rootTokens.has(t))).map(r => r.path));
+  const removed = new Set(builds.filter(r => r.path === root.path || Array.from(recordTokens.get(r.path)!).some(t => rootTokens.has(t))).map(r => r.path));
   changed = true;
   while (changed) {
     changed = false;
     const selected = builds.filter(r => removed.has(r.path));
     const ids = new Set(selected.map(r => r.id));
-    const linkedIds = new Set(selected.flatMap(r => strings(r.data, '', true)));
-    for (const record of builds) if (!removed.has(record.path) && (linkedIds.has(record.id) || strings(record.data, '', true).some(id => ids.has(id)))) {
+    const linkedIds = new Set(selected.flatMap(r => recordLinks.get(r.path)!));
+    for (const record of builds) if (!removed.has(record.path) && (linkedIds.has(record.id) || recordLinks.get(record.path)!.some(id => ids.has(id)))) {
       removed.add(record.path); changed = true;
     }
   }
   // A surviving website/order can reference a whole packet instead of a file.
   // Preserve that connected build too; never leave such a reference dangling.
   const protectedIds = new Set(records.filter(r => !BUILD_RECORDS.has(r.collection) && !['grf_assets','bld_definitions'].includes(r.collection))
-    .flatMap(r => strings(r.data, '', true)));
+    .flatMap(r => recordLinks.get(r.path)!));
   let protecting = true;
   while (protecting) {
     protecting = false;
     for (const record of builds) {
-      const links = strings(record.data, '', true);
+      const links = recordLinks.get(record.path)!;
       if (protectedIds.has(record.id) || links.some(id => protectedIds.has(id))) {
         for (const id of [record.id, ...links]) if (!protectedIds.has(id)) { protectedIds.add(id); protecting = true; }
       }
@@ -104,7 +132,7 @@ export function planBuildDeletion(records: RecordDoc[], target: BuildTarget, buc
   }
   for (const record of builds) if (protectedIds.has(record.id)) removed.delete(record.path);
   const buildIds = new Set(builds.filter(r => removed.has(r.path)).map(r => r.id));
-  const usedIds = new Set(builds.filter(r => removed.has(r.path)).flatMap(r => strings(r.data)));
+  const usedIds = new Set(builds.filter(r => removed.has(r.path)).flatMap(r => recordStrings.get(r.path)!));
   const candidates = new Set(assets.filter(a => roots.has(a.id) || buildIds.has(a.data.packetId) || buildIds.has(a.data.sourceSessionId) ||
     (isValidGrfId(a.id) && parseGrfId(a.id).assetClass === '2' && usedIds.has(a.id))).map(a => a.path));
   // Retain any candidate still referenced by a surviving record, then retain its
@@ -114,8 +142,8 @@ export function planBuildDeletion(records: RecordDoc[], target: BuildTarget, buc
     changed = false;
     const survivors = records.filter(r => !removed.has(r.path) && !candidates.has(r.path));
     for (const asset of assets.filter(a => candidates.has(a.path))) {
-      const identity = new Set([asset.id, asset.data.publicUrl, ...files(asset, bucket)].filter(Boolean));
-      if (survivors.some(r => Array.from(tokens(r, bucket)).some(t => identity.has(t)))) {
+      const identity = [asset.id, asset.data.publicUrl, ...recordFiles.get(asset.path)!].filter(Boolean);
+      if (survivors.some(r => identity.some(t => recordTokens.get(r.path)!.has(t)))) {
         candidates.delete(asset.path); changed = true;
       }
     }
@@ -124,13 +152,13 @@ export function planBuildDeletion(records: RecordDoc[], target: BuildTarget, buc
   // Builder-created structural definitions are owned outputs; manual definitions remain reusable.
   const bldIds = new Set(builds.filter(r => removed.has(r.path)).map(r => r.data.bldId).filter(Boolean));
   for (const record of records.filter(r => r.collection === 'bld_definitions' && bldIds.has(r.id) && r.data.source === 'builder')) {
-    if (!records.some(r => r.path !== record.path && !removed.has(r.path) && strings(r.data).includes(record.id))) removed.add(record.path);
+    if (!records.some(r => r.path !== record.path && !removed.has(r.path) && recordStrings.get(r.path)!.includes(record.id))) removed.add(record.path);
   }
   for (const record of records) if (Array.from(removed).some(path => record.path.startsWith(path + '/'))) removed.add(record.path);
   const deleted = records.filter(r => removed.has(r.path));
   const survivors = records.filter(r => !removed.has(r.path));
-  const keptFiles = new Set(survivors.flatMap(r => files(r, bucket)));
-  const filePaths = Array.from(new Set(deleted.flatMap(r => files(r, bucket)))).filter(path => !keptFiles.has(path)).sort();
+  const keptFiles = new Set(survivors.flatMap(r => recordFiles.get(r.path)!));
+  const filePaths = Array.from(new Set(deleted.flatMap(r => recordFiles.get(r.path)!))).filter(path => !keptFiles.has(path)).sort();
   const retained = assets.filter(a => roots.has(a.id) && !removed.has(a.path)).map(a => ({ id: a.id, name: a.data.name || a.id }));
   const targets = deleted.map(r => ({ path: r.path, id: r.id, kind: r.collection, name: r.data.name || r.data.productName || r.data.draftName || r.id }));
   const token = createHash('sha256').update(JSON.stringify({ target, targets: targets.sort((a,b) => a.path.localeCompare(b.path)), filePaths, retained,
