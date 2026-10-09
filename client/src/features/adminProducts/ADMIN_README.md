@@ -393,6 +393,19 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 9, 2026 — Protect admin access and correct public navigation
+
+Shopping links and `/store` now lead to the public shop. Admin data/actions require the server admin policy, including a namespace guard for future routes. Removed auth bypass flags, the hardcoded client/Functions owner UID and development empty-list allow-all behavior. Client permission comes only from the verified identity’s server profile, with no access retained after a verification failure. Reused the products-page registrar instead of registering its handlers twice.
+
+#### Files Changed
+| Files | Change |
+|---|---|
+| `shared/adminAccess.ts`, `functions/src/middleware.ts`, `server/firebaseAuth.ts`, auth profile routes | Shared strict admin policy and fail-closed server enforcement |
+| `client/src/hooks/useAuth.ts`, authenticated fetch helpers | Verified identity-scoped permissions; no bypass |
+| `shared/navigation.ts`, `App.tsx`, `Navbar.tsx`, `home.tsx`, `store.tsx` | Canonical public shopping navigation; remove duplicate legacy builder |
+| `functions/src/index.ts` | Namespace authorization and one Products route registration |
+| Focused admin-access tests, README, manifest and source bundle | Authorization regression coverage and documentation |
+
 ### October 9, 2026 — Product selection and saved default remain separate
 
 The product screen can choose a provider for the current build. Only **Use for new builds** changes the saved default; existing products retain their saved provider. Removed the catalog module's remaining implicit Printify browsing label when no provider is selected. Each setting and record must have one authoritative saved source, with derived displays rather than competing defaults.

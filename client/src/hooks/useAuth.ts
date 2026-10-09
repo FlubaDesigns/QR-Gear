@@ -6,19 +6,7 @@ import type { User } from "@shared/schema";
 
 type UserWithAdmin = User & { isAdmin?: boolean };
 
-// Hardcoded admin UIDs for immediate client-side check (fallback if API is slow/fails)
-const ADMIN_UIDS = ["xHUmudG0t5OkCQhqyhB4nXhCUfs1"];
-
 export function useAuth() {
-  if (import.meta.env.VITE_ADMIN_BYPASS === "true") {
-    return {
-      isLoading: false,
-      isAuthenticated: true,
-      isAdmin: true,
-      user: null,
-      firebaseUser: null,
-    };
-  }
   const queryClient = useQueryClient();
   // Start as undefined to distinguish "not yet checked" from "checked and no user"
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null | undefined>(undefined);
@@ -33,9 +21,19 @@ export function useAuth() {
     return () => unsubscribe();
   }, [queryClient]);
 
-  const { data: user, isLoading: apiLoading } = useQuery<UserWithAdmin>({
-    queryKey: ["/api/auth/user"],
+  const { data: user, isLoading: apiLoading, isError: profileError } = useQuery<UserWithAdmin | null>({
+    queryKey: ["/api/auth/user", firebaseUser?.uid],
+    queryFn: async ({ signal }) => {
+      if (!firebaseUser) return null;
+      const token = await firebaseUser.getIdToken();
+      const response = await fetch('/api/auth/user', { signal, headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not verify account access.');
+      const profile = await response.json();
+      return profile?.id === firebaseUser.uid ? profile : null;
+    },
     enabled: !!firebaseUser,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 
@@ -43,9 +41,8 @@ export function useAuth() {
   // protected pages loading until that profile (including admin status) resolves.
   const isLoading = !authChecked || (!!firebaseUser && apiLoading);
 
-  // Check admin from API response OR fallback to hardcoded UID check
-  // The hardcoded check works immediately once firebaseUser is available
-  const isAdmin = !!user?.isAdmin || (firebaseUser ? ADMIN_UIDS.includes(firebaseUser.uid) : false);
+  // The server is authoritative; a cached profile can never grant another identity access.
+  const isAdmin = !profileError && !!firebaseUser && user?.id === firebaseUser.uid && user?.isAdmin === true;
 
   return {
     user: firebaseUser ? user : null,

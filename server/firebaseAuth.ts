@@ -1,7 +1,8 @@
+import { configuredAdminIds, hasAdminAccess } from "../shared/adminAccess";
 import { RequestHandler, Express } from "express";
 import session from "express-session";
 import { getAuth } from "firebase-admin/auth";
-import { initializeFirebase, isFirebaseInitialized } from "./lib/firebase-admin";
+import { initializeFirebase, isFirebaseInitialized, getFirestoreDb } from "./lib/firebase-admin";
 import { storage } from "./storage";
 import MemoryStore from "memorystore";
 
@@ -106,6 +107,8 @@ export async function setupAuth(app: Express) {
     next();
   });
 
+  app.use("/api/admin", isAdmin);
+
   // Login endpoint - redirects to Firebase Auth UI or returns auth config
   app.get("/api/login", (req, res) => {
     res.json({
@@ -164,12 +167,12 @@ export async function setupAuth(app: Express) {
   });
 }
 
+export async function checkAdminAccess(uid: string): Promise<boolean> {
+  const profile = await getFirestoreDb().collection("users").doc(uid).get();
+  return hasAdminAccess(uid, profile.data(), configuredAdminIds(process.env.ADMIN_USER_IDS));
+}
+
 export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
-  if (process.env.ADMIN_BYPASS === "true") {
-    req.isAuthenticated = () => true;
-    req.user = req.user || { claims: { sub: "bypass" }, uid: "bypass", email: "bypass@admin" };
-    return next();
-  }
 
   if (req.isAuthenticated && req.isAuthenticated()) {
     return next();
@@ -179,11 +182,6 @@ export const isAuthenticated: RequestHandler = async (req: any, res, next) => {
 };
 
 export const isAdmin: RequestHandler = async (req: any, res, next) => {
-  if (process.env.ADMIN_BYPASS === "true") {
-    req.isAuthenticated = () => true;
-    req.user = req.user || { claims: { sub: "bypass" }, uid: "bypass", email: "bypass@admin" };
-    return next();
-  }
 
   if (!req.isAuthenticated || !req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -194,11 +192,10 @@ export const isAdmin: RequestHandler = async (req: any, res, next) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
-  const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
-  
-  if (adminIds.length === 0 || adminIds.includes(userId)) {
-    return next();
-  }
+  res.set("Cache-Control", "private, no-store");
+  try {
+    if (await checkAdminAccess(userId)) return next();
+  } catch (error) { return next(error); }
 
   return res.status(403).json({ message: "Admin access required" });
 };

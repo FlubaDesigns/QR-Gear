@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { isAuthenticated, isAdmin } from "../firebaseAuth";
+import { isAuthenticated, isAdmin, checkAdminAccess } from "../firebaseAuth";
 import { storage } from "../storage";
 import { verifyFirebaseToken } from "../lib/firebase-admin";
 import { z } from "zod";
@@ -140,11 +140,7 @@ export function registerAuthRoutes(app: Express): void {
   // Auth routes - returns null if not authenticated (no 401)
   app.get('/api/auth/user', async (req: any, res) => {
     try {
-      // Helper to check admin status
-      const checkIsAdmin = (userId: string) => {
-        const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
-        return adminIds.length === 0 || adminIds.includes(userId);
-      };
+      res.set("Cache-Control", "private, no-store");
 
       // Check for Firebase ID token in Authorization header first
       const authHeader = req.headers.authorization;
@@ -166,7 +162,7 @@ export function registerAuthRoutes(app: Express): void {
             });
           }
           const { passwordHash, ...safeUser } = user;
-          return res.json({ ...safeUser, isAdmin: checkIsAdmin(firebaseUserId) });
+          return res.json({ ...safeUser, isAdmin: await checkAdminAccess(firebaseUserId) });
         }
       }
 
@@ -175,7 +171,7 @@ export function registerAuthRoutes(app: Express): void {
         const user = await storage.getUser(req.session.userId);
         if (user) {
           const { passwordHash, ...safeUser } = user;
-          return res.json({ ...safeUser, isAdmin: checkIsAdmin(user.id) });
+          return res.json({ ...safeUser, isAdmin: await checkAdminAccess(user.id) });
         }
       }
 
@@ -184,7 +180,7 @@ export function registerAuthRoutes(app: Express): void {
         const userId = req.user.claims.sub;
         const user = await storage.getUser(userId);
         if (user) {
-          return res.json({ ...user, isAdmin: checkIsAdmin(userId) });
+          return res.json({ ...user, isAdmin: await checkAdminAccess(userId) });
         }
       }
 

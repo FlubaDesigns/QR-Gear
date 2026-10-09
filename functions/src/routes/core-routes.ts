@@ -1,4 +1,5 @@
 import { resolveSaleItem } from '../services/order-fulfillment';
+import { hasAdminAccess } from '../../../shared/adminAccess';
 import { registerStoreProductRoutes } from "../services/store-products";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -74,6 +75,7 @@ app.get('/designs/:id', async (req: Request, res: Response): Promise<void> => {
 });
 
 app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'private, no-store');
   try {
     const decodedToken = await verifyAuth(req);
     if (!decodedToken) {
@@ -100,7 +102,7 @@ app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
 
     // Merge Firestore data with isAdmin check from both sources
     const userData = docToObject(userDoc);
-    const isAdmin = userData.isAdmin === true || ADMIN_USER_IDS.includes(decodedToken.uid);
+    const isAdmin = hasAdminAccess(decodedToken.uid, userData, ADMIN_USER_IDS);
     res.json({ ...userData, isAdmin });
   } catch (error: any) {
     // Return null on error instead of 401

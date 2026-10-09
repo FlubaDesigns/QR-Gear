@@ -1,10 +1,10 @@
-const _BUILD_ID = '20261009-sandbox-admin-fulfillment';
+const _BUILD_ID = '20261009-sandbox-admin-access';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
-import { corsMiddleware, apiPrefixMiddleware, sandboxCommerceMiddleware } from './middleware';
+import { corsMiddleware, apiPrefixMiddleware, sandboxCommerceMiddleware, requireAdmin } from './middleware';
 
 import { register as registerWidget } from './routes/widget';
 import { register as registerPartner } from './routes/partner';
@@ -50,10 +50,7 @@ import { register as registerAmSync } from './routes/am-sync';
 import { register as registerAmUtility } from './routes/am-utility';
 import { registerMembersLibraryRoutes } from './routes/members-library';
 import { registerExternalSitesPublicRoutes } from './routes/external-sites-public';
-import { register as registerPpBuilder } from './routes/pp-builder';
-import { register as registerPpCatalog } from './routes/pp-catalog';
 import { registerPpCatalogBrowseRoutes } from './routes/pp-catalog-browse';
-import { register as registerPpPricingPackets } from './routes/pp-pricing-packets';
 import { registerAdminBuildSessions } from './routes/admin-build-sessions';
 import { registerBld } from './routes/bld';
 import { registerAssemblies } from './routes/assemblies';
@@ -74,6 +71,8 @@ app.use(express.json({ limit: '50mb', verify: (req, _res, body) => { (req as any
 app.use(express.urlencoded({ extended: false }));
 app.use(apiPrefixMiddleware);
 app.use(sandboxCommerceMiddleware);
+// Enforce authorization for every admin endpoint, including future route registrations.
+app.use('/admin', requireAdmin);
 
 registerWidget(app);
 registerPartner(app);
@@ -119,10 +118,7 @@ registerAmSync(app);
 registerAmUtility(app);
 registerMembersLibraryRoutes(app);
 registerExternalSitesPublicRoutes(app);
-registerPpBuilder(app);
-registerPpCatalog(app);
 registerPpCatalogBrowseRoutes(app);
-registerPpPricingPackets(app);
 registerAdminBuildSessions(app);
 registerBld(app);
 registerAssemblies(app);
