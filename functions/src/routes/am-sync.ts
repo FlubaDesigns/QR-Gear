@@ -1,7 +1,7 @@
 import {readHostingTiers,changeHostingTier} from '../services/hosting-tiers';
 import { HealthMonitorService } from '../services/health-monitor';
 import { registerFontRoutes } from '../services/font-settings';
-import { projectTemplateDisplay } from '../../../shared/templateDisplay';
+import { projectLinkedTemplateDisplay } from '../../../shared/templateDisplay';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -126,7 +126,7 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
     const snapshot = await db.collection('productTemplates').orderBy('createdAt', 'desc').get();
     let withPreview = 0, withFallbackTitle = 0, noPacket = 0;
 
-    const templates = snapshot.docs.map((d: any) => {
+    const templates = await Promise.all(snapshot.docs.filter((d: any) => d.data().isActive !== false).map(async (d: any) => {
       const data = d.data();
 
       // ── Packet reconstruction ────────────────────────────────────────────────
@@ -183,7 +183,8 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
 
       if (!packet) noPacket++;
 
-      const preview = projectTemplateDisplay({ ...data, packet });
+      const currentPacket = data.packetId ? (await db.collection("productPackets").doc(data.packetId).get()).data() : null;
+      const preview = projectLinkedTemplateDisplay(data, currentPacket || null);
       if (preview.previewImageUrl) withPreview++;
       if (!data.productName && !data.name) withFallbackTitle++;
 
@@ -191,10 +192,10 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
         id: d.id,
         ...data,
         packetId: data.packetId || null,
-        packet,
+        packet: currentPacket || packet,
         ...preview,
       };
-    });
+    }));
 
     console.log(`[/admin/templates] returned ${templates.length} templates | withPreview=${withPreview} | fallbackTitle=${withFallbackTitle} | noPacket=${noPacket}`);
     res.json({ templates });

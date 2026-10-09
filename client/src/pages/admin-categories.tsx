@@ -68,6 +68,7 @@ export function CategoriesContent() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -116,12 +117,14 @@ export function CategoriesContent() {
   }
 
   function openCreateDialog() {
+    setFormError(null);
     setEditingCategory(null);
     setFormData({ name: "", description: "", icon: "Tag", isActive: true });
     setIsDialogOpen(true);
   }
 
   function openEditDialog(category: Category) {
+    setFormError(null);
     setEditingCategory(category);
     setFormData({
       name: category.name,
@@ -133,7 +136,9 @@ export function CategoriesContent() {
   }
 
   async function handleSubmit() {
+    setFormError(null);
     if (!formData.name.trim()) {
+      setFormError("Name is required.");
       toast({ title: "Error", description: "Name is required.", variant: "destructive" });
       return;
     }
@@ -149,6 +154,7 @@ export function CategoriesContent() {
       setIsDialogOpen(false);
       await loadCategories();
     } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Failed to save. Please retry.");
       toast({ title: "Error", description: "Failed to save.", variant: "destructive" });
     } finally {
       setSaving(false);
@@ -198,6 +204,7 @@ export function CategoriesContent() {
               <DialogHeader>
                 <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
               </DialogHeader>
+              {formError && <p role="alert" className="text-destructive">{formError}</p>}
               <fieldset disabled={saving} className="min-w-0 space-y-4 py-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Name</Label>

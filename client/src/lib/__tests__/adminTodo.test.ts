@@ -37,13 +37,14 @@ it('opens the existing queue from the current dashboard with a large accessible 
   expect(toggle().props['aria-expanded']).toBe(true);
   expect(mocks.api).toHaveBeenCalledWith('GET', '/api/admin/dashboard/queue');
   expect(text()).toContain('Connect to surfaces');
-  const task = tree.root.findAllByType('button').find(b => b.props['data-testid'] === 'queue-item-connect-to-surfaces')!;
-  act(() => task.props.onClick());
+  const task = tree.root.findAllByType('a').find(b => b.props['data-testid'] === 'queue-item-connect-to-surfaces')!;
+  expect(task.props.href).toBe('/admin/marketplaces');
+  act(() => task.props.onClick({ preventDefault: vi.fn() }));
   expect(mocks.navigate).toHaveBeenCalledWith('/admin/marketplaces');
   await click();
   expect(text()).not.toContain('Connect to surfaces');
   await click();
-  expect(tree.root.findAllByType('button').filter(b => b.props['data-testid'] === 'queue-item-connect-to-surfaces')).toHaveLength(1);
+  expect(tree.root.findAllByType('a').filter(b => b.props['data-testid'] === 'queue-item-connect-to-surfaces')).toHaveLength(1);
 });
 it('shows an API failure instead of claiming the list is empty, and retries', async () => {
   mocks.api.mockRejectedValueOnce(new Error('Connection unavailable'));

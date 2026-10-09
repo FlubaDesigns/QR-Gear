@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { projectTemplateDisplay } from '@shared/templateDisplay';
+import { projectTemplateDisplay, projectLinkedTemplateDisplay } from '@shared/templateDisplay';
 vi.mock('@/lib/adminFetch', () => ({ adminFetch: vi.fn() }));
 import { templateToSkinItem } from '@/features/shared/templateLibrary';
 
@@ -28,4 +28,12 @@ describe('canonical template display', () => {
     expect(item.metadata).toBe(template);
     expect(item.images).toBe(template.previewImages);
   });
+});
+
+it('uses the current linked packet for display without mutating the saved design or printed QR', () => {
+  const template = { productName: 'Generic blank', pricing: { customerPrice: 24.61 }, builderSnapshot: { title: 'Saved design' }, qrContent: 'https://sandbox/m/printed' };
+  const before = structuredClone(template);
+  const result = projectLinkedTemplateDisplay(template, { builderSnapshot: { title: 'U.S. Army — USA 250' }, pricing: { customerPrice: 43.58 }, priorityMockupUrl: 'current.jpg', qrContent: template.qrContent });
+  expect(result).toMatchObject({ previewTitle: 'U.S. Army — USA 250', previewPrice: 43.58, previewImageUrl: 'current.jpg' });
+  expect(template).toEqual(before);
 });

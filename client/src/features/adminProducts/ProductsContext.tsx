@@ -91,10 +91,14 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const setSelectedChannel = useCallback((channel: Channel | null) => {
     destinationVersion.current++;
     setDestination(previous => {
-      if (channel && channel.storeId !== previous.selectedStore?.id) {
+      // Older committed snapshots omitted the channel parent while retaining its selected store.
+      // Preserve explicit parents so crossed-store snapshots still fail validation.
+      const restored = channel && !channel.storeId && previous.selectedStore
+        ? { ...channel, storeId: previous.selectedStore.id } : channel;
+      if (restored && restored.storeId !== previous.selectedStore?.id) {
         return { ...previous, selectedChannel: null, selectedCollection: null, destinationError: 'The selected channel does not belong to this store. Choose a channel again.' };
       }
-      return { ...previous, selectedChannel: channel, selectedCollection: null, destinationError: null };
+      return { ...previous, selectedChannel: restored, selectedCollection: null, destinationError: null };
     });
   }, []);
 

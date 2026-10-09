@@ -40,3 +40,10 @@ export function projectTemplateDisplay(data: Record<string, any>): TemplatePrevi
     previewImages,
   };
 }
+
+/** Display the current linked product without rewriting the reusable design snapshot. */
+export function projectLinkedTemplateDisplay(template: Record<string, any>, packet: Record<string, any> | null): TemplatePreview {
+  if (!packet) return projectTemplateDisplay({ ...template, productName: template.builderSnapshot?.title || template.productName });
+  return projectTemplateDisplay({ ...packet, productName: packet.builderSnapshot?.title || packet.productName,
+    artworkUrl: packet.productGraphicUrl, packet });
+}

@@ -468,6 +468,7 @@ export function useCreatePacket({
 
       const initialResult: PacketResult = {
         packetId,
+        fulfillmentProvider: snapshot.metadata.fulfillmentProvider,
         landingPageUrl: finalQrContent,
         landingPageSnapshotUrl: landingPageSnapshotUrl || "",
         productGraphicUrl,

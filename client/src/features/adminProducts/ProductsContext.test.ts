@@ -53,6 +53,11 @@ describe('Destination selection blast radius', () => {
     expect(value.selectedStore).toEqual(store); expect(value.selectedChannel).toEqual(channel); expect(value.selectedCollection?.name).toBe('Summer');
     expect(value.selectedProviders).toEqual([]);
   });
+  it('restores legacy committed destinations that omitted the channel parent', async () => {
+    m.fetch.mockResolvedValue([]); await mount();
+    await act(async () => { value.setSelectedStore(store); value.setSelectedChannel({ id: channel.id, name: channel.name } as any); value.setSelectedCollection({ name: 'Summer' }); });
+    expect(value.selectedChannel?.storeId).toBe(store.id); expect(value.selectedCollection?.name).toBe('Summer'); expect(value.destinationError).toBeNull();
+  });
   it('rejects a mismatched channel during draft restoration without retaining a collection', async () => {
     m.fetch.mockResolvedValue([]); await mount();
     await act(async () => { value.setSelectedStore(store); value.setSelectedChannel({ ...channel, storeId: 'other' }); value.setSelectedCollection({ name: 'Old' }); });

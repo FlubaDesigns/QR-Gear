@@ -28,6 +28,7 @@ interface HostingTier {
 
 export interface PacketResult {
   packetId: string;
+  fulfillmentProvider: string | null;
   landingPageUrl: string;
   landingPageSnapshotUrl: string;
   productGraphicUrl: string;
@@ -159,6 +160,7 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
         setLeadPhotoColor(packetLeadColor(p) || '');
         setPacketResult({
           packetId: state.activePacketId ?? '',
+          fulfillmentProvider: strOrNull(p.fulfillmentProvider),
           landingPageUrl: str(p.qrContent) || str(p.landingPageUrl),
           landingPageSnapshotUrl: str(p.landingPageSnapshotUrl),
           productGraphicUrl: str(p.productGraphicUrl) || str(p.compositeUrl),
