@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { BuilderProvider, useBuilderContext } from '../BuilderContext';
 import { ProductsModule } from '../modules/ProductsModule';
+import { masterCatalogProduct } from '@shared/masterCatalog';
 import type { CatalogProduct } from '../types';
 
 const mocks = vi.hoisted(() => ({
@@ -398,4 +399,26 @@ it('shows a catalog read failure instead of empty results and retries the shared
   const retry = tree.root.findAllByType('button').find(button => button.children.includes('Retry'))!;
   await act(async () => { retry.props.onClick(); });
   expect(mocks.reload).toHaveBeenCalledTimes(2);
+});
+
+
+it.each(['printful', 'printify'])('browses canonical API products and selects the chosen %s supplier', async (provider) => {
+  const product = masterCatalogProduct('qrg_11001', {
+    title: 'Canonical dual supplier shirt', madeInUSA: true,
+    providerMappings: { printful: { productId: 71 }, printify: { blueprintId: 12, printProviderId: 99 } },
+  });
+  expect(product).not.toHaveProperty('printfulProductId');
+  expect(product).not.toHaveProperty('printifyBlueprintId');
+  mocks.categories = [{ name: 'T-Shirts', items: [product], count: 1 }];
+  mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'canonical-session', session: { status: 'working' } }) });
+  await mount(true);
+  await act(async () => { mocks.context.setSelectedProviders([provider]); current.setSelectedCatalogId('all'); current.setGenderFilter('all'); });
+  await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-super-category-1' }).props.onClick(); });
+  await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-sub-category-11' }).props.onClick(); });
+  const cards = tree.root.findAllByType('product-card' as any);
+  expect(cards).toHaveLength(1);
+  await act(async () => { cards[0].props.onSelect(cards[0].props.item.id, cards[0].props.item); });
+  expect(current.state.selectedProduct?.docId).toBe('qrg_11001');
+  expect(current.state.selectedProduct?.fulfillmentProvider).toBe(provider);
+  expect(mocks.adminFetch).toHaveBeenCalledWith(`/master-catalog/products/qrg_11001/options?provider=${provider}`);
 });
