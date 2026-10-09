@@ -4,6 +4,17 @@ Last updated: October 9, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
+
+## Main admin emergency repair — October 9, 2026
+
+Supplier sync history selects the newest matching provider job using an equality-only read and normalized timestamps, so it does not fail while a composite index is absent. Orchestration lists the same saved catalog instances as Store Builder; QRG supplier blanks are no longer presented as sellable products or deletable through that screen. Saved-build links and the existing Graphics/BLD/Assembly Library remain available.
+
+Profit now reads paid store-order revenue and all saved product price/cost estimates. Unrecorded settlement costs and fees remain unknown; estimated contribution is explicitly separate from realized profit. Routing shows each saved packet/provider/price/inside-label relationship and links to the existing paid-order fulfillment controls. The disconnected supplier-scoring form is removed. Repricing uses the existing Admin Pricing preview/apply transaction, including stale-preview rejection and mandatory label protection. The obsolete rule-run controls are replaced by this working saved-settings flow; no scheduled rule engine is claimed. Marketplace publishing and channel management open their existing authoritative screens instead of the disconnected bulk worker. No external publication or order submission occurs from these changes.
+
+Registry comparison found every displayed sandbox Graphics, BLD and Assembly ID on Main. The protected 22 products and their canonical dependencies are retained. Cleanup is a separate dependency-reviewed operation; this code does not delete registry or product records.
+
+Acceptance: provider history loads; Orchestration shows the 22 saved products; Profit and Routing show recorded data; Repricing displays a real canonical preview; anonymous admin access remains rejected; Main Hosting/API markers match the released source. Local checks and live verification must be reported separately.
+
 ## Admin audit release candidate — October 9, 2026
 
 User authorized promotion to Main with remaining wiring defects tracked for follow-up. This batch shares recorded analytics and provider-health services across adapters; saves versioned owner AI instructions; consolidates coupon/hosting handlers and the coupon editor; derives channel counts from catalog instances; surfaces customer read failures; labels saved template prices; and removes 23 unreachable UI files. Existing browser-local sign-in persistence is preserved. Required inside labels and canonical pricing remain intact.

@@ -173,10 +173,13 @@ app.get('/admin/catalog/sync-status', requireAdmin, async (req: Request, res: Re
     }
     let query: FirebaseFirestore.Query = db.collection("catalogSyncs");
     if (provider) query = query.where('syncType', '==', provider === 'printify' ? 'smart' : 'printful');
-    const latestSnapshot = await query.orderBy("startedAt", "desc").limit(1).get();
+    // Equality-only history reads work before a composite index finishes deploying.
+    // Sort the complete provider history, not a truncated page of arbitrary jobs.
+    const latestSnapshot = await query.get();
     if (latestSnapshot.empty) { res.json({ status: 'none', message: 'No sync has been run yet' }); return; }
-    const doc = latestSnapshot.docs[0];
-    res.json(serializeSync(doc.id, doc.data()));
+    const history = latestSnapshot.docs.map(doc => serializeSync(doc.id, doc.data()));
+    history.sort((a, b) => (Date.parse(b.startedAt || '') || 0) - (Date.parse(a.startedAt || '') || 0) || a.id.localeCompare(b.id));
+    res.json(history[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
