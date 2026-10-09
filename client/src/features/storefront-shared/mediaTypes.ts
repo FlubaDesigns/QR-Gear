@@ -5,7 +5,7 @@
  * All gallery builders and gallery components consume this shape.
  */
 
-export type StorefrontMediaType = 'mockup' | 'gallery' | 'lifestyle' | 'detail' | 'graphic';
+export type StorefrontMediaType = 'mockup' | 'gallery' | 'lifestyle' | 'detail' | 'graphic' | 'video';
 
 export interface StorefrontMediaItem {
   url: string;

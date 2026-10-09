@@ -13,6 +13,11 @@
 
 // ── Source tracking ──────────────────────────────────────────────────────────
 
+/** Public merchandising copy uses QR Gear branding; supplier records stay internal. */
+export function publicProductText(value: string): string {
+  return value.replace(/\bBella\s*(?:\+|&(?:amp;)?|and|\/)\s*Canvas\b(?:\s+3001\b)?/gi, 'QR Gear');
+}
+
 export type DescriptionSource =
   | 'provider'  // raw value from Printify / Printful
   | 'catalog'   // admin-curated override on the catalog doc

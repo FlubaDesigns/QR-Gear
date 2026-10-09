@@ -393,6 +393,21 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### QR Gear branding and QR Play gallery — sandbox, October 8, 2026
+
+Public store product titles and descriptions use QR Gear branding instead of the blank manufacturer and its 3001 model number. The saved supplier/QRG configuration stays internal and unchanged. The shared AI Build Rules require this customer-facing branding for future builds.
+
+For QR Play products, the shared gallery replaces the linked packet's exact landing snapshot slot with its existing video. Model photos, artwork and QR order are retained. Native videos show a paused frame with playback controls; YouTube entries show the video's thumbnail before an explicit Play action. Main gallery, thumbnails and lightbox share one media renderer. Failed direct media shows a source link. Non-video products retain their landing proof. Future AI builds must verify both the gallery video and phone preview.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `ProductImageGallery.tsx`, `ProductGalleryMedia.tsx`, `buildProductGallery.ts`, `mediaTypes.ts`, `playMediaPreview.ts` | Saved video in the gallery with a visible frame/thumbnail and controls. |
+| `shared/descriptionLayers.ts`, `functions/src/routes/store-files.ts` | Public QR Gear branding without modifying supplier data. |
+| `shared/aiProductBuilder.ts` | Future-build branding and gallery verification rules. |
+| Focused gallery and store API tests | Media order, playback selection, errors and branding regression coverage. |
+
+
 ### October 8, 2026 — Preserve the Armed Forces content methodology
 
 Added the owner's establishment date → branch → motto → meaning → role/purpose → legacy order to the existing shared AI Build Rules (`shared/aiProductBuilder.ts`). It is reusable methodology for future builds, not an edit to an individual product or landing page. Use subject-specific supplied or verified content and never publish the placeholders.

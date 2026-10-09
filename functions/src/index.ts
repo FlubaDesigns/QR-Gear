@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261008-sandbox-product-video-preview';
+const _BUILD_ID = '20261009-sandbox-gallery-video-branding';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

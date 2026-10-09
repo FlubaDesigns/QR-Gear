@@ -1,3 +1,4 @@
+import { publicProductText } from '../../../shared/descriptionLayers';
 import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { buildPacketImageOrder, resolveProductImages, packetLeadColor } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
@@ -175,8 +176,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
       res.json({
         id: instanceDoc.id,
-        name: resolved.title || 'Untitled',
-        description: resolved.description || '',
+        name: publicProductText(resolved.title || 'Untitled'),
+        description: publicProductText(resolved.description || ''),
         category: resolved.category || '',
         productLine: resolved.productLine || '',
         imageUrl: allImages[0] || null,
@@ -301,8 +302,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
       res.json({
         id: linkDoc.id,
-        name: link.productName || 'Untitled Product',
-        description,
+        name: publicProductText(link.productName || 'Untitled Product'),
+        description: publicProductText(description),
         category,
         productLine,
         imageUrl: allImages[0] || null,
@@ -391,7 +392,7 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
         productId: linkId,
         linkId,
         price: await getCatalogInstancePrice(linkId, selectedSize),
-        name: resolved.title || 'Untitled',
+        name: publicProductText(resolved.title || 'Untitled'),
         imageUrl: heroImageUrl,
         selectedColor: selectedColor || null,
         selectedSize: selectedSize || null,
@@ -440,7 +441,7 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
         productId: productId || linkId,
         linkId,
         price: Math.round((price + sizeUpcharge(selectedSize, await getSizeUpcharges())) * 100) / 100,
-        name: link.productName || 'Untitled Product',
+        name: publicProductText(link.productName || 'Untitled Product'),
         imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
         selectedColor: selectedColor || link.defaultColor || null,
         selectedSize: selectedSize || null,
@@ -544,7 +545,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             const l1Sizes = toStringArray(rawSizes);
             return {
               id: doc.id,
-              name: resolved.title || 'Untitled',
+              name: publicProductText(resolved.title || 'Untitled'),
               imageUrl: allImages[0] || null,
               images: allImages,
               packetImageUrl,
@@ -676,7 +677,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
             return {
               id: doc.id,
-              name: resolved.title || 'Untitled',
+              name: publicProductText(resolved.title || 'Untitled'),
               imageUrl: allImagesCh[0] || null,
               images: allImagesCh,
               packetImageUrl,
@@ -774,7 +775,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
           return {
             id: doc.id,
-            name: resolved.title || 'Untitled',
+            name: publicProductText(resolved.title || 'Untitled'),
             imageUrl: allImagesSt[0] || null,
             images: allImagesSt,
             packetImageUrl,

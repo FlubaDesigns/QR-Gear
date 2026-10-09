@@ -7,6 +7,16 @@ const proofs = ['shirt-art', 'url-image', 'qr-code'];
 const source = { name: 'Navy', mockupsByColor: { Navy: navy, Black: black }, images: ['navy-front', 'navy-life', 'navy-back', ...proofs] };
 
 describe('generated packet gallery', () => {
+  it('replaces only the QR Play landing snapshot and preserves model, artwork and QR order', () => {
+    const product = { ...source, qrProductType: 'qr-play', playMediaUrl: 'https://example.com/video.mp4', landingPageSnapshotUrl: 'url-image', qrCodeUrl: 'qr-code' };
+    const gallery = buildProductGallery(product, 'Navy');
+    expect(gallery.map(i => i.url)).toEqual(['navy-front', 'navy-life', 'navy-back', 'shirt-art', product.playMediaUrl, 'qr-code']);
+    expect(gallery[4].type).toBe('video');
+    expect(buildProductGallery({ ...product, qrProductType: 'qr-canvas' }, 'Navy').map(i => i.url)).toContain('url-image');
+  });
+  it('includes a saved video before the QR when a snapshot was never generated', () => {
+    expect(buildProductGallery({ images: ['art', 'qr'], qrCodeUrl: 'qr', qrProductType: 'qr-play', playMediaUrl: 'movie' }).map(i => i.url)).toEqual(['art', 'movie', 'qr']);
+  });
   it('prefers the saved model over a supplier cache alias only for its matching color', () => {
     const product = { imageUrl: 'saved-green', images: ['saved-green', ...proofs], mockupsByColor: {
       'military-green': { front: 'supplier-green', lifestyle: 'woman-green' },

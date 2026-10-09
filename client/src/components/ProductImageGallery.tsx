@@ -3,13 +3,10 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import ProductGalleryMedia from "./ProductGalleryMedia";
+import type { StorefrontMediaItem } from "@/features/storefront-shared/mediaTypes";
 
-interface GalleryImage {
-  url: string;
-  alt?: string;
-  label?: string;
-  type?: string;
-}
+type GalleryImage = StorefrontMediaItem;
 
 interface ProductImageGalleryProps {
   images: GalleryImage[];
@@ -86,12 +83,9 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
           </Button>
         )}
 
-        <img
-          src={images[currentIndex].url}
-          alt={images[currentIndex].alt || `Image ${currentIndex + 1}`}
-          className="max-w-full max-h-[70vh] object-contain rounded-sm"
-          data-testid="img-lightbox-main"
-        />
+        <ProductGalleryMedia key={images[currentIndex].url} item={images[currentIndex]}
+          className={images[currentIndex].type === 'video' ? 'w-full h-[70vh]' : 'max-w-full max-h-[70vh] object-contain rounded-sm'}
+          testId="img-lightbox-main" />
 
         {images.length > 1 && (
           <Button
@@ -129,11 +123,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
               onClick={() => onIndexChange(index)}
               data-testid={`button-lightbox-thumb-${index}`}
             >
-              <img
-                src={img.url}
-                alt={img.alt || `Thumbnail ${index + 1}`}
-                className="w-full h-full object-contain"
-              />
+              <ProductGalleryMedia key={img.url} item={img} thumbnail className="w-full h-full object-contain" />
             </button>
           ))}
         </div>
@@ -231,19 +221,14 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           onClick={() => setIsLightboxOpen(true)}
           data-testid="container-image-single"
         >
-          <img
-            src={images[0].url}
-            alt={images[0].alt || "Product image"}
-            className="w-full h-full object-contain"
-            data-testid="img-product-single"
-          />
-          {/* Zoom hint — visible on hover (desktop) and always on mobile */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end justify-end p-2 pointer-events-none">
+          <ProductGalleryMedia key={images[0].url} item={images[0]} className="w-full h-full object-contain" testId="img-product-single" />
+          {/* Video controls handle playback/fullscreen directly. */}
+          {images[0].type !== 'video' && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-end justify-end p-2 pointer-events-none">
             <div className="flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-sm opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
               <ZoomIn className="h-3.5 w-3.5" />
               <span className="sm:hidden">Tap to zoom</span>
             </div>
-          </div>
+          </div>}
         </div>
         {isLightboxOpen && (
           <Lightbox
@@ -270,22 +255,19 @@ export default function ProductImageGallery({ images, className }: ProductImageG
           onClick={() => { if (!didLongPress.current) setIsLightboxOpen(true); }}
           data-testid="container-image-gallery"
         >
-          <img
-            src={images[currentIndex].url}
-            alt={images[currentIndex].alt || `Product image ${currentIndex + 1}`}
+          <ProductGalleryMedia key={images[currentIndex].url} item={images[currentIndex]}
             className={`w-full h-full transition-opacity duration-300 ${objectFit}`}
-            data-testid={`img-product-${currentIndex}`}
-          />
+            testId={`img-product-${currentIndex}`} />
 
-          {/* Zoom hint — always visible on mobile, hover-only on desktop */}
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-end justify-end p-2 pointer-events-none">
+          {/* Zoom hint is only for still images. */}
+          {images[currentIndex].type !== 'video' && <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-end justify-end p-2 pointer-events-none">
             <div className="flex items-center gap-1 bg-black/50 text-white text-xs px-2 py-1 rounded-sm opacity-60 sm:opacity-0 group-hover:opacity-100 transition-opacity">
               <ZoomIn className="h-3.5 w-3.5" />
               <span className="sm:hidden">Tap to zoom</span>
             </div>
-          </div>
+          </div>}
 
-          {images[currentIndex].label && (
+          {images[currentIndex].label && images[currentIndex].type !== 'video' && (
             <div className="absolute bottom-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-sm">
               {images[currentIndex].label}
             </div>
@@ -343,12 +325,9 @@ export default function ProductImageGallery({ images, className }: ProductImageG
               )}
               onClick={() => setCurrentIndex(index)}
               data-testid={`button-gallery-thumb-${index}`}
+              aria-label={img.alt || `View ${index + 1}`}
             >
-              <img
-                src={img.url}
-                alt={img.alt || `Thumbnail ${index + 1}`}
-                className="w-full h-full object-contain"
-              />
+              <ProductGalleryMedia key={img.url} item={img} thumbnail className="w-full h-full object-contain" />
             </button>
           ))}
         </div>

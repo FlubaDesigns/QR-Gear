@@ -12,7 +12,7 @@ export function playMediaPreview(source: string, autoplay: boolean) {
       : url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)$/)?.[1];
     if (!id || !/^[\w-]{11}$/.test(id)) return null;
     const params = new URLSearchParams({ autoplay: autoplay ? "1" : "0", mute: "1", playsinline: "1", end: String(VIDEO_PREVIEW_SECONDS), rel: "0" });
-    return { kind: "embed" as const, url: `https://www.youtube.com/embed/${id}?${params}` };
+    return { kind: "embed" as const, url: `https://www.youtube.com/embed/${id}?${params}`, posterUrl: `https://i.ytimg.com/vi/${id}/hqdefault.jpg` };
   }
   if (["vimeo.com", "player.vimeo.com"].includes(host)) {
     const id = url.pathname.match(/^\/(?:video\/)?(\d+)(?:\/([a-zA-Z0-9]+))?$/);

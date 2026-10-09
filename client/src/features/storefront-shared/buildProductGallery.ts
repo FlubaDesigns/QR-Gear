@@ -15,6 +15,10 @@ import type { StorefrontMediaItem } from './mediaTypes';
 
 export interface ProductMediaSource {
   name?: string;
+  qrProductType?: string | null;
+  playMediaUrl?: string | null;
+  landingPageSnapshotUrl?: string | null;
+  qrCodeUrl?: string | null;
   /** Full ordered gallery array from API — primary source. May be strings or {url,alt} objects. */
   images?: Array<string | { url?: string; alt?: string }> | null;
   /** Single hero image — fallback when images[] is absent. */
@@ -124,6 +128,9 @@ export function buildProductGallery(
 ): StorefrontMediaItem[] {
   if (!product) return [];
   const productName = product.name || 'Product';
+  const video: StorefrontMediaItem | null = product.qrProductType === 'qr-play' && product.playMediaUrl
+    ? { url: product.playMediaUrl, type: 'video', label: 'Video', alt: `${productName} — video` }
+    : null;
   const items: StorefrontMediaItem[] = [];
   const seen = new Set<string>();
   const add = (item: StorefrontMediaItem) => {
@@ -149,9 +156,13 @@ export function buildProductGallery(
   (product.images || []).forEach((item, i) => {
     const url = normalizeImageUrl(item);
     if (!url || colorMockupUrls.has(url)) return;
+    // A static QR Play landing-page capture cannot capture the embedded movie.
+    // Replace that exact destination slot with the saved video, preserving order.
+    if (video && url === product.landingPageSnapshotUrl) { add(video); return; }
+    if (video && url === product.qrCodeUrl) add(video);
     add({ url, alt: typeof item === 'object' && item.alt ? item.alt : `${productName} — image ${i + 1}`, type: 'gallery' });
   });
-  if (items.length) return items;
+  if (items.length) { if (video) add(video); return items; }
 
   // Legacy sources without a generated image array retain their existing display.
   if (product.imageUrl && !colorMockupUrls.has(product.imageUrl)) {
@@ -160,5 +171,6 @@ export function buildProductGallery(
   if (product.packetImageUrl && !colorMockupUrls.has(product.packetImageUrl)) {
     add({ url: product.packetImageUrl, alt: `${productName} — graphic`, type: 'graphic' });
   }
+  if (video) add(video);
   return items;
 }
