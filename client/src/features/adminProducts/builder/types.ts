@@ -282,7 +282,7 @@ export interface ContentData {
     order: number;
   }>;
   composeMode: 'auto-rotate' | 'scan-to-reveal' | '';
-  composeHostingTerm: '1-year' | '3-year' | '5-year' | '';
+  composeHostingTerm: string;
   composeStep: 'pick-items' | 'mode' | 'durations' | 'order' | 'hosting' | 'preview' | 'publish' | 'confirm' | '';
   composeMockup: string;
   composeInstanceId: string | null;
@@ -299,7 +299,12 @@ export interface PricingBreakdown {
   markupFixed: number;        // Fixed markup amount
   markupAmount: number;       // Calculated total markup in dollars
   customerPrice: number;
-  hostingTierCode: string;
+  hostingTierCode: string | null;
+  centerGraphicUpcharge?: number;
+  shippingCost?: number;
+  brandLabelCost?: number;
+  brandLabelPosition?: string | null;
+  fulfillmentProvider?: string;
 }
 
 // Re-export placement types and data from shared location (single source of truth)

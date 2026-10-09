@@ -1,3 +1,5 @@
+import { QR_GEAR_BRANDED_TAG_URL } from '../../functions/src/core';
+import { priceNewPacket } from '../../functions/src/services/pricing';
 import { updatePacketWithComposition } from '../../functions/src/services/composition-links';
 import { validatePacketComposition, packetPrintifyArtwork } from '../../functions/src/services/assembly-store';
 import { packetBuildFields } from '../../shared/builderSnapshot';
@@ -175,7 +177,7 @@ export function registerPacketRoutes(app: Express): void {
 
       res.json({
         success: true,
-        packetId,
+        packetId, pricing: packetData.pricing, builderSnapshot: (packetData as any).builderSnapshot, placementGraphicUrls: (packetData as any).placementGraphicUrls,
         mockupJobsQueued,
         message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
       });
@@ -373,7 +375,10 @@ export function registerPacketRoutes(app: Express): void {
       };
       
       if (req.body.builderSnapshot) {
-        try { Object.assign(packetData, packetBuildFields(req.body.builderSnapshot)); }
+        try {
+          const priced = await priceNewPacket(firestoreDb, req.body.builderSnapshot, QR_GEAR_BRANDED_TAG_URL);
+          Object.assign(packetData, packetBuildFields(priced.builderSnapshot), { pricing: priced.pricing, customerPrice: priced.pricing.customerPrice, placementGraphicUrls: priced.placementGraphicUrls });
+        }
         catch (error: any) { res.status(400).json({ error: error.message }); return; }
       }
       const packetRef = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
@@ -421,7 +426,7 @@ export function registerPacketRoutes(app: Express): void {
 
       res.json({
         success: true,
-        packetId,
+        packetId, pricing: packetData.pricing, builderSnapshot: (packetData as any).builderSnapshot, placementGraphicUrls: (packetData as any).placementGraphicUrls,
         mockupJobsQueued,
         message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
       });

@@ -108,19 +108,28 @@ export default function AdminPricing() {
       setMarkupPreview(data.dryRun ? data : null);
       if (!data.dryRun) {
         void queryClient.invalidateQueries();
-        toast({ title: "Saved markup applied", description: `Updated ${data.productsUpdated} catalog products and their linked packets.` });
+        toast({ title: "Saved pricing applied", description: `Updated ${data.productsUpdated} catalog products and their linked packets.` });
       }
     },
     onError: (error: Error) => {
       setMarkupPreview(null);
-      toast({ title: "Markup was not applied", description: error.message, variant: "destructive" });
+      toast({ title: "Pricing was not applied", description: error.message, variant: "destructive" });
     },
   });
-  const unsavedMarkup = !markupPercent.trim() || !markupFixed.trim() || Number(markupPercent) !== settings?.markupPercent || Number(markupFixed) !== settings?.markupFixed;
+  const draftPricing = { sizeUpcharges, markupPercent: Number(markupPercent), markupFixed: Number(markupFixed),
+    additionalPlacementCost: Number(additionalPlacementCost), textLineUpcharge: Number(textLineUpcharge),
+    centerGraphicUpcharge: Number(centerGraphicUpcharge), memberProfitShare: Number(memberProfitShare) / 100,
+    builtInShippingCost: Number(builtInShippingCost), hostingTiers, brandLabelPricing, preferredLabelPosition };
+  const blankAmount = [markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, centerGraphicUpcharge, memberProfitShare, builtInShippingCost].some(v => !v.trim());
+  const parsedSaved = pricingSettingsSchema.safeParse(settings);
+  const parsedDraft = pricingSettingsSchema.safeParse(draftPricing);
+  const draftKey = JSON.stringify(draftPricing);
+  const unsavedMarkup = blankAmount || !parsedSaved.success || !parsedDraft.success || JSON.stringify(parsedSaved.data) !== JSON.stringify(parsedDraft.data);
+  useEffect(() => { setMarkupPreview(null); }, [draftKey]);
 
   const updateTierPrice = (code: string, price: string) => {
     setHostingTiers(tiers =>
-      tiers.map(t => t.code === code ? { ...t, price: Number(price) } : t)
+      tiers.map(t => t.code === code ? { ...t, price: price === '' ? NaN : Number(price) } : t)
     );
   };
 
@@ -202,18 +211,18 @@ export default function AdminPricing() {
               disabled={syncPricingMutation.isPending || saveMutation.isPending || unsavedMarkup}
               data-testid="button-sync-pricing">
               {syncPricingMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
-              Preview Saved Markup
+              Preview Saved Pricing
             </Button>
             <p className="text-xs text-muted-foreground">
-              {unsavedMarkup ? 'Save your markup changes before previewing. ' : ''}
-              Applies saved markup to each catalog product’s recorded cost subtotal. Production, shipping, hosting and other costs must be updated separately. External marketplace prices are not published by this action.
+              {unsavedMarkup ? 'Save your pricing changes before previewing. ' : ''}
+              Recalculates saved products from their QRG provider costs, print content, hosting, labels and shipping, then applies your markup. Restores missing inside brand labels with the existing label artwork and verified print area. External marketplace prices are not published by this action.
             </p>
             {markupPreview && <div data-testid="markup-preview" className="space-y-3">
               <p>Saved markup: {markupPreview.markupPercent}% + ${markupPreview.markupFixed.toFixed(2)}.
                 {' '}{markupPreview.productsToUpdate} products would be updated; {markupPreview.blocked.length} need attention.</p>
               <div className="overflow-auto max-h-80">
-                <table className="w-full text-sm"><thead><tr><th className="text-left">Product</th><th>Current price</th><th>After markup</th></tr></thead>
-                  <tbody>{markupPreview.products.map((p: any) => <tr key={p.id}><td>{p.title}</td><td className="text-center">${p.currentPrice.toFixed(2)}</td><td className="text-center">${p.customerPrice.toFixed(2)}</td></tr>)}</tbody>
+                <table className="w-full text-sm"><thead><tr><th className="text-left">Product</th><th>Current price</th><th>Updated price</th></tr></thead>
+                  <tbody>{markupPreview.products.map((p: any) => <tr key={p.id}><td>{p.title}{p.restoreInsideLabel && <span className="block text-xs text-muted-foreground">Restore inside label</span>}</td><td className="text-center">${p.currentPrice.toFixed(2)}</td><td className="text-center">${p.customerPrice.toFixed(2)}</td></tr>)}</tbody>
                 </table>
               </div>
               {markupPreview.blocked.length > 0 && <div role="alert" className="text-destructive text-sm">
@@ -222,7 +231,7 @@ export default function AdminPricing() {
               </div>}
               <Button onClick={() => syncPricingMutation.mutate(markupPreview.previewToken)}
                 disabled={syncPricingMutation.isPending || unsavedMarkup || markupPreview.blocked.length > 0 || markupPreview.productsToUpdate === 0}
-                data-testid="button-apply-markup">Apply Previewed Markup</Button>
+                data-testid="button-apply-markup">Apply Previewed Pricing</Button>
             </div>}
           </div>
         </AdminSectionCard>
@@ -351,8 +360,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printifyInside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyInside: Number(e.target.value) }))}
+                    value={Number.isFinite(brandLabelPricing.printifyInside) ? brandLabelPricing.printifyInside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyInside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="0.55"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -367,8 +376,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printifyOutside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyOutside: Number(e.target.value) }))}
+                    value={Number.isFinite(brandLabelPricing.printifyOutside) ? brandLabelPricing.printifyOutside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyOutside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="0.55"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -388,8 +397,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printfulInside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulInside: Number(e.target.value) }))}
+                    value={Number.isFinite(brandLabelPricing.printfulInside) ? brandLabelPricing.printfulInside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulInside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="0.99"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -404,8 +413,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printfulOutside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulOutside: Number(e.target.value) }))}
+                    value={Number.isFinite(brandLabelPricing.printfulOutside) ? brandLabelPricing.printfulOutside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulOutside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="2.49"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -431,13 +440,12 @@ export default function AdminPricing() {
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                This sets where the QR Gear branded tag goes on every product that supports labels.
-                The tag is automatically added to all mockups and orders.
+                This saved preference does not replace the required inside brand label. The inside label is always retained, its provider-specific cost is included, and its artwork travels to fulfillment. An outside label is charged only when that placement is selected in the product build.
               </p>
             </div>
             <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1">
               <p>Inside labels replace the manufacturer tag inside the collar. Outside labels are printed on the back of the collar, visible to others.</p>
-              <p>The toggle above sets the default for all products. Cost depends on the fulfillment provider.</p>
+              <p>Label costs use the fulfillment provider saved on each product.</p>
             </div>
           </div>
         </AdminSectionCard>
@@ -482,7 +490,7 @@ export default function AdminPricing() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={tier.price}
+                  value={Number.isFinite(tier.price) ? tier.price : ''}
                   onChange={(e) => updateTierPrice(tier.code, e.target.value)}
                   className="min-h-[48px] text-lg"
                   inputMode="decimal"
@@ -500,11 +508,12 @@ export default function AdminPricing() {
 
         <AdminSectionCard title="Pricing Formula">
           <div className="font-mono text-sm space-y-1">
-            <p>Base Cost = Production + Placements + Text + Hosting + Brand Label + Shipping</p>
+            <p>Base Cost = Production + Placements + Header/Footer + Center Graphic + Hosting + Brand Label + Shipping</p>
             <p>Customer Price = Base x (1 + {markupPercent || 0}%) + ${markupFixed || 0}</p>
             <p className="text-muted-foreground">Shipping is baked into the price — customers see "Free Shipping"</p>
           </div>
         </AdminSectionCard>
+
 
         {pricingSettingsSchema.safeParse(settings).success && (
         <AdminSectionCard

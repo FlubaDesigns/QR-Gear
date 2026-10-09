@@ -1,8 +1,9 @@
+import type { PricingSettings } from '@shared/schema-orders';
 import { queryClient } from "@/lib/queryClient";
 import { refreshBuildLibrary, ORIGINALS_QK } from "@/features/adminLibrary/shared/grfQueryKeys";
 import { TEMPLATE_LIBRARY_QK } from "@/features/shared/templateLibrary";
 import { packetBuildFields, productGraphicOptions, requireBuilderSnapshot } from '@shared/builderSnapshot';
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
@@ -19,13 +20,7 @@ interface CommitResult {
   packetId: string | null;
 }
 
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  hostingTiers: { code: string; name: string; price: number }[];
-}
+
 
 interface UseCreatePacketArgs {
   state: any;
@@ -52,32 +47,6 @@ export function useCreatePacket({
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const { setActiveSession, saveWorking, setActivePacketId, beginBuildActivity } = useBuilderContext();
 
-  const calculatePricing = useCallback((): PricingBreakdown | null => {
-    if (!pricingSettings || !state.selectedProduct || !state.content) return null;
-
-    const product = state.selectedProduct as any;
-    const baseProductCost = parseFloat(product.maxPrice || product.basePrice || product.minPrice || product.customerPrice || "0");
-    const placementCount = (state.selectedPlacements || []).length || 1;
-    const additionalPlacements = Math.max(0, placementCount - 1);
-    const placementCost = additionalPlacements * pricingSettings.additionalPlacementCost;
-
-    let textLineCount = 0;
-    if (state.content.headerStyle?.enabled && state.content.headerStyle.text) textLineCount++;
-    if (state.content.footerStyle?.enabled && state.content.footerStyle.text) textLineCount++;
-    const textUpcharge = textLineCount * pricingSettings.textLineUpcharge;
-    const hostingCost = 0;
-    const subtotal = baseProductCost + placementCost + textUpcharge;
-    const markupAmount = (subtotal * (pricingSettings.markupPercent / 100)) + pricingSettings.markupFixed;
-    const customerPrice = subtotal + markupAmount;
-
-    return {
-      baseProductCost, placementCost, textUpcharge, hostingCost, subtotal,
-      markupPercent: pricingSettings.markupPercent,
-      markupFixed: pricingSettings.markupFixed,
-      markupAmount, customerPrice,
-      hostingTierCode: state.content.hostingTierCode || "1_year",
-    };
-  }, [pricingSettings, state.selectedProduct, state.selectedPlacements, state.content]);
 
   /**
    * If the background URL is a raw base64 data URI, upload it to Firebase Storage
@@ -142,8 +111,6 @@ export function useCreatePacket({
       const snapshot = requireBuilderSnapshot(await saveWorking());
       const content = snapshot.graphics.content;
       const playMediaFile = state.content?.playMediaFile;
-      const pricing = calculatePricing();
-      if (!pricing) throw new Error("Could not calculate pricing");
       const availableColors = product?.availableColors || [];
       const availableSizes = product?.availableSizes || [];
       const availablePlacements = product?.availablePlacements || [];
@@ -163,7 +130,6 @@ export function useCreatePacket({
         qrOnlyUrl: "",
         compositeUrl: "",
         qrContent: isPlayMode ? "" : (content.url || content.title || "").trim(),
-        pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
         masterTitle: state.masterTitle ?? null,
@@ -208,6 +174,9 @@ export function useCreatePacket({
         json: packetPayload,
       });
       const packetId = packetData.packetId;
+      const pricing: PricingBreakdown = packetData.pricing;
+      if (!pricing || !packetData.builderSnapshot) throw new Error('Server returned no saved pricing or build snapshot.');
+      Object.assign(snapshot, packetData.builderSnapshot);
 
       let uploadedPlayMediaUrl: string | null = null;
       let uploadedPlayMediaType: string | null = null;
@@ -349,8 +318,9 @@ export function useCreatePacket({
         }
       }
 
-      const placementGraphicUrls: Record<string, string> = { [primaryPlacement]: productGraphicUrl };
+      const placementGraphicUrls: Record<string, string> = { ...packetData.placementGraphicUrls, [primaryPlacement]: productGraphicUrl };
       for (const placement of snapshot.layoutConfig.selectedPlacements.slice(1)) {
+        if (placementGraphicUrls[placement]) continue;
         if (!snapshot.layoutConfig.providerLayouts?.[placement]?.dimensions) throw new Error(`Print dimensions are missing for ${placement}. Reload the product options.`);
         const graphic = await renderProductGraphic(productGraphicOptions(snapshot, finalQrContent.trim(), placement) as RenderOptions);
         const upload = await adminFetch<{ publicUrl: string }>('/content/upload', {
@@ -689,7 +659,7 @@ export function useCreatePacket({
   return {
     isCreating, packetResult, error,
     isCommitting, commitResult, artifactError,
-    calculatePricing, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
     setPacketResult, setError, setCommitResult, setArtifactError,
   };

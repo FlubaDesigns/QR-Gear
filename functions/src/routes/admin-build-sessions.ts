@@ -539,7 +539,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // authority for images — do NOT let working.images blindly stomp it.
       // working.images starts from master.images and will restore deleted images if applied.
       if (!effectiveCatalogId && w.images?.length) overrides.images = w.images;
-      const effectivePricing = bodyPricing || w.pricing || null;
+      const pricedPacket = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(session.generated.packetId).get();
+      const effectivePricing = pricedPacket.data()?.pricing;
+      if (!effectivePricing || !Number.isFinite(effectivePricing.customerPrice)) throw new Error('Generated packet has no saved pricing. Regenerate it.');
       if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;
 

@@ -1,3 +1,4 @@
+import type { PricingSettings } from '@shared/schema-orders';
 import { useState, useEffect, useRef } from "react";
 import { Package, Loader2, Check, CheckCircle2, Copy, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -23,13 +24,7 @@ interface HostingTier {
   price: number;
 }
 
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  hostingTiers: HostingTier[];
-}
+
 
 export interface PacketResult {
   packetId: string;

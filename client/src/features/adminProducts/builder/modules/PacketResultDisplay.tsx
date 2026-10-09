@@ -1,3 +1,4 @@
+import type { PricingSettings } from '@shared/schema-orders';
 import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState } from "react";
 import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2, AlertTriangle, ExternalLink, Package2, RefreshCw, Palette } from "lucide-react";
@@ -30,13 +31,7 @@ interface PacketResult {
   enabledColors?: string[];
 }
 
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  hostingTiers: { code: string; name: string; price: number }[];
-}
+
 
 interface PacketResultDisplayProps {
   packetResult: PacketResult;
@@ -666,12 +661,18 @@ export function PacketResultDisplay({
             </div>
             
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Text Lines</span>
+              <span>Header / Footer Zones</span>
               <span>
                 {packetResult.pricing.textUpcharge > 0 ? `+$${packetResult.pricing.textUpcharge.toFixed(2)}` : '$0.00'}
               </span>
             </div>
             
+            {(['centerGraphicUpcharge', 'hostingCost', 'brandLabelCost', 'shippingCost'] as const).map((key, index) => (
+              <div key={key} className="flex justify-between text-sm text-muted-foreground">
+                <span>{['Center Graphic', 'Hosting', 'Brand Label', 'Built-In Shipping'][index]}</span>
+                <span>{typeof packetResult.pricing[key] === 'number' ? `$${packetResult.pricing[key]!.toFixed(2)}` : 'Not recorded — reprice'}</span>
+              </div>
+            ))}
             <div className="flex justify-between text-sm border-t pt-2">
               <span>Subtotal</span>
               <span className="font-medium">${packetResult.pricing.subtotal.toFixed(2)}</span>

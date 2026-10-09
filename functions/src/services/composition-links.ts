@@ -3,6 +3,7 @@ import { validatePacketContent, validatePacketComposition } from './assembly-sto
 
 /** One packet update and one atomic, bidirectional relationship change for both adapters. */
 export async function updatePacketWithComposition(db: any, packetId: string, updates: any, now: any) {
+  if ('pricing' in updates || 'customerPrice' in updates) throw new Error('Use Admin Pricing preview and apply to change saved product prices.');
   return db.runTransaction(async (tx: any) => {
     const ref = db.collection('productPackets').doc(packetId);
     const doc = await tx.get(ref);

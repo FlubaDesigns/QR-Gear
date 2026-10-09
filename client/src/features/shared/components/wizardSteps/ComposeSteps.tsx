@@ -372,14 +372,16 @@ export function ComposeOrderStep({
   );
 }
 
-export function ComposeHostingStep({
+export function ComposeHostingStep<T extends string = '1-year' | '3-year' | '5-year'>({
   selected,
   onSelect,
+  terms: configuredTerms,
 }: {
   selected: string;
-  onSelect: (term: '1-year' | '3-year' | '5-year') => void;
+  onSelect: (term: NoInfer<T>) => void;
+  terms?: Array<{id:T;label:string;price:string;description:string;popular?:boolean}>;
 }) {
-  const terms = [
+  const terms = configuredTerms ?? [
     { id: '1-year' as const, label: '1 Year', price: 'Included', description: 'Included with your purchase' },
     { id: '3-year' as const, label: '3 Years', price: '$3.99/yr', description: 'Best value - save 20%', popular: true },
     { id: '5-year' as const, label: '5 Years', price: '$2.99/yr', description: 'Maximum savings - save 40%' },
@@ -399,7 +401,7 @@ export function ComposeHostingStep({
         {terms.map((term) => (
           <button
             key={term.id}
-            onClick={() => onSelect(term.id)}
+            onClick={() => onSelect(term.id as T)}
             className={`relative p-4 rounded-xl border-2 transition-all text-left ${
               selected === term.id
                 ? 'border-green-400 bg-green-500/10'

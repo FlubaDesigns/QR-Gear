@@ -254,7 +254,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   }];
 
   // Hardcoded label_inside for QR Gear branded neck tag
-  if (availPlacements.includes('label_inside')) {
+  if (placement !== 'label_inside' && availPlacements.includes('label_inside')) {
     const labelDims = getDimensionsForPlacement('label_inside');
     mockupFiles.push({
       placement: 'label_inside',

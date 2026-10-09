@@ -1,3 +1,8 @@
+import { calculatePacketPricing, withInsideLabel } from './pricing';
+import { QR_GEAR_BRANDED_TAG_URL } from '../core';
+import { createGrfRegistrar } from './grf-store';
+import { GRF_PACKET_SLOTS, inspectGrfAsset } from '../../../shared/GRF_engine';
+import { refreshQrgProviderPricing } from './master-catalog';
 import { resolveInstance } from './instance-resolver';
 import { createHash } from 'node:crypto';
 import { pricingSettingsSchema } from '../../../shared/schema-orders';
@@ -41,11 +46,35 @@ export async function updateCatalogInstance(db: any, id: string, body: Record<st
   });
 }
 
-/** Apply saved markup to recorded costs, through the same canonical instance resolver.
- * Preview and apply read the same transaction snapshot; a stale preview cannot change prices.
- * This does not regenerate production costs or publish prices to external marketplaces.
+/** Reprice saved builds from QRG costs and Admin Pricing through the canonical resolver.
+ * The lookup import refreshes only QRG cost mappings. Preview never changes product prices.
+ * Restores the existing inside brand artwork through the canonical GRF registrar.
  */
 export async function syncCatalogMarkup(db: any, now: any, actor: string, previewToken?: string) {
+  let labelAsset: {grfId:string;publicUrl:string} | undefined;
+  if (previewToken) {
+    const checked = await syncCatalogMarkup(db, now, actor);
+    if (checked.previewToken !== previewToken) throw Object.assign(new Error('Products or saved pricing changed. Preview again before applying.'), {status:409});
+    if (checked.blocked.length) throw Object.assign(new Error('Resolve the products listed in the preview before applying pricing. No prices were changed.'), {status:409});
+    if (checked.products.some((p: any) => p.restoreInsideLabel)) {
+      const registrar = createGrfRegistrar({db,now:()=>now,bucket:()=>{throw new Error('Brand label must use its existing artwork.');}});
+      labelAsset = await registrar.registerGrfAsset({sourceUrl:QR_GEAR_BRANDED_TAG_URL,mimeType:'image/png',createdBy:actor,...GRF_PACKET_SLOTS.qrComposite});
+    }
+  }
+  const candidates = await db.collection('admin_catalog_instances').limit(201).get();
+  if (candidates.docs.length > 200) throw Object.assign(new Error('This catalog exceeds the 200-product atomic update limit. No prices were changed.'), { status: 409 });
+  const imports = new Map<string, string | null>();
+  for (const doc of candidates.docs) {
+    const item = doc.data();
+    if (['deleted', 'archived'].includes(item.status) || !item.currentPacketId) continue;
+    const packet = (await db.collection('productPackets').doc(item.currentPacketId).get()).data();
+    const snapshot = packet?.builderSnapshot;
+    const masterId = snapshot?.metadata?.selectedProductDocId, provider = snapshot?.metadata?.fulfillmentProvider;
+    const key = `${masterId}:${provider}`;
+    if (imports.has(key)) continue;
+    try { await refreshQrgProviderPricing(db, masterId, provider); imports.set(key, null); }
+    catch (error: any) { imports.set(key, error.message); }
+  }
   return db.runTransaction(async (tx: any) => {
     const settingsRef = db.collection('testSettings').doc('pricing');
     const settingsDoc = await tx.get(settingsRef);
@@ -75,26 +104,41 @@ export async function syncCatalogMarkup(db: any, now: any, actor: string, previe
       packetIds.add(item.currentPacketId);
       const packet = await tx.get(db.collection('productPackets').doc(item.currentPacketId));
       if (!packet.exists || packet.data().ownerInstanceId !== doc.id) { reject('Product and packet ownership disagree.'); continue; }
-      const customerPrice = Math.round((pricing.subtotal * (1 + settings.data.markupPercent / 100) + settings.data.markupFixed) * 100) / 100;
-      if (!Number.isFinite(customerPrice) || customerPrice <= 0) { reject('Saved markup would produce an invalid sale price.'); continue; }
-      const updatedPricing = { ...pricing, markupPercent: settings.data.markupPercent, markupFixed: settings.data.markupFixed,
-        markupAmount: Math.round((customerPrice - pricing.subtotal) * 100) / 100, customerPrice };
+      let updatedPricing, pricedBuild, restoreInsideLabel = false;
+      const build = packet.data().builderSnapshot;
+      try {
+        const masterId = build?.metadata?.selectedProductDocId, provider = build?.metadata?.fulfillmentProvider;
+        const importError = imports.get(`${masterId}:${provider}`);
+        if (importError) throw new Error(importError);
+        if (!/^qrg_[1-6][1-9]\d{3}$/.test(masterId)) throw new Error('Saved packet has no canonical QRG blank.');
+        const master = (await tx.get(db.collection('master_catalog').doc(masterId))).data();
+        pricedBuild = withInsideLabel(master, build);
+        const labelId = packet.data().placementGrfIds?.label_inside;
+        const existingLabel = labelId ? (await tx.get(db.collection('grf_assets').doc(labelId))).data() : null;
+        if (labelId && (!existingLabel || existingLabel.grfId !== labelId || existingLabel.isActive === false || inspectGrfAsset(existingLabel).length || existingLabel.publicUrl !== packet.data().placementGraphicUrls?.label_inside)) throw new Error('Repair the existing registered inside-label artwork before applying pricing.');
+        if (!labelId && packet.data().placementGraphicUrls?.label_inside && packet.data().placementGraphicUrls.label_inside !== QR_GEAR_BRANDED_TAG_URL) throw new Error('Register the existing custom inside-label artwork before applying pricing.');
+        restoreInsideLabel = !labelId;
+        updatedPricing = calculatePacketPricing(master, pricedBuild, settings.data);
+      } catch (error: any) { reject(error.message); continue; }
+      const customerPrice = updatedPricing.customerPrice;
       const overrides = { ...item.overrides, pricing: updatedPricing };
-      plans.push({ doc, packet, item, overrides, resolved: resolveInstance(item.baseSnapshot, overrides),
-        row: { id: doc.id, title, currentPrice: pricing.customerPrice, customerPrice, subtotal: pricing.subtotal,
-          changed: JSON.stringify(pricing) !== JSON.stringify(updatedPricing) || JSON.stringify(packet.data().pricing) !== JSON.stringify(updatedPricing) } });
+      plans.push({ doc, packet, item, overrides, pricedBuild, restoreInsideLabel, resolved: resolveInstance(item.baseSnapshot, overrides),
+        row: { id: doc.id, title, currentPrice: pricing.customerPrice, customerPrice, subtotal: updatedPricing.subtotal, pricing: updatedPricing,
+          restoreInsideLabel, changed: restoreInsideLabel || JSON.stringify(build) !== JSON.stringify(pricedBuild) || JSON.stringify(pricing) !== JSON.stringify(updatedPricing) || JSON.stringify(packet.data().pricing) !== JSON.stringify(updatedPricing) } });
     }
     plans.sort((a, b) => a.row.id.localeCompare(b.row.id));
-    const token = createHash('sha256').update(JSON.stringify({ markupPercent: settings.data.markupPercent, markupFixed: settings.data.markupFixed,
-      products: plans.map(p => [p.row, p.item.version, p.item.currentPacketId, p.resolved.pricing, p.packet.data().pricing]), blocked })).digest('hex');
-    if (previewToken && previewToken !== token) throw Object.assign(new Error('Products or saved markup changed. Preview again before applying.'), { status: 409 });
-    if (previewToken && blocked.length) throw Object.assign(new Error('Resolve the products listed in the preview before applying markup. No prices were changed.'), { status: 409 });
+    const token = createHash('sha256').update(JSON.stringify({ settings: settings.data,
+      products: plans.map(p => [p.row, p.item.version, p.item.currentPacketId, p.resolved.pricing, p.packet.data().pricing, p.packet.data().builderSnapshot, p.packet.data().placementGraphicUrls, p.packet.data().placementGrfIds]), blocked })).digest('hex');
+    if (previewToken && previewToken !== token) throw Object.assign(new Error('Products or saved pricing changed. Preview again before applying.'), { status: 409 });
+    if (previewToken && blocked.length) throw Object.assign(new Error('Resolve the products listed in the preview before applying pricing. No prices were changed.'), { status: 409 });
     const changed = plans.filter(p => p.row.changed);
     if (previewToken) {
       for (const p of changed) {
         tx.update(p.doc.ref, { overrides: p.overrides, resolved: p.resolved, customerPrice: p.row.customerPrice,
           version: (p.item.version || 0) + 1, updatedAt: now, updatedBy: actor });
-        tx.update(p.packet.ref, { pricing: p.resolved.pricing, customerPrice: p.row.customerPrice, updatedAt: now });
+        tx.update(p.packet.ref, { pricing: p.resolved.pricing, customerPrice: p.row.customerPrice, updatedAt: now,
+          builderSnapshot:p.pricedBuild, selectedPlacements:p.pricedBuild.layoutConfig.selectedPlacements, placements:p.pricedBuild.layoutConfig.selectedPlacements,
+          ...(p.restoreInsideLabel ? {placementGraphicUrls:{...p.packet.data().placementGraphicUrls,label_inside:labelAsset!.publicUrl},placementGrfIds:{...p.packet.data().placementGrfIds,label_inside:labelAsset!.grfId}} : {}) });
       }
       if (changed.length) tx.update(settingsRef, { lastSyncedAt: now });
     }

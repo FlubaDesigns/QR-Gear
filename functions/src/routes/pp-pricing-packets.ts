@@ -1,3 +1,4 @@
+import { priceNewPacket } from '../services/pricing';
 import { syncCatalogMarkup } from '../services/catalog-instance-update';
 import { pricingSettingsSchema } from '../../../shared/schema-orders';
 import { updatePacketWithComposition } from '../services/composition-links';
@@ -138,7 +139,10 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
       createdAt: now, updatedAt: now,
     };
       if (req.body.builderSnapshot) {
-        try { Object.assign(packetData, packetBuildFields(req.body.builderSnapshot)); }
+        try {
+          const priced = await priceNewPacket(db, req.body.builderSnapshot, QR_GEAR_BRANDED_TAG_URL);
+          Object.assign(packetData, packetBuildFields(priced.builderSnapshot), { pricing: priced.pricing, customerPrice: priced.pricing.customerPrice, placementGraphicUrls: priced.placementGraphicUrls });
+        }
         catch (error: any) { res.status(400).json({ error: error.message }); return; }
       }
     const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
@@ -196,7 +200,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
     }
 
     res.json({
-      success: true, packetId, mockupJobsQueued,
+      success: true, packetId, pricing: packetData.pricing, builderSnapshot: (packetData as any).builderSnapshot, placementGraphicUrls: (packetData as any).placementGraphicUrls, mockupJobsQueued,
       message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
     });
   } catch (error: any) {

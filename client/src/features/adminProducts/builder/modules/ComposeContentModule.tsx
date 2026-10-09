@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";
+import { useQuery } from '@tanstack/react-query';
+import type { PricingSettings } from '@shared/schema-orders';
 import {
   ComposePickItemsStep,
   ComposeModePicker,
@@ -33,6 +35,14 @@ const STEP_LABELS: Record<string, string> = {
 
 export function ComposeContentModule() {
   const { state, setContent } = useBuilderContext();
+  const { data: pricingSettings, error: pricingError } = useQuery<PricingSettings>({
+    queryKey: ['/api/admin/pricing-settings'],
+    enabled: state.qrProductState === 'qr_compose',
+  });
+  const hostingTerms = (pricingSettings?.hostingTiers || []).map(tier => ({
+    id: tier.code.replace('_', '-'), label: tier.name,
+    price: `$${tier.price.toFixed(2)}`, description: 'Hosting cost from Admin Pricing',
+  }));
   const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -142,7 +152,7 @@ export function ComposeContentModule() {
       case 'mode': return composeMode !== '';
       case 'durations': return true;
       case 'order': return true;
-      case 'hosting': return composeHostingTerm !== '';
+      case 'hosting': return hostingTerms.some(term => term.id === composeHostingTerm);
       case 'preview': return true;
       case 'publish': return !isPublishing;
       case 'confirm': return false;
@@ -178,13 +188,14 @@ export function ComposeContentModule() {
   };
 
   const handlePublish = async () => {
+    if (!hostingTerms.some(term => term.id === composeHostingTerm)) return;
     setIsPublishing(true);
     try {
       const payload = {
         qrType: 'qr-compose',
         composeItems,
         composeMode: composeMode || 'auto-rotate',
-        composeHostingTerm: composeHostingTerm || '1-year',
+        composeHostingTerm,
         productId: state.selectedProduct?.id,
         blueprintId: state.selectedProduct?.blueprintId,
         color: state.selectedColor?.name || '',
@@ -289,16 +300,20 @@ export function ComposeContentModule() {
           )}
 
           {composeStep === 'hosting' && (
+            <>
             <ComposeHostingStep
               selected={composeHostingTerm}
               onSelect={(term) => setContent({ composeHostingTerm: term })}
+              terms={hostingTerms}
             />
+            {!hostingTerms.length && <p role="alert" className="text-sm text-amber-300 mt-3">{pricingError ? 'Could not load Admin Pricing. Try again before continuing.' : pricingSettings ? 'Configure hosting tiers in Admin Pricing before continuing.' : 'Loading saved hosting prices…'}</p>}
+            </>
           )}
 
           {composeStep === 'preview' && (
             <ComposePreviewStep
               items={composeItems}
-              hostingTerm={composeHostingTerm || '1-year'}
+              hostingTerm={composeHostingTerm}
               mockupUrl={composeMockup}
               isLoadingMockup={false}
               selectedColor={state.selectedColor?.name || ''}

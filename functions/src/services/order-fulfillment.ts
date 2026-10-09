@@ -23,6 +23,7 @@ export async function resolveSaleItem(cart: any) {
   if (!packet) throw new Error('Production packet is missing.');
   await validatePacketComposition(db, packetId, packet);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
+  if (!snapshot.layoutConfig.selectedPlacements.includes('label_inside')) throw new Error('Restore the required inside brand label in Admin Pricing before selling this product.');
   const provider = requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider);
   if (packet.fulfillmentProvider !== provider) throw new Error('Saved product provider differs from its production packet.');
   // Adapter availability is a capability check, never a default or a reroute.
