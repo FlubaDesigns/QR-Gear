@@ -1,5 +1,6 @@
 import { HealthMonitorService } from '../services/health-monitor';
 import { QrAnalyticsService } from '../services/qr-analytics';
+import { listCatalogInstances } from '../services/catalog-list';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -18,6 +19,37 @@ import Stripe from 'stripe';
 
   export function register(app: express.Express): void {
   const qrAnalyticsService = new QrAnalyticsService(db);
+  // Finished products come from the same catalog as Store Builder and checkout.
+  // QRG master_catalog remains the blank registry, never a second product list.
+  const readProducts = async () => {
+    const catalog = await listCatalogInstances(db, {});
+    return Promise.all(catalog.instances.map(async (item: any) => {
+      const packet = item.currentPacketId ? (await db.collection('productPackets').doc(item.currentPacketId).get()).data() : null;
+      const price = item.resolved?.pricing?.customerPrice, cost = item.resolved?.pricing?.subtotal;
+      const issues: string[] = [];
+      if (!packet) issues.push('Saved production packet is missing.');
+      else {
+        if (packet.ownerInstanceId !== item.id) issues.push('Packet ownership does not match this product.');
+        if (packet.pricing?.customerPrice !== price || packet.pricing?.subtotal !== cost) issues.push('Packet and catalog pricing disagree.');
+        if (!packet.builderSnapshot?.layoutConfig?.selectedPlacements?.includes('label_inside') || !packet.placementGrfIds?.label_inside) issues.push('Required registered inside label is missing.');
+      }
+      const validPrice = typeof price === 'number' && Number.isFinite(price) && price > 0;
+      const validCost = typeof cost === 'number' && Number.isFinite(cost) && cost >= 0;
+      if (!validPrice || !validCost) issues.push('Saved price or cost subtotal is unavailable.');
+      const provider = packet?.builderSnapshot?.metadata?.fulfillmentProvider;
+      if (provider !== 'printful') issues.push('This provider does not have a validated checkout handoff.');
+      else if (packet?.fulfillmentProvider !== provider) issues.push('Saved provider and packet provider disagree.');
+      return { id: item.id, title: item.resolved?.title || item.id, qrgCode: item.qrgBaseCode || null,
+        status: item.status, packetId: item.currentPacketId || null, sourceSessionId: item.sourceSessionId || null,
+        provider: provider || null, price: validPrice ? price : null, cost: validCost ? cost : null,
+        estimatedContribution: validPrice && validCost ? Math.round((price - cost) * 100) / 100 : null,
+        issues };
+    }));
+  };
+  app.get('/admin/orchestration/catalog', requireAdmin, async (_req: Request, res: Response) => {
+    try { res.setHeader('Cache-Control', 'no-store'); res.json({ products: await readProducts() }); }
+    catch (e: any) { console.error('[Orchestration Catalog]', e); res.status(503).json({ error: e.message }); }
+  });
   // ============ BATCH: ORCHESTRATION (BUNDLES, BULK-PUBLISH, PROFIT, ANALYTICS) ============
 
 app.get('/admin/orchestration/bundles', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -184,7 +216,17 @@ app.get('/admin/orchestration/routing/history', requireAdmin, async (req: Reques
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/admin/orchestration/profit/dashboard',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
+app.get('/admin/orchestration/profit/dashboard', requireAdmin, async (_req: Request, res: Response) => {
+  try {
+    const [products, orders] = await Promise.all([readProducts(), db.collection('orders').where('paymentStatus', '==', 'paid').get()]);
+    const paid = orders.docs.map(d => d.data());
+    const measured = paid.filter(o => Number.isSafeInteger(o.amountTotalCents) && o.amountTotalCents >= 0 && String(o.currency).toLowerCase() === 'usd');
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ products, paidOrders: paid.length, revenue: measured.length === paid.length ? measured.reduce((n, o) => n + o.amountTotalCents, 0) / 100 : null,
+      netProfit: paid.length === 0 ? 0 : null,
+      note: 'Paid store orders in USD, before refunds. Actual provider invoices and payment fees are not reconciled; product contributions below are saved-price estimates, not realized profit.' });
+  } catch (e: any) { console.error('[Orchestration Profit]', e); res.status(503).json({ error: e.message }); }
+});
 
 app.get('/admin/orchestration/profit/channels',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 

@@ -94,3 +94,13 @@ describe('Fulfillment catalog routes with in-memory supplier and Firestore adapt
     m.configured = false; expect((await request(app).post(path).send({})).status).toBe(503); expect(m.writes).toHaveLength(0);
   });
 });
+
+it('finds the newest provider job without a composite index or arbitrary limit', async () => {
+ m.rows.catalogSyncs = {
+  old: {syncType:'printful',startedAt:'2026-01-01T00:00:00Z',status:'completed'},
+  newest: {syncType:'printful',startedAt:'2026-10-09T00:00:00Z',status:'failed'},
+  other: {syncType:'smart',startedAt:'2026-12-01T00:00:00Z',status:'completed'},
+ };
+ const res=await request(app).get('/admin/catalog/sync-status?provider=printful');
+ expect(res.status).toBe(200);expect(res.body.id).toBe('newest');expect(m.writes).toHaveLength(0);
+});
