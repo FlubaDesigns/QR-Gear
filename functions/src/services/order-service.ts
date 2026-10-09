@@ -1,3 +1,4 @@
+import { quoteCartBundle } from './product-bundles';
 import { createHash } from 'crypto';
 import type Stripe from 'stripe';
 import { resolveSaleItem, verifyProviderItems } from './order-fulfillment';
@@ -158,19 +159,27 @@ function cartFingerprint(cart: any): string {
     customization: cart.customization, price: cart.price })).digest('hex');
 }
 
-export async function prepareCartOrder(userId: string, referrerId = '') {
+export async function readCartQuote(userId: string, selection?: { bundleId?: string; selectedItems?: string[] }) {
   const carts = (await db.collection('cartItems').where('userId', '==', userId).get()).docs.map(doc => ({ ...doc.data(), id: doc.id }));
   if (!carts.length) throw new Error('Cart is empty.');
   if (carts.length > 100) throw new Error('Split this cart into orders of at most 100 different items.');
   const items = await Promise.all(carts.map(async cart => ({ ...await resolveSaleItem(cart), cartFingerprint: cartFingerprint(cart) })));
+  const quote = await quoteCartBundle(db, items, selection);
+  const quoteToken = createHash('sha256').update(JSON.stringify({items:quote.items,bundle:quote.bundle,amount:quote.amount})).digest('hex');
+  return { ...quote, quoteToken };
+}
+
+export async function prepareCartOrder(userId: string, referrerId = '', selection?: { bundleId?: string; selectedItems?: string[] }, expectedQuoteToken?: string) {
+  const quote = await readCartQuote(userId, selection);
+  if (expectedQuoteToken && quote.quoteToken !== expectedQuoteToken) throw new Error('Your cart or bundle price changed. Return to checkout and review the new total.');
+  const { items, amount } = quote;
   await verifyProviderItems(items);
-  const amount = items.reduce((total, item) => total + item.unitAmount * item.quantity, 0);
-  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid order total.');
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Checkout requires a positive order total.');
   const ref = db.collection('orders').doc(), now = new Date().toISOString();
   await db.runTransaction(async tx => {
     tx.create(ref, { userId, source: 'direct_cart', sourceChannel: 'direct', checkoutVersion: 1,
       status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
-      amountTotalCents: amount, currency: 'usd', totalAmount: (amount / 100).toFixed(2),
+      amountTotalCents: amount, subtotalCents: quote.subtotalCents, bundle: quote.bundle, currency: 'usd', totalAmount: (amount / 100).toFixed(2),
       referrerId, payoutState: referrerId ? 'needs_review' : null, routedProvider: items[0].fulfillment.provider, createdAt: now, updatedAt: now });
     items.forEach((item, index) => tx.create(db.collection('orderItems').doc(`${ref.id}_${index}`), { ...item, orderId: ref.id, createdAt: now }));
   });

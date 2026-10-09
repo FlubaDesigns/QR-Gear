@@ -655,7 +655,7 @@ Main To-Do List: the existing Stripe warning is now the requested **Fix Stripe**
 
 Committed destinations now include the channel parent store ID. The editor restores legacy snapshots whose nested channel omitted that ID, while retaining rejection of explicit cross-store selections. Output takes its provider from the saved packet: Printful products link to the existing Orders fulfillment path; Printify publishing is offered only for Printify packets; an unknown provider is reported visibly.
 
-Bundles use the same finished catalog instances as Store Builder and Orchestration, with visible titles and saved prices. The backend validates product references, membership, quantity and discount/pick limits, writes parent/items atomically, includes new bundles in sorted listings and calculates current saved prices in cents. Blank-based legacy bundles fail explicitly. Saved bundle discounts are not yet consumed by storefront checkout; the creation dialog states this limitation. No product price is changed by bundle configuration.
+Bundles use the same finished catalog instances as Store Builder and Orchestration, with visible titles and saved prices. The backend validates product references, membership, quantity and discount/pick limits, writes parent/items atomically, includes new bundles in sorted listings and calculates current saved prices in cents. Blank-based legacy bundles fail explicitly. At this earlier repair checkpoint, saved bundle discounts were not consumed by storefront checkout. The subsequent Bundle checkout pricing section below supersedes that limitation in the release candidate. No product price is changed by bundle configuration.
 
 Template cards project the linked packet's current saved name, image and price, while retaining the reusable builder snapshot and printed QR content. Categories displays required-name and save errors inside its dialog. Supplier history reports unfinished jobs past the existing 30-minute timeout instead of displaying them as still running indefinitely. Members and Partners are deferred, and Stripe activation remains on the existing to-do list. Code deployment does not itself delete old registry data.
 
@@ -663,3 +663,23 @@ Template cards project the linked packet's current saved name, image and price, 
 ### Main catalog browsing follow-up — 2026-10-09
 
 The live rerun found All Products filtering canonical API rows through obsolete supplier field names. Products now reads printfulId, blueprintId and printProviderId, retaining legacy aliases. Regression coverage uses the actual masterCatalogProduct projection and verifies category browsing and selection for each supplier. Finished products and their saved supplier/destination remain unchanged. The separately verified backed-up cleanup retained the 22 current templates, archived 18 obsolete templates and removed the unused invalid ASM/BLD pair, with all 22 product and packet records unchanged.
+
+
+## Resumable supplier sync — October 9, 2026
+
+Smart Sync uses the existing catalogSyncs history record as a durable checkpoint. Each authenticated request awaits one supplier product and its changed lookup rows before advancing. A transaction lease prevents duplicate steps; failed or interrupted work resumes from the saved cursor. Opening Products reads status only and offers Resume Sync. New jobs report completion only after the existing QRG projection finishes, then the browser refreshes catalog queries. Finished catalog instances, packets, saved retail prices, artwork and identity definitions are unchanged. Members and Partners remain deferred.
+
+Changed implementation: functions/src/services/catalog-sync.ts, functions/src/routes/pp-catalog.ts and ProductsControlBar.tsx, with backend and React regressions. Local verification: 17 backend and 16 frontend checks; TypeScript and builds. Live verification is separate from these fixtures.
+
+
+## Bundle checkout pricing — October 9, 2026
+
+Checkout now reads saved bundle rules and quotes current server-owned cart prices before opening payment. Shoppers explicitly choose one eligible fixed or pick bundle per order. The existing percentage, amount-off and fixed-price formulas apply only to the saved bundle quantities at base retail prices; size surcharges and extra quantities remain separate. Exact cent allocation produces Stripe line totals without changing physical production quantities.
+
+A review token detects changed cart, artwork, product or bundle pricing before order creation. The existing orders/orderItems records freeze the selected bundle, discount and line totals. Verified payments must match that frozen amount, so later bundle edits cannot change an order already awaiting payment. Checkout errors remain visible and shoppers can change their selection and review again. Bundle configuration does not modify any saved product price. A zero-total cart remains unsupported by the existing positive-total payment flow.
+
+Local verification: 286 frontend tests and 451 backend tests passed (737 total); frontend TypeScript, client build and Functions build passed. Tests include all three pricing formulas, extra quantities, size surcharges, pick membership, paused/expired bundles, cent rounding, stale reviews, frozen payment amounts, Stripe line totals and the review controls. No live charge, supplier order or new live sync was run. Stripe activation remains a separate setup task.
+
+Release candidate BUILD_ID: `20261009-main-sync-bundles-d916`. Deployment is pending: automatic approval review rejected the GitHub push to FlubaDesigns/QR-Gear and requires explicit approval for that external destination. The existing FlubaDesigns/fluba-designs release descriptor must then point to the approved Main commit. The live Main site remains unchanged. Supplier completion, matching Hosting/API markers and authenticated UI checks still require post-deployment verification.
+
+Changed source: client/src/pages/checkout.tsx; client/src/pages/orchestration-bundles-tab.tsx; functions/src/services/product-bundles.ts; functions/src/services/order-service.ts; functions/src/routes/core-routes-checkout.ts; functions/src/index.ts. Regression files: client/src/lib/__tests__/checkoutBundles.test.ts; functions/src/services/__tests__/product-bundles.test.ts; functions/src/services/__tests__/checkout-production.test.ts; functions/src/services/__tests__/checkout-bundle-routes.test.ts.

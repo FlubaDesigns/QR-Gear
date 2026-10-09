@@ -21,6 +21,10 @@ export function ProductsControlBar() {
     summary?: any;
     completedAt?: string;
     errorMessage?: string;
+    resumable?: boolean;
+    processed?: number;
+    total?: number;
+    phase?: string;
   } | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activeSyncRef = useRef<string | null>(null);
@@ -63,20 +67,22 @@ export function ProductsControlBar() {
     };
   }, [currentProvider, stopPolling]);
 
-  const pollSyncStatus = useCallback(async (syncId: string) => {
+  const pollSyncStatus = useCallback(async (syncId: string, resumable = false) => {
     if (activeSyncRef.current !== syncId || !mountedRef.current) return;
     try {
-      const data = await adminFetch<any>(`/catalog/sync-status?syncId=${encodeURIComponent(syncId)}`);
+      const data = resumable
+        ? await adminFetch<any>(currentProvider === "printful" ? "/catalog/sync-printful" : "/catalog/sync", { method: "POST", json: { syncId } })
+        : await adminFetch<any>(`/catalog/sync-status?syncId=${encodeURIComponent(syncId)}`);
       if (activeSyncRef.current !== syncId || !mountedRef.current) return;
       if (data.status === "failed") throw new Error(data.errorMessage || "Supplier sync failed");
       if (data.status !== "completed") {
         setSyncStatus(data);
         // Schedule after the request completes; slow responses cannot overlap.
-        pollRef.current = setTimeout(() => { void pollSyncStatus(syncId); }, 3000);
+        pollRef.current = setTimeout(() => { void pollSyncStatus(syncId, resumable); }, resumable ? 550 : 3000);
         return;
       }
       setSyncStatus({ ...data, status: "rebuilding" });
-      await adminFetch("/sync-master-products", { method: "POST" });
+      if (!resumable) await adminFetch("/sync-master-products", { method: "POST" });
       await api.invalidateProducts();
       if (!mountedRef.current) return;
       setSyncStatus(data);
@@ -96,10 +102,10 @@ export function ProductsControlBar() {
       activeSyncRef.current = null;
       startingRef.current = false;
       setSyncing(false);
-      setSyncStatus({ status: "failed", syncId, errorMessage: error.message });
+      setSyncStatus(previous => ({ ...previous, status: "failed", syncId, resumable, errorMessage: error.message }));
       toast({ title: "Sync incomplete", description: error.message, variant: "destructive" });
     }
-  }, [api, toast, stopPolling]);
+  }, [api, toast, stopPolling, currentProvider]);
 
   const handleSync = async () => {
     if (startingRef.current || !isConfigured || providersLoading || providersError) return;
@@ -112,8 +118,8 @@ export function ProductsControlBar() {
       if (!data.syncId) throw new Error("Sync did not return a tracking ID. QRG catalog was not rebuilt.");
       if (!mountedRef.current) return;
       activeSyncRef.current = data.syncId;
-      setSyncStatus({ status: "running", syncId: data.syncId });
-      await pollSyncStatus(data.syncId);
+      setSyncStatus(data);
+      await pollSyncStatus(data.syncId, data.resumable === true);
     } catch (error: any) {
       startingRef.current = false;
       if (!mountedRef.current) return;
@@ -201,7 +207,7 @@ export function ProductsControlBar() {
             data-testid="button-sync-catalog"
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Syncing..." : "Smart Sync"}
+            {syncing ? "Syncing..." : syncStatus?.resumable && syncStatus.status !== "completed" ? "Resume Sync" : "Smart Sync"}
           </Button>
         </div>
       </div>
@@ -235,7 +241,8 @@ export function ProductsControlBar() {
         )}
 
         {syncStatus?.status === "rebuilding" && <span>Updating QRG catalog...</span>}
-        {syncStatus?.status === "running" && !syncing && <span>A supplier sync is running.</span>}
+        {syncStatus?.resumable && syncStatus.status !== "completed" && <span>{syncStatus.processed} of {syncStatus.total} products checked. {syncStatus.phase === "rebuilding" ? "Updating QRG catalog." : !syncing ? "Use Resume Sync to continue." : "Progress is saved after each product."}</span>}
+        {syncStatus?.status === "running" && !syncing && !syncStatus.resumable && <span>An earlier supplier sync has not recorded completion. Use Smart Sync to check or retry.</span>}
         {syncStatus?.status === "running" && syncing && (
           <span>Comparing with Firestore — only writing changes...</span>
         )}

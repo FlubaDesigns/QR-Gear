@@ -11,7 +11,7 @@ vi.mock('../../core', () => {
   const collection = (name: string) => {
     const filters: any[] = []; let limit = Infinity;
     const q: any = {
-      doc: (id: string) => ref(name, id),
+      doc: (id: string = `job-${Object.keys(m.rows[name] || {}).length}`) => ref(name, id),
       add: async (data: any) => { const id = `job-${Object.keys(m.rows[name] || {}).length}`; await ref(name, id).set(data); return ref(name, id); },
       where: (field: string, _op: string, value: any) => { filters.push([field, value]); return q; },
       orderBy: () => q, limit: (n: number) => { limit = n; return q; },
@@ -22,7 +22,7 @@ vi.mock('../../core', () => {
       },
     }; return q;
   };
-  return { db: { collection, batch: () => { const writes: any[] = []; return { set: (r: any, data: any) => writes.push([r, data]), commit: async () => { for (const [r, data] of writes) await r.set(data); } }; } },
+  return { db: { collection, runTransaction: async (fn: any) => fn({ get: (r: any) => r.get(), create: (r: any, d: any) => r.set(d), update: (r: any, d: any) => r.update(d) }), batch: () => { const writes: any[] = []; return { set: (r: any, data: any) => writes.push([r, data]), commit: async () => { for (const [r, data] of writes) await r.set(data); } }; } },
     admin: { firestore: { FieldValue: { serverTimestamp: () => ({ toDate: () => new Date('2026-10-07T00:00:00Z') }) } } },
     normalizePrintfulCategory: () => 'T-Shirts',
   };
@@ -30,7 +30,7 @@ vi.mock('../../core', () => {
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next() }));
 vi.mock('../../services/printful', () => ({ printfulClient: { get isConfigured() { return m.configured; },getCatalogProducts:async()=>{if(!m.configured)throw Object.assign(Error('not configured'),{status:503});return (await (await m.fetch('https://api.printful.com/products')).json()).result;},getProduct:async(id:number)=>{const r=await m.fetch('https://api.printful.com/products/'+id);if(!r.ok)throw Error('Provider failed');return (await r.json()).result;} }, getPrintfulApiKeyAsync: async () => 'test-only' }));
 vi.mock('../../services/printify', () => ({ printifyClient: { get isConfigured() { return m.configured; }, getCatalogBlueprints: async () => [{ id: 12, title: 'Tee', brand: 'Maker', model: 'Style' }], getBlueprintDetails: async () => ({ description: 'Description' }) } }));
-vi.mock('../../services/master-catalog', () => ({ resolveQrgCategoryLabel: (x: any) => x, QRG_BLANK_CATEGORIES: [{ name: 'T-Shirts' }], QRG_TOP_LEVEL_CATEGORIES: [] }));
+vi.mock('../../services/master-catalog', () => ({ syncMasterCatalog: async () => ({ updated: 1 }), resolveQrgCategoryLabel: (x: any) => x, QRG_BLANK_CATEGORIES: [{ name: 'T-Shirts' }], QRG_TOP_LEVEL_CATEGORIES: [] }));
 vi.mock('../../services/storage-helpers', () => ({}));
 vi.mock('../../services/pricing', () => ({}));
 vi.mock('../../services/mockup-generator', () => ({}));
@@ -38,6 +38,12 @@ vi.mock('../../services/email', () => ({}));
 vi.mock('../../services/composite-image', () => ({}));
 import { register } from '../../routes/pp-catalog';
 const app = express(); app.use(express.json()); register(app);
+async function runSync(path: string) {
+ const started = await request(app).post(path).send({});
+ let result = started;
+ for (let i=0; i<10 && result.body.status === 'running'; i++) result = await request(app).post(path).send({syncId: started.body.syncId});
+ return result;
+}
 const timestamp = { toDate: () => new Date('2026-10-07T00:00:00Z') };
 beforeEach(() => { m.rows = {}; m.writes = []; m.configured = true; vi.clearAllMocks(); vi.stubGlobal('fetch', m.fetch); });
 describe('Fulfillment catalog routes with in-memory supplier and Firestore adapters', () => {
@@ -70,7 +76,7 @@ describe('Fulfillment catalog routes with in-memory supplier and Firestore adapt
     m.rows.printful_products = { '71': { id: 71, title: 'Tee', brand: 'Maker', model: 'Style', variantCount: 1, minPrice: '10.00' } };
     m.rows.printfulCatalog = { '71': { ...m.rows.printful_products['71'] } };
     m.fetch.mockImplementation(async (url: string) => ({ ok: true, json: async () => ({ result: url.endsWith('/71') ? { variants: [{ id: 701, size: 'L', color: 'Black', color_code: '#000000', price: '12.00' }] } : [{ id: 71, title: 'Tee', type: 'T-Shirt', brand: 'Maker', model: 'Style', variant_count: 1 }] }) }));
-    const res = await request(app).post('/admin/catalog/sync-printful').send({}); expect(res.status).toBe(200);
+    const res = await runSync('/admin/catalog/sync-printful'); expect(res.status).toBe(200);
     await vi.waitFor(() => expect(m.rows.catalogSyncs[res.body.syncId].status).toBe('completed'));
     expect(m.rows.printful_products['71'].minPrice).toBe('12.00'); expect(m.rows.printfulCatalog['71'].minPrice).toBe('12.00');
     expect(m.rows.printful_variants['701']).toMatchObject({ productId: 71, size: 'L', color: 'Black' });
@@ -79,13 +85,13 @@ describe('Fulfillment catalog routes with in-memory supplier and Firestore adapt
   });
   it('does not report a successful Printful sync when a product detail fails', async () => {
     m.fetch.mockImplementation(async (url: string) => url.endsWith('/71') ? { ok: false, status: 503 } : { ok: true, json: async () => ({ result: [{ id: 71, title: 'Tee' }] }) });
-    const res = await request(app).post('/admin/catalog/sync-printful').send({});
+    const res = await runSync('/admin/catalog/sync-printful');
     await vi.waitFor(() => expect(m.rows.catalogSyncs[res.body.syncId].status).toBe('failed'));
     expect(m.rows.catalogSyncs[res.body.syncId].summary.products.failed).toBe(1);
     expect(m.rows.printful_products).toBeUndefined();
   });
   it('syncs Printify to its lookup table and stores a real summary', async () => {
-    const res = await request(app).post('/admin/catalog/sync').send({});
+    const res = await runSync('/admin/catalog/sync');
     await vi.waitFor(() => expect(m.rows.catalogSyncs[res.body.syncId].status).toBe('completed'));
     expect(m.rows.printify_blueprints['12'].title).toBe('Tee');
     expect(m.rows.catalogSyncs[res.body.syncId].summary.blueprints).toMatchObject({ added: 1, total: 1 });
@@ -111,4 +117,30 @@ it('reports expired running history as incomplete without writing or claiming co
  expect(response.body).toMatchObject({status:'failed'}); expect(response.body.errorMessage).toContain('did not record completion'); expect(m.writes).toHaveLength(0);
  m.rows.catalogSyncs.old.startedAt = new Date().toISOString();
  expect((await request(app).get('/admin/catalog/sync-status?syncId=old')).body.status).toBe('running');
+});
+
+it('checkpoints each response, resumes a failed step, and skips unchanged supplier rows', async () => {
+ m.fetch.mockImplementation(async (url: string) => ({ok:true,json:async()=>({result:url.endsWith('/71')?{variants:[{id:701,size:'L',color:'Black',price:'12.00'}]}:[{id:71,title:'Tee'}]})}));
+ const start=await request(app).post('/admin/catalog/sync-printful').send({});
+ expect(start.body).toMatchObject({status:'running',processed:0,total:1,resumable:true});
+ expect(start.body.queue).toBeUndefined(); expect(m.rows.printful_products).toBeUndefined();
+ m.fetch.mockRejectedValueOnce(new Error('Unavailable'));
+ const failed=await request(app).post('/admin/catalog/sync-printful').send({syncId:start.body.syncId});
+ expect(failed.body.status).toBe('failed'); expect(failed.body.processed).toBe(0);
+ const resumed=await request(app).post('/admin/catalog/sync-printful').send({});
+ expect(resumed.body.syncId).toBe(start.body.syncId);
+ const imported=await request(app).post('/admin/catalog/sync-printful').send({syncId:start.body.syncId});
+ expect(imported.body).toMatchObject({status:'running',processed:1,phase:'rebuilding'});
+ const complete=await request(app).post('/admin/catalog/sync-printful').send({syncId:start.body.syncId});
+ expect(complete.body).toMatchObject({status:'completed',qrgSummary:{updated:1}});
+ m.writes=[];
+ const again=await runSync('/admin/catalog/sync-printful');
+ expect(again.body.summary.products).toMatchObject({skipped:1,added:0,updated:0});
+ expect(m.writes.filter(([c])=>c.startsWith('printful'))).toHaveLength(0);
+});
+it('does not run a duplicate leased step or resume through another provider', async () => {
+ m.rows.catalogSyncs={active:{protocol:'request-v1',syncType:'printful',status:'running',queue:[{id:71}],cursor:0,leaseUntil:Date.now()+60000}};
+ const res=await request(app).post('/admin/catalog/sync-printful').send({syncId:'active'});
+ expect(res.status).toBe(200);expect(res.body.processed).toBe(0);expect(m.fetch).not.toHaveBeenCalled();
+ expect((await request(app).post('/admin/catalog/sync').send({syncId:'active'})).status).toBe(409);
 });
