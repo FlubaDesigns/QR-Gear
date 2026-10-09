@@ -14,7 +14,7 @@ export function selectQrgPrintfulVariants(rows: any[], existing: any = {}) {
     groups.set(key, [...(groups.get(key) || []), row]);
   }
   const norm = (value: string) => String(value || '').trim().toLowerCase();
-  return [...groups.entries()].map(([key, values]) => {
+  return Array.from(groups.entries()).map(([key, values]) => {
     const canonical = COLOR_LABELS[key.slice(-2)], previous = existing[key]?.colorLabel;
     const rank = (row: any) => norm(row.color) === norm(canonical) ? 0 : previous && norm(row.color) === norm(previous) ? 1 : 2;
     return values.sort((a, b) => rank(a) - rank(b) || String(a.color).localeCompare(String(b.color)) || Number(a.id || a.variantId) - Number(b.id || b.variantId))[0];
@@ -36,7 +36,7 @@ async function refreshQrgVariants(product: any, productId: number) {
     if (!Number.isSafeInteger(Number(row.id)) || Number(row.id) <= 0) throw new Error('QRG supplier variant ID is invalid.');
     variants[key] = { ...variants[key], sizeCode: size.slice(-2), colorCode: color, sizeLabel: SIZE_LABELS[size], colorLabel: row.color,
       providerVariants: { ...variants[key]?.providerVariants, printful: { productId: String(productId), variantId: String(row.id) } },
-      availableVia: [...new Set([...(variants[key]?.availableVia || []), 'printful'])] };
+      availableVia: Array.from(new Set([...(variants[key]?.availableVia || []), 'printful'])) };
   }
   product.qrgVariants = variants;
 }
@@ -46,7 +46,7 @@ export function qrgPrintfulProductId(product: any): number | null {
   const pm = product.providerMappings;
   const mapping = Array.isArray(pm) ? pm.find((p: any) => p.provider === 'printful') : pm?.printful;
   const ids = new Set(Object.values(product.qrgVariants || {}).map((v: any) => Number(v.providerVariants?.printful?.productId)).filter(n => n > 0));
-  const id = Number(mapping?.productId || product.printfulProductId || (ids.size === 1 ? [...ids][0] : 0));
+  const id = Number(mapping?.productId || product.printfulProductId || (ids.size === 1 ? Array.from(ids)[0] : 0));
   return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
@@ -73,7 +73,7 @@ export function projectQrgPrintfiles(product: any, data: any) {
       sourceTable: 'master_catalog.qrgPrintSpecs.printful', layoutSource: 'qrg_verified_printfiles',
       dimensions: { widthPx: first.width, heightPx: first.height, widthIn: first.width / first.dpi, heightIn: first.height / first.dpi, dpi: first.dpi },
       printArea: { widthPx: first.width, heightPx: first.height }, dpi: first.dpi,
-      verifiedVariantIds: [...new Set(variants)],
+      verifiedVariantIds: Array.from(new Set(variants)),
     });
   }
   if (!locations.length) throw new Error('QRG needs a shared verified print area for the offered sizes; no compatible placement was returned.');
@@ -85,7 +85,7 @@ export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles
   if (!productId) throw new Error('QRG is missing its printer product mapping.');
   if (refresh) await refreshQrgVariants(product, productId);
   const cache = product.qrgPrintSpecs?.printful;
-  const variantIds = [...new Set(Object.values(product.qrgVariants || {}).map((v: any) => Number(v.providerVariants?.printful?.variantId)).filter(n => n > 0))].sort((a,b) => a-b);
+  const variantIds = Array.from(new Set(Object.values(product.qrgVariants || {}).map((v: any) => Number(v.providerVariants?.printful?.variantId)).filter(n => n > 0))).sort((a,b) => a-b);
   if (!refresh && cache?.productId === productId && cache?.locations?.length &&
       JSON.stringify(cache.variantIds) === JSON.stringify(variantIds)) return cache.locations;
   const locations = projectQrgPrintfiles(product, await getPrintfiles(productId));
