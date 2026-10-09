@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261009-main-cleanup-c8f1';
+const _BUILD_ID = '20261009-main-cleanup-todo-c8f2';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
