@@ -476,6 +476,7 @@ export default function ShopProductPage() {
               qrCodeUrl={product.qrCodeUrl}
               landingPageSnapshotUrl={product.landingPageSnapshotUrl}
               playMediaUrl={product.playMediaUrl}
+              playPosterUrl={product.compositeUrl}
               composeImages={product.composeImages}
               qrProductType={product.qrProductType}
               productName={product.name}

@@ -12,11 +12,16 @@ beforeEach(() => {
 });
 afterEach(() => { if (tree) act(() => tree.unmount()); vi.unstubAllGlobals(); });
 function render(source?: string, type = 'qr-play') {
-  act(() => { tree = create(React.createElement(PhoneMockupCard, { qrCodeUrl: '/qr.png', landingPageSnapshotUrl: '/snapshot.png', playMediaUrl: source, qrProductType: type, productName: 'Monument' })); });
+  act(() => { tree = create(React.createElement(PhoneMockupCard, { qrCodeUrl: '/qr.png', landingPageSnapshotUrl: '/snapshot.png', playMediaUrl: source, playPosterUrl: '/artwork.png', qrProductType: type, productName: 'Monument' })); });
   act(() => visibility([{ isIntersecting: true }]));
 }
-it('renders the saved YouTube video as an embed, never as an image or video file', () => {
+it('keeps a visible phone poster until Play is selected, then embeds the saved YouTube video', () => {
   render('https://www.youtube.com/watch?v=DVUbzOk8mCc');
+  expect(tree.root.findAllByType('iframe')).toHaveLength(0);
+  const poster = tree.root.findByProps({ 'data-testid': 'phone-video-embed' }).findByType('img');
+  act(() => poster.props.onError());
+  expect(tree.root.findByProps({ 'data-testid': 'phone-video-embed' }).findByType('img').props.src).toBe('/artwork.png');
+  act(() => tree.root.findByProps({ 'aria-label': 'Play video' }).props.onClick());
   const iframe = tree.root.findByType('iframe');
   expect(iframe.props.src).toContain('/embed/DVUbzOk8mCc?');
   expect(iframe.props.src).toContain('mute=1');

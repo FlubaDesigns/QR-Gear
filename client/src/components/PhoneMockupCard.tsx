@@ -2,11 +2,13 @@ import { useState, useEffect, useRef } from "react";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playMediaPreview, VIDEO_PREVIEW_SECONDS } from "@/lib/playMediaPreview";
+import ProductGalleryMedia from "./ProductGalleryMedia";
 
 interface PhoneMockupCardProps {
   qrCodeUrl: string | null;
   landingPageSnapshotUrl?: string | null;
   playMediaUrl?: string | null;
+  playPosterUrl?: string | null;
   composeImages?: string[] | null;
   qrProductType: string;
   productName?: string;
@@ -95,6 +97,7 @@ export default function PhoneMockupCard({
   qrCodeUrl,
   landingPageSnapshotUrl,
   playMediaUrl,
+  playPosterUrl,
   composeImages,
   qrProductType,
   productName,
@@ -221,16 +224,10 @@ export default function PhoneMockupCard({
                 ) : !visible ? (
                   <p className="h-full flex items-center justify-center text-xs text-white/70">Video preview</p>
                 ) : preview.kind === "embed" ? (
-                  <iframe
-                    key={preview.url}
-                    src={preview.url}
-                    title={`${productName || "QR Play"} — video preview`}
-                    allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
-                    allowFullScreen
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    className="w-full h-full border-0"
-                    data-testid="phone-video-embed"
-                  />
+                  <ProductGalleryMedia key={playMediaUrl} item={{
+                    type: 'video', url: playMediaUrl!, posterUrl: playPosterUrl || undefined,
+                    alt: `${productName || 'QR Play'} — video preview`,
+                  }} className="w-full h-full" testId="phone-video-embed" />
                 ) : (
                   <video
                     key={preview.url}
