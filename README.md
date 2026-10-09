@@ -683,3 +683,12 @@ Local verification: 286 frontend tests and 451 backend tests passed (737 total);
 Release candidate BUILD_ID: `20261009-main-sync-bundles-d916`. Deployment is pending: automatic approval review rejected the GitHub push to FlubaDesigns/QR-Gear and requires explicit approval for that external destination. The existing FlubaDesigns/fluba-designs release descriptor must then point to the approved Main commit. The live Main site remains unchanged. Supplier completion, matching Hosting/API markers and authenticated UI checks still require post-deployment verification.
 
 Changed source: client/src/pages/checkout.tsx; client/src/pages/orchestration-bundles-tab.tsx; functions/src/services/product-bundles.ts; functions/src/services/order-service.ts; functions/src/routes/core-routes-checkout.ts; functions/src/index.ts. Regression files: client/src/lib/__tests__/checkoutBundles.test.ts; functions/src/services/__tests__/product-bundles.test.ts; functions/src/services/__tests__/checkout-production.test.ts; functions/src/services/__tests__/checkout-bundle-routes.test.ts.
+
+
+## Main cart Assembly comparison repair — October 9, 2026
+
+The read-only production diagnostic reproduced the same Assembly-content rejection for all 22 retained products. Assembly mapping comparisons now ignore object property insertion order while retaining strict values and array slot order. Firestore map serialization must not make an unchanged generated packet appear edited. The same correction applies when reusing an existing Assembly. No product, price, artwork, identity or saved layout is rewritten.
+
+The earlier checkout fixtures mocked composition validation and therefore did not exercise this database round trip. The candidate is checked against the actual production records before release, followed by live cart and checkout review. Main's existing engine identity cannot read sandbox (HTTP 403), so this diagnostic does not claim live sandbox parity.
+
+Source changes: functions/src/services/assembly-store.ts; Functions build/version marker; READMEs, manifest and source bundle. Candidate BUILD_ID: `20261009-main-cart-map-order`. The existing Authorization Engine release workflow owns deployment. Live verification is reported separately.
