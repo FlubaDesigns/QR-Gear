@@ -601,3 +601,10 @@ Public shopping links and legacy `/store` now use the canonical public shop dest
 ## Admin Pricing saved values — sandbox, October 9, 2026
 
 Reuses the existing Pricing screen and `testSettings/pricing` record. One shared schema validates the existing amount fields without hardcoded business defaults. Zero markup, charges, shipping, hosting and profit share survive save/reload. Both save URLs use the same protected handler; the duplicate save handler in members-library was removed. Public reads report invalid/missing configuration rather than inventing prices; authenticated admin reads keep it editable. The development adapter uses the same validation. Nested pricing maps replace their previous values while unrelated legacy metadata is preserved. Load failures are visible and cannot submit defaults. Existing Sync/repricing work is still open; this change does not claim those actions are repaired.
+
+
+## Catalog markup preview and apply — sandbox, October 9, 2026
+
+The existing Pricing Sync action now previews the saved percentage/fixed markup against each canonical admin catalog product's recorded cost subtotal. Applying a reviewed preview updates the existing instance through `resolveInstance` and its owned packet together, without writing lookup catalog or member/partner store records. Both API aliases use the same existing catalog service; the Cloud Functions no-op handlers and competing development store-price implementations were removed. Missing costs, invalid ownership or a stale preview block every write. An atomic operation is limited to 200 products and reports the limit rather than partially updating a larger catalog. Only actual updates set lastSyncedAt. No external marketplace publication, payment or printer submission occurs.
+
+The UI explicitly calls this saved-markup application. Rebuilding production, shipping, label and hosting cost components is separate work and remains open; this change does not claim that all pricing consumers are repaired. Main is unchanged.

@@ -1,13 +1,14 @@
 import { beforeEach, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
-const m = vi.hoisted(() => ({ record: {} as any, set: vi.fn() }));
+const m = vi.hoisted(() => ({ record: {} as any, set: vi.fn(), sync: vi.fn() }));
 vi.mock('../../core', () => ({
   db: { collection: (name: string) => { if (name !== 'testSettings') throw Error('Unexpected collection'); return { doc: (id: string) => { if (id !== 'pricing') throw Error('Unexpected document'); return { get: async () => ({ exists: !!m.record, data: () => m.record }), set: m.set }; } }; } },
   admin: { firestore: { FieldValue: { serverTimestamp: () => 'server-time' } } },
 }));
-vi.mock('../../middleware', () => ({ requireAdmin: (req: any, res: any, next: any) => req.headers.authorization === 'Bearer owner' ? next() : res.status(401).end() }));
+vi.mock('../../middleware', () => ({ requireAdmin: (req: any, res: any, next: any) => req.headers.authorization === 'Bearer owner' ? (req.user = {uid:'owner'}, next()) : res.status(401).end() }));
 vi.mock('../../services/composition-links', () => ({ updatePacketWithComposition: vi.fn() }));
+vi.mock('../../services/catalog-instance-update', () => ({ syncCatalogMarkup: m.sync }));
 import { register } from '../../routes/pp-pricing-packets';
 const zero = { markupPercent: 0, markupFixed: 0, additionalPlacementCost: 0, textLineUpcharge: 0, centerGraphicUpcharge: 0,
   memberProfitShare: 0, builtInShippingCost: 0, sizeUpcharges: { S: 0, XL: 0 }, hostingTiers: [{ code: 'year', name: 'Year', price: 0 }],
@@ -41,4 +42,19 @@ it('does not invent prices when configuration is missing, and keeps both save UR
   expect(admin.status).toBe(200); expect(admin.body).toEqual({});
   for (const path of ['/admin/pricing-settings','/pricing-settings']) expect((await request(app).post(path).send(zero)).status).toBe(401);
   expect(m.set).not.toHaveBeenCalled();
+});
+
+it('protects both Sync aliases and uses the same catalog preview/apply service', async () => {
+  m.sync.mockResolvedValue({dryRun:true,productsUpdated:0,blocked:[]});
+  for (const path of ['/admin/pricing-settings/sync','/pricing-settings/sync']) {
+    expect((await request(app).post(path).send({})).status).toBe(401);
+    expect((await request(app).post(path).set('Authorization','Bearer owner').send({previewToken:''})).status).toBe(400);
+    const preview = await request(app).post(path).set('Authorization','Bearer owner').send({});
+    expect(preview.status).toBe(200); expect(preview.body.productsUpdated).toBe(0);
+    expect(m.sync.mock.calls[m.sync.mock.calls.length - 1]?.slice(1)).toEqual(['server-time','owner',undefined]);
+    const token = 'a'.repeat(64);
+    expect((await request(app).post(path).set('Authorization','Bearer owner').send({previewToken:token})).status).toBe(200);
+    expect(m.sync.mock.calls[m.sync.mock.calls.length - 1]?.slice(1)).toEqual(['server-time','owner',token]);
+  }
+  expect(m.sync).toHaveBeenCalledTimes(4);
 });

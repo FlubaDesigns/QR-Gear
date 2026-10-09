@@ -1,3 +1,4 @@
+import { syncCatalogMarkup } from '../services/catalog-instance-update';
 import { pricingSettingsSchema } from '../../../shared/schema-orders';
 import { updatePacketWithComposition } from '../services/composition-links';
 import { validatePacketComposition } from '../services/assembly-store';
@@ -53,6 +54,14 @@ const readPricing = async (_req: Request, res: Response): Promise<void> => {
     res.json({ ...saved.data(), ...parsed.data });
   } catch (error: any) { res.status(503).json({ error: error.message }); }
 };
+app.post(['/admin/pricing-settings/sync', '/pricing-settings/sync'], requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  if (req.body?.previewToken !== undefined && (typeof req.body.previewToken !== 'string' || !/^[a-f0-9]{64}$/.test(req.body.previewToken))) {
+    res.status(400).json({ error: 'A valid markup preview is required.' }); return;
+  }
+  try {
+    res.json(await syncCatalogMarkup(db, admin.firestore.FieldValue.serverTimestamp(), (req as any).user.uid, req.body?.previewToken));
+  } catch (error: any) { res.status(error.status || 503).json({ error: error.message }); }
+});
 app.get('/pricing-settings', readPricing);
 app.get('/admin/pricing-settings', requireAdmin, readPricing);
 app.post(['/admin/pricing-settings', '/pricing-settings'], requireAdmin, async (req: Request, res: Response): Promise<void> => {

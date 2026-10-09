@@ -456,28 +456,5 @@ app.delete('/admin/build-shelf/:id', requireAdmin, async (req: Request, res: Res
   }
 });
 
-// ============ PRODUCTS PAGE: PRICING SETTINGS SYNC ============
 
-app.post('/admin/pricing-settings/sync', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const pricingDoc = await db.collection("testSettings").doc("pricing").get();
-    const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
-    const markupPercent = pricingSettings?.markupPercent ?? 25;
-    const markupFixed = pricingSettings?.markupFixed ?? 0;
-    const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
-    const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
-    console.log(`[Pricing Sync CF] Settings: markup=${markupPercent}%, fixed=${markupFixed}, memberShare=${memberProfitShare}`);
-    res.json({
-      success: true,
-      message: "Pricing sync completed",
-      settings: { markupPercent, markupFixed, memberProfitShare, additionalPlacementCost },
-    });
-  } catch (error: any) {
-    console.error("[Pricing Sync CF] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-
-  }
+}

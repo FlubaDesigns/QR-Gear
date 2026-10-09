@@ -41,6 +41,8 @@ export default function AdminPricing() {
   const [brandLabelPricing, setBrandLabelPricing] = useState<BrandLabelPricing>({} as BrandLabelPricing);
   const [preferredLabelPosition, setPreferredLabelPosition] = useState<'outside' | 'inside'>('outside');
   const [initialized, setInitialized] = useState(false);
+  const [markupPreview, setMarkupPreview] = useState<any>(null);
+  useEffect(() => { setMarkupPreview(null); }, [markupPercent, markupFixed]);
 
   useEffect(() => {
     if (settings && !initialized) {
@@ -69,6 +71,7 @@ export default function AdminPricing() {
       return res.json();
     },
     onSuccess: () => {
+      setMarkupPreview(null);
       toast({ title: "Settings Saved", description: "Pricing configuration updated successfully." });
       queryClient.invalidateQueries({ queryKey: ["/api/pricing-settings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/pricing-settings"] });
@@ -97,20 +100,23 @@ export default function AdminPricing() {
   };
 
   const syncPricingMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/pricing-settings/sync");
+    mutationFn: async (previewToken?: string) => {
+      const res = await apiRequest("POST", "/api/admin/pricing-settings/sync", previewToken ? { previewToken } : {});
       return res.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Pricing Synced",
-        description: `Updated ${data.productsUpdated} products across ${data.storesUpdated} stores.`
-      });
+      setMarkupPreview(data.dryRun ? data : null);
+      if (!data.dryRun) {
+        void queryClient.invalidateQueries();
+        toast({ title: "Saved markup applied", description: `Updated ${data.productsUpdated} catalog products and their linked packets.` });
+      }
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setMarkupPreview(null);
+      toast({ title: "Markup was not applied", description: error.message, variant: "destructive" });
     },
   });
+  const unsavedMarkup = !markupPercent.trim() || !markupFixed.trim() || Number(markupPercent) !== settings?.markupPercent || Number(markupFixed) !== settings?.markupFixed;
 
   const updateTierPrice = (code: string, price: string) => {
     setHostingTiers(tiers =>
@@ -190,6 +196,34 @@ export default function AdminPricing() {
               />
               <p className="text-xs text-muted-foreground">Added after percentage markup</p>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <Button variant="outline" className="min-h-[44px]" onClick={() => syncPricingMutation.mutate(undefined)}
+              disabled={syncPricingMutation.isPending || saveMutation.isPending || unsavedMarkup}
+              data-testid="button-sync-pricing">
+              {syncPricingMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+              Preview Saved Markup
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {unsavedMarkup ? 'Save your markup changes before previewing. ' : ''}
+              Applies saved markup to each catalog product’s recorded cost subtotal. Production, shipping, hosting and other costs must be updated separately. External marketplace prices are not published by this action.
+            </p>
+            {markupPreview && <div data-testid="markup-preview" className="space-y-3">
+              <p>Saved markup: {markupPreview.markupPercent}% + ${markupPreview.markupFixed.toFixed(2)}.
+                {' '}{markupPreview.productsToUpdate} products would be updated; {markupPreview.blocked.length} need attention.</p>
+              <div className="overflow-auto max-h-80">
+                <table className="w-full text-sm"><thead><tr><th className="text-left">Product</th><th>Current price</th><th>After markup</th></tr></thead>
+                  <tbody>{markupPreview.products.map((p: any) => <tr key={p.id}><td>{p.title}</td><td className="text-center">${p.currentPrice.toFixed(2)}</td><td className="text-center">${p.customerPrice.toFixed(2)}</td></tr>)}</tbody>
+                </table>
+              </div>
+              {markupPreview.blocked.length > 0 && <div role="alert" className="text-destructive text-sm">
+                <p>No prices will change until these products are repaired:</p>
+                <ul>{markupPreview.blocked.map((p: any) => <li key={p.id}>{p.title}: {p.reason}</li>)}</ul>
+              </div>}
+              <Button onClick={() => syncPricingMutation.mutate(markupPreview.previewToken)}
+                disabled={syncPricingMutation.isPending || unsavedMarkup || markupPreview.blocked.length > 0 || markupPreview.productsToUpdate === 0}
+                data-testid="button-apply-markup">Apply Previewed Markup</Button>
+            </div>}
           </div>
         </AdminSectionCard>
 
@@ -430,25 +464,6 @@ export default function AdminPricing() {
             />
             <p className="text-xs text-muted-foreground">
               Members earn this % of profit (price - cost) on each sale. Zero disables the share.
-            </p>
-          </div>
-          <div className="mt-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              className="min-h-[44px]"
-              onClick={() => syncPricingMutation.mutate()}
-              disabled={syncPricingMutation.isPending}
-              data-testid="button-sync-pricing"
-            >
-              {syncPricingMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              Sync Pricing to All Products
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2">
-              Updates all existing product packets with current pricing settings
             </p>
           </div>
         </AdminSectionCard>

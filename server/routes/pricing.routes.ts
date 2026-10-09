@@ -1,3 +1,4 @@
+import { syncCatalogMarkup } from '../../functions/src/services/catalog-instance-update';
 import { pricingSettingsSchema } from '../../shared/schema-orders';
 import type { Express } from "express";
 import { storage } from "../storage";
@@ -114,140 +115,13 @@ export function registerPricingRoutes(app: Express): void {
     } catch (error: any) { res.status(503).json({ error: error.message }); }
   });
 
-  app.post("/api/pricing-settings/sync", isAdmin, async (req: any, res) => {
-    try {
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      
-      const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
-      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
-      
-      const markupPercent = pricingSettings?.markupPercent ?? 25;
-      const markupFixed = pricingSettings?.markupFixed ?? 0;
-      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
-      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
-      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
-      
-      console.log(`[PricingSync] Starting sync with: ${markupPercent}% markup, ${memberProfitShare * 100}% member share`);
-      
-      const storesSnapshot = await firestoreDb.collection("storeAllowedProducts").get();
-      let totalUpdated = 0;
-      
-      for (const storeDoc of storesSnapshot.docs) {
-        const storeData = storeDoc.data();
-        const products = storeData?.products || [];
-        let updated = false;
-        
-        for (const product of products) {
-          if (product.pricing) {
-            const baseCost = product.pricing.baseProductCost || 0;
-            const placementCost = product.pricing.placementCost || 0;
-            const textUpcharge = product.pricing.textUpcharge || 0;
-            const hostingCost = product.pricing.hostingCost || 0;
-            
-            const subtotal = baseCost + placementCost + textUpcharge + hostingCost;
-            const markupAmount = subtotal * (markupPercent / 100) + markupFixed;
-            const customerPrice = subtotal + markupAmount;
-            
-            product.pricing.markupPercent = markupPercent;
-            product.pricing.markupFixed = markupFixed;
-            product.pricing.markupAmount = markupAmount;
-            product.pricing.customerPrice = customerPrice;
-            
-            updated = true;
-            totalUpdated++;
-          }
-        }
-        
-        if (updated) {
-          await firestoreDb.collection("storeAllowedProducts").doc(storeDoc.id).update({ products });
-        }
-      }
-      
-      res.json({ success: true, message: `Synced pricing to ${totalUpdated} products` });
-    } catch (error: any) {
-      console.error("[PricingSync] Error:", error);
-      res.status(500).json({ error: error.message });
+  app.post(['/api/admin/pricing-settings/sync', '/api/pricing-settings/sync'], isAdmin, async (req: any, res) => {
+    if (req.body?.previewToken !== undefined && (typeof req.body.previewToken !== 'string' || !/^[a-f0-9]{64}$/.test(req.body.previewToken))) {
+      return res.status(400).json({ error: 'A valid markup preview is required.' });
     }
-  });
-
-  app.post("/api/admin/pricing-settings/sync", isAdmin, async (req: any, res) => {
     try {
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      
-      const pricingDoc = await firestoreDb.collection("testSettings").doc("pricing").get();
-      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
-      
-      const markupPercent = pricingSettings?.markupPercent ?? 25;
-      const markupFixed = pricingSettings?.markupFixed ?? 0;
-      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
-      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
-      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
-      
-      console.log(`[PricingSync] Starting sync with: ${markupPercent}% markup, ${memberProfitShare * 100}% member share`);
-      
-      const storesSnapshot = await firestoreDb.collection("storeAllowedProducts").get();
-      
-      let storesUpdated = 0;
-      let productsUpdated = 0;
-      
-      for (const storeDoc of storesSnapshot.docs) {
-        const storeData = storeDoc.data();
-        const storeId = storeDoc.id;
-        
-        if (!storeData.products || !Array.isArray(storeData.products)) {
-          continue;
-        }
-        
-        const updatedProducts = storeData.products.map((p: any) => {
-          if (p.baseCost === undefined || p.baseCost === null) {
-            return p;
-          }
-          
-          const baseCost = parseFloat(p.baseCost) || 0;
-          const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
-          const profit = retailPrice - baseCost;
-          const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
-          
-          return {
-            ...p,
-            retailPrice,
-            profit,
-            memberEarnings,
-            pricingUsed: {
-              markupPercent,
-              markupFixed,
-              additionalPlacementCost,
-              textLineUpcharge,
-              memberProfitShare,
-            },
-            pricingSyncedAt: new Date().toISOString(),
-          };
-        });
-        
-        await firestoreDb.collection("storeAllowedProducts").doc(storeId).update({
-          products: updatedProducts,
-          updatedAt: new Date().toISOString(),
-        });
-        
-        storesUpdated++;
-        productsUpdated += updatedProducts.length;
-      }
-      
-      console.log(`[PricingSync] Updated ${productsUpdated} products across ${storesUpdated} stores`);
-      
-      res.json({
-        success: true,
-        storesUpdated,
-        productsUpdated,
-        pricingUsed: { markupPercent, markupFixed, memberProfitShare, additionalPlacementCost, textLineUpcharge },
-        message: `Synced pricing to ${productsUpdated} products across ${storesUpdated} stores`,
-      });
-    } catch (error: any) {
-      console.error("[PricingSync] Error:", error);
-      res.status(500).json({ error: error.message });
-    }
+      const { getFirestoreDb, getFirebaseAdmin } = await import('../lib/firebase-admin');
+      res.json(await syncCatalogMarkup(getFirestoreDb(), getFirebaseAdmin().firestore.FieldValue.serverTimestamp(), req.user.uid, req.body?.previewToken));
+    } catch (error: any) { res.status(error.status || 503).json({ error: error.message }); }
   });
-
 }

@@ -46,3 +46,20 @@ it('keeps missing configuration editable with blank amounts instead of inventing
  act(() => tree.root.findByProps({'data-testid':'button-save'}).props.onClick());
  expect(m.save).not.toHaveBeenCalled();
 });
+it('requires a preview and keeps apply disabled when a product needs repair', () => {
+ act(() => { tree = create(React.createElement(AdminPricing)); });
+ expect(tree.root.findAllByProps({'data-testid':'button-apply-markup'})).toHaveLength(0);
+ const sync = m.mutations[1];
+ act(() => sync.onSuccess({dryRun:true, markupPercent:0, markupFixed:0, productsToUpdate:1, previewToken:'token',
+   products:[{id:'a',title:'Army',currentPrice:25,customerPrice:20}], blocked:[{id:'b',title:'Navy',reason:'Missing recorded cost'}]}));
+ expect(tree.root.findByProps({'data-testid':'button-apply-markup'}).props.disabled).toBe(true);
+ expect(tree.root.findByProps({role:'alert'})).toBeTruthy();
+ act(() => sync.onSuccess({dryRun:true, markupPercent:0, markupFixed:0, productsToUpdate:1, previewToken:'reviewed',
+   products:[{id:'a',title:'Army',currentPrice:25,customerPrice:20}], blocked:[]}));
+ act(() => tree.root.findByProps({'data-testid':'button-apply-markup'}).props.onClick());
+ expect(m.save).toHaveBeenCalledWith('reviewed');
+ const markup = tree.root.findAllByType('input').find(i => i.props['data-testid']==='input-markup-percent')!;
+ act(() => markup.props.onChange({target:{value:'50'}}));
+ expect(tree.root.findAllByProps({'data-testid':'button-apply-markup'})).toHaveLength(0);
+ expect(tree.root.findByProps({'data-testid':'button-sync-pricing'}).props.disabled).toBe(true);
+});

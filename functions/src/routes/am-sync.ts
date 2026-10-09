@@ -87,16 +87,6 @@ app.post('/pricing/quote', async (req: Request, res: Response): Promise<void> =>
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/pricing-settings/sync', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('testSettings').doc('pricing').get();
-    if (!doc.exists) { res.json({ success: true, message: "No pricing settings to sync" }); return; }
-    const settings = doc.data();
-    await db.collection('testSettings').doc('pricing').update({ lastSyncedAt: new Date().toISOString() });
-    res.json({ success: true, settings });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
 app.get('/admin/catalog/cost-sync-status', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('system').doc('cost-sync-status').get();

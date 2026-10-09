@@ -1,4 +1,6 @@
 import { resolveInstance } from './instance-resolver';
+import { createHash } from 'node:crypto';
+import { pricingSettingsSchema } from '../../../shared/schema-orders';
 import { transactionReader } from './composition-validation';
 import { resolveBuildDestination, destinationMetadata } from './build-destination';
 
@@ -36,5 +38,69 @@ export async function updateCatalogInstance(db: any, id: string, body: Record<st
     }
     tx.update(ref, update);
     return { success: true, instanceId: id, resolved, version: update.version };
+  });
+}
+
+/** Apply saved markup to recorded costs, through the same canonical instance resolver.
+ * Preview and apply read the same transaction snapshot; a stale preview cannot change prices.
+ * This does not regenerate production costs or publish prices to external marketplaces.
+ */
+export async function syncCatalogMarkup(db: any, now: any, actor: string, previewToken?: string) {
+  return db.runTransaction(async (tx: any) => {
+    const settingsRef = db.collection('testSettings').doc('pricing');
+    const settingsDoc = await tx.get(settingsRef);
+    const settings = pricingSettingsSchema.safeParse(settingsDoc.data());
+    if (!settings.success) throw Object.assign(new Error('Save valid Admin Pricing settings before previewing markup.'), { status: 409 });
+    const snapshot = await tx.get(db.collection('admin_catalog_instances').limit(201));
+    // Keep every instance + packet write in one transaction; never partially apply a catalog.
+    if (snapshot.docs.length > 200) throw Object.assign(new Error('This catalog exceeds the 200-product atomic update limit. No prices were changed.'), { status: 409 });
+    const plans: any[] = [], blocked: { id: string; title: string; reason: string }[] = [];
+    const packetIds = new Set<string>();
+    for (const doc of snapshot.docs) {
+      const item = doc.data();
+      if (['deleted', 'archived'].includes(item.status)) continue;
+      const title = item.resolved?.title || item.baseSnapshot?.title || doc.id;
+      const reject = (reason: string) => blocked.push({ id: doc.id, title, reason });
+      if (!item.baseSnapshot || !item.currentPacketId) { reject('Missing saved product or packet.'); continue; }
+      const resolved = resolveInstance(item.baseSnapshot, item.overrides || {});
+      const pricing = resolved.pricing;
+      if (!pricing || typeof pricing.subtotal !== 'number' || !Number.isFinite(pricing.subtotal) || pricing.subtotal < 0 ||
+          typeof pricing.customerPrice !== 'number' || !Number.isFinite(pricing.customerPrice) || pricing.customerPrice <= 0) {
+        reject('Recorded cost subtotal or current price is missing or invalid.'); continue;
+      }
+      if (item.resolved?.pricing?.customerPrice !== pricing.customerPrice || item.resolved?.pricing?.subtotal !== pricing.subtotal) {
+        reject('Displayed pricing disagrees with the saved product. Repair the catalog product first.'); continue;
+      }
+      if (packetIds.has(item.currentPacketId)) { reject('The same packet is attached to more than one catalog product.'); continue; }
+      packetIds.add(item.currentPacketId);
+      const packet = await tx.get(db.collection('productPackets').doc(item.currentPacketId));
+      if (!packet.exists || packet.data().ownerInstanceId !== doc.id) { reject('Product and packet ownership disagree.'); continue; }
+      const customerPrice = Math.round((pricing.subtotal * (1 + settings.data.markupPercent / 100) + settings.data.markupFixed) * 100) / 100;
+      if (!Number.isFinite(customerPrice) || customerPrice <= 0) { reject('Saved markup would produce an invalid sale price.'); continue; }
+      const updatedPricing = { ...pricing, markupPercent: settings.data.markupPercent, markupFixed: settings.data.markupFixed,
+        markupAmount: Math.round((customerPrice - pricing.subtotal) * 100) / 100, customerPrice };
+      const overrides = { ...item.overrides, pricing: updatedPricing };
+      plans.push({ doc, packet, item, overrides, resolved: resolveInstance(item.baseSnapshot, overrides),
+        row: { id: doc.id, title, currentPrice: pricing.customerPrice, customerPrice, subtotal: pricing.subtotal,
+          changed: JSON.stringify(pricing) !== JSON.stringify(updatedPricing) || JSON.stringify(packet.data().pricing) !== JSON.stringify(updatedPricing) } });
+    }
+    plans.sort((a, b) => a.row.id.localeCompare(b.row.id));
+    const token = createHash('sha256').update(JSON.stringify({ markupPercent: settings.data.markupPercent, markupFixed: settings.data.markupFixed,
+      products: plans.map(p => [p.row, p.item.version, p.item.currentPacketId, p.resolved.pricing, p.packet.data().pricing]), blocked })).digest('hex');
+    if (previewToken && previewToken !== token) throw Object.assign(new Error('Products or saved markup changed. Preview again before applying.'), { status: 409 });
+    if (previewToken && blocked.length) throw Object.assign(new Error('Resolve the products listed in the preview before applying markup. No prices were changed.'), { status: 409 });
+    const changed = plans.filter(p => p.row.changed);
+    if (previewToken) {
+      for (const p of changed) {
+        tx.update(p.doc.ref, { overrides: p.overrides, resolved: p.resolved, customerPrice: p.row.customerPrice,
+          version: (p.item.version || 0) + 1, updatedAt: now, updatedBy: actor });
+        tx.update(p.packet.ref, { pricing: p.resolved.pricing, customerPrice: p.row.customerPrice, updatedAt: now });
+      }
+      if (changed.length) tx.update(settingsRef, { lastSyncedAt: now });
+    }
+    return { success: blocked.length === 0, dryRun: !previewToken, previewToken: token,
+      productsUpdated: previewToken ? changed.length : 0, productsToUpdate: changed.length,
+      markupPercent: settings.data.markupPercent, markupFixed: settings.data.markupFixed,
+      products: plans.map(p => p.row), blocked };
   });
 }
