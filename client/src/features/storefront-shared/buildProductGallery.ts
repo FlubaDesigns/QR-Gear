@@ -19,6 +19,7 @@ export interface ProductMediaSource {
   playMediaUrl?: string | null;
   landingPageSnapshotUrl?: string | null;
   qrCodeUrl?: string | null;
+  compositeUrl?: string | null;
   /** Full ordered gallery array from API — primary source. May be strings or {url,alt} objects. */
   images?: Array<string | { url?: string; alt?: string }> | null;
   /** Single hero image — fallback when images[] is absent. */
@@ -129,7 +130,7 @@ export function buildProductGallery(
   if (!product) return [];
   const productName = product.name || 'Product';
   const video: StorefrontMediaItem | null = product.qrProductType === 'qr-play' && product.playMediaUrl
-    ? { url: product.playMediaUrl, type: 'video', label: 'Video', alt: `${productName} — video` }
+    ? { url: product.playMediaUrl, type: 'video', label: 'Video', alt: `${productName} — video`, posterUrl: product.compositeUrl || undefined }
     : null;
   const items: StorefrontMediaItem[] = [];
   const seen = new Set<string>();

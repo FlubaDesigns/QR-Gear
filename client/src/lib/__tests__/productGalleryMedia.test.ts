@@ -28,6 +28,14 @@ it('exposes a source link instead of a blank player when direct media fails', ()
   act(() => tree.root.findByType('video').props.onError());
   expect(tree.root.findByType('a').props.href).toBe('https://example.com/movie.mp4');
 });
+it('keeps artwork and Play visible when the external video thumbnail fails', () => {
+  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item: { type: 'video', url: 'https://www.youtube.com/watch?v=DVUbzOk8mCc', posterUrl: 'https://example.com/art.png' } })); });
+  act(() => tree.root.findByType('img').props.onError());
+  expect(tree.root.findByType('img').props.src).toBe('https://example.com/art.png');
+  expect(tree.root.findByType('img').props.alt).toContain('Product artwork');
+  act(() => tree.root.findByType('button').props.onClick());
+  expect(tree.root.findByType('iframe').props.src).toContain('/embed/DVUbzOk8mCc?autoplay=1');
+});
 it('uses public QR Gear branding without changing other descriptive facts', () => {
   for (const name of ['Bella + Canvas 3001', 'BELLA+CANVAS 3001', 'Bella & Canvas 3001', 'Bella and Canvas', 'Bella &amp; Canvas']) {
     expect(publicProductText(`A ${name} tee, 100% cotton.`)).toBe('A QR Gear tee, 100% cotton.');

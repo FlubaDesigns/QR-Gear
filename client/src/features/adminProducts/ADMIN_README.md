@@ -397,7 +397,7 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 Public store product titles and descriptions use QR Gear branding instead of the blank manufacturer and its 3001 model number. The saved supplier/QRG configuration stays internal and unchanged. The shared AI Build Rules require this customer-facing branding for future builds.
 
-For QR Play products, the shared gallery replaces the linked packet's exact landing snapshot slot with its existing video. Model photos, artwork and QR order are retained. Native videos show a paused frame with playback controls; YouTube entries show the video's thumbnail before an explicit Play action. Main gallery, thumbnails and lightbox share one media renderer. Failed direct media shows a source link. Non-video products retain their landing proof. Future AI builds must verify both the gallery video and phone preview.
+For QR Play products, the shared gallery replaces the linked packet's exact landing snapshot slot with its existing video. Model photos, artwork and QR order are retained. Native videos show a paused frame with playback controls; YouTube entries show the video's thumbnail before an explicit Play action. If that external thumbnail fails, the same packet's artwork remains visible with an Artwork preview label and Play control. Main gallery, thumbnails and lightbox share one media renderer. Failed direct media shows a source link. Non-video products retain their landing proof. Future AI builds must verify both the gallery video and phone preview.
 
 #### Files Changed
 | File | Change |

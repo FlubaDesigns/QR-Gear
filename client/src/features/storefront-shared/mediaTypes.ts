@@ -12,4 +12,6 @@ export interface StorefrontMediaItem {
   alt?: string;
   label?: string;
   type?: StorefrontMediaType;
+  /** Saved product artwork used when a provider's video thumbnail is unavailable. */
+  posterUrl?: string;
 }
