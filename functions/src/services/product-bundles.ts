@@ -65,6 +65,7 @@ export async function saveBundle(db: any, input: any, id?: string) {
 export async function calculateBundle(db: any, id: string, selectedItems?: unknown) {
   const bundle = await readBundle(db, id);
   if (!bundle.isActive) throw new BundleError('Bundle is paused.', 409);
+  if ((bundle.startDate && Date.parse(bundle.startDate) > Date.now()) || (bundle.endDate && Date.parse(bundle.endDate) < Date.now())) throw new BundleError('Bundle is outside its active dates.', 409);
   const validated = validate(bundle);
   if (selectedItems !== undefined && (!Array.isArray(selectedItems) || new Set(selectedItems).size !== selectedItems.length || selectedItems.some((id: any) => !bundle.items.some((item: any) => item.id === id)))) fail('Selected bundle items are invalid.');
   if (bundle.bundleType === 'pick' && selectedItems === undefined) fail('Select the products for this bundle.');
@@ -82,4 +83,55 @@ export async function calculateBundle(db: any, id: string, selectedItems?: unkno
   if (bundle.pricingType === 'discount_amount') price = Math.max(0, total - Math.round(Number(bundle.discountAmount) * 100));
   return { bundleId: id, bundleName: bundle.name, originalPrice: total / 100, bundlePrice: price / 100,
     savings: Math.max(0, total - price) / 100, savingsPercent: total ? Math.max(0, total - price) / total * 100 : 0, items: details };
+}
+
+/** Apply one explicitly selected offer to its saved quantities; size surcharges remain intact. */
+export async function quoteCartBundle(db: any, saleItems: any[], selection?: { bundleId?: string; selectedItems?: string[] }) {
+  const items = saleItems.map(item => ({ ...item, discountCents: 0, lineTotalCents: item.unitAmount * item.quantity }));
+  const subtotalCents = items.reduce((sum, item) => sum + item.lineTotalCents, 0);
+  const quantities = new Map<string, number>();
+  items.forEach(item => quantities.set(item.productId, (quantities.get(item.productId) || 0) + item.quantity));
+  const active = await db.collection('product_bundles').where('isActive', '==', true).get();
+  const offers: any[] = [], unavailable: string[] = [];
+  for (const row of active.docs) {
+    const bundle = await readBundle(db, row.id);
+    if ((bundle.startDate && Date.parse(bundle.startDate) > Date.now()) || (bundle.endDate && Date.parse(bundle.endDate) < Date.now())) continue;
+    try { validate(bundle); } catch (e: any) { unavailable.push(`${bundle.name || row.id}: ${e.message}`); continue; }
+    const eligible = bundle.items.filter((item: any) => (quantities.get(item.catalogInstanceId) || 0) >= item.quantity);
+    if (eligible.length < bundle.minItems || (bundle.bundleType === 'fixed' && eligible.length !== bundle.items.length)) continue;
+    offers.push({ id: bundle.id, name: bundle.name, bundleType: bundle.bundleType, minItems: bundle.minItems, maxItems: bundle.maxItems,
+      items: eligible.map((item: any) => ({ id: item.id, quantity: item.quantity, name: items.find(s => s.productId === item.catalogInstanceId).productTitle })) });
+  }
+  if (!selection?.bundleId) return { items, subtotalCents, amount: subtotalCents, bundle: null, offers, unavailable };
+  const offer = offers.find(o => o.id === selection.bundleId);
+  if (!offer) throw new BundleError('This bundle is unavailable or the cart does not contain its required products.', 409);
+  const calculated = await calculateBundle(db, selection.bundleId, selection.selectedItems);
+  const weights = new Map<string, number>();
+  for (const selected of calculated.items) {
+    let remaining = selected.quantity;
+    for (const item of items.filter(item => item.productId === selected.catalogInstanceId)) {
+      const quantity = Math.min(remaining, item.quantity);
+      if (quantity) weights.set(item.cartItemId, (weights.get(item.cartItemId) || 0) + Math.round(selected.unitPrice * 100) * quantity);
+      remaining -= quantity;
+    }
+    if (remaining) throw new BundleError('The cart no longer contains the required bundle quantities.', 409);
+  }
+  const base = Math.round(calculated.originalPrice * 100);
+  const discountCents = base - Math.round(calculated.bundlePrice * 100);
+  // Largest-remainder allocation preserves every cent without changing production quantities.
+  const shares = items.filter(item => weights.has(item.cartItemId)).map(item => {
+    const exact = Math.abs(discountCents) * weights.get(item.cartItemId)! / base;
+    return { item, cents: Math.floor(exact), remainder: exact - Math.floor(exact) };
+  });
+  let remainder = Math.abs(discountCents) - shares.reduce((sum, share) => sum + share.cents, 0);
+  shares.sort((a, b) => b.remainder - a.remainder || a.item.cartItemId.localeCompare(b.item.cartItemId));
+  for (const share of shares) {
+    if (remainder > 0) { share.cents++; remainder--; }
+    share.item.discountCents = share.cents * Math.sign(discountCents);
+    share.item.lineTotalCents -= share.item.discountCents;
+    if (!Number.isSafeInteger(share.item.lineTotalCents) || share.item.lineTotalCents < 0) throw new BundleError('Bundle pricing changed. Refresh this cart.', 409);
+  }
+  const bundle = { id: calculated.bundleId, name: calculated.bundleName, discountCents,
+    originalPrice: calculated.originalPrice, bundlePrice: calculated.bundlePrice, selectedItems: calculated.items.map(item => item.itemId) };
+  return { items, subtotalCents, amount: subtotalCents - discountCents, bundle, offers, unavailable };
 }

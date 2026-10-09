@@ -104,7 +104,7 @@ export function BundlesTab() {
             <DialogHeader>
               <DialogTitle>Create Bundle</DialogTitle>
               <DialogDescription>
-                Save a bundle and its pricing rules. These rules are not yet applied by storefront checkout.
+                Save an offer shoppers can select at checkout when their cart contains the required products. Bundle pricing applies to base prices; size surcharges and extra quantities remain separate.
               </DialogDescription>
             </DialogHeader>
             {catalog.isLoading ? <p>Loading saved products…</p> : catalog.error ? <p role="alert">{catalog.error.message} <Button onClick={() => catalog.refetch()}>Retry</Button></p> : <BundleForm

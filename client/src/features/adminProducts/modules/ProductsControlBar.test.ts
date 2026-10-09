@@ -100,3 +100,14 @@ describe('Fulfillment card sync lifecycle', () => {
     expect(JSON.stringify(tree.toJSON())).toContain('Unknown'); expect(JSON.stringify(tree.toJSON())).toContain('Configuration unavailable');
   });
 });
+
+it('resumes saved progress through awaited server steps and refreshes without a second QRG rebuild', async () => {
+ const progress = {syncId:'saved',status:'running',resumable:true,processed:4,total:5};
+ m.fetch.mockImplementation(async (_path:string, options:any) => options?.json?.syncId ? {...completed,resumable:true} : progress);
+ await mount(); expect(JSON.stringify(tree.toJSON())).toContain('Resume Sync');
+ expect(m.fetch.mock.calls.filter(([,o])=>o?.method==='POST')).toHaveLength(0);
+ await click();
+ expect(m.fetch).toHaveBeenCalledWith('/catalog/sync-printful',{method:'POST',json:{syncId:'saved'}});
+ expect(m.fetch.mock.calls.some(([p])=>p==='/sync-master-products')).toBe(false);
+ expect(m.invalidate).toHaveBeenCalledTimes(1);
+});

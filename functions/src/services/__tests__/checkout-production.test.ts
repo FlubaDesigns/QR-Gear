@@ -6,7 +6,8 @@ vi.mock('../../core', () => ({ get db() { return m.db; }, admin: {} }));
 vi.mock('../assembly-store', () => ({ validatePacketComposition: m.composition }));
 import { printfulClient, PrintfulApiError } from '../printful';
 import { fulfillOrder, syncFulfillment } from '../order-fulfillment';
-import { prepareCartOrder, finalizeCartPayment } from '../order-service';
+import { prepareCartOrder, finalizeCartPayment, readCartQuote } from '../order-service';
+import { saveBundle } from '../product-bundles';
 let store: Map<string, any>;
 const grfId = 'GRF-11442-000001';
 const cart = { userId: 'buyer', quantity: 2, price: '0.01', customization: { productId: 'instance', productSize: 'M', productColor: 'Navy', printifyVariantId: 999, productName: 'Untrusted name' } };
@@ -95,5 +96,28 @@ describe('Store sale to Printful production', () => {
     if (issue === 'provider') store.get('productPackets/packet').builderSnapshot.metadata.fulfillmentProvider = 'printify';
     if (issue === 'composition') m.composition.mockRejectedValue(new Error('Assembly is not linked'));
     await expect(prepareCartOrder('buyer')).rejects.toThrow(); expect([...store.keys()].some(key => key.startsWith('orders/'))).toBe(false); expect(createOrder).not.toHaveBeenCalled();
+  });
+});
+
+describe('reviewed bundle orders', () => {
+  it('freezes the discounted amount and verifies payment against that snapshot', async () => {
+    store.set('admin_catalog_instances/second', { ...structuredClone(store.get('admin_catalog_instances/instance')), resolved: { title: 'Second shirt', pricing: { customerPrice: 44.83 } } });
+    store.set('cartItems/second', { ...structuredClone(cart), quantity: 1, customization: { ...cart.customization, productId: 'second' } });
+    const bundle = await saveBundle(m.db, { name: 'Pair', bundleType: 'fixed', pricingType: 'discount_percent', discountPercent: 10,
+      items: [{ catalogInstanceId: 'instance', quantity: 1 }, { catalogInstanceId: 'second', quantity: 1 }] });
+    const selection = { bundleId: bundle.id }; const quote = await readCartQuote('buyer', selection);
+    expect(quote.amount).toBe(10935); expect(quote.subtotalCents).toBe(11683);
+    const prepared = await prepareCartOrder('buyer', '', selection, quote.quoteToken);
+    expect(store.get('orders/' + prepared.orderId).bundle.discountCents).toBe(748);
+    expect(prepared.items.reduce((sum, item) => sum + item.lineTotalCents, 0)).toBe(10935);
+    await saveBundle(m.db, { discountPercent: 90 }, bundle.id);
+    await expect(finalizeCartPayment(payment(prepared.orderId, { amount_total: 11683 }))).rejects.toThrow();
+    await finalizeCartPayment(payment(prepared.orderId, { amount_total: 10935 }));
+    expect(store.get('orders/' + prepared.orderId)).toMatchObject({ paymentStatus: 'paid', bundle: { discountCents: 748 } });
+  });
+  it('rejects a stale review before creating an order', async () => {
+    const quote = await readCartQuote('buyer'); store.get('cartItems/cart').quantity = 3;
+    await expect(prepareCartOrder('buyer', '', undefined, quote.quoteToken)).rejects.toThrow('changed');
+    expect([...store.keys()].some(key => key.startsWith('orders/'))).toBe(false);
   });
 });

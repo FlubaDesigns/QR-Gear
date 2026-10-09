@@ -1,5 +1,5 @@
 import {validateCoupon} from '../services/coupons';
-import { prepareCartOrder } from '../services/order-service';
+import { prepareCartOrder, readCartQuote } from '../services/order-service';
 import { Request, Response, NextFunction } from 'express';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
   import express from 'express';
@@ -19,6 +19,14 @@ import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings'
   import Stripe from 'stripe';
 
 export function registerCoreCheckoutRoutes(app: express.Express): void {
+app.post('/checkout/quote', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const quote = await readCartQuote((req as any).user.uid, req.body?.bundle);
+    // Only public pricing and offer labels leave the server; production artwork stays internal.
+    res.json({ quoteToken: quote.quoteToken, amount: quote.amount, subtotalCents: quote.subtotalCents,
+      bundle: quote.bundle, offers: quote.offers, unavailable: quote.unavailable });
+  } catch (e: any) { res.status(e.status || 400).json({ error: e.message }); }
+});
 for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' : '/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
   let orderId: string | undefined;
   try {
@@ -26,11 +34,11 @@ for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' :
     if (!stripeKey) { res.status(503).json({ error: 'Stripe not configured' }); return; }
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
-    const prepared = await prepareCartOrder(userId, req.body.referrerId || '');
+    const prepared = await prepareCartOrder(userId, req.body.referrerId || '', req.body.bundle, req.body.quoteToken);
     orderId = prepared.orderId;
     const lineItems = prepared.items.map(item => ({ price_data: { currency: 'usd',
-      product_data: { name: item.productTitle, description: `${item.customization.productColor} / ${item.customization.productSize}` },
-      unit_amount: item.unitAmount }, quantity: item.quantity }));
+      product_data: { name: item.productTitle, description: `${item.quantity} × ${item.customization.productColor} / ${item.customization.productSize}${item.discountCents ? " — bundle price applied" : ""}` },
+      unit_amount: item.lineTotalCents }, quantity: 1 }));
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'], line_items: lineItems, mode: 'payment',
       shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'] },
