@@ -412,6 +412,15 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+## Main admin smoke-test repairs — October 9, 2026
+
+Committed destinations now include the channel parent store ID. The editor restores legacy snapshots whose nested channel omitted that ID, while retaining rejection of explicit cross-store selections. Output takes its provider from the saved packet: Printful products link to the existing Orders fulfillment path; Printify publishing is offered only for Printify packets; an unknown provider is reported visibly.
+
+Bundles use the same finished catalog instances as Store Builder and Orchestration, with visible titles and saved prices. The backend validates product references, membership, quantity and discount/pick limits, writes parent/items atomically, includes new bundles in sorted listings and calculates current saved prices in cents. Blank-based legacy bundles fail explicitly. Saved bundle discounts are not yet consumed by storefront checkout; the creation dialog states this limitation. No product price is changed by bundle configuration.
+
+Template cards project the linked packet's current saved name, image and price, while retaining the reusable builder snapshot and printed QR content. Categories displays required-name and save errors inside its dialog. Supplier history reports unfinished jobs past the existing 30-minute timeout instead of displaying them as still running indefinitely. Members and Partners are deferred, and Stripe activation remains on the existing to-do list. Code deployment does not itself delete old registry data.
+
+
 ### October 9, 2026 — Preserve existing Pricing settings, including zero
 
 Repaired the existing Pricing form and save handlers. Shared validation in the existing order/pricing schema rejects invalid amounts without replacing saved values. Removed duplicated pricing-save logic; the existing admin and compatibility URLs share one protected handler. No new screen, pricing record, pricing service or repricing engine was added. Missing settings remain editable in Admin; public pricing fails clearly. Sync/repricing remains a separate open item.

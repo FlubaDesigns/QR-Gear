@@ -32,23 +32,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { MasterProduct } from "@shared/schema";
+type BundleProduct = { id: string; title: string; qrgCode: string | null; price: number | null; issues: string[] };
 import type { ProductBundle } from "./orchestration-types";
 
 export function BundlesTab() {
   const { toast } = useToast();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const { data: bundles = [], isLoading } = useQuery<ProductBundle[]>({
+  const { data: bundles = [], isLoading, error: bundlesError, refetch: reloadBundles } = useQuery<ProductBundle[]>({
     queryKey: ["/api/admin/orchestration/bundles"],
   });
 
-  const { data: masterProductsData } = useQuery({
-    queryKey: ["/api/admin/orchestration/master-products"],
+  const catalog = useQuery<{ products: BundleProduct[] }>({
+    queryKey: ["/api/admin/orchestration/catalog"],
+    enabled: createDialogOpen,
   });
-  const masterProducts: MasterProduct[] = Array.isArray(masterProductsData)
-    ? masterProductsData
-    : (masterProductsData as any)?.products ?? [];
+  const masterProducts = catalog.data?.products ?? [];
 
   const createBundleMutation = useMutation({
     mutationFn: async (data: Partial<ProductBundle>) => {
@@ -94,30 +93,30 @@ export function BundlesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-lg font-semibold">Product Bundles</h2>
-        <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <Dialog open={createDialogOpen} onOpenChange={(open) => { if (!createBundleMutation.isPending) setCreateDialogOpen(open); }}>
           <DialogTrigger asChild>
             <Button className="h-12" data-testid="button-create-bundle">
               <Plus className="w-5 h-5 mr-2" />
               Create Bundle
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create Bundle</DialogTitle>
               <DialogDescription>
-                Create a product bundle for cross-selling and discounts.
+                Save a bundle and its pricing rules. These rules are not yet applied by storefront checkout.
               </DialogDescription>
             </DialogHeader>
-            <BundleForm
+            {catalog.isLoading ? <p>Loading saved products…</p> : catalog.error ? <p role="alert">{catalog.error.message} <Button onClick={() => catalog.refetch()}>Retry</Button></p> : <BundleForm
               masterProducts={masterProducts}
               onSubmit={(data) => createBundleMutation.mutate(data)}
               isPending={createBundleMutation.isPending}
-            />
+            />}
           </DialogContent>
         </Dialog>
       </div>
 
-      {isLoading ? (
+      {bundlesError ? <p role="alert">{bundlesError.message} <Button onClick={() => reloadBundles()}>Retry</Button></p> : isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -170,6 +169,7 @@ export function BundlesTab() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <Button
                       variant="outline"
+                      disabled={toggleBundleMutation.isPending}
                       onClick={() => toggleBundleMutation.mutate(bundle.id)}
                       className="h-12 px-4"
                       data-testid={`button-toggle-bundle-${bundle.id}`}
@@ -180,7 +180,8 @@ export function BundlesTab() {
                     </Button>
                     <Button
                       variant="destructive"
-                      onClick={() => deleteBundleMutation.mutate(bundle.id)}
+                      disabled={deleteBundleMutation.isPending}
+                      onClick={() => { if (window.confirm(`Delete bundle "${bundle.name}"? The products will remain.`)) deleteBundleMutation.mutate(bundle.id); }}
                       className="h-12 px-4"
                       data-testid={`button-delete-bundle-${bundle.id}`}
                       aria-label="Delete bundle"
@@ -199,12 +200,12 @@ export function BundlesTab() {
   );
 }
 
-function BundleForm({
+export function BundleForm({
   masterProducts,
   onSubmit,
   isPending,
 }: {
-  masterProducts: MasterProduct[];
+  masterProducts: BundleProduct[];
   onSubmit: (data: Partial<ProductBundle>) => void;
   isPending: boolean;
 }) {
@@ -215,12 +216,13 @@ function BundleForm({
   const [discountPercent, setDiscountPercent] = useState("10");
   const [fixedPrice, setFixedPrice] = useState("");
   const [discountAmount, setDiscountAmount] = useState("");
+  const [pickCount, setPickCount] = useState("2");
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit({
-      name,
+      name: name.trim(),
       description: description || null,
       bundleType,
       pricingType,
@@ -228,8 +230,10 @@ function BundleForm({
       fixedPrice: pricingType === "fixed_price" ? fixedPrice : null,
       discountAmount: pricingType === "discount_amount" ? discountAmount : null,
       isActive: true,
+      minItems: bundleType === "pick" ? Number(pickCount) : selectedProducts.length,
+      maxItems: bundleType === "pick" ? Number(pickCount) : selectedProducts.length,
       items: selectedProducts.map((id, idx) => ({
-        masterProductId: id,
+        catalogInstanceId: id,
         displayOrder: idx,
         quantity: 1,
       })) as any[],
@@ -237,7 +241,7 @@ function BundleForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4"><fieldset disabled={isPending} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="bundle-name">Bundle Name</Label>
         <Input
@@ -286,12 +290,14 @@ function BundleForm({
           </Select>
         </div>
       </div>
+      {bundleType === "pick" && <div><Label htmlFor="bundle-pick-count">Products to pick</Label><Input id="bundle-pick-count" type="number" min="2" max={selectedProducts.length} required value={pickCount} onChange={e => setPickCount(e.target.value)} /></div>}
       {pricingType === "discount_percent" && (
         <div className="space-y-2">
           <Label htmlFor="discount-percent">Discount Percent (%)</Label>
           <Input
             id="discount-percent"
             type="number"
+            required
             value={discountPercent}
             onChange={(e) => setDiscountPercent(e.target.value)}
             className="h-12"
@@ -307,6 +313,8 @@ function BundleForm({
           <Input
             id="fixed-price"
             type="number"
+            required
+            min="0"
             step="0.01"
             value={fixedPrice}
             onChange={(e) => setFixedPrice(e.target.value)}
@@ -321,6 +329,8 @@ function BundleForm({
           <Input
             id="discount-amount"
             type="number"
+            required
+            min="0"
             step="0.01"
             value={discountAmount}
             onChange={(e) => setDiscountAmount(e.target.value)}
@@ -344,6 +354,7 @@ function BundleForm({
                 <input
                   type="checkbox"
                   checked={selectedProducts.includes(product.id)}
+                  disabled={product.price === null || product.issues.length > 0}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSelectedProducts([...selectedProducts, product.id]);
@@ -354,19 +365,19 @@ function BundleForm({
                   className="w-5 h-5"
                   data-testid={`checkbox-bundle-product-${product.id}`}
                 />
-                <span className="text-sm">{product.title}</span>
-                <span className="text-xs text-muted-foreground ml-auto">{product.sku}</span>
+                <span className="text-sm">{product.title}{product.issues.length > 0 && <span className="block text-destructive">{product.issues.join(" ")}</span>}</span>
+                <span className="text-xs text-muted-foreground ml-auto">{product.price === null ? "Price unavailable" : `$${product.price.toFixed(2)}`}</span>
               </label>
             ))
           )}
         </div>
       </div>
       <DialogFooter>
-        <Button type="submit" disabled={isPending || !name || selectedProducts.length < 2} className="h-12" data-testid="button-submit-bundle">
+        <Button type="submit" disabled={isPending || !name.trim() || selectedProducts.length < 2} className="h-12" data-testid="button-submit-bundle">
           {isPending ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <Plus className="w-5 h-5 mr-2" />}
           Create Bundle
         </Button>
       </DialogFooter>
-    </form>
+    </fieldset></form>
   );
 }

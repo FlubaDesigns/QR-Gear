@@ -1,3 +1,4 @@
+import { BundleError, readBundle, saveBundle, calculateBundle } from '../services/product-bundles';
 import { HealthMonitorService } from '../services/health-monitor';
 import { QrAnalyticsService } from '../services/qr-analytics';
 import { listCatalogInstances } from '../services/catalog-list';
@@ -54,47 +55,23 @@ import Stripe from 'stripe';
 
 app.get('/admin/orchestration/bundles', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const snap = await db.collection('product_bundles').orderBy('displayOrder').get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    const snap = await db.collection('product_bundles').get();
+    res.json(snap.docs.map(d => ({ ...d.data(), id: d.id } as any)).sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0)));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/admin/orchestration/bundles/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('product_bundles').doc(req.params.id).get();
-    if (!doc.exists) { res.status(404).json({ error: "Bundle not found" }); return; }
-    const items = await db.collection('bundle_items').where('bundleId', '==', req.params.id).orderBy('displayOrder').get();
-    res.json({ id: doc.id, ...doc.data(), items: items.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+const bundleFailure = (res: Response, error: any) => {
+  console.error('[Product Bundles]', error.message);
+  res.status(error instanceof BundleError ? error.status : 503).json({ error: error.message });
+};
+app.get('/admin/orchestration/bundles/:id', requireAdmin, async (req: Request, res: Response) => {
+  try { res.json(await readBundle(db, req.params.id)); } catch (e) { bundleFailure(res, e); }
 });
-
-app.post('/admin/orchestration/bundles', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { items, ...bundleData } = req.body;
-    const ref = await db.collection('product_bundles').add({ ...bundleData, createdAt: new Date() });
-    if (items?.length > 0) { const batch = db.batch(); items.forEach((item: any) => { const r = db.collection('bundle_items').doc(); batch.set(r, { ...item, bundleId: ref.id }); }); await batch.commit(); }
-    const finalItems = await db.collection('bundle_items').where('bundleId', '==', ref.id).get();
-    const doc = await ref.get();
-    res.json({ id: doc.id, ...doc.data(), items: finalItems.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+app.post('/admin/orchestration/bundles', requireAdmin, async (req: Request, res: Response) => {
+  try { res.status(201).json(await saveBundle(db, req.body)); } catch (e) { bundleFailure(res, e); }
 });
-
-app.patch('/admin/orchestration/bundles/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { items, ...bundleData } = req.body;
-    await db.collection('product_bundles').doc(id).update(bundleData);
-    if (items !== undefined) {
-      const oldItems = await db.collection('bundle_items').where('bundleId', '==', id).get();
-      const batch = db.batch();
-      oldItems.docs.forEach(d => batch.delete(d.ref));
-      if (items.length > 0) items.forEach((item: any) => { const r = db.collection('bundle_items').doc(); batch.set(r, { ...item, bundleId: id }); });
-      await batch.commit();
-    }
-    const doc = await db.collection('product_bundles').doc(id).get();
-    const finalItems = await db.collection('bundle_items').where('bundleId', '==', id).get();
-    res.json({ id: doc.id, ...doc.data(), items: finalItems.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+app.patch('/admin/orchestration/bundles/:id', requireAdmin, async (req: Request, res: Response) => {
+  try { res.json(await saveBundle(db, req.body, req.params.id)); } catch (e) { bundleFailure(res, e); }
 });
 
 app.delete('/admin/orchestration/bundles/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -137,33 +114,8 @@ app.get('/bundles/for-product/:productId', async (req: Request, res: Response): 
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/bundles/:id/calculate', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('product_bundles').doc(req.params.id).get();
-    if (!doc.exists) { res.status(404).json({ error: "Bundle not found" }); return; }
-    const bundle = doc.data() as any;
-    const items = await db.collection('bundle_items').where('bundleId', '==', req.params.id).get();
-    const { selectedItems } = req.body;
-    let totalRetailPrice = 0;
-    const itemDetails: any[] = [];
-    for (const itemDoc of items.docs) {
-      const item = itemDoc.data() as any;
-      if (selectedItems && !selectedItems.includes(itemDoc.id)) continue;
-      let itemPrice = 0, itemName = '';
-      if (item.masterProductId) { const mp = await db.collection('master_catalog').doc(item.masterProductId).get(); if (mp.exists) { const d = mp.data() as any; itemPrice = parseFloat(d.retailPrice || 0); itemName = d.title; } }
-      else if (item.productId) { const p = await db.collection('products').doc(String(item.productId)).get(); if (p.exists) { const d = p.data() as any; itemPrice = parseFloat(d.basePrice || 0); itemName = d.name; } }
-      const qty = item.quantity || 1;
-      const disc = item.itemDiscountPercent ? parseFloat(item.itemDiscountPercent) / 100 : 0;
-      const sub = itemPrice * (1 - disc) * qty;
-      totalRetailPrice += sub;
-      itemDetails.push({ itemId: itemDoc.id, name: itemName, unitPrice: itemPrice, quantity: qty, discount: disc * 100, subtotal: sub });
-    }
-    let bundlePrice = totalRetailPrice, savings = 0;
-    if (bundle.pricingType === 'fixed_price' && bundle.fixedPrice) { bundlePrice = parseFloat(bundle.fixedPrice); savings = totalRetailPrice - bundlePrice; }
-    else if (bundle.pricingType === 'discount_percent' && bundle.discountPercent) { bundlePrice = totalRetailPrice * (1 - parseFloat(bundle.discountPercent) / 100); savings = totalRetailPrice - bundlePrice; }
-    else if (bundle.pricingType === 'discount_amount' && bundle.discountAmount) { bundlePrice = totalRetailPrice - parseFloat(bundle.discountAmount); savings = parseFloat(bundle.discountAmount); }
-    res.json({ bundleId: doc.id, bundleName: bundle.name, originalPrice: totalRetailPrice, bundlePrice: Math.max(0, bundlePrice), savings: Math.max(0, savings), savingsPercent: totalRetailPrice > 0 ? (savings / totalRetailPrice) * 100 : 0, items: itemDetails });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+app.post('/bundles/:id/calculate', async (req: Request, res: Response) => {
+  try { res.json(await calculateBundle(db, req.params.id, req.body.selectedItems)); } catch (e) { bundleFailure(res, e); }
 });
 
 app.post('/admin/orchestration/bulk-publish',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Bulk publishing has no deployed worker. Use Marketplace publish for each saved surface.',code:'NOT_IMPLEMENTED'});});

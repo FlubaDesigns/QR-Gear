@@ -11,27 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import PhoneMockupCard from "@/components/PhoneMockupCard";
 import type { PricingBreakdown } from "../types";
 
-interface PacketResult {
-  packetId: string;
-  landingPageUrl: string;
-  landingPageSnapshotUrl: string;
-  productGraphicUrl: string;
-  qrOnlyUrl: string;
-  pricing: PricingBreakdown;
-  priorityMockupUrl?: string | null;
-  priorityMockupLoading?: boolean;
-  priorityMockupError?: string | null;
-  lifestyleMockupUrl?: string | null;
-  placementMockupUrls?: Record<string, string> | null;
-  compositeUrl?: string | null;
-  assemblyId?: string | null;
-  printifyProductId?: string | null;
-  printifyPublishedAt?: string | Date | null;
-  printifyVariantMap?: Record<string, number> | null;
-  enabledColors?: string[];
-}
-
-
+import type { PacketResult } from './CreateGraphicsModule';
 
 interface PacketResultDisplayProps {
   packetResult: PacketResult;
@@ -281,6 +261,20 @@ function PrintifySection({
   );
 }
 
+export function PacketFulfillmentSection({ packetResult, onPublished }: {
+  packetResult: PacketResult; onPublished?: PacketResultDisplayProps['onPrintifyPublished'];
+}) {
+  if (packetResult.fulfillmentProvider === 'printify') return <PrintifySection packetResult={packetResult} onPublished={onPublished} />;
+  if (packetResult.fulfillmentProvider === 'printful') return (
+    <Card data-testid="packet-fulfillment-printful"><CardContent className="p-4 space-y-2">
+      <p className="font-semibold">Printful fulfillment</p>
+      <p className="text-sm">This saved product uses Printful. Paid orders are submitted through the order fulfillment controls.</p>
+      <a href="/admin/orders" className="underline">Open Orders</a>
+    </CardContent></Card>
+  );
+  return <p role="alert">The saved packet has no supported fulfillment provider. Reopen the saved item and select its provider before publishing.</p>;
+}
+
 function formatPlacementLabel(placement: string): string {
   return placement
     .split(/[_\s]+/)
@@ -419,7 +413,7 @@ export function PacketResultDisplay({
         </CardContent>
       </Card>
 
-      <PrintifySection packetResult={packetResult} onPublished={onPrintifyPublished} />
+      <PacketFulfillmentSection packetResult={packetResult} onPublished={onPrintifyPublished} />
 
       <p className="text-base font-bold mb-3">Generated Thumbnails</p>
       <div className="grid grid-cols-2 gap-3">

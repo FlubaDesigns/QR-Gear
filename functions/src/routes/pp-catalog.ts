@@ -25,9 +25,11 @@ function serializeSync(id: string, data: any): any {
     catch { console.warn('[Catalog Sync] Invalid saved summary for', id); summary = null; }
   }
   const iso = (value: any) => value?.toDate?.()?.toISOString() ?? (typeof value === 'string' ? value : null);
-  return { ...data, id, syncId: id, summary: summary ?? null,
-    errorMessage: data.status === 'failed' ? data.errorMessage : null,
-    startedAt: iso(data.startedAt), completedAt: iso(data.completedAt) };
+  const startedAt = iso(data.startedAt);
+  const expired = data.status === 'running' && startedAt && Date.now() - Date.parse(startedAt) >= 30 * 60 * 1000;
+  return { ...data, status: expired ? 'failed' : data.status, id, syncId: id, summary: summary ?? null,
+    errorMessage: expired ? 'The last supplier sync did not record completion within 30 minutes. Run Smart Sync to retry.' : data.status === 'failed' ? data.errorMessage : null,
+    startedAt, completedAt: iso(data.completedAt) };
 }
 
   export function register(app: express.Express): void {

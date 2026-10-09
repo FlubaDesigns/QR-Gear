@@ -171,6 +171,7 @@ export interface ProductBundle {
 }
 
 export interface BundleItem {
+  catalogInstanceId?: string;
   id: string;
   bundleId: string;
   masterProductId: string | null;

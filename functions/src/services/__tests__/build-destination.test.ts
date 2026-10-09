@@ -2,7 +2,7 @@ import {vi} from 'vitest';
 vi.mock('../../core',()=>({db:{},admin:{}}));
 import { describe, it, expect } from 'vitest';
 import { database } from './composition-fixture';
-import { resolveBuildDestination } from '../build-destination';
+import { destinationMetadata, resolveBuildDestination } from '../build-destination';
 import { updateCatalogInstance } from '../catalog-instance-update';
 function fixture() { return database({
   'stores/store': { name: 'Canonical Store' }, 'stores/other': { name: 'Other' },
@@ -17,6 +17,7 @@ describe('canonical product destinations', () => {
   it('derives labels and collection identity from the stored parents', async () => {
     const f = fixture();
     const d = await resolveBuildDestination(f.db, { storeId: 'store', storeName: 'Forged', channelId: 'channel', channelName: 'Wrong', collectionName: 'Training' });
+    expect(destinationMetadata(d).selectedChannel).toEqual({ id: 'channel', name: 'Canonical Channel', storeId: 'store' });
     expect(d).toMatchObject({ storeName: 'Canonical Store', channelName: 'Canonical Channel', collectionId: 'collection', folderPath: 'Canonical Store / Canonical Channel / Training' });
   });
   it('moves the item, packet, snapshot, saved build and storefront link together', async () => {

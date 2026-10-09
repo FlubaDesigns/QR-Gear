@@ -104,3 +104,11 @@ it('finds the newest provider job without a composite index or arbitrary limit',
  const res=await request(app).get('/admin/catalog/sync-status?provider=printful');
  expect(res.status).toBe(200);expect(res.body.id).toBe('newest');expect(m.writes).toHaveLength(0);
 });
+
+it('reports expired running history as incomplete without writing or claiming completion', async () => {
+ m.rows.catalogSyncs = { old: { syncType: 'printful', startedAt: new Date(Date.now() - 31 * 60 * 1000).toISOString(), status: 'running' } };
+ const response = await request(app).get('/admin/catalog/sync-status?provider=printful');
+ expect(response.body).toMatchObject({status:'failed'}); expect(response.body.errorMessage).toContain('did not record completion'); expect(m.writes).toHaveLength(0);
+ m.rows.catalogSyncs.old.startedAt = new Date().toISOString();
+ expect((await request(app).get('/admin/catalog/sync-status?syncId=old')).body.status).toBe('running');
+});

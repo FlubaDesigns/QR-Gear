@@ -31,7 +31,7 @@ export async function resolveBuildDestination(db: any, input: Record<string, any
 export function destinationMetadata(destination: Awaited<ReturnType<typeof resolveBuildDestination>>) {
   return {
     selectedStore: destination.storeId ? { id: destination.storeId, name: destination.storeName } : null,
-    selectedChannel: destination.channelId ? { id: destination.channelId, name: destination.channelName } : null,
+    selectedChannel: destination.channelId ? { id: destination.channelId, name: destination.channelName, storeId: destination.storeId } : null,
     selectedCollection: destination.collectionName ? { id: destination.collectionId, name: destination.collectionName } : null,
   };
 }
