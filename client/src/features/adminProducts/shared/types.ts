@@ -85,6 +85,12 @@ export interface ProductsContextValue {
   destinationError: string | null;
   selectedProviders: string[];
   setSelectedProviders: (providers: string[]) => void;
+  preferredProvider: string | null;
+  providerPreferenceLoading: boolean;
+  providerPreferenceError: string | null;
+  providerPreferenceSaving: boolean;
+  saveProviderPreference: (provider: string) => Promise<unknown>;
+  reloadProviderPreference: () => Promise<unknown>;
   selectedRole: RoleType | null;
   setSelectedRole: (role: RoleType | null) => void;
   selectedStore: Store | null;

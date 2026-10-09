@@ -23,11 +23,12 @@ import { printfulClient } from '../services/printful';
 
 app.get('/admin/fulfillment-providers', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const printifyKey = process.env.PRINTIFY_API_KEY || getPrintifyApiKey();
-    const printfulKey = process.env.PRINTFUL_API_KEY || getPrintfulApiKey();
+    const config = (await db.collection('system_config').doc('api_keys').get()).data() || {};
+    const printifyKey = process.env.PRINTIFY_API_KEY;
+    const printfulKey = config.printfulApiKey || process.env.PRINTFUL_API_KEY;
     const apliiqKey = process.env.APLIIQ_API_KEY;
     const providers = [
-      { id: "printify", name: "Printify", configured: !!printifyKey && printifyKey.length > 10, role: "fulfillment", description: "Print-on-demand fulfillment via Printify network" },
+      { id: "printify", name: "Printify", configured: !!printifyKey && printifyKey.length > 10 && !!process.env.PRINTIFY_SHOP_ID, role: "fulfillment", description: "Print-on-demand fulfillment via Printify network" },
       { id: "printful", name: "Printful", configured: !!printfulKey && printfulKey.length > 10, role: "fulfillment", description: "Print-on-demand fulfillment via Printful" },
       { id: "apliiq", name: "Apliiq", configured: !!apliiqKey && (apliiqKey?.length || 0) > 10, role: "fulfillment", description: "Custom apparel via Apliiq" },
     ];

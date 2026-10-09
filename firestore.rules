@@ -19,16 +19,17 @@ service cloud.firestore {
 
     // Users collection - users can only access their own data
     match /users/{userId} {
-      allow create: if signedIn() && request.auth.uid == userId;
-      allow read, update: if isOwner(userId) || isAdmin();
+      allow create: if signedIn() && request.auth.uid == userId && !request.resource.data.keys().hasAny(['isAdmin', 'role', 'roles']);
+      allow read: if isOwner(userId) || isAdmin();
+      allow update: if isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['isAdmin', 'role', 'roles']));
       allow delete: if isAdmin();
     }
 
     // Orders collection - users see their own orders, admins see all
     match /orders/{orderId} {
-      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
-      allow read, update: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
-      allow delete: if isAdmin();
+      // Financial state and frozen items are written only by the server.
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow write: if false;
     }
 
     // Graphic Sets - users manage their own, admins manage all

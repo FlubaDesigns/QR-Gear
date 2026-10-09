@@ -9,7 +9,9 @@ import { useProductsContext } from "../ProductsContext";
 import { adminFetch } from "@/lib/adminFetch";
 
 export function ProductsControlBar() {
-  const { api, providers, providersLoading, providersError, selectedProviders, setSelectedProviders } = useProductsContext();
+  const { api, providers, providersLoading, providersError, selectedProviders, setSelectedProviders,
+    preferredProvider, providerPreferenceLoading, providerPreferenceSaving, providerPreferenceError,
+    saveProviderPreference, reloadProviderPreference } = useProductsContext();
   const { toast } = useToast();
 
   const [syncing, setSyncing] = useState(false);
@@ -30,7 +32,7 @@ export function ProductsControlBar() {
     [providers]
   );
 
-  const currentProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+  const currentProvider = selectedProviders[0] || "";
   const currentProviderObj = fulfillmentProviders.find((p) => p.id === currentProvider);
   const isConfigured = currentProviderObj?.configured ?? false;
 
@@ -46,7 +48,7 @@ export function ProductsControlBar() {
     mountedRef.current = true;
     let cancelled = false;
     setSyncStatus(null);
-    adminFetch<any>(`/catalog/sync-status?provider=${currentProvider}`)
+    if (currentProvider) adminFetch<any>(`/catalog/sync-status?provider=${currentProvider}`)
       .then(data => { if (!cancelled && !startingRef.current) setSyncStatus(data); })
       .catch((error: Error) => {
         if (!cancelled && !startingRef.current) {
@@ -185,6 +187,12 @@ export function ProductsControlBar() {
           ))}
         </RadioGroup>
 
+        <Button variant="outline" className="min-h-12" data-testid="button-save-provider-preference"
+          disabled={!currentProvider || providerPreferenceSaving || providerPreferenceLoading || currentProvider === preferredProvider}
+          onClick={() => { void saveProviderPreference(currentProvider).then(() => toast({ title: "Provider preference saved" })).catch(() => {}); }}>
+          {providerPreferenceSaving ? "Saving…" : "Use for new builds"}
+        </Button>
+
         <div className="ml-auto">
           <Button
             size="sm"
@@ -199,6 +207,10 @@ export function ProductsControlBar() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        {providerPreferenceLoading && <span>Loading saved provider…</span>}
+        {!providerPreferenceLoading && !currentProvider && <span>Choose a fulfillment provider.</span>}
+        {preferredProvider && <span>New builds: {fulfillmentProviders.find(provider => provider.id === preferredProvider)?.name || preferredProvider}. Saved products keep their own provider.</span>}
+        {providerPreferenceError && <span role="alert" className="text-destructive">Provider preference: {providerPreferenceError} <Button variant="ghost" className="min-h-12" onClick={() => { void reloadProviderPreference(); }}>Reload</Button></span>}
         {providersError && <span role="alert" className="text-destructive">Could not check providers: {providersError}</span>}
         {!providersLoading && !providersError && !isConfigured && <span>Provider not configured</span>}
 

@@ -1,6 +1,7 @@
 import { STORE_ROLES } from "@shared/storeRoles";
 import { createContext, useContext, useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { requireFulfillmentProvider } from "@shared/fulfillmentSettings";
 import { queryClient } from "@/lib/queryClient";
 import { adminFetch } from "@/lib/adminFetch";
 import type { 
@@ -30,7 +31,27 @@ interface ProductsProviderProps {
 }
 
 export function ProductsProvider({ children }: ProductsProviderProps) {
-  const [selectedProviders, setSelectedProvidersState] = useState<string[]>(["printful"]);
+  const [selectedProviders, setSelectedProvidersState] = useState<string[]>([]);
+  const providerChosenOrRestored = useRef(false);
+  const providerPreferences = useQuery<{ defaultFulfillmentProvider?: string }>({
+    queryKey: ["/api/admin/settings"], queryFn: () => adminFetch("/settings"), staleTime: Infinity,
+  });
+  useEffect(() => {
+    if (providerChosenOrRestored.current || !providerPreferences.data?.defaultFulfillmentProvider) return;
+    const saved = providerPreferences.data.defaultFulfillmentProvider;
+    if (saved === 'printful' || saved === 'printify') setSelectedProvidersState([saved]);
+  }, [providerPreferences.data]);
+  const saveProviderPreference = useMutation({
+    mutationFn: async (value: string) => {
+      const provider = requireFulfillmentProvider(value);
+      const saved = await adminFetch<{ defaultFulfillmentProvider?: string }>("/settings", {
+        method: "PUT", json: { defaultFulfillmentProvider: provider },
+      });
+      if (saved.defaultFulfillmentProvider !== provider) throw new Error("Your provider preference was not saved. Please retry.");
+      return saved;
+    },
+    onSuccess: saved => queryClient.setQueryData(["/api/admin/settings"], (previous: any) => ({ ...previous, ...saved })),
+  });
   const [destination, setDestination] = useState<{
     selectedRole: RoleType | null; selectedStore: Store | null;
     selectedChannel: Channel | null; selectedCollection: Collection | null;
@@ -49,6 +70,7 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
   const providersError = providerQueryError ? providerQueryError.message : null;
 
   const setSelectedProviders = useCallback((providers: string[]) => {
+    providerChosenOrRestored.current = true;
     setSelectedProvidersState(providers);
   }, []);
 
@@ -171,6 +193,12 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       destinationError,
       selectedProviders,
       setSelectedProviders,
+      preferredProvider: providerPreferences.data?.defaultFulfillmentProvider ?? null,
+      providerPreferenceLoading: providerPreferences.isLoading,
+      providerPreferenceError: saveProviderPreference.error?.message || providerPreferences.error?.message || null,
+      providerPreferenceSaving: saveProviderPreference.isPending,
+      saveProviderPreference: saveProviderPreference.mutateAsync,
+      reloadProviderPreference: providerPreferences.refetch,
       roles: DEFAULT_ROLES,
       selectedRole,
       setSelectedRole,
@@ -189,6 +217,8 @@ export function ProductsProvider({ children }: ProductsProviderProps) {
       destinationError,
       selectedProviders, 
       setSelectedProviders,
+      providerPreferences.data, providerPreferences.isLoading, providerPreferences.error,
+      providerPreferences.refetch, saveProviderPreference.error, saveProviderPreference.isPending, saveProviderPreference.mutateAsync,
       selectedRole,
       setSelectedRole,
       selectedStore,

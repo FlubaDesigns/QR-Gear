@@ -72,12 +72,25 @@ interface PrintfulVariant {
   in_stock: boolean;
 }
 
+export interface PrintfulOrderFile {
+  type: string; url: string;
+  position: { area_width: number; area_height: number; width: number; height: number; top: number; left: number };
+}
+export interface PrintfulOrder {
+  id: number; external_id: string; status: string;
+  shipments?: Array<{ carrier: string; tracking_number: string; tracking_url: string; shipped_at?: number; delivered_at?: number }>;
+}
+export class PrintfulApiError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
+
 class PrintfulClient {
   private async getHeaders(mockupOnly = false) {
     const key = await getPrintfulApiKeyAsync(mockupOnly);
     return {
       'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/json',
+      ...(getPrintfulStoreId() ? { 'X-PF-Store-Id': getPrintfulStoreId() } : {}),
     };
   }
 
@@ -97,16 +110,28 @@ class PrintfulClient {
     if (!mockupOnly) requireLiveCommerce('Printful catalog or commerce request');
     const url = `${PRINTFUL_API_BASE}${endpoint}`;
     const headers = await this.getHeaders(mockupOnly);
-    const options: RequestInit = { method, headers };
+    const options: RequestInit = { method, headers, signal: AbortSignal.timeout(30000) };
     if (body) options.body = JSON.stringify(body);
     
     const response = await fetch(url, options);
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Printful API error: ${response.status} - ${errorText}`);
+      throw new PrintfulApiError(response.status, `Printful API error: ${response.status} - ${errorText}`);
     }
     const data = await response.json();
     return data.result as T;
+  }
+
+  async createOrder(body: { external_id: string; recipient: Record<string, string>; items: Array<{ variant_id: number; quantity: number; files: PrintfulOrderFile[] }> }): Promise<PrintfulOrder> {
+    return this.request('POST', '/orders?confirm=false', body);
+  }
+
+  async getOrder(id: string): Promise<PrintfulOrder> {
+    return this.request('GET', `/orders/${encodeURIComponent(id)}`);
+  }
+
+  async confirmOrder(id: string): Promise<PrintfulOrder> {
+    return this.request('POST', `/orders/${encodeURIComponent(id)}/confirm`);
   }
 
   async getProduct(productId: number): Promise<{ product: any; variants: PrintfulVariant[] }> {

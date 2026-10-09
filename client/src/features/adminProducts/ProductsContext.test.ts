@@ -3,9 +3,9 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ProductsProvider, useProductsContext } from './ProductsContext';
-const m = vi.hoisted(() => ({ fetch: vi.fn(), invalidate: vi.fn().mockResolvedValue(undefined) }));
+const m = vi.hoisted(() => ({ fetch: vi.fn(), invalidate: vi.fn().mockResolvedValue(undefined), setQueryData: vi.fn() }));
 vi.mock('@/lib/adminFetch', () => ({ adminFetch: m.fetch }));
-vi.mock('@/lib/queryClient', () => ({ queryClient: { invalidateQueries: m.invalidate } }));
+vi.mock('@/lib/queryClient', () => ({ queryClient: { invalidateQueries: m.invalidate, setQueryData: m.setQueryData } }));
 let value: ReturnType<typeof useProductsContext>;
 let tree: ReactTestRenderer;
 function Probe() { value = useProductsContext(); return null; }
@@ -51,7 +51,7 @@ describe('Destination selection blast radius', () => {
   it('restores role/store/channel/collection together, preserving legacy IDs and unrelated fulfillment choice', async () => {
     m.fetch.mockResolvedValue([]); await mount(); await selectDestination();
     expect(value.selectedStore).toEqual(store); expect(value.selectedChannel).toEqual(channel); expect(value.selectedCollection?.name).toBe('Summer');
-    expect(value.selectedProviders).toEqual(['printful']);
+    expect(value.selectedProviders).toEqual([]);
   });
   it('rejects a mismatched channel during draft restoration without retaining a collection', async () => {
     m.fetch.mockResolvedValue([]); await mount();
@@ -70,5 +70,29 @@ describe('Destination selection blast radius', () => {
     await expect(value.api.fetchStores('internal')).rejects.toThrow('404');
     await expect(value.api.fetchChannels('a')).rejects.toThrow('404');
     await expect(value.api.fetchCollections('a', 'c')).rejects.toThrow('404');
+  });
+});
+
+describe('Existing fulfillment selector preference', () => {
+  it('loads the saved provider instead of an invented default', async () => {
+    m.fetch.mockImplementation(async path => path === '/settings' ? { defaultFulfillmentProvider: 'printify' } : []);
+    await mount(); await act(async () => { await new Promise(r => setTimeout(r, 10)); });
+    expect(value.selectedProviders).toEqual(['printify']);
+  });
+  it('does not overwrite a restored build with a late preference response or save restoration as a default', async () => {
+    let resolve!: (data: any) => void;
+    m.fetch.mockImplementation(path => path === '/settings' ? new Promise(r => { resolve = r; }) : Promise.resolve([]));
+    await mount(); await act(async () => { value.setSelectedProviders(['printful']); });
+    await act(async () => { resolve({ defaultFulfillmentProvider: 'printify' }); await new Promise(r => setTimeout(r, 10)); });
+    expect(value.selectedProviders).toEqual(['printful']); expect(m.fetch.mock.calls.some(([, o]) => o?.method === 'PUT')).toBe(false);
+  });
+  it('saves only the explicit preference and reports a failed save', async () => {
+    m.fetch.mockResolvedValue([]); await mount();
+    m.fetch.mockResolvedValue({ defaultFulfillmentProvider: 'printful' });
+    await act(async () => { await value.saveProviderPreference('printful'); });
+    expect(m.fetch).toHaveBeenCalledWith('/settings', { method: 'PUT', json: { defaultFulfillmentProvider: 'printful' } });
+    m.fetch.mockRejectedValue(new Error('Settings write failed'));
+    await act(async () => { await expect(value.saveProviderPreference('printify')).rejects.toThrow('Settings write failed'); await new Promise(r => setTimeout(r, 10)); });
+    expect(value.providerPreferenceError).toBe('Settings write failed');
   });
 });

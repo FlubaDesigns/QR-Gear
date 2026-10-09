@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261009-sandbox-gallery-video-branding';
+const _BUILD_ID = '20261009-sandbox-admin-fulfillment';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
@@ -49,7 +49,6 @@ import { register as registerAmCrud } from './routes/am-crud';
 import { register as registerAmSync } from './routes/am-sync';
 import { register as registerAmUtility } from './routes/am-utility';
 import { registerMembersLibraryRoutes } from './routes/members-library';
-import { registerCoreCheckoutRoutes } from './routes/core-routes-checkout';
 import { registerExternalSitesPublicRoutes } from './routes/external-sites-public';
 import { register as registerPpBuilder } from './routes/pp-builder';
 import { register as registerPpCatalog } from './routes/pp-catalog';
@@ -71,7 +70,7 @@ import { register as registerProductsCanonical } from './routes/products-canonic
 const app = express();
 
 app.use(corsMiddleware);
-app.use(express.json({ limit: '50mb' }));
+app.use(express.json({ limit: '50mb', verify: (req, _res, body) => { (req as any).rawBody = body; } }));
 app.use(express.urlencoded({ extended: false }));
 app.use(apiPrefixMiddleware);
 app.use(sandboxCommerceMiddleware);
@@ -119,7 +118,6 @@ registerAmCrud(app);
 registerAmSync(app);
 registerAmUtility(app);
 registerMembersLibraryRoutes(app);
-registerCoreCheckoutRoutes(app);
 registerExternalSitesPublicRoutes(app);
 registerPpBuilder(app);
 registerPpCatalog(app);

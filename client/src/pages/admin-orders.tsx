@@ -34,11 +34,13 @@ import {
   ShoppingBag,
   Filter
 } from "lucide-react";
-import type { OrderUnified } from "@shared/schema";
+import type { OrderUnified as StoredOrderUnified } from "@shared/schema";
 import type { AdminTab } from "@/components/admin/AdminSectionTabs";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Users, DollarSign, Tag, Gift } from "lucide-react";
+
+type OrderUnified = StoredOrderUnified & { checkoutVersion?: number; paymentStatus?: string; fulfillmentState?: string; fulfillmentError?: string };
 
 type OrderStatus = "pending" | "routed" | "in_production" | "shipped" | "delivered" | "cancelled";
 
@@ -97,7 +99,7 @@ const orderTabs: AdminTab[] = [
 ];
 
 function StatusBadge({ status }: { status: OrderStatus }) {
-  const config = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+  const config = STATUS_CONFIG[status] || { label: status.replace(/_/g, " "), icon: Clock, color: "bg-muted" };
   const Icon = config.icon;
   return (
     <Badge variant="outline" className={`${config.color} gap-1`}>
@@ -205,6 +207,15 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
         variant: "destructive" 
       });
     },
+  });
+
+  const fulfillmentMutation = useMutation({
+    mutationFn: async (action: 'fulfill' | 'sync-provider') => {
+      if (!order) throw new Error('Select an order.');
+      return apiRequest('POST', `/api/admin/orders/${order.id}/${action}`, {});
+    },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['/api/admin/orders-unified'] }); toast({ title: 'Order updated' }); },
+    onError: (error: Error) => toast({ title: 'Order needs attention', description: error.message, variant: 'destructive' }),
   });
 
   if (!order) return null;
@@ -369,7 +380,14 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
 
             <div>
               <h4 className="font-medium text-sm mb-2">Actions</h4>
-              <Select
+              {order.checkoutVersion === 1 ? <div className="space-y-3">
+                <p className="text-sm">Payment: {order.paymentStatus}. Production: {order.fulfillmentState}.</p>
+                {order.fulfillmentError && <p role="alert" className="text-sm text-destructive">{order.fulfillmentError}</p>}
+                <div className="flex flex-wrap gap-2">
+                  <Button className="min-h-12" disabled={fulfillmentMutation.isPending || order.paymentStatus !== 'paid' || order.fulfillmentState === 'submitted'} onClick={() => fulfillmentMutation.mutate('fulfill')}>Retry production submission</Button>
+                  <Button variant="outline" className="min-h-12" disabled={fulfillmentMutation.isPending || !order.providerOrderId} onClick={() => fulfillmentMutation.mutate('sync-provider')}>Refresh shipping status</Button>
+                </div>
+              </div> : <Select
                 onValueChange={(status) => {
                   updateStatusMutation.mutate({ orderId: order.id, status });
                 }}
@@ -386,7 +404,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
                   <SelectItem value="delivered">Delivered</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select>}
             </div>
           </div>
         </ScrollArea>
@@ -446,17 +464,17 @@ export default function AdminOrdersPage() {
 
   const ordersByTab: Record<string, OrderUnified[]> = {
     all: filteredOrders,
-    pending: filteredOrders.filter(o => o.status === "pending"),
+    pending: filteredOrders.filter(o => ["pending", "paid", "awaiting_payment", "fulfillment_failed", "on_hold"].includes(o.status || "")),
     production: filteredOrders.filter(o => o.status === "routed" || o.status === "in_production"),
     shipped: filteredOrders.filter(o => o.status === "shipped"),
   };
 
   const stats = {
     total: orders.length,
-    pending: orders.filter(o => o.status === "pending").length,
+    pending: orders.filter(o => ["pending", "paid", "awaiting_payment", "fulfillment_failed", "on_hold"].includes(o.status || "")).length,
     inProduction: orders.filter(o => o.status === "routed" || o.status === "in_production").length,
     shipped: orders.filter(o => o.status === "shipped").length,
-    revenue: orders.reduce((acc, o) => acc + parseFloat(o.total), 0),
+    revenue: orders.filter(o => !o.checkoutVersion || o.paymentStatus === "paid").reduce((acc, o) => acc + (Number(o.total) || 0), 0),
     profit: orders.reduce((acc, o) => acc + (o.profit ? parseFloat(o.profit) : 0), 0),
   };
 
@@ -576,7 +594,7 @@ export default function AdminOrdersPage() {
         />
 
         <OrderDetailsDialog 
-          order={selectedOrder}
+          order={orders.find(order => order.id === selectedOrder?.id) || selectedOrder}
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
         />

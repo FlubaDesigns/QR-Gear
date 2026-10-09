@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 8, 2026
+Last updated: October 9, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -392,6 +392,25 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### October 9, 2026 — Reuse fulfillment selection and connect admin catalog orders
+
+The existing Products Fulfillment selector now remembers an explicitly saved preference. Admin catalog checkout freezes validated product/provider/price/artwork data before payment; verified Stripe delivery drives a retryable Printful handoff. The existing Orders screen exposes failures, submission retry and provider shipping sync. No duplicate fulfillment settings page was added. Partners and Members remain separate and deferred. See the root README section for the tested boundary and remaining Main release gates. Existing `orders`/`orderItems` collections are reused; no parallel order collection was introduced.
+
+#### Files Changed
+| Files | Change |
+|---|---|
+| `client/src/features/adminProducts/ProductsContext.tsx`, `shared/types.ts`, `modules/ProductsControlBar.tsx`, `builder/BuilderContext.tsx` | Existing selector, saved preference, restored-build protection, removal of implicit provider defaults |
+| `client/src/features/adminProducts/ProductsContext.test.ts`, `modules/ProductsControlBar.test.ts` | Preference save/load/race and existing-control tests |
+| `shared/fulfillmentSettings.ts`, `functions/src/routes/pp-pricing-packets.ts` | Provider value validation and truthful credential configuration |
+| `functions/src/routes/core-routes.ts`, `core-routes-checkout.ts`, `stripe-webhooks.ts`, `functions/src/services/order-service.ts` | Server-owned cart pricing, frozen orders, signed/paid session validation, owned reads and duplicate-route removal |
+| `functions/src/services/order-fulfillment.ts`, `printful.ts`, `printify.ts` | Exact saved production inputs, Printful draft/confirm/recovery/status and wrong-provider submission protection |
+| `functions/src/routes/admin-orders.ts`, `client/src/pages/admin-orders.tsx` | Existing order list projection, retry, shipping status and visible errors |
+| `functions/src/services/__tests__/checkout-production.test.ts`, `stripe-production-webhook.test.ts` | Immutable checkout, payment mismatch, retries, raw-signature and shipping tests |
+| `firestore.rules` | Server-only order writes and protection against self-assigned admin privileges |
+| `functions/src/index.ts`, `functions/package.json`, `functions/package-lock.json` | Raw webhook bytes, one checkout registration, build/version identifier |
+| `README.md`, `client/src/features/adminProducts/ADMIN_README.md`, `MANIFEST.json`, `downloads/QR_Gear_Full_Website.zip` | Scope, validation, release gates and updated source bundle |
+
 
 ### QR Gear branding and QR Play gallery — sandbox, October 8, 2026
 

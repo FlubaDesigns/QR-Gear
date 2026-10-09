@@ -18,12 +18,22 @@ async function mount() { await act(async () => { tree = create(React.createEleme
 async function click() { await act(async () => { await button().props.onClick(); }); }
 beforeEach(() => {
   vi.useFakeTimers(); vi.clearAllMocks();
-  m.context = { api: { invalidateProducts: m.invalidate }, providers: ['printify', 'printful'].map(id => ({ id, name: id, role: 'fulfillment', configured: true })), selectedProviders: ['printful'], setSelectedProviders: vi.fn(), providersLoading: false, providersError: null };
+  m.context = { api: { invalidateProducts: m.invalidate }, providers: ['printify', 'printful'].map(id => ({ id, name: id, role: 'fulfillment', configured: true })), selectedProviders: ['printful'], setSelectedProviders: vi.fn(), preferredProvider: null, saveProviderPreference: vi.fn().mockResolvedValue({}), reloadProviderPreference: vi.fn(), providersLoading: false, providersError: null };
   m.fetch.mockImplementation(async (path: string) => path.includes('sync-status?provider=') ? completed : path.includes('sync-status?syncId=') ? completed : path === '/sync-master-products' ? { success: true } : { syncId: 'job' });
   m.invalidate.mockResolvedValue(undefined);
 });
 afterEach(() => { if (tree) act(() => tree.unmount()); vi.useRealTimers(); });
 describe('Fulfillment card sync lifecycle', () => {
+  it('uses the existing selection when saving the new-build preference', async () => {
+    await mount();
+    await act(async () => { await tree.root.findByProps({ 'data-testid': 'button-save-provider-preference' }).props.onClick(); });
+    expect(m.context.saveProviderPreference).toHaveBeenCalledWith('printful');
+    expect(tree.root.findAllByProps({ 'data-testid': 'radio-fulfillment' }).length).toBeGreaterThan(0);
+  });
+  it('does not silently select Printify or request its history when no preference is saved', async () => {
+    m.context.selectedProviders = []; await mount();
+    expect(m.fetch).not.toHaveBeenCalled(); expect(button().props.disabled).toBe(true);
+  });
   it('reads history without rebuilding, invalidating or announcing success on mount', async () => {
     await mount(); expect(m.fetch.mock.calls).toEqual([['/catalog/sync-status?provider=printful']]); expect(m.invalidate).not.toHaveBeenCalled(); expect(m.toast).not.toHaveBeenCalled();
   });

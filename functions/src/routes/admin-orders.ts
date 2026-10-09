@@ -1,3 +1,4 @@
+import { fulfillOrder, syncFulfillment } from '../services/order-fulfillment';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -135,6 +136,23 @@ app.get('/admin/orders/:id', requireAdmin, async (req: Request, res: Response): 
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
+});
+
+// The same saved order powers automatic submission and admin retries.
+app.post('/admin/orders/:id/fulfill', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try { res.json(await fulfillOrder(req.params.id)); }
+  catch (error: any) { res.status(409).json({ error: error.message }); }
+});
+app.post('/admin/orders/:id/sync-provider', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const updates = await syncFulfillment(req.params.id);
+    const order = (await db.collection('orders').doc(req.params.id).get()).data()!;
+    const email = updates.trackingNumber && order.customerEmail
+      ? await sendShippingNotification(db, req.params.id, order.customerEmail, order.customerName || '', updates.trackingNumber, updates.carrier || '', updates.trackingUrl || undefined)
+      : null;
+    res.json({ ...updates, shippingEmailSent: email?.success === true });
+  }
+  catch (error: any) { res.status(409).json({ error: error.message }); }
 });
 
 // Submit order to Printify for fulfillment
@@ -422,6 +440,7 @@ app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response)
       return;
     }
     
+    if (orderDoc.data()?.checkoutVersion === 1) { res.status(409).json({ error: 'Use provider sync for this checkout order.' }); return; }
     const updates: Record<string, any> = {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
@@ -441,12 +460,22 @@ app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response)
 });
 
 
+async function adminOrder(doc: FirebaseFirestore.DocumentSnapshot) {
+  const order = docToObject(doc);
+  const rows = await db.collection('orderItems').where('orderId', '==', doc.id).get();
+  return { ...order, sourceChannel: order.sourceChannel || order.source || 'direct', total: order.totalAmount ?? order.total,
+    items: rows.empty ? (order.items || []) : rows.docs.map(row => { const item = row.data(); return {
+      ...item, masterProductId: item.masterId || item.productId, variantSku: item.fulfillment?.variantKey || item.variantSku || '',
+      productTitle: item.productTitle || item.customization?.productName || item.productId, price: Number(item.price),
+    }; }) };
+}
+
 // ============ BATCH: ORDERS UNIFIED ============
 
 app.get('/admin/orders-unified', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const snap = await db.collection('orders').orderBy('createdAt', 'desc').limit(200).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    res.json(await Promise.all(snap.docs.map(adminOrder)));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -454,7 +483,7 @@ app.get('/admin/orders-unified/:id', requireAdmin, async (req: Request, res: Res
   try {
     const doc = await db.collection('orders').doc(req.params.id).get();
     if (!doc.exists) { res.status(404).json({ error: "Order not found" }); return; }
-    res.json({ id: doc.id, ...doc.data() });
+    res.json(await adminOrder(doc));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -465,6 +494,7 @@ app.patch('/admin/orders-unified/:id', requireAdmin, async (req: Request, res: R
     const doc = await db.collection('orders').doc(id).get();
     if (!doc.exists) { res.status(404).json({ error: "Order not found" }); return; }
     const current = doc.data() as any;
+    if (current.checkoutVersion === 1) { res.status(409).json({ error: 'Use provider sync for production status; payment and routing are managed by checkout.' }); return; }
     let statusHistory = (current.statusHistory || []) as Array<{status: string; timestamp: string; note?: string}>;
     if (status && status !== current.status) { statusHistory = [...statusHistory, { status, timestamp: new Date().toISOString(), note: notes || undefined }]; }
     const updates: Record<string, any> = {};
@@ -509,42 +539,17 @@ app.post('/admin/orders-unified/:id/sync-printify', requireAdmin, async (req: Re
 
 // ============ BATCH: ORDER STATUS & REMAINING ROUTES ============
 
-app.post('/orders/:id/submit-printify', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const doc = await db.collection('orders').doc(id).get();
-    if (!doc.exists) { res.status(404).json({ error: "Order not found" }); return; }
-    const { shippingAddress } = req.body;
-    if (!shippingAddress) { res.status(400).json({ error: "Shipping address required" }); return; }
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
-    const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
-    if (!PRINTIFY_API || !SHOP_ID) { res.status(500).json({ error: "Printify not configured" }); return; }
-    const order = doc.data() as any;
-    const items = await db.collection('order_items').where('orderId', '==', id).get();
-    const lineItems = items.docs.map(d => { const item = d.data() as any; return { print_provider_id: item.printProviderId, blueprint_id: item.blueprintId, variant_id: item.variantId, print_areas: { front: item.printAreaUrl }, quantity: item.quantity || 1 }; });
-    const printifyOrder = { external_id: id, label: `QRGear-${id}`, line_items: lineItems, shipping_method: 1, address_to: shippingAddress };
-    const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/orders.json`, { method: 'POST', headers: { 'Authorization': `Bearer ${PRINTIFY_API}`, 'Content-Type': 'application/json' }, body: JSON.stringify(printifyOrder) });
-    if (!resp.ok) { const err = await resp.text(); res.status(resp.status).json({ error: err }); return; }
-    const result = await resp.json() as any;
-    await doc.ref.update({ printifyOrderId: result.id, status: 'submitted' });
-    res.json({ success: true, printifyOrderId: result.id });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+app.post('/orders/:id/submit-printify', requireAuth, async (_req: Request, res: Response): Promise<void> => {
+  res.status(410).json({ error: 'Production is submitted from the verified paid order. Use Admin Orders to retry.' });
 });
 
 app.get('/orders/:id/status', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('orders').doc(req.params.id).get();
-    if (!doc.exists) { res.status(404).json({ error: "Order not found" }); return; }
-    const order = doc.data() as any;
-    if (!order.printifyOrderId) { res.json({ status: order.status || 'pending', printifyStatus: null }); return; }
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
-    const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
-    if (!PRINTIFY_API || !SHOP_ID) { res.json({ status: order.status, printifyStatus: 'unknown' }); return; }
-    const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/orders/${order.printifyOrderId}.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
-    if (!resp.ok) { res.json({ status: order.status, printifyStatus: 'error' }); return; }
-    const pOrder = await resp.json() as any;
-    res.json({ status: order.status, printifyStatus: pOrder.status, shipments: pOrder.shipments || [] });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+    const doc = await db.collection('orders').doc(req.params.id).get(), order = doc.data();
+    if (!order || order.userId !== (req as any).user.uid) { res.status(404).json({ error: 'Order not found' }); return; }
+    res.json({ status: order.status, provider: order.routedProvider || null, providerStatus: order.providerStatus || null,
+      trackingNumber: order.trackingNumber || null, trackingUrl: order.trackingUrl || null, shipments: order.shipments || [] });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.get('/library/my', requireAuth, async (req: Request, res: Response): Promise<void> => {

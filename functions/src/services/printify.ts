@@ -13,7 +13,7 @@ function getPrintifyApiKey(): string {
 
 // Get Printify Shop ID - fallback for Cloud Functions environment
 function getPrintifyShopId(): string {
-  return (process.env.PRINTIFY_SHOP_ID || '19642701').trim();
+  return (process.env.PRINTIFY_SHOP_ID || '').trim();
 }
 
 interface PrintifyOrderAddress {
@@ -208,6 +208,9 @@ async function submitOrderToPrintify(
       return { success: false, error: 'Order not found' };
     }
     const order = orderDoc.data()!;
+    if (order.routedProvider !== 'printify' || !order.paymentVerifiedAt || order.paymentStatus !== 'paid') {
+      return { success: false, error: 'Printify requires a verified paid order explicitly routed to Printify.' };
+    }
 
     // Check if already submitted
     if (order.printifyOrderId) {
@@ -331,4 +334,3 @@ async function checkPrintifyOrderStatus(printifyOrderId: string): Promise<{
 
   export { printifyClient, PrintifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE };
   export type { PrintifyOrderAddress, PrintifyOrderLineItem, CreatePrintifyOrderRequest, ShippingAddress };
-  

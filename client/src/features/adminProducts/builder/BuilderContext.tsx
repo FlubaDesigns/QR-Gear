@@ -108,7 +108,7 @@ const initialState: BuilderState = {
   loadedTemplate: null,
   loadedGraphic: null,
   loadedBackground: null,
-  fulfillmentProvider: "printify",
+  fulfillmentProvider: null,
   category: "T-Shirts",
   originFilter: { showUSA: true, showOther: false },
   genderFilter: "mens",
@@ -179,7 +179,7 @@ function getProviderLayout(product: CatalogProduct | null, placementId?: string)
 }
 
 export function BuilderProvider({ children }: BuilderProviderProps) {
-  const { api, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
+  const { api, selectedProviders, preferredProvider, selectedRole, selectedStore, selectedChannel, selectedCollection, setSelectedProviders, setSelectedRole, setSelectedStore, setSelectedChannel, setSelectedCollection } = useProductsContext();
   const [state, setState] = useState<BuilderState>(initialState);
   const queryClient = useQueryClient();
   const preferredQRTypeRef = useRef<QRProductState>(DEFAULT_QR_PRODUCT_STATE);
@@ -220,7 +220,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   const cachedAuthHeadersRef = useRef<Record<string, string> | null>(null);
   const flushSaveRef = useRef<(() => void) | null>(null);
   // Stable ref so fetchOptionsForProduct (useCallback with [] deps) always reads the latest provider
-  const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || 'printify');
+  const fulfillmentProviderRef = useRef<string>(state.fulfillmentProvider || '');
 
   // Selection ownership is shared by options loading and the session handoff.
   const selectionVersionRef = useRef(0);
@@ -284,7 +284,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   useEffect(() => {
-    const activeProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+    const activeProvider = selectedProviders[0] || null;
     setState(prev => {
       if (prev.fulfillmentProvider !== activeProvider) {
         return { ...prev, fulfillmentProvider: activeProvider };
@@ -295,7 +295,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   // Keep ref in sync so async fetch closures always read the current provider
   useEffect(() => {
-    fulfillmentProviderRef.current = state.fulfillmentProvider || 'printify';
+    fulfillmentProviderRef.current = state.fulfillmentProvider || '';
   }, [state.fulfillmentProvider]);
 
   useEffect(() => {
@@ -578,7 +578,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
     }
 
     // Resolve which provider to query.
-    // Priority: product's own fulfillmentProvider > global ref > 'printify' default.
+    // Priority: product's saved provider, then the explicit current selection.
     //
     // WHY product-first: setSelectedProviders(['printful']) and selectProduct() are called
     // synchronously in handleCardSelect. The state update from setSelectedProviders must
@@ -593,7 +593,11 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         : null;
     const provider =
       productProvider ||
-      (!rawProvider || rawProvider === 'both' ? 'printify' : rawProvider);
+      (rawProvider === 'both' ? '' : rawProvider);
+    if (provider !== 'printful' && provider !== 'printify') {
+      setState(prev => ({ ...prev, placementsLoading: false, placementsError: 'Choose a fulfillment provider before loading product options.' }));
+      return;
+    }
     adminFetch<any>(`/master-catalog/products/${docId}/options?provider=${encodeURIComponent(provider)}${refreshPrintSpecs ? '&refreshPrintSpecs=true' : ''}${product.catalogId && product.catalogId !== "all" ? `&catalogId=${encodeURIComponent(product.catalogId)}` : ""}`)
       .then(options => {
         setState(prev => {
@@ -984,11 +988,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
       ++selectionVersionRef.current;
       ++optionsVersionRef.current;
       qrTypeChosenOrRestoredRef.current = false;
-      setState({ ...initialState, qrProductState: preferredQRTypeRef.current, fulfillmentProvider: selectedProviders[0] || 'printify', forceNewSession: true });
+      setSelectedProviders(preferredProvider ? [preferredProvider] : []);
+      setState({ ...initialState, qrProductState: preferredQRTypeRef.current, fulfillmentProvider: preferredProvider || null, forceNewSession: true });
       setAutoSaveFailed(false);
       setAutoSaveError(null);
     });
-  }, [switchBuild, selectedProviders]);
+  }, [switchBuild, preferredProvider, setSelectedProviders]);
 
   const resumeSession = useCallback(async (id: string) => {
     await switchBuild('Opening saved build…', async () => {

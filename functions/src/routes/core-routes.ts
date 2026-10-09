@@ -1,3 +1,4 @@
+import { resolveSaleItem } from '../services/order-fulfillment';
 import { registerStoreProductRoutes } from "../services/store-products";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -121,70 +122,10 @@ app.get('/cart', requireAuth, async (req: Request, res: Response): Promise<void>
 app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user.uid;
-    const { customization, quantity, price: clientPrice } = req.body;
-
-    const productId = customization?.productId;
-    if (!productId) {
-      res.status(400).json({ error: 'Product ID is required' });
-      return;
-    }
-
-    // ── Resolve authoritative price ───────────────────────────────────────
-    // New store products use admin_catalog_instances (linkId/instanceId).
-    // Old products use the products collection.
-    // The add-to-cart endpoint already validated the price — trust it when
-    // a catalog instance is involved, falling back to old pricing logic.
-    let authoritativePrice: number | null = null;
-
-    // Path 1: catalog instance (new store system)
-    const instanceId = customization?.instanceId || customization?.linkId || productId;
-    const instanceDoc = await db.collection('admin_catalog_instances').doc(instanceId).get();
-    if (instanceDoc.exists) {
-      const d = instanceDoc.data()!;
-      authoritativePrice = d.resolved?.pricing?.customerPrice ?? null;
-
-      // If not on the instance, check the packet
-      if ((authoritativePrice === null || authoritativePrice <= 0) && d.currentPacketId) {
-        try {
-          const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
-          if (pDoc.exists) {
-            const pkt = pDoc.data()!;
-            authoritativePrice = pkt.pricing?.customerPrice ?? null;
-          }
-        } catch (_) {}
-      }
-
-      // Last resort: trust the already-validated price from the add-to-cart step
-      if ((authoritativePrice === null || authoritativePrice <= 0) && clientPrice) {
-        authoritativePrice = parseFloat(String(clientPrice));
-      }
-    }
-
-    // Path 2: legacy products collection (old builder flow)
-    if (authoritativePrice === null || authoritativePrice <= 0) {
-      const pricingInput: CustomizationPricing = {
-        productId,
-        productLine: customization?.productLine || 'text',
-        hasTextAbove: customization?.hasTextAbove || false,
-        hasTextBelow: customization?.hasTextBelow || false,
-        templateId: customization?.templateId,
-        hostingTierCode: customization?.hostingTierCode || customization?.dynamicHostingTier || '1_year',
-      };
-      authoritativePrice = await calculateAuthoritativePrice(pricingInput);
-    }
-
-    if (authoritativePrice === null || authoritativePrice <= 0) {
-      res.status(400).json({ error: 'Product not found or has no valid price' });
-      return;
-    }
-
-    const cartItem = {
-      customization,
-      quantity: quantity || 1,
-      price: (Math.round(authoritativePrice * 100) / 100).toString(),
-      userId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp()
-    };
+    const { customization, quantity = 1 } = req.body;
+    const resolved = await resolveSaleItem({ customization, quantity });
+    const cartItem = { customization: { ...customization, ...resolved.customization }, productId: resolved.productId,
+      quantity: resolved.quantity, price: resolved.price, userId, createdAt: admin.firestore.FieldValue.serverTimestamp() };
 
     const docRef = await db.collection('cartItems').add(cartItem);
     const doc = await docRef.get();
@@ -197,7 +138,10 @@ app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void
 app.put('/cart/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { quantity } = req.body;
-    await db.collection('cartItems').doc(req.params.id).update({ quantity });
+    if (!Number.isSafeInteger(quantity) || quantity <= 0) { res.status(400).json({ error: 'Choose a positive whole-number quantity.' }); return; }
+    const current = await db.collection('cartItems').doc(req.params.id).get();
+    if (!current.exists || current.data()?.userId !== (req as any).user.uid) { res.status(404).json({ error: 'Cart item not found' }); return; }
+    await current.ref.update({ quantity });
     const doc = await db.collection('cartItems').doc(req.params.id).get();
     res.json(docToObject(doc));
   } catch (error: any) {
@@ -207,7 +151,9 @@ app.put('/cart/:id', requireAuth, async (req: Request, res: Response): Promise<v
 
 app.delete('/cart/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('cartItems').doc(req.params.id).delete();
+    const current = await db.collection('cartItems').doc(req.params.id).get();
+    if (!current.exists || current.data()?.userId !== (req as any).user.uid) { res.status(404).json({ error: 'Cart item not found' }); return; }
+    await current.ref.delete();
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -234,27 +180,15 @@ app.get('/orders/:id', requireAuth, async (req: Request, res: Response): Promise
       res.status(404).json({ error: 'Order not found' });
       return;
     }
+    if (doc.data()?.userId !== (req as any).user.uid) { res.status(403).json({ error: 'This order belongs to another account.' }); return; }
     res.json(docToObject(doc));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/orders', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req as any).user.uid;
-    const docRef = await db.collection('orders').add({
-      ...req.body,
-      userId,
-      status: 'pending',
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    const doc = await docRef.get();
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+app.post('/orders', requireAuth, async (_req: Request, res: Response): Promise<void> => {
+  res.status(409).json({ error: 'Orders are created by checkout after server-side product validation.' });
 });
 
 app.get('/qr-templates', async (_req: Request, res: Response): Promise<void> => {
