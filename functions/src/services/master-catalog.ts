@@ -1,3 +1,4 @@
+import { selectQrgPrintfulVariants } from './qrg-print-specs';
 import { db } from '../core';
 import { safeAssign, safeAssignRequired } from '../safeAssign';
 import { mergeImagesByUrl, ImageRecord } from './instance-resolver';
@@ -632,18 +633,18 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
 
     // Printful variant records (most precise size+color data)
     if (matchedPrintful && pfId !== null) {
-      for (const v of (variantsByPrintfulId.get(pfId) || [])) {
+      for (const v of selectQrgPrintfulVariants(variantsByPrintfulId.get(pfId) || [], currentDoc?.qrgVariants)) {
         const sizeCode = getQrgSizeCode(v.size || '');
         const colorCode = getQrgColorCode(v.color || '');
         if (!sizeCode) { if (v.size) unmappedSizes.add(v.size); continue; }
         if (!colorCode) { if (v.color) unmappedColors.add(v.color); continue; }
-        const vc = `${sizeCode}${colorCode}`;
+        const vc = `${sizeCode.slice(-2)}${colorCode}`;
         if (!qrgVariants[vc]) {
-          qrgVariants[vc] = { sizeCode, colorCode, sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: (v.color || COLOR_LABELS[colorCode]) ?? colorCode, providerVariants: {}, availableVia: [] };
+          qrgVariants[vc] = { sizeCode: sizeCode.slice(-2), colorCode, sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: (v.color || COLOR_LABELS[colorCode]) ?? colorCode, providerVariants: {}, availableVia: [] };
         }
         qrgVariants[vc].providerVariants.printful = { variantId: String(v.id || v.variantId || ''), productId: String(pfId) };
         if (!qrgVariants[vc].availableVia.includes('printful')) qrgVariants[vc].availableVia.push('printful');
-        allSizeCodes.add(sizeCode);
+        allSizeCodes.add(sizeCode.slice(-2));
         allColorCodes.add(colorCode);
       }
     }
@@ -652,16 +653,16 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     for (const sizeStr of (Array.isArray(provider?.availableSizes) ? provider.availableSizes : [])) {
       const sizeCode = getQrgSizeCode(sizeStr);
       if (!sizeCode) { unmappedSizes.add(sizeStr); continue; }
-      allSizeCodes.add(sizeCode);
+      allSizeCodes.add(sizeCode.slice(-2));
       for (const colorObj of (Array.isArray(provider?.availableColors) ? provider.availableColors : [])) {
         const colorName = typeof colorObj === 'string' ? colorObj : (colorObj?.name || '');
         if (!colorName) continue;
         const colorCode = getQrgColorCode(colorName);
         if (!colorCode) { unmappedColors.add(colorName); continue; }
         allColorCodes.add(colorCode);
-        const vc = `${sizeCode}${colorCode}`;
+        const vc = `${sizeCode.slice(-2)}${colorCode}`;
         if (!qrgVariants[vc]) {
-          qrgVariants[vc] = { sizeCode, colorCode, sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: colorName, providerVariants: {}, availableVia: [] };
+          qrgVariants[vc] = { sizeCode: sizeCode.slice(-2), colorCode, sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: colorName, providerVariants: {}, availableVia: [] };
         }
         if (!qrgVariants[vc].providerVariants.printify) {
           qrgVariants[vc].providerVariants.printify = { blueprintId: String(blueprintId), printProviderId: String(provider?.providerId ?? '') };
@@ -780,17 +781,17 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     const pfUnmappedSizes = new Set<string>();
     const pfUnmappedColors = new Set<string>();
 
-    for (const v of (variantsByPrintfulId.get(pfId) || [])) {
+    for (const v of selectQrgPrintfulVariants(variantsByPrintfulId.get(pfId) || [], currentDoc?.qrgVariants)) {
       const sizeCode = getQrgSizeCode(v.size || '');
       const colorCode = getQrgColorCode(v.color || '');
       if (!sizeCode) { if (v.size) pfUnmappedSizes.add(v.size); continue; }
       if (!colorCode) { if (v.color) pfUnmappedColors.add(v.color); continue; }
-      const vc = `${sizeCode}${colorCode}`;
+      const vc = `${sizeCode.slice(-2)}${colorCode}`;
       if (!qrgVariantsPf[vc]) {
-        qrgVariantsPf[vc] = { sizeCode, colorCode, sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: (v.color || COLOR_LABELS[colorCode]) ?? colorCode, providerVariants: {}, availableVia: ['printful'] };
+        qrgVariantsPf[vc] = { sizeCode: sizeCode.slice(-2), colorCode, sizeLabel: SIZE_LABELS[sizeCode] ?? sizeCode, colorLabel: (v.color || COLOR_LABELS[colorCode]) ?? colorCode, providerVariants: {}, availableVia: ['printful'] };
       }
       qrgVariantsPf[vc].providerVariants.printful = { variantId: String(v.id || v.variantId || ''), productId: String(pfId) };
-      pfAllSizeCodes.add(sizeCode);
+      pfAllSizeCodes.add(sizeCode.slice(-2));
       pfAllColorCodes.add(colorCode);
     }
 
