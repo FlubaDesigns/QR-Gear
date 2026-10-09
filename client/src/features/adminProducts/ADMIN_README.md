@@ -1257,3 +1257,8 @@ Live field verification: every one of the 22 configured numeric controls saved z
 ### Main cleanup dependency scan — 2026-10-09
 
 The shared build-deletion service now limits concurrent database RPCs to eight, discovers nested website references without holding parent slots, and sorts records before generating the review token. A scan that cannot finish within 45 seconds returns an explicit 503 error; incomplete scans never authorize deletion. Reference tokens and owned file paths are extracted once per record to avoid repeated parsing of supplier histories for each asset. The deletion dialog cancels abandoned preview requests and shows the first failure without silently repeating long scans. Existing shared-asset retention and transaction-time impact revalidation remain required. Focused tests cover concurrency bounds, stable tokens, nested reference failures, timeouts, cancellation, and existing deletion protections. No bulk cleanup or payment-mode change is implied by deploying this code.
+
+
+### Main catalog browsing follow-up — 2026-10-09
+
+The live rerun found All Products filtering canonical API rows through obsolete supplier field names. Products now reads printfulId, blueprintId and printProviderId, retaining legacy aliases. Regression coverage uses the actual masterCatalogProduct projection and verifies category browsing and selection for each supplier. Finished products and their saved supplier/destination remain unchanged. The separately verified backed-up cleanup retained the 22 current templates, archived 18 obsolete templates and removed the unused invalid ASM/BLD pair, with all 22 product and packet records unchanged.

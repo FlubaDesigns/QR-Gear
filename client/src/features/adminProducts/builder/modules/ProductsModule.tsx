@@ -97,11 +97,10 @@ function getQrgDigits(docId: string | undefined): string {
 }
 
 // True when the item is stocked by the given provider.
-// printful: must have printfulProductId.
-// printify: must have both printifyBlueprintId and printifyProviderId.
+// Use the canonical master-catalog response fields, retaining legacy aliases.
 function providerStocksProduct(item: any, prov: string): boolean {
-  if (prov === "printful") return !!item.printfulProductId;
-  if (prov === "printify") return !!item.printifyBlueprintId && !!item.printifyProviderId;
+  if (prov === "printful") return !!(item.printfulId ?? item.printfulProductId);
+  if (prov === "printify") return !!(item.blueprintId ?? item.printifyBlueprintId) && !!(item.printProviderId ?? item.printifyProviderId);
   return false;
 }
 
