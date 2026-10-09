@@ -393,6 +393,16 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 9, 2026 — Product selection and saved default remain separate
+
+The product screen can choose a provider for the current build. Only **Use for new builds** changes the saved default; existing products retain their saved provider. Removed the catalog module's remaining implicit Printify browsing label when no provider is selected. Each setting and record must have one authoritative saved source, with derived displays rather than competing defaults.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `builder/modules/ProductsModule.tsx` | Prompt for provider selection instead of an implicit Printify browsing state |
+| `README.md`, `ADMIN_README.md` | Clarify per-product choice, default and single source of truth |
+
 ### October 9, 2026 — Reuse fulfillment selection and connect admin catalog orders
 
 The existing Products Fulfillment selector now remembers an explicitly saved preference. Admin catalog checkout freezes validated product/provider/price/artwork data before payment; verified Stripe delivery drives a retryable Printful handoff. The existing Orders screen exposes failures, submission retry and provider shipping sync. No duplicate fulfillment settings page was added. Partners and Members remain separate and deferred. See the root README section for the tested boundary and remaining Main release gates. Existing `orders`/`orderItems` collections are reused; no parallel order collection was introduced.

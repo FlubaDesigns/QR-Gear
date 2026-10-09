@@ -112,7 +112,7 @@ export function ProductsModule() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
-  const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+  const provider = selectedProviders[0] || "";
   const selectedCatalogId = state.selectedCatalogId;
 
   const [search, setSearch] = useState("");
@@ -804,6 +804,12 @@ export function ProductsModule() {
       );
     },
     [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, state.adminCatalogTitle, state.productDescription, handleImagesBulkSave]
+  );
+
+  if (!provider) return (
+    <p className="text-sm text-muted-foreground" data-testid="choose-product-provider">
+      Choose a fulfillment provider above to browse products.
+    </p>
   );
 
   const catalogLoadError = catalogsError || (dataMode === "joint" ? jointError : masterError);
