@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261009-main-sync-bundles-d916';
+const _BUILD_ID = '20261009-main-cart-map-order';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

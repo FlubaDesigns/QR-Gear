@@ -5,6 +5,7 @@ import { requireLiveCommerce } from '../runtime-config';
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { inspectGrfAsset } from '../../../shared/GRF_engine';
+import { detectPrintMethod } from '../../../shared/placements';
 import { normalizeSize } from '../../../shared/storefrontTypes';
 import { validatePacketComposition } from './assembly-store';
 import { getCatalogInstancePrice } from './pricing';
@@ -45,20 +46,18 @@ export async function resolveSaleItem(cart: any) {
   const files: PrintfulOrderFile[] = [];
   for (const placement of snapshot.layoutConfig.selectedPlacements) {
     const layout = snapshot.layoutConfig.providerLayouts?.[placement];
-    const spec = master.qrgPrintSpecs?.printful?.locations?.find((p: any) => p.id === placement && p.providerPlacementId === layout?.providerPlacementId);
+    const spec = master.qrgPrintSpecs?.printful?.locations?.find((p: any) => p.id === placement && p.provider === provider && typeof p.providerPlacementId === 'string' && typeof layout?.providerPlacementId === 'string' && detectPrintMethod(p.providerPlacementId) === detectPrintMethod(layout?.providerPlacementId || ''));
     const width = layout?.dimensions?.widthPx, height = layout?.dimensions?.heightPx;
-    if (layout?.provider !== provider || !spec?.verifiedVariantIds?.includes(Number(mapping.variantId)) || !(width > 0 && height > 0) || spec.dimensions.widthPx !== width || spec.dimensions.heightPx !== height || spec.dimensions.dpi !== layout.dimensions.dpi) throw new Error(`Refresh and regenerate the verified Printful print area for ${placement}.`);
+    const dpi = layout?.dimensions?.dpi, target = spec?.dimensions;
+    if (layout?.provider !== provider || !spec?.verifiedVariantIds?.includes(Number(mapping.variantId)) || !(width > 0 && height > 0 && dpi > 0 && target?.dpi > 0) || width / dpi !== target.widthPx / target.dpi || height / dpi !== target.heightPx / target.dpi || dpi < target.dpi) throw new Error(`Refresh and regenerate the verified Printful print area for ${placement}.`);
     const grfId = packet.placementGrfIds?.[placement];
     const asset = grfId ? (await db.collection('grf_assets').doc(grfId).get()).data() : null;
     const url = packet.placementGraphicUrls?.[placement];
     if (!asset || asset.isActive === false || inspectGrfAsset(asset).length || asset.grfId !== grfId || asset.publicUrl !== url || !/^https:\/\//.test(url)) throw new Error(`Registered print artwork is missing for ${placement}.`);
-    if (files.some(file => file.type === layout.providerPlacementId)) throw new Error('Multiple files target the same print area.');
-    files.push({ type: layout.providerPlacementId, url, position: { area_width: width, area_height: height, width, height, top: 0, left: 0 } });
+    if (files.some(file => file.type === spec.providerPlacementId)) throw new Error('Multiple files target the same print area.');
+    files.push({ type: spec.providerPlacementId, url, position: { area_width: target.widthPx, area_height: target.heightPx, width: target.widthPx, height: target.heightPx, top: 0, left: 0 } });
   }
   if (!files.length) throw new Error('Product has no production artwork.');
-  const pricing = (await db.collection('testSettings').doc('pricing').get()).data();
-  const upcharge = pricing?.sizeUpcharges?.[normalizeSize(size)];
-  if (upcharge == null || !Number.isFinite(Number(upcharge)) || Number(upcharge) < 0) throw new Error('Save the selected size upcharge in Admin Pricing before selling this product.');
   const price = await getCatalogInstancePrice(instanceId, size);
   if (price === null || !Number.isFinite(price) || price <= 0) throw new Error('Product has no saved sale price.');
   const unitAmount = Math.round(price * 100);

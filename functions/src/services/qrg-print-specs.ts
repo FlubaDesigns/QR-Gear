@@ -1,4 +1,45 @@
+import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
+import { printfulClient } from './printful';
 import { normalizePlacement, isEmbroideryPlacement } from '../../../shared/placements';
+
+
+/** One supplier row per existing SSCC identity. Never let an alias overwrite the
+ * canonical color, or pair one color label with a different supplier variant. */
+export function selectQrgPrintfulVariants(rows: any[], existing: any = {}) {
+  const groups = new Map<string, any[]>(), unmapped: any[] = [];
+  for (const row of rows) {
+    const size = getQrgSizeCode(row.size || ''), color = getQrgColorCode(row.color || '');
+    if (!size || !color) { unmapped.push(row); continue; }
+    const key = size.slice(-2) + color;
+    groups.set(key, [...(groups.get(key) || []), row]);
+  }
+  const norm = (value: string) => String(value || '').trim().toLowerCase();
+  return [...groups.entries()].map(([key, values]) => {
+    const canonical = COLOR_LABELS[key.slice(-2)], previous = existing[key]?.colorLabel;
+    const rank = (row: any) => norm(row.color) === norm(canonical) ? 0 : previous && norm(row.color) === norm(previous) ? 1 : 2;
+    return values.sort((a, b) => rank(a) - rank(b) || String(a.color).localeCompare(String(b.color)) || Number(a.id || a.variantId) - Number(b.id || b.variantId))[0];
+  }).concat(unmapped);
+}
+
+async function refreshQrgVariants(product: any, productId: number) {
+  const detail = await printfulClient.getProduct(productId);
+  if (Number(detail.product?.id) !== productId || !detail.variants?.length) throw new Error('QRG supplier refresh returned the wrong or empty product.');
+  const selected = selectQrgPrintfulVariants(detail.variants, product.qrgVariants).filter(row => getQrgSizeCode(row.size) && getQrgColorCode(row.color));
+  if (!selected.length) throw new Error('QRG supplier refresh has no recognized variants.');
+  const variants: Record<string, any> = {};
+  for (const [key, row] of Object.entries(product.qrgVariants || {}) as [string, any][]) {
+    const { printful, ...providers } = row.providerVariants || {};
+    if (Object.keys(providers).length) variants[key] = { ...row, providerVariants: providers, availableVia: (row.availableVia || []).filter((p: string) => p !== 'printful') };
+  }
+  for (const row of selected) {
+    const size = getQrgSizeCode(row.size)!, color = getQrgColorCode(row.color)!, key = size.slice(-2) + color;
+    if (!Number.isSafeInteger(Number(row.id)) || Number(row.id) <= 0) throw new Error('QRG supplier variant ID is invalid.');
+    variants[key] = { ...variants[key], sizeCode: size.slice(-2), colorCode: color, sizeLabel: SIZE_LABELS[size], colorLabel: row.color,
+      providerVariants: { ...variants[key]?.providerVariants, printful: { productId: String(productId), variantId: String(row.id) } },
+      availableVia: [...new Set([...(variants[key]?.availableVia || []), 'printful'])] };
+  }
+  product.qrgVariants = variants;
+}
 
 /** QRG owns supplier imports; callers consume only this normalized QRG projection. */
 export function qrgPrintfulProductId(product: any): number | null {
@@ -42,11 +83,12 @@ export function projectQrgPrintfiles(product: any, data: any) {
 export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles: (id: number) => Promise<any>, refresh = false) {
   const productId = qrgPrintfulProductId(product);
   if (!productId) throw new Error('QRG is missing its printer product mapping.');
+  if (refresh) await refreshQrgVariants(product, productId);
   const cache = product.qrgPrintSpecs?.printful;
   const variantIds = [...new Set(Object.values(product.qrgVariants || {}).map((v: any) => Number(v.providerVariants?.printful?.variantId)).filter(n => n > 0))].sort((a,b) => a-b);
   if (!refresh && cache?.productId === productId && cache?.locations?.length &&
       JSON.stringify(cache.variantIds) === JSON.stringify(variantIds)) return cache.locations;
   const locations = projectQrgPrintfiles(product, await getPrintfiles(productId));
-  await ref.update({ 'qrgPrintSpecs.printful': { productId, variantIds, locations, checkedAt: new Date().toISOString() } });
+  await ref.update({ ...(refresh ? { qrgVariants: product.qrgVariants } : {}), 'qrgPrintSpecs.printful': { productId, variantIds, locations, checkedAt: new Date().toISOString() } });
   return locations;
 }

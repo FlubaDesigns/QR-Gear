@@ -2,6 +2,7 @@ import { resolveBuildDestination } from './build-destination';
 import { decodeLibraryImage } from './image-validation';
 import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { createHash } from 'crypto';
+import { isDeepStrictEqual } from 'util';
 import { prepareAssemblyDefinition } from './assembly-records';
 import { inspectComposition, transactionReader } from './composition-validation';
 import { toProviderPlacement } from '../../../shared/placements';
@@ -42,7 +43,7 @@ export async function createAutoAssembly(db: Firestore, now: () => unknown, opts
     const existingId = packetDoc?.data()?.assemblyId;
     if (existingId) {
       const existing = (await tx.get(db.collection('assemblies').doc(existingId))).data();
-      if (!existing || existing.assemblyId !== existingId || !existing.packetIds?.includes(opts.packetId) || existing.bldId !== opts.bldId || existing.qrgId !== opts.qrgId || JSON.stringify(existing.mappings) !== JSON.stringify(mappings)) throw new Error('Packet already has a different Assembly. Generate a new packet for edited content.');
+      if (!existing || existing.assemblyId !== existingId || !existing.packetIds?.includes(opts.packetId) || existing.bldId !== opts.bldId || existing.qrgId !== opts.qrgId || !isDeepStrictEqual(existing.mappings, mappings)) throw new Error('Packet already has a different Assembly. Generate a new packet for edited content.');
       return { assemblyId: existingId, sequence: existing.sequence, mappingCount: mappings.length };
     }
     const prepared = await prepareAssemblyDefinition(db, tx, now, { ...opts, mappings,
@@ -80,7 +81,7 @@ export async function validatePacketContent(db: Firestore, packet: Record<string
   const qrPayloadHash = createHash('sha256').update(String(packet.qrContent || '').trim()).digest('hex');
   if (assets[packet.qrGrfId]?.qrPayloadHash !== qrPayloadHash) throw new Error('QR payload differs from the registered graphic. Generate the packet again.');
   const expected = extractAssemblyMappings(snapshot, packet);
-  if (JSON.stringify(expected) !== JSON.stringify(asm.mappings)) throw new Error('Assembly content differs from the generated packet. Regenerate it.');
+  if (!isDeepStrictEqual(expected, asm.mappings)) throw new Error('Assembly content differs from the generated packet. Regenerate it.');
   for (const layer of extractBuilderLayers(snapshot)) if (layer.imageUrl && layer.assetKey) {
     const asset = assets[packet[layer.assetKey]];
     let matches = [asset?.sourceUrl, asset?.publicUrl].includes(layer.imageUrl);
