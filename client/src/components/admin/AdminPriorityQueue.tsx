@@ -64,12 +64,15 @@ function QueueCard({ item }: { item: QueueItem }) {
   const [, navigate] = useLocation();
   const cfg = PRIORITY_CONFIG[item.priority];
   const Icon = cfg.icon;
+  const external = item.href.startsWith('https://');
 
   return (
-    <button
-      type="button"
+    <a
+      href={item.href}
+      target={external ? '_blank' : undefined}
+      rel={external ? 'noopener noreferrer' : undefined}
       className="w-full min-h-[64px] text-left flex items-start gap-3 p-3 rounded-md bg-card border border-border hover-elevate active-elevate-2 cursor-pointer"
-      onClick={() => navigate(item.href)}
+      onClick={event => { if (!external) { event.preventDefault(); navigate(item.href); } }}
       data-testid={`queue-item-${item.id}`}
     >
       <span className={`mt-0.5 h-2 w-2 rounded-full flex-shrink-0 ${cfg.dotClass}`} />
@@ -93,7 +96,7 @@ function QueueCard({ item }: { item: QueueItem }) {
           {CATEGORY_LABELS[item.category]}
         </span>
       </span>
-    </button>
+    </a>
   );
 }
 

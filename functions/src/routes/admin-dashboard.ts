@@ -33,14 +33,15 @@ async function buildQueue(): Promise<QueueItem[]> {
     // 1. Stripe Connect — check if live secret key is set
     (async () => {
       const key = process.env.STRIPE_SECRET_KEY || '';
-      if (!key || key.startsWith('sk_test_') || key === '') {
+      const publicKey = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
+      if (!/^(sk|rk)_live_/.test(key) || !publicKey.startsWith('pk_live_') || !process.env.STRIPE_WEBHOOK_SECRET) {
         items.push({
           id: 'stripe-not-live',
-          title: 'Stripe not in live mode',
-          reason: key ? 'Secret key is test mode — switch to live keys before accepting real payments' : 'No Stripe secret key configured',
+          title: 'Fix Stripe',
+          reason: 'Open the QR Gear account in Stripe. Configure live payment keys and the checkout webhook, then verify checkout before accepting real payments.',
           priority: 'critical',
           category: 'banking',
-          href: '/admin/settings',
+          href: 'https://dashboard.stripe.com/apikeys',
         });
       }
     })(),
