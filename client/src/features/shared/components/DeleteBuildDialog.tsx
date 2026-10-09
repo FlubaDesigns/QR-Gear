@@ -13,7 +13,8 @@ export function DeleteBuildDialog({ target, onClose, onDeleted }: { target: Buil
   const { toast } = useToast();
   const client = useQueryClient();
   const preview = useQuery({ queryKey: ['admin', 'graphics', 'deletion-preview', target], enabled: !!target,
-    queryFn: () => adminFetch<Preview>(`/${target!.kind}/${target!.id}/deletion-preview`), refetchOnMount: 'always' });
+    queryFn: ({ signal }) => adminFetch<Preview>(`/${target!.kind}/${target!.id}/deletion-preview`, { signal }),
+    retry: false, refetchOnMount: 'always' });
   const deletion = useMutation({
     mutationFn: () => adminFetch<Result>(`/${target!.kind}/${target!.id}`, { method: 'DELETE', json: { token: preview.data!.token } }),
     onSuccess: result => {
