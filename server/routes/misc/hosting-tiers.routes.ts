@@ -1,3 +1,5 @@
+import {readHostingTiers,changeHostingTier} from '../../../functions/src/services/hosting-tiers';
+import {getFirestoreDb} from '../../lib/firebase-admin';
 import type { Express } from "express";
 import { storage } from "../../storage";
 import { isAdmin } from "../../firebaseAuth";
@@ -6,40 +8,8 @@ import { CHANNEL_ITEMS_COLLECTION } from "../../lib/constants";
 
 export function registerHostingTiersRoutes(app: Express): void {
 
-  app.get("/api/hosting-tiers", async (req, res) => {
-    try {
-      const tiers = await storage.getHostingTiers();
-      res.json(tiers);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/admin/hosting-tiers/seed", isAdmin, async (req, res) => {
-    try {
-      const existingTiers = await storage.getHostingTiers();
-      if (existingTiers.length > 0) {
-        return res.json({ message: "Hosting tiers already exist", tiers: existingTiers });
-      }
-
-      const defaultTiers = [
-        { code: "1_year", name: "1 Year", description: "Standard hosting", durationDays: 365, isIncluded: false, priceUpcharge: "5", sortOrder: 1 },
-        { code: "2_year", name: "2 Years", description: "Save with 2-year commitment", durationDays: 730, isIncluded: false, priceUpcharge: "8", sortOrder: 2 },
-        { code: "3_year", name: "3 Years", description: "Best value - 3-year hosting", durationDays: 1095, isIncluded: false, priceUpcharge: "10", sortOrder: 3 },
-      ];
-
-      const createdTiers = [];
-      for (const tier of defaultTiers) {
-        const created = await storage.createHostingTier(tier);
-        createdTiers.push(created);
-      }
-
-      res.json({ message: "Default hosting tiers created", tiers: createdTiers });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
+  app.get('/api/hosting-tiers',async(_req,res)=>{try{res.json(await readHostingTiers(getFirestoreDb()));}catch(e:any){res.status(500).json({error:e.message});}});
+  app.post('/api/admin/hosting-tiers/seed',isAdmin,(_req,res)=>{res.status(409).json({error:'Use the saved hosting tiers in Admin Pricing.'});});
   app.post("/api/admin/channel-items/seed", isAdmin, async (req: any, res) => {
     try {
       const { channelId } = req.body;
@@ -140,74 +110,8 @@ export function registerHostingTiersRoutes(app: Express): void {
     }
   });
 
-  app.put("/api/admin/hosting-tiers/:id", isAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const updateSchema = z.object({
-        name: z.string().optional(),
-        description: z.string().nullable().optional(),
-        durationDays: z.number().optional(),
-        priceUpcharge: z.string().optional(),
-        isIncluded: z.boolean().optional(),
-        isActive: z.boolean().optional(),
-        sortOrder: z.number().optional(),
-      });
-      
-      const validatedData = updateSchema.parse(req.body);
-      const updated = await storage.updateHostingTier(id, validatedData);
-      
-      if (!updated) {
-        return res.status(404).json({ error: "Hosting tier not found" });
-      }
-      
-      res.json(updated);
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
-      }
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/admin/hosting-tiers", isAdmin, async (req, res) => {
-    try {
-      const tiers = await storage.getHostingTiers();
-      res.json(tiers);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/admin/hosting-tiers", isAdmin, async (req, res) => {
-    try {
-      const createSchema = z.object({
-        code: z.string().min(1),
-        name: z.string().min(1),
-        description: z.string().nullable().optional(),
-        durationDays: z.number().min(1),
-        priceUpcharge: z.string().optional().default("0"),
-        isIncluded: z.boolean().optional().default(false),
-        isActive: z.boolean().optional().default(true),
-        sortOrder: z.number().optional().default(0),
-      });
-      const validated = createSchema.parse(req.body);
-      const tier = await storage.createHostingTier(validated);
-      res.json(tier);
-    } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: error.errors });
-      }
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.delete("/api/admin/hosting-tiers/:id", isAdmin, async (req, res) => {
-    try {
-      const { id } = req.params;
-      await storage.deleteHostingTier(id);
-      res.json({ success: true });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
+  app.get('/api/admin/hosting-tiers',isAdmin,async(_req,res)=>{try{res.json(await readHostingTiers(getFirestoreDb()));}catch(e:any){res.status(500).json({error:e.message});}});
+  for(const method of ['post','put','delete'] as const)app[method](method==='post'?'/api/admin/hosting-tiers':'/api/admin/hosting-tiers/:id',isAdmin,async(req,res)=>{
+    try{res.json(await changeHostingTier(getFirestoreDb(),method.toUpperCase(),req.params.id,req.body));}catch(e:any){res.status(e.status||400).json({error:e.message});}
   });
 }

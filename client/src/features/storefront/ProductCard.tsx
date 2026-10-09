@@ -15,17 +15,16 @@ export const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: stri
 
 export function StoreProductCard({ product }: { product: StoreProduct }) {
   const href = `/shop/product/${product.id}`;
-  // Always use gallery logic so lifestyle/model shot leads; QR graphic never appears first
-  const gallery = buildProductGallery(product as any);
-  const heroImage = gallery[0]?.url ?? product.imageUrl;
+  // Use the same saved default color and gallery order as the product page.
+  const gallery = buildProductGallery(product, product.defaultColor);
+  const heroImage = gallery[0]?.url || product.imageUrl;
   const heroType = gallery[0]?.type ?? 'mockup';
-  const hasMockup = !!(product as any).packetImageUrl;
   const typeInfo = product.qrProductType ? QR_PRODUCT_TYPE_LABELS[product.qrProductType] : null;
 
   return (
     <Link href={href}>
       <Card
-        className="h-full flex flex-col cursor-pointer hover-elevate group"
+        className="h-full min-w-0 overflow-hidden flex flex-col cursor-pointer hover-elevate group"
         data-testid={`card-product-${product.id}`}
       >
         <div className="aspect-square relative bg-muted overflow-hidden">
@@ -33,7 +32,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
             <img
               src={heroImage}
               alt={product.name}
-              className={`w-full h-full transition-transform duration-300 group-hover:scale-105 ${heroType === 'lifestyle' ? 'object-cover' : 'object-contain'}`}
+              className={`w-full h-full transition-transform duration-300 group-hover:scale-105 ${(heroType === 'lifestyle' || heroType === 'mockup') ? 'object-cover' : 'object-contain'}`}
               data-testid={`img-product-${product.id}`}
             />
           ) : (
@@ -61,7 +60,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
         <CardContent className="flex-1 p-3 flex flex-col gap-1.5">
           <div className="flex-1">
             <h3
-              className="font-semibold text-base leading-snug line-clamp-2"
+              className="font-sans normal-case tracking-normal font-semibold text-sm sm:text-base leading-snug break-words"
               data-testid={`text-product-name-${product.id}`}
             >
               {product.name}
@@ -75,7 +74,7 @@ export function StoreProductCard({ product }: { product: StoreProduct }) {
             <div className="flex flex-wrap items-center gap-2 mt-1.5">
               {product.price != null && product.price > 0 && (
                 <span
-                  className="text-xl font-bold text-emerald-500"
+                  className="text-lg sm:text-xl font-bold text-emerald-500"
                   data-testid={`text-price-${product.id}`}
                 >
                   ${product.price.toFixed(2)}

@@ -5,29 +5,26 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Search, Filter, Flag, Globe, X, Layers, ArrowRight } from "lucide-react";
-import { AdminCatalogBlankSkin } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
+import { Search, Filter, Flag, Globe, X } from "lucide-react";
 import { BlankPickerRowSkin } from "@/features/shared/components/skins/BlankPickerRowSkin";
 import {
   useAdminBlanksController,
   type LocationFilter,
 } from "@/features/adminProducts/controllers/useAdminBlanksController";
-import type { TierValue } from "@/features/shared/components/skins/ProductSelectCardSkin";
 
 interface BlankPickerModalProps {
+  targetCatalogId: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => void }) {
+function BlankPickerInner({ targetCatalogId, onOpenChange }: Pick<BlankPickerModalProps, "targetCatalogId" | "onOpenChange">) {
   const {
-    loadingCatalog,
+    loadingCatalog, loadError, reload, addBlanksMutation,
     catalogs,
     activeCatalog,
     hasCatalogSelected,
     selectedCatalogId,
-    setSelectedCatalogId,
     sourceCatalogId,
     setSourceCatalogId,
     search,
@@ -37,16 +34,12 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
     scrollItems,
     sourceItemMap,
     onAddToCatalog,
-    onTierChange,
     catalogBlankSet,
-    catalogItems,
-    removeBlanksMutation,
     allProductMap,
     resolveBlankKey,
-    blankTiers,
     filteredCount,
     totalProductCount,
-  } = useAdminBlanksController();
+  } = useAdminBlanksController({ targetCatalogId });
 
   const validTargetId = hasCatalogSelected ? selectedCatalogId : null;
   const targetName = activeCatalog?.name ?? "catalog";
@@ -56,27 +49,24 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
       const id = String(scrollItem.id);
       const selectItem = sourceItemMap.get(id);
       if (!selectItem) return null;
-      const product = allProductMap.get(id) || allProductMap.get(`pf:${id}`);
+      const product = allProductMap.get(id);
       const blankKey = product ? resolveBlankKey(id, product) : id;
       const inTarget = catalogBlankSet.has(blankKey);
-      const itemTier = (blankTiers[blankKey] as TierValue) || null;
 
       return (
         <BlankPickerRowSkin
           key={id}
-          item={selectItem as any}
+          item={selectItem}
           isSelected={inTarget}
-          onSelect={() => { if (validTargetId && !inTarget) onAddToCatalog(blankKey); }}
-          tier={itemTier}
-          onTierChange={validTargetId ? (tier) => onTierChange(blankKey, tier) : undefined}
-          showTierControls={!!validTargetId && inTarget}
+          selectDisabled={!validTargetId || addBlanksMutation.isPending}
+          onSelect={() => { if (validTargetId && !inTarget && !addBlanksMutation.isPending) onAddToCatalog(blankKey); }}
           selectLabel={validTargetId ? "Add" : undefined}
           selectedLabel={validTargetId ? "Added" : undefined}
           disableWhenSelected={!!validTargetId}
         />
       );
     },
-    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, onTierChange, validTargetId, targetName, resolveBlankKey, blankTiers]
+    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, validTargetId, resolveBlankKey, addBlanksMutation.isPending]
   );
 
   return (
@@ -89,39 +79,19 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
 
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0">
-        <DialogTitle className="text-base font-semibold">Add Blank to Catalog</DialogTitle>
-        <Button size="icon" variant="ghost" onClick={() => onOpenChange(false)} data-testid="modal-blank-picker-close">
+        <Button size="icon" className="h-12 w-12" aria-label="Close blank picker" variant="ghost" onClick={() => onOpenChange(false)} data-testid="modal-blank-picker-close">
           <X className="h-4 w-4" />
         </Button>
+        <DialogTitle className="text-base font-semibold">Add Blank to {targetName}</DialogTitle>
       </div>
 
       {/* Scrollable body — everything scrolls together */}
       <div className="flex-1 overflow-y-auto overscroll-contain">
         <div className="p-4 space-y-4">
 
-          {/* Source / Target selectors */}
+          {/* Destination comes from Products; only the source is selected here. */}
           {catalogs.length > 0 && (
             <div className="space-y-3">
-              <div className="space-y-1.5">
-                <p className="text-sm font-medium text-muted-foreground">Adding to:</p>
-                <select
-                  value={selectedCatalogId || ""}
-                  onChange={e => setSelectedCatalogId(e.target.value || null)}
-                  className="w-full text-sm bg-background border rounded-md px-3 py-2.5"
-                  data-testid="modal-select-target-catalog"
-                >
-                  <option value="">Select a catalog…</option>
-                  {catalogs.map(cat => (
-                    <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0})</option>
-                  ))}
-                </select>
-                {validTargetId && (
-                  <p className="text-xs text-muted-foreground">
-                    {catalogBlankSet.size} blank{catalogBlankSet.size !== 1 ? "s" : ""} in this catalog
-                  </p>
-                )}
-              </div>
-
               <div className="space-y-1.5">
                 <p className="text-sm font-medium text-muted-foreground">Browse from:</p>
                 <select
@@ -131,47 +101,12 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
                   data-testid="modal-select-source-catalog"
                 >
                   <option value="">All Products</option>
-                  {catalogs.map(cat => (
+                  {catalogs.filter(cat => cat.id !== targetCatalogId).map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name} ({cat.blankIds?.length || 0})</option>
                   ))}
                 </select>
               </div>
             </div>
-          )}
-
-          {/* No target hint */}
-          {!validTargetId && catalogs.length > 0 && (
-            <div className="flex items-center gap-2 p-3 rounded-md border bg-muted/30 text-sm text-muted-foreground">
-              <ArrowRight className="h-4 w-4 shrink-0" />
-              Select a target catalog above to start adding blanks.
-            </div>
-          )}
-
-          {/* Target catalog strip */}
-          {validTargetId && activeCatalog && catalogItems.length > 0 && (
-            <Card className="border-primary/30 bg-primary/5 p-3 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Layers className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold">{activeCatalog.name}</span>
-                <Badge variant="secondary" className="text-xs">{catalogItems.length} blank{catalogItems.length !== 1 ? "s" : ""}</Badge>
-              </div>
-              <ScrollArea className="w-full">
-                <div className="flex gap-2 pb-2">
-                  {catalogItems.map(item => (
-                    <AdminCatalogBlankSkin
-                      key={item.catalogKey}
-                      item={item}
-                      onRemove={key => {
-                        if (!validTargetId) return;
-                        removeBlanksMutation.mutate({ catalogId: validTargetId, blankIds: [key] });
-                      }}
-                      removing={removeBlanksMutation.isPending}
-                    />
-                  ))}
-                </div>
-                <ScrollBar orientation="horizontal" />
-              </ScrollArea>
-            </Card>
           )}
 
           {/* Search */}
@@ -209,7 +144,7 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
           </div>
 
           {/* Blank list */}
-          {loadingCatalog ? (
+          {loadError ? (<Card className="p-4" role="alert"><p>Could not load blanks: {loadError}</p><Button onClick={reload}>Retry</Button></Card>) : loadingCatalog ? (
             <div className="space-y-3">
               {Array.from({ length: 8 }).map((_, i) => (
                 <Skeleton key={i} className="h-14 w-full rounded-md" />
@@ -234,12 +169,12 @@ function BlankPickerInner({ onOpenChange }: { onOpenChange: (open: boolean) => v
   );
 }
 
-export function BlankPickerModal({ open, onOpenChange }: BlankPickerModalProps) {
+export function BlankPickerModal({ targetCatalogId, open, onOpenChange }: BlankPickerModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className={[
-          "p-0 overflow-hidden flex flex-col",
+          "p-0 overflow-hidden flex flex-col [&>button]:hidden",
           // Desktop: centered dialog
           "sm:max-w-lg sm:w-[95vw] sm:max-h-[88vh] sm:rounded-lg",
           // Mobile: full-width bottom sheet anchored to bottom
@@ -250,7 +185,7 @@ export function BlankPickerModal({ open, onOpenChange }: BlankPickerModalProps) 
           "max-sm:!h-[92svh]",
         ].join(" ")}
       >
-        <BlankPickerInner onOpenChange={onOpenChange} />
+        <BlankPickerInner targetCatalogId={targetCatalogId} onOpenChange={onOpenChange} />
       </DialogContent>
     </Dialog>
   );

@@ -1,3 +1,4 @@
+import type { EtsySellerSettings } from "./etsy";
 import type {
   MarketplacePlatform,
   SurfaceStatus,
@@ -34,6 +35,7 @@ export interface Surface {
   productId?: string;
   artifactId?: string;
   mosaicId?: string;
+  /** Existing field stores the source admin_catalog_instances document ID. */
   masterProductId: string;
   title: string;
   subtitle?: string;
@@ -58,6 +60,9 @@ export interface Surface {
   status: SurfaceStatus;
   readinessScore?: number;
   readinessErrors: string[];
+  colors?: string[];
+  sizes?: string[];
+  options?: Array<{ name: string; type: string; values: Array<{ value: string; label: string; hex?: string | null }> }>;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -96,8 +101,25 @@ export interface MarketplaceAccount {
   shopId: string;
   shopName: string;
   isActive: boolean;
-  feePercent: number;
   apiKeyConfigured: boolean;
+  // Amazon SP-API OAuth fields
+  amazonConnected?: boolean;
+  amazonSellerId?: string;
+  amazonMarketplaceId?: string;
+  amazonMarketplaceIds?: string[];
+  amazonConnectedAt?: string;
+  // eBay OAuth fields
+  ebayConnected?: boolean;
+  ebayUserId?: string;
+  ebayUsername?: string;
+  ebayConnectedAt?: string;
+  // Etsy OAuth fields
+  etsyConnected?: boolean;
+  etsyUserId?: string;
+  etsyShopId?: string;
+  etsyShopName?: string;
+  etsyConnectedAt?: string;
+
   lastHealthCheck?: string;
   healthStatus?: 'healthy' | 'unhealthy' | 'unknown';
   healthError?: string;
@@ -105,13 +127,90 @@ export interface MarketplaceAccount {
   updatedAt: string;
 }
 
+/** A provider response belongs to one product listing and one seller account. */
+export interface MarketplaceFees {
+  status: 'estimated' | 'partial' | 'unavailable' | 'stale';
+  source: 'amazon_product_fees' | 'ebay_listing_fees' | 'etsy' | 'none';
+  scope: 'per_sale' | 'listing';
+  amount: number | null;
+  currency: string;
+  price: number;
+  sku: string;
+  accountId: string;
+  contextKey: string;
+  retrievedAt: string;
+  components: Array<{ name: string; amount: number }>;
+  /** Separate seller SKU estimates; never summed into a per-sale group fee. */
+  variants?: MarketplaceFees[];
+  reason?: string;
+}
+
+/** Same sale price used for publishing, fee retrieval and margin display. */
+export function marketplaceSalePrice(surface: { retailPrice: number; ebay?: { priceOverride?: number | null } }, platform: string): number {
+  return platform === 'ebay' ? surface.ebay?.priceOverride ?? surface.retailPrice : surface.retailPrice;
+}
+
+export interface EbaySellerSettings {
+  /** Explicit marketplace labels; canonical product selections remain unchanged. */
+  variationValues?: { Size?: Record<string, string>; Color?: Record<string, string> };
+  fulfillmentPolicyId: string;
+  paymentPolicyId: string;
+  returnPolicyId: string;
+  merchantLocationKey: string;
+}
+
+export interface EbaySetupOptions {
+  fulfillmentPolicies: Array<{ fulfillmentPolicyId: string; name: string }>;
+  paymentPolicies: Array<{ paymentPolicyId: string; name: string }>;
+  returnPolicies: Array<{ returnPolicyId: string; name: string }>;
+  locations: Array<{ merchantLocationKey: string; name: string }>;
+  categories: Array<{ categoryId: string; categoryName: string }>;
+  aspects: Array<{ name: string; required: boolean; variation: boolean; mode: string; values: string[] }>;
+}
+
+/** Seller-specific Amazon requirements; QRG identity and sale price stay on the product/surface. */
+export interface AmazonSellerSettings {
+  productType: string;
+  quantity: number;
+  variationTheme?: string;
+  attributes: Record<string, any>;
+  parentAttributes?: Record<string, any>;
+  variantAttributes?: Record<string, Record<string, any>>;
+}
+export interface AmazonListingItem {
+  sku: string;
+  size?: string;
+  color?: string;
+  variantKey?: string;
+  parent?: boolean;
+  asin?: string;
+  status?: string;
+  issues?: string[];
+}
+
 export interface MarketplaceListing {
   id: string;
+  qrgCode?: string;
+  marketplaceSku?: string;
+  productInstanceId?: string;
+  publishOptions?: Partial<EtsySellerSettings> & { amazon?: AmazonSellerSettings; ebay?: EbaySellerSettings };
+  /** Prevent blind recreation if Etsy creation returned an unknown outcome. */
+  externalCreateAttempted?: boolean;
   surfaceId: string;
   accountId: string;
   platform: MarketplacePlatform;
   externalListingId?: string;
+  externalOfferId?: string;
+  ebayOffers?: Array<{ sku: string; offerId: string }>;
+  ebayInventoryItemGroupKey?: string;
+  amazonItems?: AmazonListingItem[];
+  amazonRemovalRequested?: boolean;
+  remoteCheckedAt?: string;
+  remoteStatus?: string;
   externalUrl?: string;
+  fees?: MarketplaceFees;
+  /** Read-time calculation; null when fees or product cost are unavailable. Before shipping/tax. */
+  estimatedMargin?: { amount: number; percent: number; productCost: number; currency: string } | null;
   status: ListingStatus;
   title: string;
   price: number;
@@ -531,3 +630,7 @@ export type InsertBuilderProfile = Omit<BuilderProfile, 'id' | 'createdAt' | 'up
 export type InsertBuilderPlacement = Omit<BuilderPlacement, 'id' | 'createdAt' | 'updatedAt'>;
 export type InsertPricingPolicy = Omit<PricingPolicy, 'id' | 'createdAt' | 'updatedAt'>;
 export type InsertRevenueSplit = Omit<RevenueSplit, 'id' | 'createdAt' | 'updatedAt'>;
+
+export function amazonManagedAttribute(name: string) {
+  return ['item_name', 'product_description', 'bullet_point', 'generic_keyword', 'purchasable_offer', 'fulfillment_availability', 'parentage_level', 'child_parent_sku_relationship', 'variation_theme'].includes(name) || /^(main|other)_product_image_locator/.test(name);
+}

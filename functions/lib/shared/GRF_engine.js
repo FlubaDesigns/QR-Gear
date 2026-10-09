@@ -31,14 +31,13 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GRF_FILTER_TEMPLATES = exports.GRF_FILTER_BACKGROUNDS = exports.GRF_FILTER_CROPPED = exports.GRF_FILTER_ORIGINALS = exports.PURPOSE_TEMPLATE = exports.PURPOSE_BACKGROUND = exports.PURPOSE_CROPPED = exports.PURPOSE_ORIGINAL = exports.LIBRARY_CHANNEL = exports.LIBRARY_MEDIA_TYPE = exports.LIBRARY_ASSET_CLASS = void 0;
+exports.GRF_FILTER_TEMPLATES = exports.GRF_FILTER_BACKGROUNDS = exports.GRF_FILTER_CROPPED = exports.GRF_FILTER_ORIGINALS = exports.GRF_CROP_MIME_TYPE = exports.GRF_IMAGE_MAX_BYTES = exports.GRF_IMAGE_MAX_MB = exports.GRF_IMAGE_ACCEPT_TYPES = exports.PURPOSE_TEMPLATE = exports.PURPOSE_BACKGROUND = exports.PURPOSE_CROPPED = exports.PURPOSE_ORIGINAL = exports.LIBRARY_CHANNEL = exports.LIBRARY_MEDIA_TYPE = exports.LIBRARY_ASSET_CLASS = void 0;
 exports.mimeToGrfFormat = mimeToGrfFormat;
 exports.normalizeMimeType = normalizeMimeType;
 exports.originalGrfParams = originalGrfParams;
 exports.croppedGrfParams = croppedGrfParams;
 exports.backgroundGrfParams = backgroundGrfParams;
 exports.templateGrfParams = templateGrfParams;
-exports.buildCropTransition = buildCropTransition;
 exports.purposeLabel = purposeLabel;
 const graphicCodes_1 = require("./graphicCodes");
 // ── Fixed digits — verified against the GRF scheme at module load ─────────────
@@ -79,27 +78,20 @@ function mimeToGrfFormat(mimeType) {
     return digit;
 }
 // ── MIME normalization — browser → GRF-compatible MIME ───────────────────────
-// Some browsers (especially mobile/iOS) report MIME types that are not in
-// GRF_FORMATS. Map them to the nearest supported type before calling
-// mimeToGrfFormat. All callers must go through here — never define this map
-// locally in a component or route file.
-const _MIME_NORMALIZE = {
-    'image/jpg': 'image/jpeg',
-    'image/heic': 'image/jpeg',
-    'image/heif': 'image/jpeg',
-    'image/avif': 'image/jpeg',
-    'image/gif': 'image/png',
-    'image/bmp': 'image/png',
-    'image/tiff': 'image/png',
-};
+// Validate against GRF_FORMATS. Only true MIME aliases are normalized; unsupported
+// image encodings must be converted by an image processor before upload.
+// Source uploads preserve bytes; MIME aliases must not pretend to convert files.
+exports.GRF_IMAGE_ACCEPT_TYPES = Object.values(graphicCodes_1.GRF_FORMATS['1']).map(f => f.mime).join(',');
+exports.GRF_IMAGE_MAX_MB = 20;
+exports.GRF_IMAGE_MAX_BYTES = exports.GRF_IMAGE_MAX_MB * 1024 * 1024;
+exports.GRF_CROP_MIME_TYPE = 'image/png';
 function normalizeMimeType(raw) {
     const lower = (raw || '').toLowerCase();
-    const mapped = _MIME_NORMALIZE[lower];
-    if (mapped) {
-        console.warn(`GRF_engine: normalizeMimeType mapped "${raw}" → "${mapped}"`);
-        return mapped;
+    const normalized = lower === 'image/jpg' ? 'image/jpeg' : lower;
+    if (!Object.values(graphicCodes_1.GRF_FORMATS['1']).some(f => f.mime === normalized)) {
+        throw new Error('Unsupported image format. Use PNG, JPEG, WebP, or SVG.');
     }
-    return lower || 'image/jpeg';
+    return normalized;
 }
 // ── Param builders — one per asset purpose ────────────────────────────────────
 function originalGrfParams(mimeType) {
@@ -136,12 +128,6 @@ function templateGrfParams(mimeType) {
         channel: exports.LIBRARY_CHANNEL,
         purpose: exports.PURPOSE_TEMPLATE,
         format: mimeToGrfFormat(mimeType),
-    };
-}
-function buildCropTransition(originalMimeType, croppedMimeType = 'image/jpeg') {
-    return {
-        cropped: croppedGrfParams(croppedMimeType),
-        background: backgroundGrfParams(originalMimeType),
     };
 }
 // ── Purpose label lookup ──────────────────────────────────────────────────────

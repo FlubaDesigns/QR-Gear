@@ -1,4 +1,7 @@
+import {validateCoupon} from '../services/coupons';
+import { prepareCartOrder } from '../services/order-service';
 import { Request, Response, NextFunction } from 'express';
+import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
   import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
@@ -6,7 +9,7 @@ import { Request, Response, NextFunction } from 'express';
   import type { CustomizationPricing } from '../services/pricing';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
+  import { calculateAuthoritativePrice, getAuthoritativePrice, getCatalogInstancePrice } from '../services/pricing';
   import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
   import type { MockupRequest, MockupResult } from '../services/mockup-generator';
   import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
@@ -14,177 +17,33 @@ import { Request, Response, NextFunction } from 'express';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
   import Stripe from 'stripe';
-  import { getNexusMailService, sendOrderConfirmation as nexusOrderConfirmation, sendShippingNotification as nexusShippingNotification, seedDefaultTemplates } from '../nexusmail';
 
 export function registerCoreCheckoutRoutes(app: express.Express): void {
-app.post('/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
+for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' : '/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  let orderId: string | undefined;
   try {
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) {
-      res.status(500).json({ error: 'Stripe not configured' });
-      return;
-    }
-
+    if (!stripeKey) { res.status(503).json({ error: 'Stripe not configured' }); return; }
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
-    const { successUrl, cancelUrl } = req.body;
-
-    const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
-    
-    if (cartSnapshot.empty) {
-      res.status(400).json({ error: 'Cart is empty' });
-      return;
-    }
-
-    const cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const lineItemsPromises = cartItems.map(async (item: any) => {
-      const customization = item.customization || {};
-      const productId = customization.productId;
-      const productName = customization.productName || 'Custom QR Product';
-      const productImage = customization.productImage;
-      
-      let price: number | null = null;
-      if (productId) {
-        const pricingInput: CustomizationPricing = {
-          productId,
-          productLine: customization.productLine || 'text',
-          hasTextAbove: customization.hasTextAbove || false,
-          hasTextBelow: customization.hasTextBelow || false,
-          templateId: customization.templateId,
-          hostingTierCode: customization.hostingTierCode || customization.dynamicHostingTier || '1_year',
-        };
-        price = await calculateAuthoritativePrice(pricingInput);
-      }
-      if (price === null) {
-        price = parseFloat(item.price);
-      }
-      
-      if (isNaN(price) || price <= 0) {
-        throw new Error(`Invalid price for item: ${productName}`);
-      }
-
-      return {
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: productName,
-            images: productImage ? [productImage] : [],
-          },
-          unit_amount: Math.round(price * 100),
-        },
-        quantity: item.quantity || 1,
-      };
-    });
-
-    const lineItems = await Promise.all(lineItemsPromises);
-
+    const prepared = await prepareCartOrder(userId, req.body.referrerId || '');
+    orderId = prepared.orderId;
+    const lineItems = prepared.items.map(item => ({ price_data: { currency: 'usd',
+      product_data: { name: item.productTitle, description: `${item.customization.productColor} / ${item.customization.productSize}` },
+      unit_amount: item.unitAmount }, quantity: item.quantity }));
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      shipping_address_collection: {
-        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
-      },
-      success_url: successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${req.headers.origin}/cart`,
-      metadata: {
-        userId,
-        source: 'direct_cart',
-        referrerId: req.body.referrerId || '',
-      },
-    });
-
-    res.json({ sessionId: session.id, url: session.url });
+      payment_method_types: ['card'], line_items: lineItems, mode: 'payment',
+      shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'] },
+      ...(embedded ? { ui_mode: 'embedded' as const, return_url: req.body.returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}` }
+        : { success_url: req.body.successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: req.body.cancelUrl || `${req.headers.origin}/cart` }),
+      metadata: { userId, source: 'direct_cart', orderId },
+    }, { idempotencyKey: `checkout-${orderId}` });
+    await db.collection('orders').doc(orderId).update({ stripeSessionId: session.id });
+    res.json(embedded ? { clientSecret: session.client_secret } : { sessionId: session.id, url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/checkout/embedded', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) {
-      res.status(500).json({ error: 'Stripe not configured' });
-      return;
-    }
-
-    const stripe = new Stripe(stripeKey);
-    const userId = (req as any).user.uid;
-    const { returnUrl } = req.body;
-
-    const cartSnapshot = await db.collection('cartItems').where('userId', '==', userId).get();
-    
-    if (cartSnapshot.empty) {
-      res.status(400).json({ error: 'Cart is empty' });
-      return;
-    }
-
-    const cartItems = cartSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    const lineItemsPromises = cartItems.map(async (item: any) => {
-      const customization = item.customization || {};
-      const productId = customization.productId;
-      const productName = customization.productName || 'Custom QR Product';
-      const productImage = customization.productImage;
-      
-      let price: number | null = null;
-      if (productId) {
-        const pricingInput: CustomizationPricing = {
-          productId,
-          productLine: customization.productLine || 'text',
-          hasTextAbove: customization.hasTextAbove || false,
-          hasTextBelow: customization.hasTextBelow || false,
-          templateId: customization.templateId,
-          hostingTierCode: customization.hostingTierCode || customization.dynamicHostingTier || '1_year',
-        };
-        price = await calculateAuthoritativePrice(pricingInput);
-      }
-      if (price === null) {
-        price = parseFloat(item.price);
-      }
-      
-      if (isNaN(price) || price <= 0) {
-        throw new Error(`Invalid price for item: ${productName}`);
-      }
-
-      return {
-        price_data: {
-          currency: 'usd',
-          product_data: {
-            name: productName,
-            images: productImage ? [productImage] : [],
-          },
-          unit_amount: Math.round(price * 100),
-        },
-        quantity: item.quantity || 1,
-      };
-    });
-
-    const lineItems = await Promise.all(lineItemsPromises);
-    const cartItemIds = cartItems.map((item: any) => item.id);
-
-    const session = await stripe.checkout.sessions.create({
-      ui_mode: 'embedded',
-      payment_method_types: ['card'],
-      line_items: lineItems,
-      mode: 'payment',
-      shipping_address_collection: {
-        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
-      },
-      return_url: returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      metadata: {
-        userId,
-        source: 'direct_cart',
-        cartItemIds: JSON.stringify(cartItemIds),
-      },
-    });
-
-    res.json({ clientSecret: session.client_secret });
-  } catch (error: any) {
-    console.error('Embedded checkout error:', error);
-    res.status(500).json({ error: error.message });
+    if (orderId) await db.collection('orders').doc(orderId).update({ checkoutError: error.message }).catch(console.error);
+    res.status(orderId ? 502 : 400).json({ error: error.message });
   }
 });
 
@@ -204,6 +63,7 @@ app.get('/checkout/session-status', requireAuth, async (req: Request, res: Respo
 
     const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.metadata?.userId !== (req as any).user.uid) { res.status(403).json({ error: 'This checkout belongs to another account.' }); return; }
     
     res.json({
       status: session.status,
@@ -226,6 +86,7 @@ app.get('/checkout/verify/:sessionId', requireAuth, async (req: Request, res: Re
 
     const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+    if (session.metadata?.userId !== (req as any).user.uid) { res.status(403).json({ error: 'This checkout belongs to another account.' }); return; }
     
     res.json({
       status: session.payment_status,
@@ -362,6 +223,10 @@ app.get('/admin/settings', requireAdmin, async (_req: Request, res: Response): P
 
 app.put('/admin/settings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
+    if (Object.prototype.hasOwnProperty.call(req.body, 'defaultFulfillmentProvider')) {
+      try { requireFulfillmentProvider(req.body.defaultFulfillmentProvider); }
+      catch (error: any) { res.status(400).json({ error: error.message }); return; }
+    }
     await db.collection('settings').doc('admin').set(req.body, { merge: true });
     const doc = await db.collection('settings').doc('admin').get();
     res.json(doc.data());
@@ -435,28 +300,6 @@ app.delete('/admin/products/:id', requireAdmin, async (req: Request, res: Respon
   }
 });
 
-app.get('/admin/orders', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('orders').orderBy('createdAt', 'desc').get();
-    res.json(docsToArray(snapshot));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('orders').doc(req.params.id).update({
-      ...req.body,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    const doc = await db.collection('orders').doc(req.params.id).get();
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.get('/admin/users', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('users').get();
@@ -505,34 +348,8 @@ app.post('/browsing-history', requireAuth, async (req: Request, res: Response): 
 });
 
 app.get('/coupons/:code', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('coupons')
-      .where('code', '==', req.params.code.toUpperCase())
-      .where('isActive', '==', true)
-      .limit(1)
-      .get();
-    
-    if (snapshot.empty) {
-      res.status(404).json({ error: 'Coupon not found or expired' });
-      return;
-    }
-    
-    const coupon = docToObject(snapshot.docs[0]);
-    
-    if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-      res.status(400).json({ error: 'Coupon has expired' });
-      return;
-    }
-    
-    if (coupon.maxRedemptions && coupon.redemptionCount >= coupon.maxRedemptions) {
-      res.status(400).json({ error: 'Coupon has reached maximum redemptions' });
-      return;
-    }
-    
-    res.json(coupon);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
+ try { res.json((await validateCoupon(db,req.params.code,req.query.orderTotal)).coupon); }
+ catch(error:any){res.status(error.status||400).json({error:error.message});}
 });
 
 

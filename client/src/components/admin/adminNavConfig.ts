@@ -1,4 +1,5 @@
 import {
+  Zap, Hammer, ShoppingCart, Sparkles,
   Package,
   Image,
   Box,
@@ -16,7 +17,6 @@ import {
   BookOpen,
   MapPin,
   Globe,
-  LayoutGrid,
   Layers,
   Folder,
   Hash,
@@ -27,6 +27,16 @@ export interface SubNavItem {
   href: string;
   icon: typeof Package;
 }
+
+export const ADMIN_MAIN_NAV: SubNavItem[] = [
+  { label: "Run", icon: Zap, href: "/admin" },
+  { label: "AI Builder", icon: Sparkles, href: "/admin/ai-builder" },
+  { label: "Build", icon: Hammer, href: "/admin/products" },
+  { label: "Place", icon: MapPin, href: "/admin/store-builder" },
+  { label: "Partners", icon: Users, href: "/admin/partners" },
+  { label: "Sell", icon: ShoppingCart, href: "/admin/orders" },
+  { label: "System", icon: Settings, href: "/admin/settings" },
+];
 
 export const BUILD_SUBNAV: SubNavItem[] = [
   { label: "Products", href: "/admin/products", icon: Package },
@@ -40,8 +50,6 @@ export const BUILD_SUBNAV: SubNavItem[] = [
 
 export const PLACE_SUBNAV: SubNavItem[] = [
   { label: "Store Builder", href: "/admin/store-builder", icon: Store },
-  { label: "Library", href: "/admin/store-library", icon: LayoutGrid },
-  { label: "Partners", href: "/admin/partners", icon: Users },
   { label: "External Sites", href: "/admin/external-sites", icon: Globe },
   { label: "Marketplaces", href: "/admin/marketplaces", icon: MapPin },
 ];
@@ -59,11 +67,12 @@ export const SYSTEM_SUBNAV: SubNavItem[] = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
   { label: "Health", href: "/admin/health", icon: Activity },
   { label: "Email", href: "/admin/email-templates", icon: Mail },
-  { label: "Email Health", href: "/admin/email-health", icon: Activity },
   { label: "Manual", href: "/admin/manual", icon: BookOpen },
 ];
 
 const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
+  { prefixes: ["/admin/ai-builder"], mode: "AI Builder" },
+  { prefixes: ["/admin/partners"], mode: "Partners" },
   {
     prefixes: [
       "/admin/products",
@@ -81,7 +90,6 @@ const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
     prefixes: [
       "/admin/store-builder",
       "/admin/store-library",
-      "/admin/partners",
       "/admin/marketplaces",
       "/admin/external-sites",
     ],
@@ -103,7 +111,6 @@ const MODE_MAP: Array<{ prefixes: string[]; mode: string }> = [
       "/admin/settings",
       "/admin/health",
       "/admin/email-templates",
-      "/admin/email-health",
       "/admin/manual",
       "/admin/ar-demo",
     ],

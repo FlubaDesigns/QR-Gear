@@ -1,10 +1,9 @@
-import { useMemo, Component } from "react";
+import { useMemo, useState, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { Crop as CropIcon } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
-import { queryClient } from "@/lib/queryClient";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
 import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { CroppedCardSkin } from "@/features/shared/components/skins/CroppedImageSkin";
@@ -82,7 +81,7 @@ class CroppedImagesBoundary extends Component<
 // VVSS: 1·1·1·0 — SinglePaneViewer · ScrollGridView · CroppedCardSkin · flat (no popup)
 
 function CroppedImagesTabInner() {
-  const { toast } = useToast();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: assets = [], isLoading, error: queryError } = useQuery<GrfAsset[]>({
     queryKey: CROPPED_QK,
@@ -90,19 +89,6 @@ function CroppedImagesTabInner() {
       adminFetch<GrfAsset[]>(
         `/graphics?channel=${GRF_FILTER_CROPPED.channel}&purpose=${GRF_FILTER_CROPPED.purpose}`
       ),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (grfId: string) =>
-      adminFetch(`/graphics/${grfId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: CROPPED_QK });
-    },
-    onError: (error: Error) => {
-      console.error("[CroppedImagesTab] Delete error:", error.message);
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
-    },
   });
 
   const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
@@ -133,11 +119,12 @@ function CroppedImagesTabInner() {
         renderItem={(item) => (
           <CroppedCardSkin
             item={item}
-            actions={{ onDelete: (id) => deleteMutation.mutate(id) }}
-            isActionPending={deleteMutation.isPending}
+            actions={{ onDelete: setDeleteId }}
+            isActionPending={!!deleteId}
           />
         )}
       />
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </SinglePaneViewer>
   );
 }

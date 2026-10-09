@@ -1,5 +1,8 @@
-import { listBldDefinitions, readBldDefinition } from '../../functions/src/services/bld-store';
-import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../../functions/src/services/build-session-state';
+import { resolveBuildDestination, destinationMetadata } from '../../functions/src/services/build-destination';
+import { resolveInstance as resolveFields } from '../../functions/src/services/instance-resolver';
+import { registerCompositionRoutes } from '../../functions/src/services/admin-composition-routes';
+import { getFirestoreDb, FieldValue as CompositionFieldValue } from '../lib/firebase-admin';
+import { readGeneratedBuild, existingBuildInstance, saveBuildInstance, saveGeneratedBuildArtifact } from '../../functions/src/services/build-session-state';
 /**
  * Admin Build Sessions
  *
@@ -27,15 +30,6 @@ const PRODUCT_PACKETS_COLLECTION = "productPackets";
 
 const SESSION_EXPIRY_DAYS = 7;
 
-function resolveFields(base: Record<string, any>, overrides: Record<string, any>): Record<string, any> {
-  const resolved: Record<string, any> = { ...base };
-  for (const [key, val] of Object.entries(overrides)) {
-    if (val !== null && val !== undefined && val !== "") {
-      resolved[key] = val;
-    }
-  }
-  return resolved;
-}
 
 /**
  * Sanitize an arbitrary value for safe Firestore writes.
@@ -56,19 +50,7 @@ function sanitizeForFirestore(obj: any): any {
 
 export function registerAdminBuildSessionRoutes(app: Express): void {
 
-  app.get('/api/admin/bld', isAdmin, async (req: any, res) => {
-    try {
-      const { getFirestoreDb } = await import('../lib/firebase-admin');
-      const definitions = await listBldDefinitions(getFirestoreDb(), req.query.context, req.query.layout);
-      res.json({ success: true, definitions, count: definitions.length });
-    } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
-  });
-  app.get('/api/admin/bld/:bldId', isAdmin, async (req: any, res) => {
-    try {
-      const { getFirestoreDb } = await import('../lib/firebase-admin');
-      res.json({ success: true, bld: await readBldDefinition(getFirestoreDb(), req.params.bldId) });
-    } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
-  });
+  registerCompositionRoutes(app, '/api/admin', isAdmin, { db: getFirestoreDb, now: () => CompositionFieldValue.serverTimestamp() });
 
   // ── List build sessions for admin ────────────────────────────────────────
   app.get("/api/admin/build-sessions", isAdmin, async (req: any, res) => {
@@ -458,83 +440,7 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       const { FieldValue } = await import("firebase-admin/firestore");
       const db = getFirestoreDb();
 
-      const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
-      const doc = await ref.get();
-
-      if (!doc.exists) {
-        console.error(`[BuildSessions] GenerateArtifact — session not found: ${id}`);
-        return res.status(404).json({ error: "Build session not found" });
-      }
-
-      const session = doc.data()!;
-
-      if (session.status === "committed") {
-        return res.status(409).json({ error: "Session already committed. Regenerate from the committed instance." });
-      }
-      if (session.status === "abandoned") {
-        return res.status(409).json({ error: "Cannot generate artifact for an abandoned session." });
-      }
-
-      const now = FieldValue.serverTimestamp();
-
-      let packetId: string;
-
-      if (packetFields.existingPacketId) {
-        // Caller already created the packet via POST /api/packets — just link it to this session
-        packetId = packetFields.existingPacketId;
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
-          ownerType: "admin_build_session",
-          buildSessionId: id,
-          sourceMasterId: session.sourceMasterId,
-          sourceAdminInstanceId: null,
-          updatedAt: now,
-        });
-        console.log(`[BuildSessions] Linked existing packet ${packetId} to session ${id}`);
-      } else {
-        // Build packet data from session working state + caller-supplied fields
-        const packetData = {
-          ownerType: "admin_build_session",
-          buildSessionId: id,
-          sourceMasterId: session.sourceMasterId,
-          sourceAdminInstanceId: null, // not committed yet
-
-          masterTitle: session.working?.title || null,
-          adminCatalogTitle: session.working?.title || null,
-          effectiveTitle: session.working?.title || null,
-          masterDescription: session.working?.description || null,
-          adminCatalogDescription: session.working?.description || null,
-          effectiveDescription: session.working?.description || null,
-          productImageUrl: session.working?.images?.[0] || null,
-
-          // Caller-supplied fields (QR config, graphics, layout, etc.)
-          ...packetFields,
-
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        if (session.generated?.packetId) {
-          // Regenerate — update existing packet
-          await db.collection(PRODUCT_PACKETS_COLLECTION)
-            .doc(session.generated.packetId)
-            .update({ ...packetData, createdAt: FieldValue.delete(), updatedAt: now });
-          packetId = session.generated.packetId;
-          console.log(`[BuildSessions] Regenerated packet ${packetId} for session ${id}`);
-        } else {
-          const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
-          packetId = packetRef.id;
-          console.log(`[BuildSessions] Created packet ${packetId} for session ${id}`);
-        }
-      }
-
-      // Update session with generated refs and flip to artifact_ready
-      await ref.update({
-        "generated.packetId": packetId,
-        "generated.artifactReady": true,
-        status: "artifact_ready",
-        updatedAt: now,
-        lastActiveAt: now,
-      });
+      const packetId = await saveGeneratedBuildArtifact(db, id, packetFields, FieldValue.serverTimestamp());
 
       res.json({ success: true, sessionId: id, packetId, artifactReady: true });
     } catch (err: any) {
@@ -669,42 +575,23 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       if (w.title && w.title !== master.title) overrides.title = w.title;
       if (w.description && w.description !== master.description) overrides.description = w.description;
       if (!effectiveCatalogId && w.images?.length) overrides.images = w.images;
-      const effectivePricing = bodyPricing || w.pricing || null;
+      const pricedPacket = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(session.generated.packetId).get();
+      const effectivePricing = pricedPacket.data()?.pricing;
+      if (!effectivePricing || !Number.isFinite(effectivePricing.customerPrice)) throw new Error('Generated packet has no saved pricing. Regenerate it.');
       if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;
 
       const resolved = resolveFields(baseSnapshot, overrides);
       const meta = w.metadata || {};
-      // Use metadata from autosave; fall back to values passed in request body
-      // Body values take precedence over stale autosaved metadata so that the
-      // manual/retry commit path (which now always sends store/channel in body)
-      // is never blocked by a debounce race.
-      const selectedStore = (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null)
-        || meta.selectedStore || null;
-      const selectedChannel = (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null)
-        || meta.selectedChannel || null;
-      const selectedCollection = (bodyCollectionName ? { name: bodyCollectionName } : null)
-        || meta.selectedCollection || null;
-      console.log(`[BuildSessions] commit ${id} | store: ${selectedStore?.id ?? "null"} channel: ${selectedChannel?.id ?? "null"} (meta: ${meta.selectedChannel?.id ?? "null"}, body: ${bodyChannelId ?? "null"})`);
-      const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
-        .filter(Boolean).join(" / ") || null;
-
-      // ── Gate 0.5: Verify selected channel exists in storeChannels ──────────
-      if (selectedChannel?.id) {
-        const chanDoc = await db.collection("storeChannels").doc(selectedChannel.id).get();
-        if (!chanDoc.exists) {
-          return res.status(400).json({
-            error: `Channel "${selectedChannel.id}" does not exist in storeChannels. ` +
-                   `Create it via the Store Builder before committing, or check for an ID mismatch (e.g. "usa-250" vs "usa250").`,
-          });
-        }
-        const chanData = chanDoc.data() as any;
-        if (selectedStore?.id && chanData.storeId && chanData.storeId !== selectedStore.id) {
-          return res.status(400).json({
-            error: `Channel "${selectedChannel.id}" belongs to store "${chanData.storeId}", not "${selectedStore.id}".`,
-          });
-        }
-      }
+      const destination = await resolveBuildDestination(db, {
+        storeId: bodyStoreId || meta.selectedStore?.id,
+        channelId: bodyChannelId || meta.selectedChannel?.id,
+        collectionId: bodyCollectionName && bodyCollectionName !== meta.selectedCollection?.name ? null : meta.selectedCollection?.id,
+        collectionName: bodyCollectionName || meta.selectedCollection?.name,
+      });
+      const { selectedStore, selectedChannel, selectedCollection } = destinationMetadata(destination);
+      const folderPath = destination.folderPath;
+      session.working.metadata = { ...meta, ...destinationMetadata(destination) };
 
       // ── Gate 1: Validate QRG blank identity ─────────────────────────────────
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
@@ -736,6 +623,8 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
           grfIds = await registerPacketGrfsDev(packetData, id, packetId);
           console.log(`[BuildSessions] GRF registered: bg=${grfIds.backgroundGrfId} qr=${grfIds.qrGrfId} comp=${grfIds.compositeGrfId}`);
           await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
+            ...destination,
+            builderSnapshot: { ...session.working, metadata: session.working.metadata },
             backgroundGrfId: grfIds.backgroundGrfId || null,
             qrGrfId:         grfIds.qrGrfId         || null,
             compositeGrfId:  grfIds.compositeGrfId  || null,
@@ -815,27 +704,6 @@ export function registerAdminBuildSessionRoutes(app: Express): void {
       });
       const instanceId = instanceRef.id;
 
-      // ── Back-fill instance ownership + schema chain onto packet ──────────────
-      if (packetId) {
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
-          ownerType: "admin",
-          ownerInstanceId: instanceId,
-          sourceAdminInstanceId: instanceId,
-          bldId,
-          assemblyId,
-          updatedAt: now,
-        });
-      }
-
-      await ref.update({
-        status: "committed",
-        committedInstanceId: instanceId,
-        bldId,
-        assemblyId,
-        updatedAt: now,
-      });
-
-      console.log(`[BuildSessions] Committed session ${id} → instance ${instanceId} (QRG=${qrgIdentity.qrgBaseCode} BLD=${bldId} ASM=${assemblyId})`);
       res.json({
         success: true,
         sessionId: id,

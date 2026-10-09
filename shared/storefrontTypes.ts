@@ -45,6 +45,30 @@ export interface ProductOption {
  * Uses the canonical COLOR_HEX_MAP for hex resolution.
  * Used by the storefront API when serializing a product for the frontend.
  */
+export const APPAREL_SIZE_ORDER = ['XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL', '5XL'];
+export const DEFAULT_SIZE_UPCHARGES: Record<string, number> = { XS: 0, S: 0, M: 0, L: 0, XL: 0, '2XL': 3, '3XL': 6, '4XL': 9, '5XL': 12 };
+
+export function normalizeSize(size: string): string {
+  const value = size.trim().toUpperCase();
+  const repeated = /^(XX+)L$/.exec(value);
+  return repeated ? `${repeated[1].length}XL` : value;
+}
+
+export function sortProductSizes(sizes: string[]): string[] {
+  return [...sizes].sort((a, b) => {
+    const rank = (s: string) => {
+      const index = APPAREL_SIZE_ORDER.indexOf(normalizeSize(s));
+      return index < 0 ? APPAREL_SIZE_ORDER.length : index;
+    };
+    return rank(a) - rank(b) || a.localeCompare(b, undefined, { numeric: true });
+  });
+}
+
+export function sizeUpcharge(size: string | null | undefined, upcharges: Record<string, number>): number {
+  const value = Number(upcharges[normalizeSize(size || '')] ?? 0);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 export function buildStructuredOptions(colors: string[], sizes: string[]): ProductOption[] {
   const opts: ProductOption[] = [];
   if (colors.length > 0) {
@@ -64,7 +88,7 @@ export function buildStructuredOptions(colors: string[], sizes: string[]): Produ
       name: 'size',
       displayType: 'pills',
       isPrimary: false,
-      values: sizes.map(label => ({ label, available: true })),
+      values: sortProductSizes(sizes).map(label => ({ label, available: true })),
     });
   }
   return opts;

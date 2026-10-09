@@ -1,3 +1,6 @@
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
+import { formatBlankId } from "@shared/blankKeys";
+import type { CanonicalProductSelectItem } from "@shared/adapters/catalog.adapter";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Card, CardContent } from "@/components/ui/card";
@@ -28,27 +31,8 @@ import {
   Square,
 } from "lucide-react";
 
-export interface ProductSelectItem {
-  id: string;
-  name: string;
-  providerTitle?: string | null;
-  adminCatalogTitle?: string | null;
-  price: number | null;
-  cost: number | null;
-  manufacturer: string | null;
-  model?: string | null;
-  madeInUSA: boolean;
-  primaryImageUrl: string | null;
-  images?: string[];
-  description: string | null;
-  providerDescription?: string | null;
-  adminCatalogDescription?: string | null;
-  providerDescriptionRaw?: string | null;
-  availableColors: Array<{ name: string; hex?: string }>;
-  availableSizes: string[];
-  defaultColor: string | null;
-  qrgBlankId?: string | null;
-}
+// Keep the shared catalog adapter as the single UI field contract.
+export type ProductSelectItem = CanonicalProductSelectItem;
 
 export type TierValue = "good" | "better" | "best" | null;
 
@@ -65,13 +49,13 @@ export interface ProductSelectCardSkinProps {
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  textEditScope?: string;
+  priceLabel?: string;
   selectLabel?: React.ReactNode;
   selectedLabel?: React.ReactNode;
   disableWhenSelected?: boolean;
   selectDisabled?: boolean;
   selectDisabledTitle?: string;
-  onDelete?: (id: string) => Promise<void>;
-  deleting?: boolean;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
   onImagesBulkSave?: (id: string, images: string[]) => Promise<void>;
@@ -96,6 +80,7 @@ function PreviewModal({
   onTitleSave,
   titleSaving,
   editableTitle,
+  textEditScope,
   onImageDelete,
   onImageRestore,
   onImagesBulkSave,
@@ -108,7 +93,15 @@ function PreviewModal({
   savedColors,
   onColorsSave,
   colorsSaving,
+  actionLabel,
+  actionDisabled,
+  priceLabel,
+  providerLabel,
 }: {
+  actionLabel: React.ReactNode;
+  actionDisabled: boolean;
+  priceLabel?: string;
+  providerLabel?: string;
   item: ProductSelectItem;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -120,6 +113,7 @@ function PreviewModal({
   onTitleSave?: (id: string, title: string) => Promise<void>;
   titleSaving?: boolean;
   editableTitle?: boolean;
+  textEditScope?: string;
   mockupImageUrl?: string | null;
   onImageDelete?: (id: string, imageUrl: string) => Promise<void>;
   onImageRestore?: (id: string) => Promise<void>;
@@ -148,7 +142,7 @@ function PreviewModal({
   }, [savedColors, item.availableColors]);
 
   const masterImages = useMemo(() => {
-    const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
+    const imgs = item.images ?? (item.primaryImageUrl ? [item.primaryImageUrl] : []);
     return imgs;
   }, [item.images, item.primaryImageUrl]);
 
@@ -190,21 +184,25 @@ function PreviewModal({
     }
   };
 
-  const handleSaveDesc = async () => {
-    if (!onDescriptionSave) return;
-    if (editingTitle && onTitleSave) {
-      await onTitleSave(item.id, draftTitle);
-      setEditingTitle(false);
+  const [savingText, setSavingText] = useState(false);
+  const [textSaveError, setTextSaveError] = useState<string | null>(null);
+  const saveText = async (field: "title" | "description", value: string) => {
+    const save = field === "title" ? onTitleSave : onDescriptionSave;
+    if (!save || savingText) return;
+    setSavingText(true);
+    setTextSaveError(null);
+    try {
+      await save(item.id, value);
+      if (field === "title") { setEditingTitle(false); setConfirmResetTitle(false); }
+      else { setEditingDesc(false); setConfirmResetDesc(false); }
+    } catch {
+      setTextSaveError("Could not save. Your edits are still here.");
+    } finally {
+      setSavingText(false);
     }
-    await onDescriptionSave(item.id, draftDesc);
-    setEditingDesc(false);
   };
-
-  const handleSaveTitle = async () => {
-    if (!onTitleSave) return;
-    await onTitleSave(item.id, draftTitle);
-    setEditingTitle(false);
-  };
+  const handleSaveDesc = () => saveText("description", draftDesc);
+  const handleSaveTitle = () => saveText("title", draftTitle);
 
   const [restoringImages, setRestoringImages] = useState(false);
   const imagesAreModified = masterCatalogImages !== undefined
@@ -219,6 +217,8 @@ function PreviewModal({
         setLocalImages(masterCatalogImages);
         setCurrentIndex(0);
       }
+    } catch {
+      // The save callback reports the error; keep the current selection.
     } finally {
       setRestoringImages(false);
     }
@@ -264,6 +264,8 @@ function PreviewModal({
       setLocalImages(keptImages);
       setCurrentIndex(0);
       exitBulkMode();
+    } catch {
+      // The save callback reports the error; retain the selection for retry.
     } finally {
       setBulkSaving(false);
     }
@@ -283,7 +285,7 @@ function PreviewModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
+        className="[&_button]:min-h-12 [&_button]:min-w-12 [&>button]:left-4 [&>button]:right-auto [&>button]:flex [&>button]:items-center [&>button]:justify-center [&>button]:bg-background fixed left-2 right-2 top-2 bottom-2 w-auto max-w-none max-h-none translate-x-0 translate-y-0 p-0 overflow-hidden sm:left-[50%] sm:right-auto sm:top-[50%] sm:bottom-auto sm:w-[95vw] sm:max-w-lg sm:max-h-[90vh] sm:translate-x-[-50%] sm:translate-y-[-50%]"
         data-testid={`modal-preview-${item.id}`}
       >
         <VisuallyHidden>
@@ -329,6 +331,7 @@ function PreviewModal({
                     variant="ghost"
                     className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
                     onClick={handlePrev}
+                    aria-label="Previous image"
                     disabled={currentIndex === 0}
                     data-testid={`button-img-prev-${item.id}`}
                   >
@@ -339,6 +342,7 @@ function PreviewModal({
                     variant="ghost"
                     className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/40 text-white disabled:opacity-30"
                     onClick={handleNext}
+                    aria-label="Next image"
                     disabled={currentIndex === displayImages.length - 1}
                     data-testid={`button-img-next-${item.id}`}
                   >
@@ -355,7 +359,7 @@ function PreviewModal({
               )}
 
               {item.madeInUSA && (
-                <div className="absolute top-3 left-3">
+                <div className="absolute bottom-3 right-3">
                   <Badge
                     variant="secondary"
                     className="gap-1 bg-background/90 backdrop-blur-sm text-xs shadow-sm"
@@ -373,6 +377,7 @@ function PreviewModal({
                   size="icon"
                   variant="ghost"
                   onClick={handlePrev}
+                    aria-label="Previous image"
                   disabled={currentIndex === 0}
                   data-testid={`button-img-prev-${item.id}`}
                 >
@@ -385,6 +390,7 @@ function PreviewModal({
                   size="icon"
                   variant="ghost"
                   onClick={handleNext}
+                    aria-label="Next image"
                   disabled={currentIndex === displayImages.length - 1}
                   data-testid={`button-img-next-${item.id}`}
                 >
@@ -452,7 +458,7 @@ function PreviewModal({
                       >
                         <img
                           src={imgUrl}
-                          alt={isMockupThumb ? "Mockup" : `Thumbnail ${idx}`}
+                          alt={isMockupThumb ? "Mockup" : `Thumbnail ${idx + 1}`}
                           className="w-full h-full object-contain bg-background p-0.5"
                         />
                         {isMockupThumb && (
@@ -596,6 +602,10 @@ function PreviewModal({
             )}
 
             <div className="p-4 space-y-4">
+              {textEditScope && (editableTitle || editableDescription) && (
+                <p className="text-sm font-medium" data-testid={`text-edit-scope-${item.id}`}>{textEditScope}</p>
+              )}
+              {textSaveError && <p role="alert" className="text-sm text-destructive">{textSaveError}</p>}
               <div className="space-y-2">
                 {editableTitle && onTitleSave ? (
                   <div data-testid={`title-edit-area-${item.id}`}>
@@ -615,7 +625,8 @@ function PreviewModal({
                               <button
                                 type="button"
                                 className="text-red-400 hover:text-red-300 underline font-medium"
-                                onClick={() => { setDraftTitle(item.providerTitle || ""); setConfirmResetTitle(false); }}
+                                disabled={savingText || titleSaving}
+                                onClick={() => saveText("title", "")}
                                 data-testid={`button-confirm-yes-reset-title-${item.id}`}
                               >
                                 Yes, reset
@@ -640,11 +651,19 @@ function PreviewModal({
                             </button>
                           )
                         )}
-                        <p className="text-xs text-muted-foreground">Title will save with description below.</p>
+                        <div className="flex gap-2">
+                          <Button onClick={handleSaveTitle} disabled={savingText || titleSaving} data-testid={`button-save-title-${item.id}`}>
+                            Save title
+                          </Button>
+                          <Button variant="outline" disabled={savingText} onClick={() => { setEditingTitle(false); setConfirmResetTitle(false); setDraftTitle(item.name || ""); }}>
+                            Cancel
+                          </Button>
+                        </div>
                       </div>
                     ) : (
-                      <div
-                        className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
+                      <button
+                        type="button"
+                        className="group w-full text-left cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-3"
                         onClick={() => { setDraftTitle(item.name || ""); setEditingTitle(true); }}
                         data-testid={`button-edit-title-${item.id}`}
                       >
@@ -657,7 +676,7 @@ function PreviewModal({
                         {item.adminCatalogTitle && (
                           <span className="ml-6 text-xs text-blue-400">Custom title</span>
                         )}
-                      </div>
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -669,7 +688,7 @@ function PreviewModal({
                 <div className="flex items-center gap-3 flex-wrap">
                   {item.price != null && (
                     <span className="text-2xl font-bold" data-testid={`text-preview-price-${item.id}`}>
-                      ${item.price.toFixed(2)}
+                      {priceLabel && <span className="text-sm font-normal mr-2">{priceLabel}</span>}${item.price.toFixed(2)}
                     </span>
                   )}
                   {item.cost != null && (
@@ -684,6 +703,7 @@ function PreviewModal({
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
+                  {providerLabel && <Badge variant="outline">{providerLabel}</Badge>}
                   {defaultColorEntry && (
                     <span className="text-sm text-muted-foreground flex items-center gap-2">
                       <span className="flex items-center gap-1.5">
@@ -724,7 +744,8 @@ function PreviewModal({
                               <button
                                 type="button"
                                 className="text-red-400 hover:text-red-300 underline font-medium"
-                                onClick={() => { setDraftDesc(item.providerDescription || item.providerDescriptionRaw || ""); setConfirmResetDesc(false); }}
+                                disabled={savingText || descriptionSaving}
+                                onClick={() => saveText("description", "")}
                                 data-testid={`button-confirm-yes-reset-desc-${item.id}`}
                               >
                                 Yes, reset
@@ -753,7 +774,7 @@ function PreviewModal({
                           <Button
                             size="sm"
                             onClick={handleSaveDesc}
-                            disabled={descriptionSaving}
+                            disabled={descriptionSaving || savingText}
                             data-testid={`button-save-desc-${item.id}`}
                           >
                             {descriptionSaving ? (
@@ -761,12 +782,13 @@ function PreviewModal({
                             ) : (
                               <Save className="w-4 h-4" />
                             )}
-                            Save
+                            Save description
                           </Button>
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => { setEditingDesc(false); setDraftDesc(item.description || ""); }}
+                            disabled={savingText}
+                            onClick={() => { setConfirmResetDesc(false); setEditingDesc(false); setDraftDesc(item.description || ""); }}
                             data-testid={`button-cancel-desc-${item.id}`}
                           >
                             Cancel
@@ -774,8 +796,9 @@ function PreviewModal({
                         </div>
                       </>
                     ) : (
-                      <div
-                        className="group cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-2"
+                      <button
+                        type="button"
+                        className="group w-full text-left cursor-pointer rounded-md border border-dashed border-muted-foreground/30 p-3"
                         onClick={() => { setDraftDesc(item.description || item.providerDescription || ""); setEditingDesc(true); }}
                         data-testid={`button-edit-desc-${item.id}`}
                       >
@@ -787,7 +810,7 @@ function PreviewModal({
                             <p className="text-sm text-muted-foreground italic">Tap to add a custom description...</p>
                           )}
                         </div>
-                      </div>
+                      </button>
                     )}
                   </div>
                 ) : (
@@ -891,7 +914,7 @@ function PreviewModal({
                         const selected = item.availableColors
                           .filter(c => selectedColorNames.has(c.name))
                           .map(c => ({ name: c.name, hex: c.hex || '' }));
-                        onColorsSave(item.id, selected);
+                        void onColorsSave(item.id, selected).catch(() => { /* Owner mutation reports save errors. */ });
                       }}
                       data-testid={`button-save-colors-${item.id}`}
                     >
@@ -915,9 +938,10 @@ function PreviewModal({
                   onSelect();
                   onOpenChange(false);
                 }}
+                disabled={actionDisabled}
                 data-testid={`button-modal-select-${item.id}`}
               >
-                Select This Product
+                {actionLabel}
               </Button>
             </div>
           </div>
@@ -939,15 +963,24 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onDelete, deleting, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, priceLabel, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+  const providerLabel = fulfillmentProvider === "both" ? "Printify + Printful"
+    : fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider;
+  const actionLabel = isSelected ? (selectedLabel ?? "Selected") : (selectLabel ?? "Select product");
+  const actionDisabled = (isSelected && !!disableWhenSelected) || !!selectDisabled;
+  const titleParts = item.name.split(" | ");
+  const splitTitle = titleParts.length === 2 && !!item.manufacturer && titleParts[1].toLowerCase().includes(item.manufacturer.toLowerCase());
+  const cardTitle = splitTitle ? titleParts[1] : item.name;
+  const cardSubtitle = splitTitle ? titleParts[0] : null;
   const [previewOpen, setPreviewOpen] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [imageToRemove, setImageToRemove] = useState<string | null>(null);
+  const [imageRemovalError, setImageRemovalError] = useState<string | null>(null);
   const [cardImageIndex, setCardImageIndex] = useState(0);
   const [deletingCardImage, setDeletingCardImage] = useState(false);
 
   // All images available for the card thumbnail slider
   const cardImages = useMemo(() => {
-    const imgs = item.images?.length ? item.images : (item.primaryImageUrl ? [item.primaryImageUrl] : []);
+    const imgs = item.images ?? (item.primaryImageUrl ? [item.primaryImageUrl] : []);
     return imgs;
   }, [item.images, item.primaryImageUrl]);
 
@@ -969,23 +1002,20 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
     setCardImageIndex(i => Math.min(cardImages.length - 1, i + 1));
   }, [cardImages.length]);
 
-  const handleCardImageDelete = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!onImageDelete || deletingCardImage || !currentCardImage) return;
+  const handleCardImageDelete = async () => {
+    if (!onImageDelete || deletingCardImage || !imageToRemove) return;
     setDeletingCardImage(true);
+    setImageRemovalError(null);
     try {
-      await onImageDelete(item.id, currentCardImage);
+      await onImageDelete(item.id, imageToRemove);
       setCardImageIndex(i => Math.max(0, i - 1));
+      setImageToRemove(null);
+    } catch {
+      setImageRemovalError("Could not remove the image. Please try again.");
     } finally {
       setDeletingCardImage(false);
     }
-  }, [onImageDelete, deletingCardImage, currentCardImage, item.id]);
-
-  useEffect(() => {
-    if (!confirmDelete) return;
-    const t = setTimeout(() => setConfirmDelete(false), 4000);
-    return () => clearTimeout(t);
-  }, [confirmDelete]);
+  };
 
   const defaultColorEntry = useMemo(() => {
     if (item.defaultColor) {
@@ -1006,7 +1036,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
       >
         {/* ── Main image area with nav arrows ── */}
         <div
-          className="relative w-full aspect-square max-h-[180px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
+          className="relative w-full aspect-square max-h-[320px] flex items-center justify-center rounded-t-xl bg-muted cursor-pointer overflow-hidden"
           onClick={() => setPreviewOpen(true)}
           data-testid={`img-tap-${item.id}`}
         >
@@ -1042,7 +1072,8 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 type="button"
                 onClick={handleCardPrev}
                 disabled={clampedIndex === 0}
-                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow disabled:opacity-30"
+                className="absolute left-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm min-w-12 min-h-12 flex items-center justify-center shadow disabled:opacity-30"
+                aria-label="Previous image"
                 data-testid={`button-card-prev-${item.id}`}
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -1051,7 +1082,8 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 type="button"
                 onClick={handleCardNext}
                 disabled={clampedIndex === cardImages.length - 1}
-                className="absolute right-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow disabled:opacity-30"
+                className="absolute right-1 top-1/2 -translate-y-1/2 z-20 rounded-full bg-background/80 backdrop-blur-sm min-w-12 min-h-12 flex items-center justify-center shadow disabled:opacity-30"
+                aria-label="Next image"
                 data-testid={`button-card-next-${item.id}`}
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1063,10 +1095,11 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
           {onImageDelete && currentCardImage && cardImages.length > 0 && (
             <button
               type="button"
-              onClick={handleCardImageDelete}
+              onClick={(e) => { e.stopPropagation(); setImageRemovalError(null); setImageToRemove(currentCardImage); }}
               disabled={deletingCardImage}
-              className="absolute top-1 right-1 z-20 rounded-full bg-background/80 backdrop-blur-sm p-0.5 shadow text-destructive"
+              className="absolute top-1 right-1 z-20 min-h-12 min-w-12 flex items-center justify-center rounded-full bg-background/80 backdrop-blur-sm shadow text-destructive"
               title="Remove this image from catalog"
+              aria-label="Remove this image from catalog"
               data-testid={`button-card-delete-img-${item.id}`}
             >
               {deletingCardImage
@@ -1093,17 +1126,6 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
             </div>
           )}
 
-          {fulfillmentProvider && (
-            <div className="absolute bottom-2 right-2">
-              <Badge
-                variant="outline"
-                className="text-[10px] bg-background/90 backdrop-blur-sm shadow-sm"
-                data-testid={`badge-provider-${item.id}`}
-              >
-                {fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider}
-              </Badge>
-            </div>
-          )}
         </div>
 
         {/* ── Thumbnail strip ── */}
@@ -1114,7 +1136,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 key={img}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setCardImageIndex(idx); }}
-                className={`flex-shrink-0 w-10 h-10 rounded border-2 overflow-hidden transition-colors ${
+                className={`flex-shrink-0 w-14 h-14 rounded border-2 overflow-hidden transition-colors ${
                   idx === clampedIndex ? "border-primary" : "border-transparent"
                 }`}
                 data-testid={`thumbnail-${item.id}-${idx}`}
@@ -1131,28 +1153,23 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
 
         <CardContent className="p-3 space-y-2">
           <h3
-            className="font-semibold text-sm leading-snug line-clamp-2"
+            className="font-sans font-semibold text-base leading-snug"
             data-testid={`text-name-${item.id}`}
           >
-            {item.name}
+            {cardTitle}
           </h3>
+          {cardSubtitle && <p className="text-sm text-muted-foreground">{cardSubtitle}</p>}
 
           <p
             className="text-[10px] text-muted-foreground/60 font-mono"
             data-testid={`text-id-${item.id}`}
           >
-            ID: {item.id}
+            {formatBlankId(item.id, item.qrgBlankId)}
           </p>
 
-          {(item.manufacturer || item.model) && (
+          {!splitTitle && (item.manufacturer || item.model) && (
             <p className="text-xs text-muted-foreground truncate" data-testid={`text-make-model-${item.id}`}>
               {[item.manufacturer, item.model].filter(Boolean).join(' ')}
-            </p>
-          )}
-
-          {item.qrgBlankId != null && (
-            <p className="text-[10px] text-muted-foreground/60 font-mono" data-testid={`text-qrg-${item.id}`}>
-              QRG-{item.qrgBlankId}
             </p>
           )}
 
@@ -1163,76 +1180,62 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
                 className="text-[10px] bg-background/80"
                 data-testid={`badge-provider-card-${item.id}`}
               >
-                {fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider}
+                {providerLabel}
               </Badge>
             )}
             {item.price != null && (
               <span className="text-sm font-bold ml-auto" data-testid={`text-price-${item.id}`}>
-                ${item.price.toFixed(2)}
+                {priceLabel && <span className="font-normal mr-1">{priceLabel}</span>}${item.price.toFixed(2)}
               </span>
             )}
           </div>
 
+          {(item.availableColors.length > 0 || item.availableSizes.length > 0) && (
+            <p className="text-xs text-muted-foreground">
+              {[item.availableColors.length > 0 ? `${item.availableColors.length} colors` : null,
+                item.availableSizes.length > 0 ? `${item.availableSizes.length} sizes` : null].filter(Boolean).join(" · ")}
+            </p>
+          )}
+
           <Button
             variant={isSelected ? "secondary" : "default"}
-            className="w-full min-h-11 text-sm"
+            className="w-full min-h-12 text-base"
             onClick={(e) => { e.stopPropagation(); onSelect(item.id, item); }}
-            disabled={(isSelected && !!disableWhenSelected) || !!selectDisabled}
+            disabled={actionDisabled}
             title={selectDisabled ? selectDisabledTitle : undefined}
             data-testid={`button-select-${item.id}`}
           >
-            {isSelected ? (
-              selectedLabel ?? (
-                <>
-                  <Check className="w-4 h-4 mr-1.5" />
-                  Added
-                </>
-              )
-            ) : (
-              selectLabel ?? "Add"
-            )}
+            {actionLabel}
           </Button>
 
-          {onDelete && !confirmDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-destructive/70 text-xs"
-              onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }}
-              disabled={deleting}
-              data-testid={`button-delete-${item.id}`}
-            >
-              {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-1" /> : <Trash2 className="w-3.5 h-3.5 mr-1" />}
-              Remove from catalog
-            </Button>
-          )}
-          {onDelete && confirmDelete && (
-            <div className="flex items-center gap-1">
-              <Button
-                variant="destructive"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); onDelete(item.id); }}
-                disabled={deleting}
-                data-testid={`button-confirm-delete-${item.id}`}
-              >
-                Remove
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1 text-xs"
-                onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }}
-                data-testid={`button-cancel-delete-${item.id}`}
-              >
-                Keep
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
 
+      <AlertDialog open={imageToRemove !== null} onOpenChange={(open) => { if (!open && !deletingCardImage) setImageToRemove(null); }}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] rounded-lg" data-testid={`confirm-image-removal-${item.id}`}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this image?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this image from {item.name}? The product will stay in the catalog.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {imageToRemove && <img src={imageToRemove} alt="Image to remove" className="h-32 w-full object-contain" />}
+          {imageRemovalError && <p role="alert" className="text-sm text-destructive">{imageRemovalError}</p>}
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel className="min-h-12 text-base" disabled={deletingCardImage} data-testid={`button-cancel-remove-image-${item.id}`}>Cancel</AlertDialogCancel>
+            <AlertDialogAction className="min-h-12 text-base bg-destructive text-destructive-foreground hover:bg-destructive/90" disabled={deletingCardImage}
+              onClick={(e) => { e.preventDefault(); void handleCardImageDelete(); }} data-testid={`button-confirm-remove-image-${item.id}`}>
+              {deletingCardImage ? "Removing…" : "Yes, remove image"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <PreviewModal
+        actionLabel={actionLabel}
+        actionDisabled={actionDisabled}
+        priceLabel={priceLabel}
+        providerLabel={providerLabel}
         item={item}
         open={previewOpen}
         onOpenChange={setPreviewOpen}
@@ -1244,6 +1247,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         onTitleSave={onTitleSave}
         titleSaving={titleSaving}
         editableTitle={editableTitle}
+        textEditScope={textEditScope}
         onImageDelete={onImageDelete}
         onImageRestore={onImageRestore}
         onImagesBulkSave={onImagesBulkSave}

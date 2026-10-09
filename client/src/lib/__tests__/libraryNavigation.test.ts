@@ -1,0 +1,44 @@
+import AdminBottomNav from "@/components/admin/AdminBottomNav";
+import { getModeForPath, PLACE_SUBNAV } from "@/components/admin/adminNavConfig";
+import React from 'react';
+import { act, create, type ReactTestRenderer } from 'react-test-renderer';
+import { afterEach, it, expect, vi } from 'vitest';
+import LibraryPage from '@/features/adminLibrary/LibraryPage';
+const m = vi.hoisted(() => ({ navigate: vi.fn(), location: "/admin/library" }));
+vi.mock('wouter', () => ({ useLocation: () => [m.location, m.navigate], useSearch: () => 'tab=templates' }));
+vi.mock('@/features/shared/AdminAuthContext', () => ({ AdminAuthProvider: ({ children }: any) => children }));
+vi.mock('@/features/shared/components/DeleteBuildDialog', () => ({ PendingAssetDeletions: () => null }));
+vi.mock('@/features/adminLibrary/tabs/SourceImagesTab', () => ({ default: () => null }));
+vi.mock('@/features/adminLibrary/tabs/BackgroundsTab', () => ({ default: () => null }));
+vi.mock('@/features/adminLibrary/tabs/CroppedImagesTab', () => ({ default: () => null }));
+vi.mock('@/features/adminLibrary/tabs/GraphicsTab', () => ({ default: () => null }));
+vi.mock('@/features/adminLibrary/tabs/TemplatesTab', () => ({ default: () => React.createElement('p', null, 'Saved templates') }));
+vi.mock('@/features/adminLibrary/tabs/ImagesTab', () => ({ default: () => null }));
+vi.mock('@/features/adminLibrary/tabs/BldDefinitionsTab', () => ({ default: () => null }));
+vi.mock('@/features/adminLibrary/tabs/AssembliesTab', () => ({ default: () => null }));
+let tree: ReactTestRenderer;
+afterEach(() => { if (tree) act(() => tree.unmount()); vi.clearAllMocks(); m.location = "/admin/library"; });
+it('keeps all seven Build destinations available while preserving the Library subtab deep link', async () => {
+  await act(async () => { tree = create(React.createElement(LibraryPage)); });
+  const nav = tree.root.findByProps({ 'aria-label': 'Admin sections' });
+  expect(nav.findAllByType('button')).toHaveLength(7);
+  expect(nav.findByProps({ 'data-testid': 'subnav-library' }).props['aria-current']).toBe('page');
+  expect(JSON.stringify(tree.toJSON())).toContain('Saved templates');
+  act(() => nav.findByProps({ 'data-testid': 'subnav-products' }).props.onClick());
+  expect(m.navigate).toHaveBeenLastCalledWith('/admin/products');
+  act(() => tree.root.findByProps({ 'data-testid': 'tab-source' }).props.onClick());
+  expect(m.navigate).toHaveBeenLastCalledWith('/admin/library?tab=source', { replace: true });
+});
+
+it('gives Partners one main destination and preserves its existing route', async () => {
+  m.location = '/admin/partners';
+  await act(async () => { tree = create(React.createElement(AdminBottomNav)); });
+  expect(getModeForPath('/admin/partners')).toBe('Partners');
+  expect(PLACE_SUBNAV.some(item => item.href === '/admin/partners')).toBe(false);
+  const nav = tree.root.findByProps({ 'data-testid': 'admin-bottom-nav' });
+  expect(nav.findAllByType('button')).toHaveLength(7);
+  expect(nav.findByProps({ 'data-testid': 'nav-partners' }).props['aria-current']).toBe('page');
+  expect(nav.findByProps({ 'data-testid': 'nav-place' }).props['aria-current']).toBeUndefined();
+  act(() => nav.findByProps({ 'data-testid': 'nav-partners' }).props.onClick());
+  expect(m.navigate).toHaveBeenLastCalledWith('/admin/partners');
+});

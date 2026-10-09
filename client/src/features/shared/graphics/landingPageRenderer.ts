@@ -1,3 +1,4 @@
+import { loadGoogleFonts } from "@/lib/fontLoader";
 import { DEFAULT_FONT_SIZE_NUM } from "../components/TextStyleEditor";
 import {
   landingPageBlockContext,
@@ -10,6 +11,7 @@ export interface LandingPageTextStyle {
   enabled?: boolean;
   fontFamily: string;
   fontSize: string;
+  fontWeight?: string;
   color: string;
   letterSpacing?: number;
   strokeColor?: string;
@@ -54,12 +56,15 @@ function drawAutoFitText(
   color: string,
   strokeColor?: string,
   strokeWidth?: number,
-  lineHeight: number = 1.2
+  lineHeight: number = 1.2,
+  fontWeight: string = "700",
+  letterSpacing: number = 0
 ) {
   const minScale = 0.65;
+  (ctx as any).letterSpacing = `${letterSpacing}px`;
   let currentFontSize = baseFontSize;
 
-  ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
+  ctx.font = `${fontWeight} ${currentFontSize}px ${fontFamily}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
 
@@ -69,11 +74,11 @@ function drawAutoFitText(
     const scale = maxWidth / textWidth;
     if (scale >= minScale) {
       currentFontSize = Math.floor(baseFontSize * scale);
-      ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
+      ctx.font = `${fontWeight} ${currentFontSize}px ${fontFamily}`;
       textWidth = ctx.measureText(text).width;
     } else {
       currentFontSize = Math.floor(baseFontSize * minScale);
-      ctx.font = `bold ${currentFontSize}px ${fontFamily}`;
+      ctx.font = `${fontWeight} ${currentFontSize}px ${fontFamily}`;
     }
   }
 
@@ -124,7 +129,8 @@ function renderBlock(
   const textY = CANVAS_HEIGHT * (1 - verticalOffset / 100);
 
   // Horizontal: full edge-to-edge range via the shared engine
-  ctx.font = `bold ${scaledFontSize}px ${block.fontFamily || "Arial"}`;
+  ctx.font = `${block.fontWeight || "700"} ${scaledFontSize}px ${block.fontFamily || "Arial"}`;
+  (ctx as any).letterSpacing = `${(block.letterSpacing || 0) * (CANVAS_WIDTH / 360)}px`;
   const measuredW = Math.min(ctx.measureText(block.text).width, zone.maxTextWidth);
   const halfText  = measuredW / 2;
   const textX     = computeTextX(horizontalOffset, halfText, zone);
@@ -139,7 +145,10 @@ function renderBlock(
     block.fontFamily || "Arial",
     block.color || defaultColor,
     block.strokeColor,
-    block.strokeWidth
+    block.strokeWidth,
+    1.2,
+    block.fontWeight || "700",
+    (block.letterSpacing || 0) * (CANVAS_WIDTH / 360)
   );
 }
 
@@ -148,6 +157,7 @@ export async function renderLandingPage(
 ): Promise<string> {
   const { backgroundUrl, titleStyle, descriptionStyle, textBlocks } = options;
 
+  await loadGoogleFonts((textBlocks || [titleStyle, descriptionStyle]).filter(b => b?.enabled !== false && b?.text).map(b => b!.fontFamily || "Arial"));
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_WIDTH;
   canvas.height = CANVAS_HEIGHT;

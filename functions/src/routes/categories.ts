@@ -1,3 +1,4 @@
+import { registerProductTagRoutes } from "../services/product-tags";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -14,6 +15,7 @@ import { printfulClient } from '../services/printful';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
 
   export function register(app: express.Express): void {
+  registerProductTagRoutes(app, "", requireAdmin, () => db);
   // ============ PRODUCT CATEGORIES ============
 
 app.get('/product-categories', async (_req: Request, res: Response): Promise<void> => {
@@ -62,16 +64,6 @@ app.post('/admin/product-categories', requireAdmin, async (req: Request, res: Re
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
     const doc = await docRef.get();
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/admin/product-categories/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('productCategories').doc(req.params.id).update(req.body);
-    const doc = await db.collection('productCategories').doc(req.params.id).get();
     res.json(docToObject(doc));
   } catch (error: any) {
     res.status(500).json({ error: error.message });

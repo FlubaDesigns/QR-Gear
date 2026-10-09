@@ -1,3 +1,4 @@
+import { formatBlankId } from "@shared/blankKeys";
 import { Badge } from "@/components/ui/badge";
 import { X, Package } from "lucide-react";
 
@@ -11,6 +12,7 @@ export interface CatalogBlankItem {
   isPrintful?: boolean;
   hasMockupMapping?: boolean;
   qrgBlankId?: string | null;
+  unavailable?: boolean;
 }
 
 export interface AdminCatalogBlankSkinProps {
@@ -46,29 +48,30 @@ export function AdminCatalogBlankSkin({ item, onRemove, removing }: AdminCatalog
 
       <div className="px-1 py-1 bg-muted/80">
         <p className="text-[10px] text-foreground truncate leading-tight">{item.title}</p>
+        {item.unavailable && <p className="text-xs text-destructive font-semibold">Unavailable</p>}
         {item.subtitle && (
           <p className="text-[9px] text-muted-foreground truncate leading-tight">{item.subtitle}</p>
         )}
         {item.qrgBlankId != null && (
-          <p className="text-[8px] text-muted-foreground/60 font-mono truncate leading-tight">QRG-{item.qrgBlankId}</p>
+          <p className="text-[8px] text-muted-foreground/60 font-mono truncate leading-tight">{formatBlankId(item.catalogKey, item.qrgBlankId)}</p>
         )}
       </div>
 
-      {item.tier && (
-        <Badge className={`absolute top-1 left-1 text-[9px] px-1 py-0 ${TIER_COLORS[item.tier] || ""}`}>
-          {item.tier}
-        </Badge>
-      )}
-
-      {item.isPrintful && (
-        <Badge className="absolute top-1 right-7 text-[9px] px-1 py-0 bg-purple-600 text-white">
-          PF
-        </Badge>
-      )}
+      <div className="absolute top-1 right-1 flex flex-col items-end gap-1 pointer-events-none">
+        {item.tier && (
+          <Badge className={`text-[9px] px-1 py-0 ${TIER_COLORS[item.tier] || ""}`}>
+            {item.tier}
+          </Badge>
+        )}
+        {item.isPrintful && (
+          <Badge className="text-[9px] px-1 py-0 bg-purple-600 text-white">PF</Badge>
+        )}
+      </div>
 
       {onRemove && (
         <button
-          className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-sm h-6 w-6 flex items-center justify-center transition-opacity"
+          type="button"
+          className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-sm h-12 w-12 flex items-center justify-center transition-opacity"
           onClick={(e) => {
             e.stopPropagation();
             onRemove(item.catalogKey);

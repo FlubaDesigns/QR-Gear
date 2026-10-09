@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Box, Save, Loader2, Search, Filter, Flag, Globe, Layers, Check, X, Trash2,
@@ -23,7 +23,10 @@ import {
   AdminCatalogBlankSkin,
 } from "@/features/shared/components/skins/AdminCatalogBlankSkin";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
-import { useAdminBlanksController, type CatalogProduct, type AdminCatalog, type PricingSettings, type CatalogCategory, type LocationFilter, type ProviderFilter } from "@/features/adminProducts/controllers/useAdminBlanksController";
+import { useAdminBlanksController, type AdminCatalog, type LocationFilter } from "@/features/adminProducts/controllers/useAdminBlanksController";
+
+import { masterBlankImages } from "@shared/productImages";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "@/components/ui/alert-dialog";
 
 interface CatalogAssignments {
   member: string | null;
@@ -54,11 +57,11 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
   const [bulkCopySource, setBulkCopySource] = useState<string | null>(null);
   const [bulkCopyTarget, setBulkCopyTarget] = useState<string>("");
 
-  const { data: catalogsData, isLoading: loadingCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
+  const { data: catalogsData, isLoading: loadingCatalogs, error: catalogsError, refetch: reloadCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
   });
 
-  const { data: assignments, isLoading: loadingAssignments } = useQuery<CatalogAssignments>({
+  const { data: assignments, isLoading: loadingAssignments, error: assignmentsError, refetch: reloadAssignments } = useQuery<CatalogAssignments>({
     queryKey: ["/api/admin/catalog-assignments"],
   });
 
@@ -102,6 +105,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
     onSuccess: () => {
       toast({ title: "Catalog deleted" });
       setConfirmDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalog-defaults"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
     },
     onError: (err: any) => toast({ title: "Cannot delete", description: err.message, variant: "destructive" }),
@@ -131,7 +135,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
     onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
-  const { data: defaultsData } = useQuery<{ defaultCatalogId: string | null }>({
+  const { data: defaultsData, isLoading: loadingDefaults, error: defaultsError, refetch: reloadDefaults } = useQuery<{ defaultCatalogId: string | null }>({
     queryKey: ["/api/admin/catalog-defaults"],
   });
 
@@ -167,6 +171,12 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
 
   return (
     <div className="space-y-6">
+      {(catalogsError || assignmentsError || defaultsError) && (
+        <Card className="p-4 space-y-3" role="alert">
+          <p>Could not load {catalogsError ? "catalogs" : assignmentsError ? "catalog assignments" : "the default catalog"}. Your saved data has not been cleared.</p>
+          <Button onClick={() => { void reloadCatalogs(); void reloadAssignments(); void reloadDefaults(); }}>Retry</Button>
+        </Card>
+      )}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="flex items-center gap-2 text-xl">
@@ -186,7 +196,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
                 onChange={e => setNewName(e.target.value)}
                 className="text-base h-12"
                 data-testid="input-catalog-name"
-                onKeyDown={e => { if (e.key === "Enter" && newName.trim()) createMutation.mutate(); }}
+                onKeyDown={e => { if (e.key === "Enter" && newName.trim() && !createMutation.isPending) createMutation.mutate(); }}
               />
               <Input
                 placeholder="Description (optional)..."
@@ -211,7 +221,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
             <div className="space-y-3">
               {[1, 2].map(i => <Skeleton key={i} className="h-24 w-full" />)}
             </div>
-          ) : catalogs.length === 0 ? (
+          ) : catalogsError ? null : catalogs.length === 0 ? (
             <div className="text-center py-12">
               <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-lg text-muted-foreground">No catalogs yet. Create one to curate blanks.</p>
@@ -278,6 +288,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
                             <Button
                               size="icon"
                               variant="ghost"
+                              disabled={loadingDefaults || !!defaultsError || setDefaultMutation.isPending}
                               onClick={() => setDefaultMutation.mutate(cat.id)}
                               title="Set as default"
                               data-testid={`default-catalog-${cat.id}`}
@@ -288,6 +299,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
                             <Button
                               size="icon"
                               variant="ghost"
+                              disabled={loadingDefaults || !!defaultsError || setDefaultMutation.isPending}
                               onClick={() => setDefaultMutation.mutate(null)}
                               title="Remove as default"
                               data-testid={`undefault-catalog-${cat.id}`}
@@ -317,7 +329,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
                           <Button
                             size="icon"
                             variant="ghost"
-                            onClick={() => { setEditingCatalog(cat); setEditName(cat.name); setEditDesc(cat.description); }}
+                            onClick={() => { setEditingCatalog(cat); setEditName(cat.name); setEditDesc(cat.description || ""); }}
                             data-testid={`edit-catalog-${cat.id}`}
                           >
                             <Pencil className="h-5 w-5" />
@@ -391,6 +403,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
                   <p className="text-base text-muted-foreground">{section.desc}</p>
                   <div className="flex items-center gap-3 flex-wrap">
                     <select
+                      disabled={loadingAssignments || !!assignmentsError || !!catalogsError || assignMutation.isPending}
                       value={currentId}
                       onChange={e => {
                         const val = e.target.value || null;
@@ -408,6 +421,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
                       <Button
                         size="icon"
                         variant="ghost"
+                        disabled={!!assignmentsError || assignMutation.isPending}
                         onClick={() => assignMutation.mutate({ [section.key]: null })}
                         data-testid={`unassign-${section.key}`}
                       >
@@ -428,22 +442,24 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
 export default function AdminBlanks() {
   const [activeTab, setActiveTab] = useState<PageTab>("blanks");
   const [showCreate, setShowCreate] = useState(false);
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [pendingRemoval, setPendingRemoval] = useState<{ catalogId: string; catalogName: string; blankIds: string[]; title: string } | null>(null);
 
   const ctrl = useAdminBlanksController();
   const {
-    loadingCatalog, catalogs, activeCatalog, hasCatalogSelected,
+    loadingCatalog, loadError, reload, catalogs, activeCatalog, hasCatalogSelected,
     selectedCatalogId, setSelectedCatalogId,
     sourceCatalogId, setSourceCatalogId, sourceCatalog,
     providerFilter, setProviderFilter,
     search, setSearch, categoryFilter, setCategoryFilter,
     locationFilter, setLocationFilter, categoryNames,
     catalogItems, sourceItemMap, scrollItems, blankTiers, blankColors,
-    onAddToCatalog, onToggleItem, onSaveDescription, onSaveTitle, onSaveColors, onTierChange,
+    onAddToCatalog, onImageDelete, onImageRestore, onImagesBulkSave, onSaveDescription, onSaveTitle, onSaveColors, onTierChange,
     getItemMappingBadge, resolveBlankKey,
-    allProductMap, catalogBlankSet, removeBlanksMutation, saveDescriptionMutation, saveTitleMutation, saveColorsMutation,
+    allProductMap, catalogBlankSet, removeBlanksMutation, addBlanksMutation, saveDescriptionMutation, saveTitleMutation, saveColorsMutation,
     totalProductCount, filteredCount, categoryCounts,
   } = ctrl;
+
+  useEffect(() => { setPendingRemoval(null); }, [selectedCatalogId, activeTab]);
 
   const validSelectedCatalogId = hasCatalogSelected ? selectedCatalogId : null;
   const targetName = activeCatalog?.name ?? "target";
@@ -452,7 +468,7 @@ export default function AdminBlanks() {
     (scrollItem: ScrollViewItem) => {
       const selectItem = sourceItemMap.get(String(scrollItem.id));
       if (!selectItem) return null;
-      const product = allProductMap.get(String(scrollItem.id)) || allProductMap.get(`pf:${scrollItem.id}`);
+      const product = allProductMap.get(String(scrollItem.id));
       const blankKey = product ? resolveBlankKey(String(scrollItem.id), product) : String(scrollItem.id);
       const inTarget = catalogBlankSet.has(blankKey);
       const itemTier = blankTiers[blankKey] as "good" | "better" | "best" | undefined;
@@ -468,26 +484,30 @@ export default function AdminBlanks() {
           : 'bg-orange-600 text-white';
 
       const handleSelect = () => {
-        if (validSelectedCatalogId) {
-          if (!inTarget) onAddToCatalog(blankKey, product);
-        } else {
-          onToggleItem(String(scrollItem.id), product);
-        }
+        if (validSelectedCatalogId && !inTarget) onAddToCatalog(blankKey);
       };
 
       return (
         <div className="relative">
           <AdminSourceBlankSkin
-            item={selectItem as any}
+            item={selectItem}
+            priceLabel="Our cost"
+            textEditScope="catalog"
+            onImageDelete={inTarget ? onImageDelete : undefined}
+            onImageRestore={inTarget ? onImageRestore : undefined}
+            onImagesBulkSave={inTarget ? onImagesBulkSave : undefined}
+            masterCatalogImages={product ? masterBlankImages(product) : undefined}
+            selectDisabled={!validSelectedCatalogId || addBlanksMutation.isPending}
+            selectDisabledTitle={!validSelectedCatalogId ? "Select a destination catalog first" : undefined}
             isSelected={inTarget}
             onSelect={handleSelect}
             tier={itemTier || null}
             onTierChange={(_blankId: string, tier: string | null) => onTierChange(blankKey, tier)}
             showTierControls={!!validSelectedCatalogId && inTarget}
-            editableDescription={!!validSelectedCatalogId}
+            editableDescription={!!validSelectedCatalogId && inTarget}
             onDescriptionSave={(id: string, desc: string) => onSaveDescription(id, desc, blankKey)}
             descriptionSaving={saveDescriptionMutation.isPending}
-            editableTitle={!!validSelectedCatalogId}
+            editableTitle={!!validSelectedCatalogId && inTarget}
             onTitleSave={(id: string, title: string) => onSaveTitle(id, title, blankKey)}
             titleSaving={saveTitleMutation.isPending}
             editableColors={!!validSelectedCatalogId && inTarget}
@@ -515,9 +535,10 @@ export default function AdminBlanks() {
         </div>
       );
     },
-    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, onToggleItem, blankTiers, onTierChange,
+    [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, blankTiers, onTierChange,
      validSelectedCatalogId, targetName, getItemMappingBadge, onSaveDescription, saveDescriptionMutation.isPending,
-     onSaveTitle, saveTitleMutation.isPending, resolveBlankKey]
+     onSaveTitle, saveTitleMutation.isPending, resolveBlankKey, blankColors, onSaveColors,
+     saveColorsMutation.isPending, onImageDelete, onImageRestore, onImagesBulkSave, addBlanksMutation.isPending]
   );
 
   const handleOpenCatalog = useCallback((catalogId: string) => {
@@ -655,52 +676,17 @@ export default function AdminBlanks() {
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      {catalogItems.length > 0 && !confirmClearAll && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive/70 text-xs"
-                          onClick={() => setConfirmClearAll(true)}
-                          data-testid="button-clear-all"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 mr-1" />
-                          Clear All
+                      {activeCatalog.blankIds.length > 0 && (
+                        <Button variant="ghost" className="min-h-12 text-destructive" disabled={removeBlanksMutation.isPending}
+                          onClick={() => setPendingRemoval({ catalogId: activeCatalog.id, catalogName: activeCatalog.name, blankIds: [...activeCatalog.blankIds], title: "Remove all blanks?" })}
+                          data-testid="button-clear-all">
+                          <Trash2 className="h-4 w-4 mr-1" /> Clear All
                         </Button>
-                      )}
-                      {confirmClearAll && (
-                        <div className="flex items-center gap-1">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => {
-                              setConfirmClearAll(false);
-                              if (validSelectedCatalogId && catalogItems.length > 0) {
-                                removeBlanksMutation.mutate({
-                                  catalogId: validSelectedCatalogId,
-                                  blankIds: catalogItems.map(i => i.catalogKey),
-                                });
-                              }
-                            }}
-                            data-testid="button-confirm-clear-all"
-                          >
-                            Remove all
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-xs"
-                            onClick={() => setConfirmClearAll(false)}
-                            data-testid="button-cancel-clear-all"
-                          >
-                            Cancel
-                          </Button>
-                        </div>
                       )}
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => { setSelectedCatalogId(null); setConfirmClearAll(false); }}
+                        onClick={() => { setSelectedCatalogId(null); setPendingRemoval(null); }}
                         data-testid="button-clear-catalog"
                       >
                         <X className="h-4 w-4" /> Deselect
@@ -716,7 +702,7 @@ export default function AdminBlanks() {
                             item={item}
                             onRemove={(key) => {
                               if (!validSelectedCatalogId) return;
-                              removeBlanksMutation.mutate({ catalogId: validSelectedCatalogId, blankIds: [key] });
+                              setPendingRemoval({ catalogId: validSelectedCatalogId, catalogName: activeCatalog.name, blankIds: [key], title: `Remove ${item.title}?` });
                             }}
                             removing={removeBlanksMutation.isPending}
                           />
@@ -795,7 +781,9 @@ export default function AdminBlanks() {
             </div>
 
             {/* Item grid — always shows scrollItems, card action changes based on target */}
-            {loadingCatalog ? (
+            {loadError ? (
+              <Card className="p-4 space-y-3" role="alert"><p>Could not load blanks: {loadError}</p><Button onClick={reload}>Retry</Button></Card>
+            ) : loadingCatalog ? (
               <div className="space-y-4">
                 {Array.from({ length: 4 }).map((_, i) => (
                   <Skeleton key={i} className="h-28 w-full rounded-md" />
@@ -822,6 +810,21 @@ export default function AdminBlanks() {
           </>
         )}
       </div>
+      <AlertDialog open={!!pendingRemoval} onOpenChange={open => { if (!open && !removeBlanksMutation.isPending) setPendingRemoval(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingRemoval?.title}</AlertDialogTitle>
+            <AlertDialogDescription>Remove {pendingRemoval?.blankIds.length} blank(s) and their saved catalog choices from “{pendingRemoval?.catalogName}”? The master blanks and built products will remain.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button variant="outline" className="min-h-12" disabled={removeBlanksMutation.isPending} onClick={() => setPendingRemoval(null)}>Cancel</Button>
+            <Button variant="destructive" className="min-h-12" disabled={removeBlanksMutation.isPending} data-testid="button-confirm-remove-blanks" onClick={async () => {
+              if (!pendingRemoval || pendingRemoval.catalogId !== selectedCatalogId) return;
+              try { await removeBlanksMutation.mutateAsync(pendingRemoval); setPendingRemoval(null); } catch { /* Mutation shows the error; retain confirmation for retry. */ }
+            }}>{removeBlanksMutation.isPending ? "Removing…" : "Remove"}</Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminShell>
   );
 }

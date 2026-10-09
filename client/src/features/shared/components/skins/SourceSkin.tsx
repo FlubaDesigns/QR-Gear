@@ -76,27 +76,27 @@ export function SourceCardSkin({ item, actions, isActionPending }: CardSkinProps
           <div className="flex gap-1">
             {actions?.onCrop && (
               <Button
-                size="icon"
+                size="default"
                 variant="outline"
-                className="flex-1"
+                className="flex-1 min-h-[44px]"
                 onClick={handleCrop}
                 data-testid={`button-crop-${item.id}`}
                 title="Crop"
               >
-                <Crop className="h-3 w-3" />
+                <Crop className="h-4 w-4 mr-1" />Crop
               </Button>
             )}
             {actions?.onDelete && (
               <Button
-                size="icon"
+                size="default"
                 variant="ghost"
-                className="flex-1 text-destructive"
+                className="flex-1 min-h-[44px] text-destructive"
                 onClick={handleDelete}
                 disabled={isActionPending}
                 data-testid={`button-delete-${item.id}`}
-                title="Archive"
+                title="Delete"
               >
-                <Trash2 className="h-3 w-3" />
+                <Trash2 className="h-4 w-4 mr-1" />Delete
               </Button>
             )}
           </div>

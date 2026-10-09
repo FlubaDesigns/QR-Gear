@@ -1,3 +1,4 @@
+import { MasterCatalogDebugModule } from "@/features/adminProducts/modules/MasterCatalogDebugModule";
 import { useQuery } from "@tanstack/react-query";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
@@ -21,11 +22,11 @@ import type { ProviderHealthLog } from "@shared/schema";
 
 interface ProviderStatus {
   provider: string;
-  status: "healthy" | "degraded" | "down";
-  lastCheck: string;
-  responseMs: number;
-  successRate: number;
-  recentErrors: number;
+  status: "healthy" | "degraded" | "down" | "not_checked" | "not_configured";
+  lastCheck: string | null;
+  responseMs: number | null;
+  successRate: number | null;
+  recentErrors: number | null;
 }
 
 interface HealthOverview {
@@ -52,6 +53,7 @@ function StatusBadge({ status }: { status: string }) {
     healthy: { label: "Healthy", color: "bg-green-500/10 text-green-600 border-green-500/20" },
     degraded: { label: "Degraded", color: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20" },
     down: { label: "Down", color: "bg-red-500/10 text-red-600 border-red-500/20" },
+    not_checked: { label: "Not Checked", color: "bg-gray-500/10 text-gray-500" },
     not_configured: { label: "Not Configured", color: "bg-gray-500/10 text-gray-500 border-gray-500/20" },
   };
   const { label, color } = config[status] || config.down;
@@ -84,7 +86,7 @@ function ProviderCard({ provider }: { provider: ProviderStatus }) {
                 {provider.provider}
               </h3>
               <p className="text-sm text-muted-foreground">
-                Last checked: {new Date(provider.lastCheck).toLocaleTimeString()}
+                Last checked: {provider.lastCheck ? new Date(provider.lastCheck).toLocaleString() : "Never"}
               </p>
             </div>
           </div>
@@ -97,22 +99,22 @@ function ProviderCard({ provider }: { provider: ProviderStatus }) {
               <Zap className="w-3 h-3" />
               <span className="text-xs">Response</span>
             </div>
-            <p className="font-semibold">{provider.responseMs}ms</p>
+            <p className="font-semibold">{provider.responseMs == null ? "Not measured" : `${provider.responseMs}ms`}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
               <CheckCircle className="w-3 h-3" />
               <span className="text-xs">Success</span>
             </div>
-            <p className="font-semibold">{provider.successRate}%</p>
+            <p className="font-semibold">{provider.successRate == null ? "Not measured" : `${provider.successRate}%`}</p>
           </div>
           <div className="text-center">
             <div className="flex items-center justify-center gap-1 text-muted-foreground mb-1">
               <AlertCircle className="w-3 h-3" />
               <span className="text-xs">Errors</span>
             </div>
-            <p className={`font-semibold ${provider.recentErrors > 0 ? "text-red-500" : ""}`}>
-              {provider.recentErrors}
+            <p className={`font-semibold ${(provider.recentErrors ?? 0) > 0 ? "text-red-500" : ""}`}>
+              {provider.recentErrors ?? "—"}
             </p>
           </div>
         </div>
@@ -156,7 +158,7 @@ function LogEntry({ log }: { log: ProviderHealthLog }) {
 }
 
 export default function AdminHealth() {
-  const { data, isLoading, refetch, isRefetching } = useQuery<HealthOverview>({
+  const { data, error, isLoading, refetch, isRefetching } = useQuery<HealthOverview>({
     queryKey: ["/api/admin/health"],
     refetchInterval: 30000,
   });
@@ -183,7 +185,10 @@ export default function AdminHealth() {
         </Button>
       }
     >
-        {isLoading ? (
+        <div className="mb-6">
+          <MasterCatalogDebugModule />
+        </div>
+        {error ? <p role="alert">Health status could not load: {error.message}</p> : isLoading ? (
           <div className="space-y-6">
             <div className="qr-admin-grid qr-admin-grid--2">
               {[...Array(2)].map((_, i) => (
@@ -214,28 +219,7 @@ export default function AdminHealth() {
                   <ProviderCard key={provider.provider} provider={provider} />
                 ))
               ) : (
-                <>
-                  <ProviderCard
-                    provider={{
-                      provider: "printify",
-                      status: "healthy",
-                      lastCheck: new Date().toISOString(),
-                      responseMs: 245,
-                      successRate: 99.8,
-                      recentErrors: 0,
-                    }}
-                  />
-                  <ProviderCard
-                    provider={{
-                      provider: "stripe",
-                      status: "healthy",
-                      lastCheck: new Date().toISOString(),
-                      responseMs: 120,
-                      successRate: 100,
-                      recentErrors: 0,
-                    }}
-                  />
-                </>
+                <p>No provider checks are available.</p>
               )}
             </div>
 

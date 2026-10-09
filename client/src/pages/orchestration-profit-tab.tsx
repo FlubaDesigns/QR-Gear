@@ -14,7 +14,7 @@ import {
 import type { ProfitDashboard } from "./orchestration-types";
 
 export function ProfitTabContent() {
-  const { data: profitDashboard, isLoading: profitLoading, refetch: refetchProfit } = useQuery<ProfitDashboard>({
+  const { error: profitError, data: profitDashboard, isLoading: profitLoading, refetch: refetchProfit } = useQuery<ProfitDashboard>({
     queryKey: ["/api/admin/orchestration/profit/dashboard"],
   });
 
@@ -33,7 +33,7 @@ export function ProfitTabContent() {
         </Button>
       </div>
 
-      {profitLoading ? (
+      {profitError ? <p role="alert">{profitError.message}</p> : profitLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>

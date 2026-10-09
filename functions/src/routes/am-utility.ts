@@ -1,3 +1,4 @@
+import { HealthMonitorService } from '../services/health-monitor';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -20,16 +21,7 @@ import { printfulClient, updatePrintfulKeyCache } from '../services/printful';
 
 app.get('/admin/health', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const printifyOk = !!process.env.PRINTIFY_API_TOKEN;
-    const stripeOk = !!process.env.STRIPE_SECRET_KEY;
-    res.json({ status: 'healthy', timestamp: new Date().toISOString(), services: { firestore: true, printify: printifyOk, stripe: stripeOk, storage: true } });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/admin/images', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snap = await db.collection('libraryAssets').where('isActive', '==', true).limit(20).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    res.json(await new HealthMonitorService(db).getOverview());
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -501,14 +493,6 @@ app.get('/render/png', async (req: Request, res: Response): Promise<void> => {
 
 app.get('/render/png/download', async (req: Request, res: Response): Promise<void> => {
   try { res.status(501).json({ error: "Server-side PNG rendering not available in Cloud Function environment" }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/brain/submit', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { input, context } = req.body;
-    const doc = await db.collection('brain_inbox').add({ input, context, siteId: PLATFORM_STORE_ID, status: 'pending', createdAt: new Date().toISOString() });
-    res.json({ requestId: doc.id, status: 'submitted' });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/admin/test-mockup-sizes', requireAdmin, async (req: Request, res: Response): Promise<void> => {

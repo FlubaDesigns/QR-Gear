@@ -4,12 +4,14 @@
  *
  * Requires environment variables:
  *   ETSY_KEYSTRING     — API key / Client ID from developers.etsy.com
- *   ETSY_SHARED_SECRET — Shared Secret (not used in PKCE flow but kept for reference)
+ *   ETSY_SHARED_SECRET — Shared Secret (required in v3 API request headers)
  *   ETSY_REDIRECT_URI  — OAuth callback URL
  *                        (https://qrgear.com/api/marketplace/etsy/oauth/callback)
  */
 
 import * as crypto from 'crypto';
+import { validateEtsySettings, type EtsySellerSettings, type EtsySetupOptions } from '../../../shared/etsy';
+import type { MarketplaceVariant } from './marketplace-variants';
 
 // Node 20 native fetch — no import needed.
 
@@ -30,45 +32,9 @@ export interface EtsyTokenResponse {
   refresh_token: string;
 }
 
-export type EtsyWhoMade = 'i_did' | 'someone_else' | 'collective';
-export type EtsyWhenMade =
-  | 'made_to_order'
-  | '2020_2024'
-  | '2010_2019'
-  | '2004_2009'
-  | 'before_2004'
-  | '2000_2003'
-  | '1990s'
-  | '1980s'
-  | '1970s'
-  | '1960s'
-  | '1950s'
-  | '1940s'
-  | '1930s'
-  | '1920s'
-  | '1910s'
-  | '1900s'
-  | '1800s'
-  | '1700s'
-  | 'before_1700';
-
-export interface EtsyListingProduct {
-  title: string;
-  description: string;
-  price: number;
-  currencyCode: string;
-  quantity: number;
-  tags: string[];
-  imageUrls: string[];
-  // Required Etsy-specific fields
-  taxonomyId: number;
-  shippingProfileId: number;
-  // Optional Etsy-specific fields
-  returnPolicyId?: number;
-  whoMade: EtsyWhoMade;
-  whenMade: EtsyWhenMade;
-  materials?: string[];
-  sku?: string;
+export interface EtsyListingProduct extends EtsySellerSettings {
+  title: string; description: string; price: number; currencyCode: string;
+  tags: string[]; imageUrls: string[]; sku: string; variants: MarketplaceVariant[];
 }
 
 export interface EtsyPushResult {
@@ -88,7 +54,13 @@ export const ETSY_API_BASE = 'https://openapi.etsy.com';
 const ETSY_AUTH_URL = 'https://www.etsy.com/oauth/connect';
 const ETSY_TOKEN_URL = 'https://api.etsy.com/v3/public/oauth/token';
 
-const ETSY_SCOPES = 'listings_r listings_w listings_d';
+const ETSY_SCOPES = 'listings_r listings_w shops_r';
+
+function etsyApiKey(): string {
+  const key = process.env.ETSY_KEYSTRING, secret = process.env.ETSY_SHARED_SECRET;
+  if (!key || !secret) throw new Error('Etsy API key and shared secret are not configured.');
+  return `${key}:${secret}`;
+}
 
 // ─── PKCE Helpers ─────────────────────────────────────────────────────────────
 
@@ -112,7 +84,7 @@ export function generateCodeChallenge(verifier: string): string {
 /**
  * Build the Etsy OAuth authorization URL.
  * Uses PKCE (S256) — caller must persist codeVerifier for use in the callback.
- * `state` should be the marketplace_account document ID.
+ * `state` is the random, single-use browser-bound OAuth nonce.
  */
 export function buildOAuthUrl(state: string, codeChallenge: string): string {
   const keystring = process.env.ETSY_KEYSTRING;
@@ -160,6 +132,7 @@ export async function exchangeAuthCodeForTokens(
   });
 
   const resp = await fetch(ETSY_TOKEN_URL, {
+    signal: AbortSignal.timeout(30000),
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
@@ -191,6 +164,7 @@ export async function refreshAccessToken(refreshToken: string): Promise<EtsyToke
   });
 
   const resp = await fetch(ETSY_TOKEN_URL, {
+    signal: AbortSignal.timeout(30000),
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
@@ -218,22 +192,15 @@ export async function getEtsyShopInfo(
 
   const headers = {
     'Authorization': `Bearer ${accessToken}`,
-    'x-api-key': keystring,
+    'x-api-key': etsyApiKey(),
   };
 
-  // Get user info
-  const userResp = await fetch(`${ETSY_API_BASE}/v3/application/users/me`, { headers });
-  if (!userResp.ok) {
-    const text = await userResp.text();
-    throw new Error(`Could not retrieve Etsy user info (${userResp.status}): ${text}`);
-  }
-  const userData = await userResp.json() as any;
-  const userId: string = String(userData?.user_id || '');
-
-  if (!userId) throw new Error('Etsy user info missing user_id.');
+  // Etsy documents the token prefix as the authenticated numeric user ID.
+  const userId = accessToken.split('.')[0];
+  if (!/^\d+$/.test(userId)) throw new Error('Etsy token is missing its user identity.');
 
   // Get shop info
-  const shopResp = await fetch(`${ETSY_API_BASE}/v3/application/users/${userId}/shops`, { headers });
+  const shopResp = await fetch(`${ETSY_API_BASE}/v3/application/users/${userId}/shops`, { headers, signal: AbortSignal.timeout(30000) });
   if (!shopResp.ok) {
     const text = await shopResp.text();
     throw new Error(`Could not retrieve Etsy shop info (${shopResp.status}): ${text}`);
@@ -247,178 +214,168 @@ export async function getEtsyShopInfo(
   return { userId, shopId, shopName };
 }
 
-// ─── Listings API Push ────────────────────────────────────────────────────────
-
-/**
- * Push a product listing to Etsy via the Listings API.
- * Steps:
- *   1. POST /v3/application/shops/{shop_id}/listings  — create draft listing
- *   2. For each image URL, fetch + upload to listing
- *   3. PATCH listing state → "active"
- */
-export async function pushListingToEtsy(
-  credentials: EtsyCredentials,
-  product: EtsyListingProduct,
-): Promise<EtsyPushResult> {
-  const keystring = process.env.ETSY_KEYSTRING;
-  if (!keystring) {
-    return { success: false, error: 'ETSY_KEYSTRING not configured on server.' };
+/** One request path; never retry an ambiguous Etsy write. */
+async function etsyRequest(token: string, path: string, method = 'GET', data?: any, json = false): Promise<any> {
+  const form = data && !json && !(data instanceof FormData) ? new URLSearchParams(Object.entries(data).filter(([, value]) => value !== undefined).map(([key, value]) => [key, Array.isArray(value) ? value.join(',') : String(value)])) : undefined;
+  const response = await fetch(`${ETSY_API_BASE}/v3/application${path}`, {
+    method, signal: AbortSignal.timeout(30000),
+    headers: { Authorization: `Bearer ${token}`, 'x-api-key': etsyApiKey(), ...(data instanceof FormData ? {} : data ? { 'Content-Type': json ? 'application/json' : 'application/x-www-form-urlencoded' } : {}) },
+    ...(data ? { body: data instanceof FormData ? data : json ? JSON.stringify(data) : form!.toString() } : {}),
+  });
+  if (!response.ok) throw new Error(`Etsy ${method} failed (${response.status}): ${(await response.text()).slice(0, 500)}${response.status === 403 ? ' Reconnect Etsy to grant shop-profile access.' : ''}`);
+  return response.status === 204 ? {} : response.json();
+}
+async function etsyToken(credentials: EtsyCredentials, persist: (token: string) => Promise<void>) {
+  if (!/^\d+$/.test(credentials.shopId)) throw new Error('Reconnect Etsy to record your shop identity.');
+  const tokens = await refreshAccessToken(credentials.refreshToken);
+  if (!tokens.access_token || !tokens.refresh_token) throw new Error('Etsy returned incomplete credentials. Reconnect this account.');
+  await persist(tokens.refresh_token);
+  return tokens.access_token;
+}
+export function etsyCredentials(account: Record<string, any>): EtsyCredentials {
+  if (account.platform !== 'etsy' || !account.isActive || !account.etsyConnected || !account.etsyRefreshToken || !account.etsyShopId) throw new Error('Connect this Etsy shop first.');
+  return { accessToken: '', refreshToken: account.etsyRefreshToken, shopId: account.etsyShopId, shopName: account.etsyShopName || '', userId: account.etsyUserId || '' };
+}
+async function etsyRows(token: string, path: string, paginate = false): Promise<any[]> {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 100) {
+    const data = await etsyRequest(token, path + (paginate ? `?limit=100&offset=${offset}` : ''));
+    if (!Array.isArray(data.results)) throw new Error('Etsy returned an incomplete setup response.');
+    rows.push(...data.results);
+    if (!paginate || rows.length >= data.count || data.results.length < 100) return rows;
+    if (offset >= 9900) throw new Error('Etsy returned too many setup records. Narrow the shop configuration.');
   }
-
-  // Refresh access token (always refresh to avoid expiry mid-push)
-  let accessToken: string;
-  let newRefreshToken: string;
-  try {
-    const tokens = await refreshAccessToken(credentials.refreshToken);
-    accessToken = tokens.access_token;
-    newRefreshToken = tokens.refresh_token || credentials.refreshToken;
-  } catch (err: any) {
-    return { success: false, error: `Token refresh failed: ${err.message}` };
-  }
-
-  const headers: Record<string, string> = {
-    'Authorization': `Bearer ${accessToken}`,
-    'x-api-key': keystring,
-    'Content-Type': 'application/json',
+}
+async function setupOptions(token: string, shopId: string): Promise<EtsySetupOptions> {
+  const base = `/shops/${shopId}`;
+  const [tree, shipping, processing, returns, partners, shop] = await Promise.all([
+    etsyRows(token, '/seller-taxonomy/nodes'), etsyRows(token, `${base}/shipping-profiles`),
+    etsyRows(token, `${base}/readiness-state-definitions`, true), etsyRows(token, `${base}/policies/return`),
+    etsyRows(token, `${base}/production-partners`), etsyRequest(token, base),
+  ]);
+  const categories: EtsySetupOptions['categories'] = [];
+  const walk = (nodes: any[], parents: string[] = []) => { for (const node of nodes) {
+    const name = [...parents, node.name];
+    if (!node.children?.length) categories.push({ id: node.id, name: name.join(' / ') });
+    else walk(node.children, name);
+  } };
+  walk(tree);
+  if (!shop.currency_code) throw new Error('Etsy shop currency is unavailable.');
+  return { categories, currency: shop.currency_code,
+    shippingProfiles: shipping.map(row => ({ id: row.shipping_profile_id, name: row.title })),
+    processingProfiles: processing.map(row => ({ id: row.readiness_state_id, name: `${row.readiness_state.replace(/_/g, ' ')} · ${row.min_processing_time}–${row.max_processing_time} ${row.processing_time_unit || 'days'}` })),
+    returnPolicies: returns.map(row => ({ id: row.return_policy_id, name: `${row.accepts_returns ? 'Returns accepted' : 'No returns'} · ${row.accepts_exchanges ? 'Exchanges accepted' : 'No exchanges'}${row.return_deadline ? ` · ${row.return_deadline} days` : ''}` })),
+    productionPartners: partners.map(row => ({ id: row.production_partner_id, name: row.partner_name })),
   };
-
-  const shopId = credentials.shopId;
-  if (!shopId) {
-    return { success: false, error: 'No Etsy shop ID on this account. Reconnect via OAuth to re-fetch your shop.' };
+}
+export async function getEtsySetupOptions(credentials: EtsyCredentials, persist: (token: string) => Promise<void>) {
+  return setupOptions(await etsyToken(credentials, persist), credentials.shopId);
+}
+export function validateEtsyShopSettings(settings: EtsySellerSettings, options: EtsySetupOptions, currency: string) {
+  if (currency !== options.currency) throw new Error(`Item currency must match Etsy shop currency (${options.currency}). No automatic conversion is applied.`);
+  for (const [key, rows] of [['taxonomyId', options.categories], ['shippingProfileId', options.shippingProfiles], ['readinessStateId', options.processingProfiles]] as const) {
+    if (!rows.some(row => row.id === settings[key])) throw new Error(`Selected Etsy ${key} is not available for this shop.`);
   }
-
-  // ── Step 1: Create Draft Listing ──────────────────────────────────────────
-  const sanitizedTags = (product.tags || [])
-    .map((t) => t.slice(0, 20).replace(/[^a-zA-Z0-9 ]/g, ' ').trim())
-    .filter(Boolean)
-    .slice(0, 13);
-
-  const listingPayload: Record<string, any> = {
-    quantity: product.quantity > 0 ? product.quantity : 100,
-    title: product.title.slice(0, 140),
-    description: product.description,
-    price: parseFloat(product.price.toFixed(2)),
-    who_made: product.whoMade || 'i_did',
-    when_made: product.whenMade || 'made_to_order',
-    taxonomy_id: product.taxonomyId,
-    shipping_profile_id: product.shippingProfileId,
-    type: 'physical',
-    is_digital: false,
-    should_auto_renew: true,
-  };
-
-  if (sanitizedTags.length > 0) listingPayload.tags = sanitizedTags;
-  if (product.returnPolicyId) listingPayload.return_policy_id = product.returnPolicyId;
-  if (product.materials?.length) listingPayload.materials = product.materials.slice(0, 13);
-  if (product.sku) listingPayload.sku = [product.sku];
-
-  let listingId: number;
+  if (settings.returnPolicyId && !options.returnPolicies.some(row => row.id === settings.returnPolicyId)) throw new Error('Selected return policy is not available for this shop.');
+  if (settings.productionPartnerIds.some(id => !options.productionPartners.some(row => row.id === id))) throw new Error('Selected production partner is not available for this shop.');
+}
+/** Etsy custom variation IDs are external mappings; canonical size/color/QRG values stay unchanged. */
+export function buildEtsyInventory(product: EtsyListingProduct) {
+  const settings = validateEtsySettings(product);
+  const rows = product.variants.length ? product.variants : [{ sku: product.sku, size: '', color: '' }];
+  if (rows.length > 400) throw new Error('Etsy supports at most 400 combinations with distinct SKUs.');
+  if (new Set(rows.map(row => row.sku)).size !== rows.length) throw new Error('Duplicate Etsy variation SKUs.');
+  const properties = product.variants.length ? [{ key: 'size' as const, id: 513, name: 'Size' }, { key: 'color' as const, id: 514, name: 'Color' }] : [];
+  const products = rows.map(row => {
+    if (!row.sku) throw new Error('An existing product SKU is required.');
+    return { sku: row.sku, property_values: properties.map(property => {
+      const value = row[property.key];
+      if (!value || /[()]/.test(value)) throw new Error(`Etsy does not support the saved ${property.name} label: ${value}. Update the product selection explicitly.`);
+      return { property_id: property.id, property_name: property.name, value_ids: [], values: [value] };
+    }), offerings: [{ price: product.price, quantity: settings.quantity, is_enabled: true, readiness_state_id: settings.readinessStateId }] };
+  });
+  return { products, price_on_property: [], quantity_on_property: properties.map(row => row.id), sku_on_property: properties.map(row => row.id), readiness_state_on_property: [] };
+}
+function verifyOwnership(listing: any, shopId: string) {
+  if (String(listing.shop_id) !== shopId) throw new Error('Etsy listing does not belong to this connected shop.');
+}
+function checkedState(listing: any) {
+  const states: Record<string, 'active' | 'draft' | 'delisted' | 'pending'> = { active: 'active', draft: 'draft', inactive: 'delisted', sold_out: 'delisted', expired: 'delisted', edit: 'pending' };
+  if (!states[listing.state]) throw new Error(`Unrecognized Etsy listing state: ${listing.state}.`);
+  return states[listing.state];
+}
+export async function checkEtsyListing(credentials: EtsyCredentials, listingId: string, sku: string, withdraw: boolean, persist: (token: string) => Promise<void>) {
+  if (!/^\d+$/.test(listingId || '')) throw new Error('No Etsy listing identity is saved.');
+  const token = await etsyToken(credentials, persist);
+  let remote = await etsyRequest(token, `/listings/${listingId}`);
+  verifyOwnership(remote, credentials.shopId);
+  if (withdraw && remote.state === 'active') {
+    await etsyRequest(token, `/shops/${credentials.shopId}/listings/${listingId}`, 'PATCH', { state: 'inactive' });
+    remote = await etsyRequest(token, `/listings/${listingId}`);
+    verifyOwnership(remote, credentials.shopId);
+  }
+  if (withdraw && checkedState(remote) === 'active') throw new Error('Etsy still reports this listing active. Check its status before retrying.');
+  return { success: true, sku, listingStatus: checkedState(remote), remoteStatus: remote.state, externalListingId: listingId, externalUrl: `https://www.etsy.com/listing/${listingId}` };
+}
+export async function pushListingToEtsy(credentials: EtsyCredentials, product: EtsyListingProduct, persistence: {
+  existingListingId?: number; onRefreshToken: (token: string) => Promise<void>;
+  onBeforeCreate: () => Promise<void>; onListingCreated: (id: number) => Promise<void>;
+}): Promise<EtsyPushResult> {
+  let listingId = persistence.existingListingId;
   try {
-    const createResp = await fetch(`${ETSY_API_BASE}/v3/application/shops/${shopId}/listings`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(listingPayload),
-    });
-
-    const createData = await createResp.json() as any;
-
-    if (!createResp.ok) {
-      const errMsg = createData?.error_description || createData?.message || JSON.stringify(createData);
-      return { success: false, error: `Listing creation failed (${createResp.status}): ${errMsg}` };
+    const settings = validateEtsySettings(product), inventory = buildEtsyInventory(product);
+    if (!product.title.trim() || product.title.length > 140) throw new Error('Etsy title must be 1–140 characters. Edit Item Setup.');
+    if (!Number.isFinite(product.price) || product.price <= 0) throw new Error('A positive retail price is required.');
+    if (!product.imageUrls.length || product.imageUrls.length > 20) throw new Error('Etsy needs 1–20 product images.');
+    if (product.tags.length > 13 || product.tags.some(tag => !tag.trim() || tag.length > 20 || /[^\p{L}\p{Nd}\p{Zs}\-'™©®]/u.test(tag))) throw new Error('Etsy accepts up to 13 tags of 1–20 characters. Edit Item Setup.');
+    if (!listingId && settings.quantity === 0) throw new Error('Set a positive quantity to create an Etsy draft.');
+    const token = await etsyToken(credentials, persistence.onRefreshToken);
+    const options = await setupOptions(token, credentials.shopId);
+    validateEtsyShopSettings(settings, options, product.currencyCode);
+    const listingPath = `/shops/${credentials.shopId}/listings`;
+    if (listingId) {
+      verifyOwnership(await etsyRequest(token, `/listings/${listingId}`), credentials.shopId);
+      const current = await etsyRequest(token, `/listings/${listingId}/inventory`);
+      if (!Array.isArray(current.products)) throw new Error('Etsy inventory could not be verified.');
+      const intended = new Set(inventory.products.map(row => row.sku));
+      // Never flatten somebody else's variations, third options, or unmapped old inventory.
+      if (current.products.some((row: any) => !row.is_deleted && ((row.property_values || []).some((p: any) => ![513, 514].includes(p.property_id)) || row.property_values?.length > 2 || (row.sku && !intended.has(row.sku))))) throw new Error('Existing Etsy inventory differs from the saved product. Reconcile its variations before syncing.');
     }
-
-    listingId = createData?.listing_id;
+    const payload: Record<string, any> = { title: product.title, description: product.description, who_made: settings.whoMade, when_made: settings.whenMade,
+      taxonomy_id: settings.taxonomyId, shipping_profile_id: settings.shippingProfileId, return_policy_id: settings.returnPolicyId,
+      type: 'physical', is_supply: false, should_auto_renew: settings.autoRenew, tags: product.tags, production_partner_ids: settings.productionPartnerIds };
     if (!listingId) {
-      return { success: false, error: 'Etsy did not return a listing_id after creation.' };
+      Object.assign(payload, { price: product.price, quantity: settings.quantity, readiness_state_id: settings.readinessStateId });
+      await persistence.onBeforeCreate();
     }
-  } catch (err: any) {
-    return { success: false, error: `Network error creating listing: ${err.message}` };
-  }
-
-  // ── Step 2: Upload Images ─────────────────────────────────────────────────
-  let imagesUploaded = 0;
-  const imageUrls = (product.imageUrls || []).filter(Boolean).slice(0, 10);
-  const warnings: string[] = [];
-
-  for (let i = 0; i < imageUrls.length; i++) {
-    try {
-      const imgResp = await fetch(imageUrls[i]);
-      if (!imgResp.ok) {
-        warnings.push(`Image ${i + 1} fetch failed (${imgResp.status})`);
-        continue;
-      }
-
-      const imgBuffer = await imgResp.arrayBuffer();
-      const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
-      const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
-      const imgBlob = new Blob([imgBuffer], { type: contentType });
-
-      const formData = new FormData();
-      formData.append('image', imgBlob, `image_${i + 1}.${ext}`);
-      formData.append('rank', String(i + 1));
-      formData.append('overwrite', 'true');
-
-      const uploadResp = await fetch(
-        `${ETSY_API_BASE}/v3/application/shops/${shopId}/listings/${listingId}/images`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'x-api-key': keystring,
-            // Do NOT set Content-Type — let fetch set multipart boundary automatically
-          },
-          body: formData,
-        },
-      );
-
-      if (uploadResp.ok) {
-        imagesUploaded++;
-      } else {
-        const uploadErr = await uploadResp.text();
-        warnings.push(`Image ${i + 1} upload failed (${uploadResp.status}): ${uploadErr.slice(0, 120)}`);
-      }
-    } catch (err: any) {
-      warnings.push(`Image ${i + 1} error: ${err.message}`);
+    const saved = await etsyRequest(token, listingId ? `${listingPath}/${listingId}` : listingPath, listingId ? 'PATCH' : 'POST', payload);
+    listingId = saved.listing_id || listingId;
+    if (!Number.isSafeInteger(listingId) || !listingId) throw new Error('Etsy returned no valid listing ID. Reconcile the creation before retrying.');
+    await persistence.onListingCreated(listingId);
+    await etsyRequest(token, `/listings/${listingId}/inventory`, 'PUT', inventory, true);
+    const imageIds: number[] = [];
+    for (const [index, url] of product.imageUrls.entries()) {
+      const response = await fetch(url, { signal: AbortSignal.timeout(30000) });
+      if (!response.ok) throw new Error(`Product image ${index + 1} download failed (${response.status}).`);
+      const bytes = await response.arrayBuffer();
+      if (bytes.byteLength > 20 * 1024 * 1024) throw new Error('Product image exceeds 20 MB.');
+      const type = response.headers.get('content-type')?.split(';')[0];
+      if (!type || !['image/jpeg', 'image/png', 'image/webp'].includes(type)) throw new Error('Product image must be JPEG, PNG or WebP.');
+      const form = new FormData();
+      form.append('image', new Blob([bytes], { type }), `product-${index + 1}.${type === 'image/jpeg' ? 'jpg' : type.split('/')[1]}`);
+      form.append('rank', String(index + 1)); form.append('overwrite', 'true');
+      const uploaded = await etsyRequest(token, `${listingPath}/${listingId}/images`, 'POST', form);
+      if (!Number.isSafeInteger(uploaded.listing_image_id)) throw new Error('Etsy did not confirm the uploaded image identity.');
+      imageIds.push(uploaded.listing_image_id);
     }
+    // Replacing the image list removes stale listing images; all requested uploads must succeed.
+    await etsyRequest(token, `${listingPath}/${listingId}`, 'PATCH', { image_ids: imageIds, ...(settings.quantity > 0 ? { state: 'active' } : { state: 'inactive' }) });
+    const remote = await etsyRequest(token, `/listings/${listingId}`);
+    verifyOwnership(remote, credentials.shopId);
+    const state = checkedState(remote);
+    return { success: settings.quantity === 0 ? state === 'delisted' : state === 'active', listingId, state: remote.state, url: `https://www.etsy.com/listing/${listingId}`, imagesUploaded: imageIds.length,
+      ...((settings.quantity > 0 && state !== 'active') ? { error: `Etsy reports ${remote.state}.` } : {}) };
+  } catch (error: any) {
+    return { success: false, ...(listingId ? { listingId } : {}), error: error.message };
   }
-
-  // ── Step 3: Activate Listing ──────────────────────────────────────────────
-  // Only activate if we have at least one image (Etsy requires images to go active)
-  let finalState = 'draft';
-  if (imagesUploaded > 0) {
-    try {
-      const activateResp = await fetch(
-        `${ETSY_API_BASE}/v3/application/shops/${shopId}/listings/${listingId}`,
-        {
-          method: 'PATCH',
-          headers,
-          body: JSON.stringify({ state: 'active' }),
-        },
-      );
-
-      if (activateResp.ok) {
-        finalState = 'active';
-      } else {
-        const activateErr = await activateResp.text();
-        warnings.push(`Listing activation failed (${activateResp.status}): ${activateErr.slice(0, 120)}. Listing saved as draft.`);
-      }
-    } catch (err: any) {
-      warnings.push(`Listing activation error: ${err.message}. Listing saved as draft.`);
-    }
-  } else if (imageUrls.length > 0) {
-    warnings.push('All image uploads failed — listing saved as draft. Add images manually in Etsy to activate.');
-  } else {
-    warnings.push('No images on this surface — listing saved as draft. Add images in Etsy to activate.');
-  }
-
-  const listingUrl = `https://www.etsy.com/listing/${listingId}`;
-
-  return {
-    success: true,
-    listingId,
-    state: finalState,
-    url: listingUrl,
-    imagesUploaded,
-    warnings: warnings.length > 0 ? warnings : undefined,
-  };
 }

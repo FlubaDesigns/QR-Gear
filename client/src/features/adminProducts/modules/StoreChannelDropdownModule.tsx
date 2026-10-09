@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Store, Plus, Trash2, Loader2, Hash, Users, Layers } from "lucide-react";
 import { CustomDropdown } from "@/components/ui/custom-dropdown";
@@ -8,7 +8,7 @@ import type { Store as StoreType, Channel, Collection, RoleType } from "../share
 
 export function StoreChannelDropdownModule() {
   const { 
-    api, 
+    api, roles, destinationError,
     selectedRole,
     setSelectedRole,
     selectedStore,
@@ -28,34 +28,30 @@ export function StoreChannelDropdownModule() {
 
   const queryClient = useQueryClient();
 
-  const { data: internalStores = [], isLoading: loadingInternal } = useQuery<StoreType[]>({
-    queryKey: ["stores", "internal"],
-    queryFn: () => api.fetchStores("internal"),
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const selectionKey = `${selectedRole || ''}/${selectedStore?.id || ''}/${selectedChannel?.id || ''}`;
+  const scopeRef = useRef({ key: selectionKey, version: 0 });
+  if (scopeRef.current.key !== selectionKey) scopeRef.current = { key: selectionKey, version: scopeRef.current.version + 1 };
+  useEffect(() => {
+    setShowAddStore(false); setShowAddChannel(false); setShowAddCollection(false);
+    setNewStoreName(''); setNewChannelName(''); setNewCollectionName(''); setMutationError(null);
+  }, [selectionKey]);
+  const onMutate = () => { setMutationError(null); return scopeRef.current.version; };
+  const onError = (error: Error) => setMutationError(error.message);
+
+  const { data: stores = [], isLoading: loadingStores, error: storesError } = useQuery<StoreType[]>({
+    queryKey: ["stores", selectedRole],
+    queryFn: () => api.fetchStores(selectedRole!),
+    enabled: !!selectedRole,
   });
 
-  const { data: externalStores = [], isLoading: loadingExternal } = useQuery<StoreType[]>({
-    queryKey: ["stores", "external"],
-    queryFn: () => api.fetchStores("external"),
-  });
-
-  const { data: memberStores = [], isLoading: loadingMember } = useQuery<StoreType[]>({
-    queryKey: ["stores", "member"],
-    queryFn: () => api.fetchStores("member"),
-  });
-
-  const allStores = useMemo(() => [
-    ...internalStores,
-    ...externalStores,
-    ...memberStores,
-  ], [internalStores, externalStores, memberStores]);
-
-  const { data: channels = [], isLoading: loadingChannels } = useQuery<Channel[]>({
+  const { data: channels = [], isLoading: loadingChannels, error: channelsError } = useQuery<Channel[]>({
     queryKey: ["channels", selectedStore?.id],
     queryFn: () => selectedStore ? api.fetchChannels(selectedStore.id) : Promise.resolve([]),
     enabled: !!selectedStore,
   });
 
-  const { data: collections = [], isLoading: loadingCollections } = useQuery<Collection[]>({
+  const { data: collections = [], isLoading: loadingCollections, error: collectionsError } = useQuery<Collection[]>({
     queryKey: ["collections", selectedStore?.id, selectedChannel?.id],
     queryFn: () =>
       selectedStore && selectedChannel
@@ -64,22 +60,12 @@ export function StoreChannelDropdownModule() {
     enabled: !!selectedStore && !!selectedChannel,
   });
 
-  const isLoading = loadingInternal || loadingExternal || loadingMember;
-
-  const filteredStores = useMemo(() => {
-    if (!selectedRole) return allStores;
-    return allStores.filter(s => s.roleType === selectedRole);
-  }, [allStores, selectedRole]);
-
-  const roles: RoleType[] = ["internal", "external", "member"];
-
   const roleOptions = roles.map(role => ({
-    value: role,
-    label: role.charAt(0).toUpperCase() + role.slice(1),
+    value: role.id, label: role.name,
     icon: <Users className="h-4 w-4 flex-shrink-0" />,
   }));
 
-  const storeOptions = filteredStores.map(store => ({
+  const storeOptions = stores.map(store => ({
     value: store.id,
     label: store.name,
     icon: <Store className="h-4 w-4 flex-shrink-0" />,
@@ -91,24 +77,20 @@ export function StoreChannelDropdownModule() {
     icon: <Hash className="h-4 w-4 flex-shrink-0" />,
   }));
 
-  const collectionOptions = collections.map(col => ({
+  const collectionOptions = [{ value: "", label: "All products" }, ...collections.map(col => ({
     value: col.name,
     label: col.name,
     icon: <Layers className="h-4 w-4 flex-shrink-0" />,
-  }));
+  }))];
 
   const handleRoleChange = (role: string) => {
     setSelectedRole(role as RoleType);
-    setSelectedStore(null);
-    setSelectedChannel(null);
   };
 
   const handleStoreChange = (storeId: string) => {
-    const store = allStores.find(s => s.id === storeId);
+    const store = stores.find(s => s.id === storeId);
     if (store) {
-      setSelectedRole(store.roleType);
       setSelectedStore(store);
-      setSelectedChannel(null);
     }
   };
 
@@ -128,10 +110,12 @@ export function StoreChannelDropdownModule() {
   };
 
   const createStoreMutation = useMutation({
+    onMutate, onError,
     mutationFn: ({ name, roleType }: { name: string; roleType: RoleType }) =>
       adminFetch<StoreType>("/stores", { method: "POST", json: { name, roleType } }),
-    onSuccess: (newStore: StoreType) => {
+    onSuccess: (newStore: StoreType, _variables, scope) => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
+      if (scope !== scopeRef.current.version) return;
       setNewStoreName("");
       setShowAddStore(false);
       if (newStore?.id) {
@@ -141,28 +125,23 @@ export function StoreChannelDropdownModule() {
   });
 
   const deleteStoreMutation = useMutation({
-    mutationFn: (storeId: string) =>
-      adminFetch(`/stores/${storeId}`, { method: "DELETE" }),
-    onSuccess: () => {
+    onMutate, onError,
+    mutationFn: (storeId: string) => adminFetch(`/stores/${encodeURIComponent(storeId)}`, { method: "DELETE" }),
+    onSuccess: (_data, storeId, scope) => {
       queryClient.invalidateQueries({ queryKey: ["stores"] });
-      queryClient.invalidateQueries({ queryKey: ["stores", "internal"] });
-      queryClient.invalidateQueries({ queryKey: ["stores", "external"] });
-      queryClient.invalidateQueries({ queryKey: ["stores", "member"] });
-      setSelectedStore(null);
-      setSelectedChannel(null);
-      setSelectedCollection(null);
-    },
-    onError: (err: any) => {
-      console.error("[StoreChannelDropdownModule] deleteStore error:", err);
-      alert(`Could not delete store: ${err?.message || "Unknown error"}`);
+      queryClient.invalidateQueries({ queryKey: ["channels", storeId] });
+      if (scope === scopeRef.current.version) setSelectedStore(null);
     },
   });
 
   const createChannelMutation = useMutation({
+    onMutate, onError,
     mutationFn: ({ storeId, name }: { storeId: string; name: string }) =>
       adminFetch<Channel>(`/stores/${storeId}/channels`, { method: "POST", json: { name } }),
-    onSuccess: (newChannel: Channel) => {
-      queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
+    onSuccess: (newChannel: Channel, variables, scope) => {
+      queryClient.invalidateQueries({ queryKey: ["channels", variables.storeId] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      if (scope !== scopeRef.current.version) return;
       setNewChannelName("");
       setShowAddChannel(false);
       if (newChannel?.id) {
@@ -172,19 +151,23 @@ export function StoreChannelDropdownModule() {
   });
 
   const deleteChannelMutation = useMutation({
+    onMutate, onError,
     mutationFn: ({ storeId, channelId }: { storeId: string; channelId: string }) =>
-      adminFetch(`/stores/${storeId}/channels`, { method: "DELETE", json: { channelId } }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["channels", selectedStore?.id] });
-      setSelectedChannel(null);
+      adminFetch(`/stores/${encodeURIComponent(storeId)}/channels/${encodeURIComponent(channelId)}`, { method: "DELETE" }),
+    onSuccess: (_data, variables, scope) => {
+      queryClient.invalidateQueries({ queryKey: ["channels", variables.storeId] });
+      queryClient.invalidateQueries({ queryKey: ["stores"] });
+      if (scope === scopeRef.current.version) setSelectedChannel(null);
     },
   });
 
   const createCollectionMutation = useMutation({
+    onMutate, onError,
     mutationFn: async ({ storeId, channelId, name }: { storeId: string; channelId: string; name: string }) =>
       api.createCollection(storeId, channelId, name),
-    onSuccess: (newCollection) => {
-      queryClient.invalidateQueries({ queryKey: ["collections", selectedStore?.id, selectedChannel?.id] });
+    onSuccess: (newCollection, variables, scope) => {
+      queryClient.invalidateQueries({ queryKey: ["collections", variables.storeId, variables.channelId] });
+      if (scope !== scopeRef.current.version) return;
       setNewCollectionName("");
       setShowAddCollection(false);
       setSelectedCollection(newCollection);
@@ -192,32 +175,37 @@ export function StoreChannelDropdownModule() {
   });
 
   const handleAddStore = () => {
-    if (!newStoreName.trim() || !selectedRole) return;
+    if (createStoreMutation.isPending || !newStoreName.trim() || !selectedRole) return;
     createStoreMutation.mutate({ name: newStoreName.trim(), roleType: selectedRole });
   };
 
   const handleDeleteStore = () => {
-    if (!selectedStore) return;
+    if (deleteStoreMutation.isPending || !selectedStore) return;
     deleteStoreMutation.mutate(selectedStore.id);
   };
 
   const handleAddChannel = () => {
-    if (!newChannelName.trim() || !selectedStore) return;
+    if (createChannelMutation.isPending || !newChannelName.trim() || !selectedStore) return;
     createChannelMutation.mutate({ storeId: selectedStore.id, name: newChannelName.trim() });
   };
 
   const handleAddCollection = () => {
-    if (!newCollectionName.trim() || !selectedStore || !selectedChannel) return;
+    if (createCollectionMutation.isPending || !newCollectionName.trim() || !selectedStore || !selectedChannel) return;
     createCollectionMutation.mutate({ storeId: selectedStore.id, channelId: selectedChannel.id, name: newCollectionName.trim() });
   };
 
   const handleDeleteChannel = () => {
-    if (!selectedStore || !selectedChannel) return;
+    if (deleteChannelMutation.isPending || !selectedStore || !selectedChannel) return;
     deleteChannelMutation.mutate({ storeId: selectedStore.id, channelId: selectedChannel.id });
   };
 
   return (
     <div className="glass-card space-y-4" data-testid="module-store-channel">
+      {(mutationError || destinationError || storesError || channelsError || collectionsError) && (
+        <p role="alert" className="text-sm text-red-400">
+          {mutationError || destinationError || storesError?.message || channelsError?.message || collectionsError?.message}
+        </p>
+      )}
       <div className="flex flex-wrap gap-3 items-end">
         <div className="flex-1 min-w-[140px]">
           <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Role</label>
@@ -238,7 +226,8 @@ export function StoreChannelDropdownModule() {
               onChange={handleStoreChange}
               options={storeOptions}
               placeholder="Find your store..."
-              loading={isLoading}
+              loading={!!selectedRole && loadingStores}
+              disabled={!selectedRole}
               className="flex-1"
               data-testid="select-store"
             />

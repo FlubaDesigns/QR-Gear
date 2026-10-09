@@ -597,7 +597,7 @@ The Public Wizard (`/build`, `/creator`) is a conversion funnel where visitors b
 20. **Temp-to-Real Packet Conversion**: Temp packet data is written to `productPackets` collection (legacy camelCase — grandfathered) as a permanent record
 21. Order is created in Firestore with line items, Stripe session ID, buyer email
 22. **Claim Code Generation**: Unique claim code (format: `QR-XXXX-XXXX`, e.g. `QR-7X4M-9K2P`) is generated and stored on the order
-23. Confirmation email sent via NexusMail with: order details, claim code, scan instructions
+23. Confirmation email sent via Resend with: order details, claim code, scan instructions
 24. Temp packet status set to `completed`
 
 #### Phase 5 — Post-Sale Member Push (Two-Path Confirmation Screen)

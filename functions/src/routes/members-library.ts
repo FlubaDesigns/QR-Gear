@@ -170,20 +170,6 @@ app.get('/member/library-links', requireAuth, async (req: Request, res: Response
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-// ============ PRICING ROUTES (Batch 2) ============
-
-app.post('/pricing-settings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, centerGraphicUpcharge, memberProfitShare, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
-    const defaultSU: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-    const defaultBLP = { printifyInside: 0.55, printifyOutside: 0.55, printfulInside: 0.99, printfulOutside: 2.49 };
-    const settings = { markupPercent: parseFloat(markupPercent) || 25, markupFixed: parseFloat(markupFixed) || 0, additionalPlacementCost: parseFloat(additionalPlacementCost) || 4, textLineUpcharge: parseFloat(textLineUpcharge) || 2, centerGraphicUpcharge: parseFloat(centerGraphicUpcharge) || 5, memberProfitShare: parseFloat(memberProfitShare) || 0.25, sizeUpcharges: sizeUpcharges || defaultSU, hostingTiers: hostingTiers || [{ code: "1_year", name: "1 Year", price: 5 }, { code: "2_year", name: "2 Years", price: 8 }, { code: "3_year", name: "3 Years", price: 10 }], brandLabelPricing: brandLabelPricing || defaultBLP, preferredLabelPosition: preferredLabelPosition || 'outside', updatedAt: admin.firestore.FieldValue.serverTimestamp() };
-    await db.collection("testSettings").doc("pricing").set(settings, { merge: true });
-    res.json({ success: true, settings, message: "Pricing settings saved" });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-
 // ============ MEMBER PLAY PACKETS ============
 
 app.post('/member/play-packets', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -421,15 +407,6 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
 
 // ============ BATCH: MEMBER ALLOWED PRODUCTS ============
 
-app.post('/members/allowed-products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { products } = req.body;
-    if (!Array.isArray(products)) { res.status(400).json({ error: "products must be an array" }); return; }
-    await db.collection("storeAllowedProducts").doc("member-products").set({ products, updatedAt: new Date().toISOString() });
-    console.log(`[CF Member Product Library] Saved ${products.length} products to storeAllowedProducts/member-products`);
-    res.json({ success: true, count: products.length });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
 
 // ============ BATCH: MEMBER LIBRARY SYSTEM ============

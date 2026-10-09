@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { APPAREL_SIZE_ORDER } from '@shared/storefrontTypes';
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   DollarSign, Percent, Layers, Type, Clock, Save, Loader2, Check, Tag,
@@ -17,64 +18,42 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { CouponsSection } from "./admin-pricing-coupons";
 
-interface HostingTier {
-  code: string;
-  name: string;
-  price: number;
-}
-
-interface BrandLabelPricing {
-  printifyInside: number;
-  printifyOutside: number;
-  printfulInside: number;
-  printfulOutside: number;
-}
-
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  centerGraphicUpcharge: number;
-  memberProfitShare: number;
-  builtInShippingCost: number;
-  hostingTiers: HostingTier[];
-  brandLabelPricing: BrandLabelPricing;
-  preferredLabelPosition: 'outside' | 'inside';
-}
+import { pricingSettingsSchema, type PricingSettings } from '@shared/schema-orders';
+type HostingTier = PricingSettings['hostingTiers'][number];
+type BrandLabelPricing = PricingSettings['brandLabelPricing'];
 
 export default function AdminPricing() {
   const { toast } = useToast();
 
-  const { data: settings, isLoading } = useQuery<PricingSettings>({
-    queryKey: ["/api/pricing-settings"],
+  const { data: settings, isLoading, error: loadError, refetch } = useQuery<PricingSettings>({
+    queryKey: ["/api/admin/pricing-settings"],
   });
 
+  const [sizeUpcharges, setSizeUpcharges] = useState<Record<string, number>>({});
   const [markupPercent, setMarkupPercent] = useState<string>("");
   const [markupFixed, setMarkupFixed] = useState<string>("");
   const [additionalPlacementCost, setAdditionalPlacementCost] = useState<string>("");
   const [textLineUpcharge, setTextLineUpcharge] = useState<string>("");
   const [centerGraphicUpcharge, setCenterGraphicUpcharge] = useState<string>("");
   const [memberProfitShare, setMemberProfitShare] = useState<string>("");
-  const [builtInShippingCost, setBuiltInShippingCost] = useState<string>("4.95");
+  const [builtInShippingCost, setBuiltInShippingCost] = useState<string>("");
   const [hostingTiers, setHostingTiers] = useState<HostingTier[]>([]);
-  const [brandLabelPricing, setBrandLabelPricing] = useState<BrandLabelPricing>({
-    printifyInside: 0.55,
-    printifyOutside: 0.55,
-    printfulInside: 0.99,
-    printfulOutside: 2.49,
-  });
+  const [brandLabelPricing, setBrandLabelPricing] = useState<BrandLabelPricing>({} as BrandLabelPricing);
   const [preferredLabelPosition, setPreferredLabelPosition] = useState<'outside' | 'inside'>('outside');
   const [initialized, setInitialized] = useState(false);
+  const [markupPreview, setMarkupPreview] = useState<any>(null);
+  useEffect(() => { setMarkupPreview(null); }, [markupPercent, markupFixed]);
 
-  if (settings && !initialized) {
-    setMarkupPercent(String(settings.markupPercent));
-    setMarkupFixed(String(settings.markupFixed));
-    setAdditionalPlacementCost(String(settings.additionalPlacementCost));
-    setTextLineUpcharge(String(settings.textLineUpcharge));
-    setCenterGraphicUpcharge(String(settings.centerGraphicUpcharge || 5));
-    setMemberProfitShare(String((settings.memberProfitShare || 0.25) * 100));
-    setBuiltInShippingCost(String(settings.builtInShippingCost ?? 4.95));
+  useEffect(() => {
+    if (settings && !initialized) {
+    setSizeUpcharges(settings.sizeUpcharges || {});
+    setMarkupPercent(String(settings.markupPercent ?? ''));
+    setMarkupFixed(String(settings.markupFixed ?? ''));
+    setAdditionalPlacementCost(String(settings.additionalPlacementCost ?? ''));
+    setTextLineUpcharge(String(settings.textLineUpcharge ?? ''));
+    setCenterGraphicUpcharge(String(settings.centerGraphicUpcharge ?? ''));
+    setMemberProfitShare(settings.memberProfitShare == null ? '' : String(settings.memberProfitShare * 100));
+    setBuiltInShippingCost(String(settings.builtInShippingCost ?? ''));
     setHostingTiers(settings.hostingTiers || []);
     if (settings.brandLabelPricing) {
       setBrandLabelPricing(settings.brandLabelPricing);
@@ -83,16 +62,19 @@ export default function AdminPricing() {
       setPreferredLabelPosition(settings.preferredLabelPosition);
     }
     setInitialized(true);
-  }
+    }
+  }, [settings, initialized]);
 
   const saveMutation = useMutation({
     mutationFn: async (data: PricingSettings) => {
-      const res = await apiRequest("POST", "/api/pricing-settings", data);
+      const res = await apiRequest("POST", "/api/admin/pricing-settings", data);
       return res.json();
     },
     onSuccess: () => {
+      setMarkupPreview(null);
       toast({ title: "Settings Saved", description: "Pricing configuration updated successfully." });
       queryClient.invalidateQueries({ queryKey: ["/api/pricing-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pricing-settings"] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -100,39 +82,54 @@ export default function AdminPricing() {
   });
 
   const handleSave = () => {
-    saveMutation.mutate({
-      markupPercent: parseFloat(markupPercent) || 0,
-      markupFixed: parseFloat(markupFixed) || 0,
-      additionalPlacementCost: parseFloat(additionalPlacementCost) || 0,
-      textLineUpcharge: parseFloat(textLineUpcharge) || 0,
-      centerGraphicUpcharge: parseFloat(centerGraphicUpcharge) || 0,
-      memberProfitShare: (parseFloat(memberProfitShare) || 25) / 100,
-      builtInShippingCost: parseFloat(builtInShippingCost) || 4.95,
+    const parsed = pricingSettingsSchema.safeParse({
+      sizeUpcharges,
+      markupPercent: parseFloat(markupPercent),
+      markupFixed: parseFloat(markupFixed),
+      additionalPlacementCost: parseFloat(additionalPlacementCost),
+      textLineUpcharge: parseFloat(textLineUpcharge),
+      centerGraphicUpcharge: parseFloat(centerGraphicUpcharge),
+      memberProfitShare: parseFloat(memberProfitShare) / 100,
+      builtInShippingCost: parseFloat(builtInShippingCost),
       hostingTiers,
       brandLabelPricing,
       preferredLabelPosition,
     });
+    if (!parsed.success) { toast({ title: 'Check pricing fields', description: parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '), variant: 'destructive' }); return; }
+    saveMutation.mutate(parsed.data);
   };
 
   const syncPricingMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/pricing-settings/sync");
+    mutationFn: async (previewToken?: string) => {
+      const res = await apiRequest("POST", "/api/admin/pricing-settings/sync", previewToken ? { previewToken } : {});
       return res.json();
     },
     onSuccess: (data) => {
-      toast({
-        title: "Pricing Synced",
-        description: `Updated ${data.productsUpdated} products across ${data.storesUpdated} stores.`
-      });
+      setMarkupPreview(data.dryRun ? data : null);
+      if (!data.dryRun) {
+        void queryClient.invalidateQueries();
+        toast({ title: "Saved pricing applied", description: `Updated ${data.productsUpdated} catalog products and their linked packets.` });
+      }
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      setMarkupPreview(null);
+      toast({ title: "Pricing was not applied", description: error.message, variant: "destructive" });
     },
   });
+  const draftPricing = { sizeUpcharges, markupPercent: Number(markupPercent), markupFixed: Number(markupFixed),
+    additionalPlacementCost: Number(additionalPlacementCost), textLineUpcharge: Number(textLineUpcharge),
+    centerGraphicUpcharge: Number(centerGraphicUpcharge), memberProfitShare: Number(memberProfitShare) / 100,
+    builtInShippingCost: Number(builtInShippingCost), hostingTiers, brandLabelPricing, preferredLabelPosition };
+  const blankAmount = [markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, centerGraphicUpcharge, memberProfitShare, builtInShippingCost].some(v => !v.trim());
+  const parsedSaved = pricingSettingsSchema.safeParse(settings);
+  const parsedDraft = pricingSettingsSchema.safeParse(draftPricing);
+  const draftKey = JSON.stringify(draftPricing);
+  const unsavedMarkup = blankAmount || !parsedSaved.success || !parsedDraft.success || JSON.stringify(parsedSaved.data) !== JSON.stringify(parsedDraft.data);
+  useEffect(() => { setMarkupPreview(null); }, [draftKey]);
 
   const updateTierPrice = (code: string, price: string) => {
     setHostingTiers(tiers =>
-      tiers.map(t => t.code === code ? { ...t, price: parseFloat(price) || 0 } : t)
+      tiers.map(t => t.code === code ? { ...t, price: price === '' ? NaN : Number(price) } : t)
     );
   };
 
@@ -147,7 +144,7 @@ export default function AdminPricing() {
         <Button
           variant="outline"
           onClick={handleSave}
-          disabled={saveMutation.isPending || isLoading}
+          disabled={saveMutation.isPending || isLoading || !!loadError || !initialized}
           data-testid="button-save-pricing-header"
           className="qr-touch-48"
         >
@@ -167,7 +164,8 @@ export default function AdminPricing() {
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       )}
-      {!isLoading && (
+      {loadError && <div role="alert" className="p-4 text-destructive">Pricing could not be loaded: {loadError.message} <Button variant="outline" onClick={() => refetch()}>Retry</Button></div>}
+      {!isLoading && !loadError && initialized && (
       <><div className="grid gap-4">
         <AdminSectionCard
           title="Markup Settings"
@@ -207,6 +205,34 @@ export default function AdminPricing() {
               />
               <p className="text-xs text-muted-foreground">Added after percentage markup</p>
             </div>
+          </div>
+          <div className="mt-4 pt-4 border-t space-y-3">
+            <Button variant="outline" className="min-h-[44px]" onClick={() => syncPricingMutation.mutate(undefined)}
+              disabled={syncPricingMutation.isPending || saveMutation.isPending || unsavedMarkup}
+              data-testid="button-sync-pricing">
+              {syncPricingMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Check className="h-4 w-4 mr-2" />}
+              Preview Saved Pricing
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              {unsavedMarkup ? 'Save your pricing changes before previewing. ' : ''}
+              Recalculates saved products from their QRG provider costs, print content, hosting, labels and shipping, then applies your markup. Restores missing inside brand labels with the existing label artwork and verified print area. External marketplace prices are not published by this action.
+            </p>
+            {markupPreview && <div data-testid="markup-preview" className="space-y-3">
+              <p>Saved markup: {markupPreview.markupPercent}% + ${markupPreview.markupFixed.toFixed(2)}.
+                {' '}{markupPreview.productsToUpdate} products would be updated; {markupPreview.blocked.length} need attention.</p>
+              <div className="overflow-auto max-h-80">
+                <table className="w-full text-sm"><thead><tr><th className="text-left">Product</th><th>Current price</th><th>Updated price</th></tr></thead>
+                  <tbody>{markupPreview.products.map((p: any) => <tr key={p.id}><td>{p.title}{p.restoreInsideLabel && <span className="block text-xs text-muted-foreground">Restore inside label</span>}</td><td className="text-center">${p.currentPrice.toFixed(2)}</td><td className="text-center">${p.customerPrice.toFixed(2)}</td></tr>)}</tbody>
+                </table>
+              </div>
+              {markupPreview.blocked.length > 0 && <div role="alert" className="text-destructive text-sm">
+                <p>No prices will change until these products are repaired:</p>
+                <ul>{markupPreview.blocked.map((p: any) => <li key={p.id}>{p.title}: {p.reason}</li>)}</ul>
+              </div>}
+              <Button onClick={() => syncPricingMutation.mutate(markupPreview.previewToken)}
+                disabled={syncPricingMutation.isPending || unsavedMarkup || markupPreview.blocked.length > 0 || markupPreview.productsToUpdate === 0}
+                data-testid="button-apply-markup">Apply Previewed Pricing</Button>
+            </div>}
           </div>
         </AdminSectionCard>
 
@@ -280,6 +306,19 @@ export default function AdminPricing() {
           </div>
         </AdminSectionCard>
 
+        <AdminSectionCard title="Size Price Increases" icon={DollarSign} description="Added to the base product price for the selected size. Blank means this size is not configured.">
+          <div className="grid grid-cols-3 gap-4">
+            {APPAREL_SIZE_ORDER.map(size => (
+              <div key={size} className="space-y-2">
+                <Label htmlFor={`size-price-${size}`}>{size} ($)</Label>
+                <Input id={`size-price-${size}`} type="number" min="0" step="0.01"
+                  value={sizeUpcharges[size] ?? ''}
+                  onChange={e => setSizeUpcharges(current => { const next = { ...current }; if (e.target.value === '') delete next[size]; else next[size] = Number(e.target.value); return next; })} />
+              </div>
+            ))}
+          </div>
+        </AdminSectionCard>
+
         <AdminSectionCard
           title="Built-In Shipping Cost"
           icon={Truck}
@@ -321,8 +360,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printifyInside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyInside: parseFloat(e.target.value) || 0 }))}
+                    value={Number.isFinite(brandLabelPricing.printifyInside) ? brandLabelPricing.printifyInside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyInside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="0.55"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -337,8 +376,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printifyOutside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyOutside: parseFloat(e.target.value) || 0 }))}
+                    value={Number.isFinite(brandLabelPricing.printifyOutside) ? brandLabelPricing.printifyOutside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printifyOutside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="0.55"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -358,8 +397,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printfulInside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulInside: parseFloat(e.target.value) || 0 }))}
+                    value={Number.isFinite(brandLabelPricing.printfulInside) ? brandLabelPricing.printfulInside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulInside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="0.99"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -374,8 +413,8 @@ export default function AdminPricing() {
                     type="number"
                     min="0"
                     step="0.01"
-                    value={brandLabelPricing.printfulOutside}
-                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulOutside: parseFloat(e.target.value) || 0 }))}
+                    value={Number.isFinite(brandLabelPricing.printfulOutside) ? brandLabelPricing.printfulOutside : ''}
+                    onChange={(e) => setBrandLabelPricing(prev => ({ ...prev, printfulOutside: e.target.value === '' ? NaN : Number(e.target.value) }))}
                     placeholder="2.49"
                     className="min-h-[48px] text-lg"
                     inputMode="decimal"
@@ -401,13 +440,12 @@ export default function AdminPricing() {
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                This sets where the QR Gear branded tag goes on every product that supports labels.
-                The tag is automatically added to all mockups and orders.
+                This saved preference does not replace the required inside brand label. The inside label is always retained, its provider-specific cost is included, and its artwork travels to fulfillment. An outside label is charged only when that placement is selected in the product build.
               </p>
             </div>
             <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1">
               <p>Inside labels replace the manufacturer tag inside the collar. Outside labels are printed on the back of the collar, visible to others.</p>
-              <p>The toggle above sets the default for all products. Cost depends on the fulfillment provider.</p>
+              <p>Label costs use the fulfillment provider saved on each product.</p>
             </div>
           </div>
         </AdminSectionCard>
@@ -433,26 +471,7 @@ export default function AdminPricing() {
               data-testid="input-member-profit-share"
             />
             <p className="text-xs text-muted-foreground">
-              Members earn this % of profit (price - cost) on each sale. Default: 25%
-            </p>
-          </div>
-          <div className="mt-4 pt-4 border-t">
-            <Button
-              variant="outline"
-              className="min-h-[44px]"
-              onClick={() => syncPricingMutation.mutate()}
-              disabled={syncPricingMutation.isPending}
-              data-testid="button-sync-pricing"
-            >
-              {syncPricingMutation.isPending ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Check className="h-4 w-4 mr-2" />
-              )}
-              Sync Pricing to All Products
-            </Button>
-            <p className="text-xs text-muted-foreground mt-2">
-              Updates all existing product packets with current pricing settings
+              Members earn this % of profit (price - cost) on each sale. Zero disables the share.
             </p>
           </div>
         </AdminSectionCard>
@@ -471,7 +490,7 @@ export default function AdminPricing() {
                   type="number"
                   min="0"
                   step="0.01"
-                  value={tier.price}
+                  value={Number.isFinite(tier.price) ? tier.price : ''}
                   onChange={(e) => updateTierPrice(tier.code, e.target.value)}
                   className="min-h-[48px] text-lg"
                   inputMode="decimal"
@@ -489,12 +508,14 @@ export default function AdminPricing() {
 
         <AdminSectionCard title="Pricing Formula">
           <div className="font-mono text-sm space-y-1">
-            <p>Base Cost = Production + Placements + Text + Hosting + Brand Label + Shipping</p>
+            <p>Base Cost = Production + Placements + Header/Footer + Center Graphic + Hosting + Brand Label + Shipping</p>
             <p>Customer Price = Base x (1 + {markupPercent || 0}%) + ${markupFixed || 0}</p>
             <p className="text-muted-foreground">Shipping is baked into the price — customers see "Free Shipping"</p>
           </div>
         </AdminSectionCard>
 
+
+        {pricingSettingsSchema.safeParse(settings).success && (
         <AdminSectionCard
           title="Example Price Breakdown"
           icon={DollarSign}
@@ -506,10 +527,10 @@ export default function AdminPricing() {
           <div className="flex gap-2 mb-4 flex-wrap">
             <span className="text-xs font-medium text-muted-foreground">Example using:</span>
             <span className="text-xs px-2 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 font-medium">
-              Printify inside: ${brandLabelPricing.printifyInside.toFixed(2)}
+              Printify inside: ${(brandLabelPricing.printifyInside?.toFixed(2) ?? 'Not set')}
             </span>
             <span className="text-xs px-2 py-0.5 rounded-md bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 font-medium">
-              Printful inside: ${brandLabelPricing.printfulInside.toFixed(2)}
+              Printful inside: ${(brandLabelPricing.printfulInside?.toFixed(2) ?? 'Not set')}
             </span>
           </div>
 
@@ -519,35 +540,35 @@ export default function AdminPricing() {
               <span className="font-bold text-foreground">$15.00</span>
             </div>
             <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
-              <span className="text-foreground">Extra Placement (1 x ${additionalPlacementCost || 4}):</span>
-              <span className="font-medium text-foreground">+${parseFloat(additionalPlacementCost || "4").toFixed(2)}</span>
+              <span className="text-foreground">Extra Placement (1 x ${additionalPlacementCost || 0}):</span>
+              <span className="font-medium text-foreground">+${parseFloat(additionalPlacementCost || "0").toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
-              <span className="text-foreground">Header/Footer Zone (1 x ${textLineUpcharge || 2}):</span>
-              <span className="font-medium text-foreground">+${parseFloat(textLineUpcharge || "2").toFixed(2)}</span>
+              <span className="text-foreground">Header/Footer Zone (1 x ${textLineUpcharge || 0}):</span>
+              <span className="font-medium text-foreground">+${parseFloat(textLineUpcharge || "0").toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
-              <span className="text-foreground">Center Graphic (1 x ${centerGraphicUpcharge || 5}):</span>
-              <span className="font-medium text-foreground">+${parseFloat(centerGraphicUpcharge || "5").toFixed(2)}</span>
+              <span className="text-foreground">Center Graphic (1 x ${centerGraphicUpcharge || 0}):</span>
+              <span className="font-medium text-foreground">+${parseFloat(centerGraphicUpcharge || "0").toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-2 p-2 bg-muted rounded-md border">
               <span className="text-foreground">Hosting ({hostingTiers[0]?.name || "1 Year"}):</span>
-              <span className="font-medium text-foreground">+${(hostingTiers[0]?.price || 5).toFixed(2)}</span>
+              <span className="font-medium text-foreground">+${(hostingTiers[0]?.price ?? 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between gap-2 p-2 bg-amber-50 dark:bg-amber-950 rounded-md border border-amber-200 dark:border-amber-800">
               <span className="text-amber-900 dark:text-amber-200">Brand Label (inside):</span>
-              <span className="font-medium text-amber-900 dark:text-amber-200">+${brandLabelPricing.printifyInside.toFixed(2)}</span>
+              <span className="font-medium text-amber-900 dark:text-amber-200">+${(brandLabelPricing.printifyInside?.toFixed(2) ?? 'Not set')}</span>
             </div>
             <div className="flex justify-between gap-2 p-2 bg-emerald-50 dark:bg-emerald-950 rounded-md border border-emerald-200 dark:border-emerald-800">
               <span className="text-emerald-900 dark:text-emerald-200">Built-In Shipping:</span>
-              <span className="font-medium text-emerald-900 dark:text-emerald-200">+${parseFloat(builtInShippingCost || "4.95").toFixed(2)}</span>
+              <span className="font-medium text-emerald-900 dark:text-emerald-200">+${parseFloat(builtInShippingCost || "0").toFixed(2)}</span>
             </div>
 
             <div className="border-t pt-2 mt-2">
               {(() => {
                 const labelCost = brandLabelPricing.printifyInside;
-                const shippingCost = parseFloat(builtInShippingCost || "4.95");
-                const subtotal = 15 + parseFloat(additionalPlacementCost || "4") + parseFloat(textLineUpcharge || "2") + parseFloat(centerGraphicUpcharge || "5") + (hostingTiers[0]?.price || 5) + labelCost + shippingCost;
+                const shippingCost = parseFloat(builtInShippingCost || "0");
+                const subtotal = 15 + parseFloat(additionalPlacementCost || "0") + parseFloat(textLineUpcharge || "0") + parseFloat(centerGraphicUpcharge || "0") + (hostingTiers[0]?.price ?? 0) + labelCost + shippingCost;
                 const markupAmount = (subtotal * (parseFloat(markupPercent || "0") / 100)) + parseFloat(markupFixed || "0");
                 const customerPrice = subtotal + markupAmount;
                 return (
@@ -574,6 +595,7 @@ export default function AdminPricing() {
             </div>
           </div>
         </AdminSectionCard>
+        )}
       </div>
 
       <StickyActionBar>

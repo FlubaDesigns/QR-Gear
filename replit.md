@@ -23,7 +23,7 @@ Required env vars: `FIREBASE_SERVICE_ACCOUNT_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_
 - **Storage:** Firebase Storage
 - **Auth:** Firebase Auth + Replit Auth (`isAdmin` middleware)
 - **Payments:** Stripe
-- **Email:** Resend (NexusMail)
+- **Email:** Resend
 - **Print providers:** Printify, Printful, Apliiq
 
 ## Where things live
@@ -79,7 +79,7 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 - Blank catalog curation (admin-blanks page) with catalog assignment, tier/title/description overlays
 - Store builder to configure storefronts and assign products
 - Order management, pricing, fulfillment routing (Printify/Printful/Apliiq)
-- NexusMail for transactional emails via Resend
+- Transactional emails via the existing Resend service
 
 ## User preferences
 

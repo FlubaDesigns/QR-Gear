@@ -1,3 +1,6 @@
+import { publicProductText } from '../../../shared/descriptionLayers';
+import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
+import { buildPacketImageOrder, resolveProductImages, packetLeadColor } from "../../../shared/productImages";
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -5,15 +8,14 @@ import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_I
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
+  import { calculateAuthoritativePrice, getAuthoritativePrice, getSizeUpcharges, getCatalogInstancePrice } from '../services/pricing';
   import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
   import type { MockupRequest, MockupResult } from '../services/mockup-generator';
   import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { COLOR_HEX_MAP } from '../../../shared/colorUtils';
-import { buildStructuredOptions, deriveCardMode } from '../../../shared/storefrontTypes';
+import { buildStructuredOptions, deriveCardMode, sortProductSizes, sizeUpcharge } from '../../../shared/storefrontTypes';
 
 /**
  * Convert a productPackets.mockupsByColor nested structure into the flat frontend format.
@@ -25,7 +27,7 @@ import { buildStructuredOptions, deriveCardMode } from '../../../shared/storefro
  *   { [colorKey]: { lifestyle?, front?, angles?: string[] } }
  *
  * Also returns an ordered `mockupImages` array built from the first (default) color:
- *   [lifestyle, front, ...other placements]
+ *   [front, lifestyle, ...other placements]
  * and the `defaultColor` key so the API can advertise which color is pre-selected.
  */
 function extractPacketMockups(pkt: Record<string, any>): {
@@ -34,11 +36,9 @@ function extractPacketMockups(pkt: Record<string, any>): {
   defaultColor: string | null;
 } {
   const raw = pkt.mockupsByColor;
-  const fallbackUrl: string | null =
-    pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
 
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return { mockupsByColor: null, mockupImages: fallbackUrl ? [fallbackUrl] : [], defaultColor: null };
+    return { mockupsByColor: null, mockupImages: buildPacketImageOrder(pkt), defaultColor: null };
   }
 
   const result: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> = {};
@@ -77,17 +77,18 @@ function extractPacketMockups(pkt: Record<string, any>): {
   }
 
   if (Object.keys(result).length === 0) {
-    return { mockupsByColor: null, mockupImages: fallbackUrl ? [fallbackUrl] : [], defaultColor: null };
+    return { mockupsByColor: null, mockupImages: buildPacketImageOrder(pkt), defaultColor: null };
   }
 
-  const defaultColor = Object.keys(result)[0];
+  const savedLeadColor = packetLeadColor(pkt);
+  const defaultColor = savedLeadColor && result[savedLeadColor] ? savedLeadColor : Object.keys(result)[0];
   const first = result[defaultColor];
   const mockupImages: string[] = [];
-  if (first.lifestyle) mockupImages.push(first.lifestyle);
   if (first.front) mockupImages.push(first.front);
+  if (first.lifestyle) mockupImages.push(first.lifestyle);
   (first.angles || []).forEach((u) => mockupImages.push(u));
 
-  return { mockupsByColor: result, mockupImages, defaultColor };
+  return { mockupsByColor: result, mockupImages: buildPacketImageOrder(pkt, mockupImages), defaultColor };
 }
 
 /**
@@ -123,10 +124,6 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
   try {
     const { linkId } = req.params;
 
-    // Helper: normalize images array (items may be strings or {url} objects)
-    const toUrlArr = (imgs: any[]): string[] =>
-      (imgs || []).map((img: any) => (typeof img === 'string' ? img : img?.url || null)).filter(Boolean);
-
     // ── Primary: admin_catalog_instances ────────────────────────────────────
     const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
     if (instanceDoc.exists) {
@@ -139,9 +136,11 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let packetMockupsByColor: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
       let packetMockupImages: string[] = [];
       let packetDefaultColor: string | null = null;
+      let packetQrProductType: string | null = null;
       let packetLandingPageSnapshotUrl: string | null = null;
       let packetCompositeUrl: string | null = null;
       let packetQrOnlyUrl: string | null = null;
+      let packetPlayMediaUrl: string | null = null;
 
       if (d.currentPacketId) {
         try {
@@ -152,10 +151,12 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
             packetMockupsByColor = extracted.mockupsByColor;
             packetMockupImages = extracted.mockupImages;
             packetDefaultColor = extracted.defaultColor;
+            packetQrProductType = pkt.qrProductState?.replace(/_/g, '-') || null;
             packetMockupUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
             packetLandingPageSnapshotUrl = pkt.landingPageSnapshotUrl || null;
             packetCompositeUrl = pkt.compositeUrl || pkt.productGraphicUrl || null;
             packetQrOnlyUrl = pkt.qrOnlyUrl || null;
+            packetPlayMediaUrl = pkt.playMediaUrl || null;
             if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
           }
         } catch (e: any) {
@@ -166,22 +167,17 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       const toStrArr = (arr: any[]): string[] =>
         (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
 
-      // Build ordered gallery: packet mockups first → provider catalog images after
-      const providerImages = toUrlArr(resolved.images || []);
-      const allImages: string[] = [];
-      packetMockupImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      providerImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      if (packetMockupImages.length === 0 && packetMockupUrl && !allImages.includes(packetMockupUrl)) {
-        allImages.unshift(packetMockupUrl);
-      }
+      const allImages = resolveProductImages({
+        mockups: packetMockupImages,
+      });
 
       const bColors = toStrArr(d.enabledColors || resolved.colors || []);
-      const bSizes = toStrArr(d.enabledSizes || resolved.sizes || []);
+      const bSizes = sortProductSizes(toStrArr(d.enabledSizes || resolved.sizes || []));
 
       res.json({
         id: instanceDoc.id,
-        name: resolved.title || 'Untitled',
-        description: resolved.description || '',
+        name: publicProductText(resolved.title || 'Untitled'),
+        description: publicProductText(resolved.description || ''),
         category: resolved.category || '',
         productLine: resolved.productLine || '',
         imageUrl: allImages[0] || null,
@@ -190,9 +186,11 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         landingPageSnapshotUrl: packetLandingPageSnapshotUrl,
         compositeUrl: packetCompositeUrl,
         qrCodeUrl: packetQrOnlyUrl,
-        qrProductType: d.qrProductType || 'qr-basics',
+        playMediaUrl: packetPlayMediaUrl,
+        qrProductType: packetQrProductType,
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes: bSizes,
+        sizeUpcharges: await getSizeUpcharges(),
         availableColors: bColors,
         availablePlacements: [],
         defaultColor: packetDefaultColor,
@@ -267,7 +265,6 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
       const lifestyleUrl: string | null = link.lifestyleMockupUrl || null;
       const flatMockupUrl: string | null = link.mockupUrl || packetImageUrl || null;
-      const storedImages = toUrlArr(link.images || []);
 
       const mergedPlacementUrls: Record<string, string> = {
         ...packetPlacementMockupUrls,
@@ -301,14 +298,12 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         }
       }
 
-      const allImages: string[] = [];
-      mockupImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-      storedImages.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
+      const allImages = resolveProductImages({ mockups: mockupImages });
 
       res.json({
         id: linkDoc.id,
-        name: link.productName || 'Untitled Product',
-        description,
+        name: publicProductText(link.productName || 'Untitled Product'),
+        description: publicProductText(description),
         category,
         productLine,
         imageUrl: allImages[0] || null,
@@ -317,7 +312,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrCodeUrl: link.qrOnlyUrl || null,
         qrProductType: link.qrProductState || 'qr-basics',
         price: price !== null ? Math.round(price * 100) / 100 : null,
-        availableSizes,
+        availableSizes: sortProductSizes(availableSizes),
+        sizeUpcharges: await getSizeUpcharges(),
         availableColors,
         availablePlacements,
         defaultColor: link.defaultColor || null,
@@ -395,8 +391,8 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
       res.json({
         productId: linkId,
         linkId,
-        price: Math.round(price * 100) / 100,
-        name: resolved.title || 'Untitled',
+        price: await getCatalogInstancePrice(linkId, selectedSize),
+        name: publicProductText(resolved.title || 'Untitled'),
         imageUrl: heroImageUrl,
         selectedColor: selectedColor || null,
         selectedSize: selectedSize || null,
@@ -444,8 +440,8 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
       res.json({
         productId: productId || linkId,
         linkId,
-        price: Math.round(price * 100) / 100,
-        name: link.productName || 'Untitled Product',
+        price: Math.round((price + sizeUpcharge(selectedSize, await getSizeUpcharges())) * 100) / 100,
+        name: publicProductText(link.productName || 'Untitled Product'),
         imageUrl: link.mockupUrl || link.compositeUrl || link.qrOnlyUrl || null,
         selectedColor: selectedColor || link.defaultColor || null,
         selectedSize: selectedSize || null,
@@ -516,6 +512,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupsByColor1: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
             let pktMockupImages1: string[] = [];
             let pktDefaultColor1: string | null = null;
+            let pktQrProductType1: string | null = null;
 
             if (d.currentPacketId) {
               try {
@@ -526,6 +523,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                   pktMockupsByColor1 = extracted.mockupsByColor;
                   pktMockupImages1 = extracted.mockupImages;
                   pktDefaultColor1 = extracted.defaultColor;
+                  pktQrProductType1 = pkt.qrProductState?.replace(/_/g, '-') || null;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
@@ -536,26 +534,18 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
 
             const toStringArray = (arr: any[]): string[] =>
               (arr || []).map((v: any) => (typeof v === 'string' ? v : v?.name || v?.label || String(v))).filter(Boolean);
-            const toImgUrl = (img: any): string | null =>
-              typeof img === 'string' ? img : (img?.url || null);
-
             const rawColors = d.enabledColors || resolved.colors || [];
             const rawSizes = d.enabledSizes || resolved.sizes || [];
 
-            // Build ordered gallery: packet mockups first → provider catalog images after
-            const providerImgs = (resolved.images || []).map(toImgUrl).filter(Boolean) as string[];
-            const allImages: string[] = [];
-            pktMockupImages1.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-            providerImgs.forEach((u) => { if (!allImages.includes(u)) allImages.push(u); });
-            if (pktMockupImages1.length === 0 && packetImageUrl && !allImages.includes(packetImageUrl)) {
-              allImages.unshift(packetImageUrl);
-            }
+            const allImages = resolveProductImages({
+              mockups: pktMockupImages1,
+            });
 
             const l1Colors = toStringArray(rawColors);
             const l1Sizes = toStringArray(rawSizes);
             return {
               id: doc.id,
-              name: resolved.title || 'Untitled',
+              name: publicProductText(resolved.title || 'Untitled'),
               imageUrl: allImages[0] || null,
               images: allImages,
               packetImageUrl,
@@ -563,7 +553,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               isFeatured: false,
               isSeasonalPromo: false,
               templateVariant: null,
-              qrProductType: 'qr-basics',
+              qrProductType: pktQrProductType1,
               qrCodeUrl: null,
               selectedColors: l1Colors,
               availableSizes: l1Sizes,
@@ -659,6 +649,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupsByColor2: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
             let pktMockupImages2: string[] = [];
             let pktDefaultColor2: string | null = null;
+            let pktQrProductType2: string | null = null;
 
             if (d.currentPacketId) {
               try {
@@ -669,6 +660,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                   pktMockupsByColor2 = extracted.mockupsByColor;
                   pktMockupImages2 = extracted.mockupImages;
                   pktDefaultColor2 = extracted.defaultColor;
+                  pktQrProductType2 = pkt.qrProductState?.replace(/_/g, '-') || null;
                   packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                   if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
                 }
@@ -677,21 +669,15 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               }
             }
 
-            const toImgUrlCh = (img: any): string | null =>
-              typeof img === 'string' ? img : (img?.url || null);
-            const providerImgsCh = (resolved.images || []).map(toImgUrlCh).filter(Boolean) as string[];
-            const allImagesCh: string[] = [];
-            pktMockupImages2.forEach((u) => { if (!allImagesCh.includes(u)) allImagesCh.push(u); });
-            providerImgsCh.forEach((u) => { if (!allImagesCh.includes(u)) allImagesCh.push(u); });
-            if (pktMockupImages2.length === 0 && packetImageUrl && !allImagesCh.includes(packetImageUrl)) {
-              allImagesCh.unshift(packetImageUrl);
-            }
+            const allImagesCh = resolveProductImages({
+              mockups: pktMockupImages2,
+            });
 
             const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
             const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
             return {
               id: doc.id,
-              name: resolved.title || 'Untitled',
+              name: publicProductText(resolved.title || 'Untitled'),
               imageUrl: allImagesCh[0] || null,
               images: allImagesCh,
               packetImageUrl,
@@ -699,7 +685,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               isFeatured: false,
               isSeasonalPromo: false,
               templateVariant: null,
-              qrProductType: 'qr-basics',
+              qrProductType: pktQrProductType2,
               qrCodeUrl: null,
               selectedColors: l2Colors,
               availableSizes: l2Sizes,
@@ -761,6 +747,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           let pktMockupsByColor3: Record<string, { lifestyle?: string; front?: string; angles?: string[] }> | null = null;
           let pktMockupImages3: string[] = [];
           let pktDefaultColor3: string | null = null;
+            let pktQrProductType3: string | null = null;
 
           if (d.currentPacketId) {
             try {
@@ -771,6 +758,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
                 pktMockupsByColor3 = extracted.mockupsByColor;
                 pktMockupImages3 = extracted.mockupImages;
                 pktDefaultColor3 = extracted.defaultColor;
+                  pktQrProductType3 = pkt.qrProductState?.replace(/_/g, '-') || null;
                 packetImageUrl = pkt.priorityMockupUrl || pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
                 if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
               }
@@ -779,21 +767,15 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             }
           }
 
-          const toImgUrlSt = (img: any): string | null =>
-            typeof img === 'string' ? img : (img?.url || null);
-          const providerImgsSt = (resolved.images || []).map(toImgUrlSt).filter(Boolean) as string[];
-          const allImagesSt: string[] = [];
-          pktMockupImages3.forEach((u) => { if (!allImagesSt.includes(u)) allImagesSt.push(u); });
-          providerImgsSt.forEach((u) => { if (!allImagesSt.includes(u)) allImagesSt.push(u); });
-          if (pktMockupImages3.length === 0 && packetImageUrl && !allImagesSt.includes(packetImageUrl)) {
-            allImagesSt.unshift(packetImageUrl);
-          }
+          const allImagesSt = resolveProductImages({
+            mockups: pktMockupImages3,
+          });
 
           const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
           const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
           return {
             id: doc.id,
-            name: resolved.title || 'Untitled',
+            name: publicProductText(resolved.title || 'Untitled'),
             imageUrl: allImagesSt[0] || null,
             images: allImagesSt,
             packetImageUrl,
@@ -801,7 +783,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             isFeatured: false,
             isSeasonalPromo: false,
             templateVariant: null,
-            qrProductType: 'qr-basics',
+            qrProductType: pktQrProductType3,
             qrCodeUrl: null,
             selectedColors: l3Colors,
             availableSizes: l3Sizes,
@@ -824,20 +806,6 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       channels,
       products,
     });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/admin/product-categories/seed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ message: "Use POST to seed categories" }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/admin/product-categories/seed', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const defaults = ['T-Shirts', 'Hoodies', 'Mugs', 'Posters', 'Stickers', 'Phone Cases', 'Tote Bags', 'Hats'];
-    const batch = db.batch();
-    defaults.forEach(name => { const ref = db.collection('product_categories').doc(); batch.set(ref, { name, slug: name.toLowerCase().replace(/\s+/g, '-'), isActive: true, createdAt: new Date() }); });
-    await batch.commit();
-    res.json({ success: true, count: defaults.length });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -918,11 +886,11 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
     const { linkId } = req.params;
     const { colorName } = req.body;
 
-    if (!colorName) { res.status(400).json({ error: 'colorName is required' }); return; }
+    if (typeof colorName !== 'string' || !colorName.trim()) { res.status(400).json({ error: 'colorName is required' }); return; }
 
     // Normalize helper — matches buildProductGallery's normalizeColorName
     const norm = (s: string) =>
-      s.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+      s.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
     const targetNorm = norm(colorName);
 
     // ── Load packet from admin_catalog_instances ──────────────────────────
@@ -979,37 +947,18 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
       return;
     }
 
-    const artworkUrl: string | null =
-      packetData.artworkUrl || packetData.compositeUrl || packetData.productGraphicUrl || null;
-    const blueprintId: number | null =
-      packetData.blueprintId ||
-      (instanceData?.baseSnapshot?.printifyBlueprintId ?? null);
-
-    if (!artworkUrl || !blueprintId) {
-      res.json({ success: false, error: 'Insufficient packet data for mockup generation — artwork or blueprintId missing', colorName });
+    const enabledColors = (instanceData?.enabledColors || instanceData?.resolved?.colors || [])
+      .map((value: any) => typeof value === 'string' ? value : value?.name || value?.label);
+    if (!enabledColors.includes(colorName)) {
+      res.status(400).json({ success: false, error: 'Color is not enabled for this product', colorName });
       return;
     }
-
-    const printProviderId: number = packetData.printProviderId || 39;
-    const fulfillmentProvider: string = packetData.fulfillmentProvider || 'printify';
-    const colorHex: string = (COLOR_HEX_MAP as Record<string, string>)[colorName]
-      || (COLOR_HEX_MAP as Record<string, string>)[colorName.toLowerCase()]
-      || '#ffffff';
-
-    console.log(`[StoreColorMockup] Generating for ${colorName} (${colorHex}) on ${linkId}`);
-
-    const result = await generateMockupFromPrintful({
-      blueprintId,
-      printProviderId,
-      colorName,
-      colorHex,
-      artworkUrl,
-      artworkVariant: 'black',
-      fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      placement: 'front',
-      qrSize: 'medium',
-      hasCompositeGraphic: true,
-    });
+    const sourceMasterId = packetMockupSourceId(packetData);
+    const masterDoc = await db.collection('master_catalog').doc(sourceMasterId).get();
+    if (!masterDoc.exists) throw new Error('QRG blank not found');
+    const request = buildPacketMockupRequest(packetData, masterDoc.data()!, 'front', colorName);
+    const result = await generateMockupFromPrintful(request);
+    if (!result.mockupUrl) throw new Error('Printful returned no color mockup');
 
     // ── Save back to packet (3-level format) ──────────────────────────────
     if (result.mockupUrl && packetId) {
@@ -1038,7 +987,7 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
     });
   } catch (e: any) {
     console.error('[StoreColorMockup] Error:', e.message);
-    res.json({ success: false, error: e.message, colorName: req.body?.colorName });
+    res.status(502).json({ success: false, error: e.message, colorName: req.body?.colorName });
   }
 });
 

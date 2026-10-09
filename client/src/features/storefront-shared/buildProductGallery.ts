@@ -6,7 +6,7 @@
  *
  * Priority order:
  *   1. `mockupsByColor` for the selected color — color-reactive gallery
- *   2. API-provided `images[]` array — static fallback when no color mockups exist
+ *   2. Remaining API-provided `images[]` — generated artwork and proofs stay visible
  *   3. `imageUrl` + `packetImageUrl` as a 2-image final fallback
  *   4. Empty array (caller handles empty state)
  */
@@ -15,13 +15,18 @@ import type { StorefrontMediaItem } from './mediaTypes';
 
 export interface ProductMediaSource {
   name?: string;
+  qrProductType?: string | null;
+  playMediaUrl?: string | null;
+  landingPageSnapshotUrl?: string | null;
+  qrCodeUrl?: string | null;
+  compositeUrl?: string | null;
   /** Full ordered gallery array from API — primary source. May be strings or {url,alt} objects. */
   images?: Array<string | { url?: string; alt?: string }> | null;
   /** Single hero image — fallback when images[] is absent. */
   imageUrl?: string | null;
   /** Secondary image (packet QR graphic) — used only in fallback path. */
   packetImageUrl?: string | null;
-  /** Color-keyed mockup data — used only if images[] is absent and a color is selected. */
+  /** Color-keyed mockups lead the gallery; they do not replace generated packet proofs. */
   mockupsByColor?: Record<string, {
     front?: string;
     lifestyle?: string;
@@ -34,9 +39,9 @@ function normalizeImageUrl(item: string | { url?: string; alt?: string }): strin
   return item?.url || null;
 }
 
-/** Strip common color name prefixes and normalize to lowercase (e.g. "Solid Black" → "black"). */
+/** Strip the optional Solid prefix; Heather remains a distinct shirt color. Normalize and normalize to lowercase (e.g. "Solid Black" → "black"). */
 function normalizeColorName(name: string): string {
-  return name.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+  return name.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
 }
 
 /**
@@ -60,6 +65,7 @@ function extractColorFromKey(key: string): string {
 function findColorMockup(
   mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[]; placement?: string }>,
   targetColor: string | null | undefined,
+  preferredFront?: string | null,
 ): { front?: string; lifestyle?: string; angles?: string[] } | null {
   const keys = Object.keys(mockupsByColor);
   if (keys.length === 0) return null;
@@ -82,15 +88,18 @@ function findColorMockup(
     for (const key of keys) {
       if (normalizeColorName(key) === normalizedTarget) return mockupsByColor[key];
     }
-    // Still nothing — fall back to first available entry
-    return mockupsByColor[keys[0]] ?? null;
+    return null;
   }
 
   // Aggregate all matching placements into one result
+  // Saved uploads and supplier caches can use different spellings of the same color.
+  // The canonical lead wins within that color without overriding another selection.
+  matches.sort((a, b) => Number(mockupsByColor[b].front === preferredFront) - Number(mockupsByColor[a].front === preferredFront));
   const aggregated: { front?: string; lifestyle?: string; angles: string[] } = { angles: [] };
 
   for (const key of matches) {
     const entry = mockupsByColor[key];
+    aggregated.angles.push(...(entry.angles || []));
     const placement = entry.placement ?? (key.includes('_') ? key.split('_').pop() : 'front');
     const isFront = placement === 'front' || placement === 'front-center';
 
@@ -113,77 +122,56 @@ function findColorMockup(
   return mockupsByColor[keys[0]] ?? null;
 }
 
-/**
- * Type sort order — lower index = shown first.
- * Lifestyle/model shots always lead; QR-only graphics always trail.
- */
-const TYPE_ORDER: Record<string, number> = {
-  lifestyle: 0,
-  mockup:    1,
-  gallery:   2,
-  detail:    3,
-  graphic:   4,
-};
-
-function sortByType(items: StorefrontMediaItem[]): StorefrontMediaItem[] {
-  if (items.length <= 1) return items;
-  return [...items].sort((a, b) => {
-    const ra = TYPE_ORDER[a.type ?? 'gallery'] ?? 2;
-    const rb = TYPE_ORDER[b.type ?? 'gallery'] ?? 2;
-    return ra - rb;
-  });
-}
-
+/** Combine selected-color mockups with the complete generated packet gallery. */
 export function buildProductGallery(
   product: ProductMediaSource | null | undefined,
   selectedColor?: string | null,
 ): StorefrontMediaItem[] {
   if (!product) return [];
-
   const productName = product.name || 'Product';
-
-  // ── Priority 1: mockupsByColor for the selected color ────────────────────
-  // Lifestyle (model/glamour shot) is always pushed first, then front mockup.
-  if (product.mockupsByColor && Object.keys(product.mockupsByColor).length > 0) {
-    const mockup = findColorMockup(product.mockupsByColor, selectedColor);
-    if (mockup) {
-      const items: StorefrontMediaItem[] = [];
-      if (mockup.lifestyle) items.push({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
-      if (mockup.front)     items.push({ url: mockup.front,     label: 'Front',     alt: `${productName} — front`,     type: 'mockup'  });
-      (mockup.angles || []).forEach((url, i) => {
-        items.push({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' });
-      });
-      if (items.length > 0) return items;
-    }
-  }
-
-  // ── Priority 2: API-provided images[] — fallback when no color mockups ───
-  // Sort so that mockup/gallery images appear before QR-only graphics.
-  if (product.images && product.images.length > 0) {
-    const items: StorefrontMediaItem[] = [];
-    product.images.forEach((item, i) => {
-      const url = normalizeImageUrl(item);
-      if (!url) return;
-      // Heuristic: last image is often the QR graphic/composite; everything
-      // else is treated as a product mockup or gallery shot.
-      const isLastAndLikelyGraphic = i === product.images!.length - 1 && i > 0;
-      items.push({
-        url,
-        alt: `${productName} — image ${i + 1}`,
-        type: isLastAndLikelyGraphic ? 'graphic' : (i === 0 ? 'mockup' : 'gallery'),
-      });
+  const video: StorefrontMediaItem | null = product.qrProductType === 'qr-play' && product.playMediaUrl
+    ? { url: product.playMediaUrl, type: 'video', label: 'Video', alt: `${productName} — video`, posterUrl: product.compositeUrl || undefined }
+    : null;
+  const items: StorefrontMediaItem[] = [];
+  const seen = new Set<string>();
+  const add = (item: StorefrontMediaItem) => {
+    if (!item.url || seen.has(item.url)) return;
+    seen.add(item.url);
+    items.push(item);
+  };
+  // Known color-specific URLs must not reintroduce another color through images[].
+  const colorMockupUrls = new Set<string>();
+  for (const entry of Object.values(product.mockupsByColor || {})) {
+    [entry.lifestyle, entry.front, ...(entry.angles || [])].forEach(url => {
+      if (url) colorMockupUrls.add(url);
     });
-    if (items.length > 0) return sortByType(items);
   }
+  if (product.mockupsByColor) {
+    const mockup = findColorMockup(product.mockupsByColor, selectedColor, product.imageUrl);
+    if (mockup?.front) add({ url: mockup.front, label: 'Front', alt: `${productName} — front`, type: 'mockup' });
+    if (mockup?.lifestyle) add({ url: mockup.lifestyle, label: 'Lifestyle', alt: `${productName} — lifestyle`, type: 'lifestyle' });
+    (mockup?.angles || []).forEach((url, i) => add({ url, label: `View ${i + 2}`, alt: `${productName} — angle ${i + 2}`, type: 'gallery' }));
+  }
+  // Products already supplies the packet's generated images in canonical order.
+  // Append its proofs even when selected-color mockups are available.
+  (product.images || []).forEach((item, i) => {
+    const url = normalizeImageUrl(item);
+    if (!url || colorMockupUrls.has(url)) return;
+    // A static QR Play landing-page capture cannot capture the embedded movie.
+    // Replace that exact destination slot with the saved video, preserving order.
+    if (video && url === product.landingPageSnapshotUrl) { add(video); return; }
+    if (video && url === product.qrCodeUrl) add(video);
+    add({ url, alt: typeof item === 'object' && item.alt ? item.alt : `${productName} — image ${i + 1}`, type: 'gallery' });
+  });
+  if (items.length) { if (video) add(video); return items; }
 
-  // ── Priority 3: single imageUrl + optional packetImageUrl ────────────────
-  // packetImageUrl is the QR graphic — always trails the product mockup.
-  const fallback: StorefrontMediaItem[] = [];
-  if (product.imageUrl) {
-    fallback.push({ url: product.imageUrl, alt: productName, type: 'mockup' });
+  // Legacy sources without a generated image array retain their existing display.
+  if (product.imageUrl && !colorMockupUrls.has(product.imageUrl)) {
+    add({ url: product.imageUrl, alt: productName, type: 'mockup' });
   }
-  if (product.packetImageUrl && product.packetImageUrl !== product.imageUrl) {
-    fallback.push({ url: product.packetImageUrl, alt: `${productName} — graphic`, type: 'graphic' });
+  if (product.packetImageUrl && !colorMockupUrls.has(product.packetImageUrl)) {
+    add({ url: product.packetImageUrl, alt: `${productName} — graphic`, type: 'graphic' });
   }
-  return fallback;
+  if (video) add(video);
+  return items;
 }

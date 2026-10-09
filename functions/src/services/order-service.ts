@@ -1,3 +1,6 @@
+import { createHash } from 'crypto';
+import type Stripe from 'stripe';
+import { resolveSaleItem, verifyProviderItems } from './order-fulfillment';
 import { db, admin } from '../core';
 import {
   EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION,
@@ -13,7 +16,7 @@ import type { PricingSnapshot } from '../../../shared/surfaces';
  * snapshot persistence, and payout attribution:
  *
  * - direct_cart: Session created in core-routes-checkout.ts; order finalized
- *   in stripe-webhooks.ts on checkout.session.completed via createCanonicalOrder.
+ *   in stripe-webhooks.ts from prepareCartOrder's frozen records via finalizeCartPayment.
  * - packet_share: Session created in checkout.ts /public/packet-checkout; order
  *   finalized in checkout.ts /verify/:sessionId via createCanonicalOrder.
  * - external_embed: Attribution staged in external-sites-public.ts /buy via
@@ -142,7 +145,7 @@ export async function createCanonicalOrder(input: CreateOrderInput): Promise<Cre
   const nowISO = now.toISOString();
 
   if (input.source === 'direct_cart') {
-    return createDirectCartOrder(input, nowISO);
+    throw new Error('Direct orders must be frozen before checkout and finalized from verified Stripe payment.');
   } else if (input.source === 'packet_share') {
     return createPacketOrder(input, nowISO);
   } else {
@@ -150,58 +153,61 @@ export async function createCanonicalOrder(input: CreateOrderInput): Promise<Cre
   }
 }
 
-async function createDirectCartOrder(input: CreateOrderInput, nowISO: string): Promise<CreateOrderResult> {
-  const existingSnapshot = await db.collection('orders')
-    .where('stripeSessionId', '==', input.stripeSessionId)
-    .limit(1).get();
-  if (!existingSnapshot.empty) {
-    const doc = existingSnapshot.docs[0];
-    console.log(`[OrderService] Order already exists for session ${input.stripeSessionId}, skipping`);
-    return { orderId: doc.id, alreadyExisted: true, orderData: doc.data()! };
-  }
+function cartFingerprint(cart: any): string {
+  return createHash('sha256').update(JSON.stringify({ userId: cart.userId, quantity: cart.quantity,
+    customization: cart.customization, price: cart.price })).digest('hex');
+}
 
-  const cartItems = input.cartItems || [];
-  const totalAmount = cartItems.reduce((sum: number, item: any) => {
-    return sum + parseFloat(item.price || '0') * (item.quantity || 1);
-  }, 0);
-
-  const pricingSnapshot = input.pricingSnapshot || freezePricingSnapshot({
-    salePrice: totalAmount,
-    productCost: 0,
-    currency: 'USD',
+export async function prepareCartOrder(userId: string, referrerId = '') {
+  const carts = (await db.collection('cartItems').where('userId', '==', userId).get()).docs.map(doc => ({ ...doc.data(), id: doc.id }));
+  if (!carts.length) throw new Error('Cart is empty.');
+  if (carts.length > 100) throw new Error('Split this cart into orders of at most 100 different items.');
+  const items = await Promise.all(carts.map(async cart => ({ ...await resolveSaleItem(cart), cartFingerprint: cartFingerprint(cart) })));
+  await verifyProviderItems(items);
+  const amount = items.reduce((total, item) => total + item.unitAmount * item.quantity, 0);
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid order total.');
+  const ref = db.collection('orders').doc(), now = new Date().toISOString();
+  await db.runTransaction(async tx => {
+    tx.create(ref, { userId, source: 'direct_cart', sourceChannel: 'direct', checkoutVersion: 1,
+      status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
+      amountTotalCents: amount, currency: 'usd', totalAmount: (amount / 100).toFixed(2),
+      referrerId, payoutState: referrerId ? 'needs_review' : null, routedProvider: items[0].fulfillment.provider, createdAt: now, updatedAt: now });
+    items.forEach((item, index) => tx.create(db.collection('orderItems').doc(`${ref.id}_${index}`), { ...item, orderId: ref.id, createdAt: now }));
   });
+  return { orderId: ref.id, items, amount };
+}
 
-  const shippingAddress = input.shippingAddress;
-  const orderData: Record<string, any> = {
-    userId: input.userId,
-    status: 'paid',
-    totalAmount: totalAmount.toFixed(2),
-    stripeSessionId: input.stripeSessionId,
-    stripePaymentIntentId: input.stripePaymentIntentId || null,
-    customerEmail: input.buyerEmail || null,
-    shippingAddress,
-    pricingSnapshot,
-    source: 'direct_cart',
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
-
-  const orderRef = await db.collection('orders').add(orderData);
-  console.log(`[OrderService] Direct cart order created: ${orderRef.id}`);
-
-  for (const item of cartItems) {
-    await db.collection('orderItems').add({
-      orderId: orderRef.id,
-      productId: item.productId,
-      quantity: item.quantity || 1,
-      price: item.price,
-      customization: item.customization || {},
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+/** Caller must verify the webhook signature (or retrieve this session from Stripe). */
+export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
+  const orderId = session.metadata?.orderId;
+  if (!orderId || session.metadata?.source !== 'direct_cart') throw new Error('Checkout has no frozen order. Manual reconciliation required.');
+  if (session.payment_status !== 'paid') throw new Error('Payment is not complete.');
+  const ref = db.collection('orders').doc(orderId);
+  await db.runTransaction(async tx => {
+    const order = (await tx.get(ref)).data();
+    if (!order || order.checkoutVersion !== 1 || order.userId !== session.metadata?.userId ||
+        (order.stripeSessionId && order.stripeSessionId !== session.id) || order.currency !== session.currency ||
+        order.amountTotalCents !== session.amount_total) throw new Error('Stripe payment does not match the frozen order.');
+    if (order.paymentStatus === 'paid') return;
+    const shipping = (session as any).shipping_details || (session as any).collected_information?.shipping_details;
+    const address = shipping?.address;
+    tx.update(ref, { stripeSessionId: session.id, stripePaymentIntentId: typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || null,
+      status: 'paid', paymentStatus: 'paid', paymentVerifiedAt: new Date().toISOString(), fulfillmentState: 'ready',
+      customerEmail: session.customer_details?.email || '', customerName: shipping?.name || session.customer_details?.name || '',
+      shippingAddress: address ? { name: shipping.name || '', firstName: shipping.name?.split(' ')[0] || '', lastName: shipping.name?.split(' ').slice(1).join(' ') || '',
+        address1: address.line1 || '', address2: address.line2 || '', city: address.city || '', region: address.state || '',
+        state: address.state || '', zip: address.postal_code || '', country: address.country || '', phone: session.customer_details?.phone || '' } : null,
+      updatedAt: new Date().toISOString() });
+  });
+  // Remove only unchanged purchased cart rows. New items/edits remain in the cart.
+  const items = (await db.collection('orderItems').where('orderId', '==', orderId).get()).docs.map(d => d.data());
+  await db.runTransaction(async tx => {
+    const carts = await Promise.all(items.map(item => tx.get(db.collection('cartItems').doc(item.cartItemId))));
+    carts.forEach((cart, i) => {
+      if (cart.exists && cart.data()?.userId === session.metadata?.userId && cartFingerprint(cart.data()) === items[i].cartFingerprint) tx.delete(cart.ref);
     });
-  }
-  console.log(`[OrderService] Created ${cartItems.length} order items for order ${orderRef.id}`);
-
-  return { orderId: orderRef.id, alreadyExisted: false, orderData };
+  });
+  return { orderId, order: (await ref.get()).data()!, items };
 }
 
 async function createPacketOrder(input: CreateOrderInput, nowISO: string): Promise<CreateOrderResult> {

@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
 import { admin, db } from './core';
+import { isSandboxRuntime } from './runtime-config';
+import { configuredAdminIds, hasAdminAccess } from '../../shared/adminAccess';
 
-export const ALLOWED_ORIGINS = [
+export const ALLOWED_ORIGINS = isSandboxRuntime() ? ['https://qr-gear-sandbox.web.app', 'https://qr-gear-sandbox.firebaseapp.com'] : [
   'https://qrgear-c1ffd.web.app',
   'https://qrgear-c1ffd.firebaseapp.com',
   'https://qrgear.com',
@@ -42,17 +44,13 @@ export async function verifyAuth(req: Request): Promise<admin.auth.DecodedIdToke
   }
   try {
     const token = authHeader.split('Bearer ')[1];
-    return await admin.auth().verifyIdToken(token);
+    return await admin.auth().verifyIdToken(token, true);
   } catch {
     return null;
   }
 }
 
 export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
-  if (process.env.ADMIN_BYPASS === 'true') {
-    (req as any).user = { uid: 'bypass', email: 'bypass@admin' };
-    return next();
-  }
   const user = await verifyAuth(req);
   if (!user) {
     res.status(401).json({ message: 'Unauthorized' });
@@ -62,13 +60,14 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
   next();
 }
 
-export const ADMIN_USER_IDS = (process.env.ADMIN_USER_IDS || 'xHUmudG0t5OkCQhqyhB4nXhCUfs1').split(',').filter(Boolean);
+export const ADMIN_USER_IDS = configuredAdminIds(process.env.ADMIN_USER_IDS);
+const authorizedAdmin = Symbol('authorizedAdmin');
 
 export async function requireAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
-  if (process.env.ADMIN_BYPASS === 'true') {
-    (req as any).user = { uid: 'bypass', email: 'bypass@admin' };
-    return next();
-  }
+  // The namespace guard and individual route guards share only this request's result.
+  if ((req as any)[authorizedAdmin]) { next(); return; }
+  res.set('Cache-Control', 'private, no-store');
+  try {
   const user = await verifyAuth(req);
   if (!user) {
     res.status(401).json({ message: 'Unauthorized' });
@@ -76,13 +75,15 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   }
   const userDoc = await db.collection('users').doc(user.uid).get();
   const userData = userDoc.data();
-  const isAdmin = userData?.isAdmin || ADMIN_USER_IDS.includes(user.uid);
+  const isAdmin = hasAdminAccess(user.uid, userData, ADMIN_USER_IDS);
   if (!isAdmin) {
     res.status(403).json({ message: 'Admin access required' });
     return;
   }
   (req as any).user = user;
+  (req as any)[authorizedAdmin] = true;
   next();
+  } catch (error) { next(error); }
 }
 
 export async function verifyMemberAuthCF(req: Request, memberId: string): Promise<{ authorized: boolean; userId?: string; error?: string }> {
@@ -94,4 +95,13 @@ export async function verifyMemberAuthCF(req: Request, memberId: string): Promis
     return { authorized: false, error: 'Forbidden' };
   }
   return { authorized: true, userId: user.uid };
+}
+
+/** Keep product editing available while blocking live commerce entry points. */
+export function sandboxCommerceMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (isSandboxRuntime() && /^(?:\/checkout(?:\/|$)|\/public\/packet-checkout(?:\/|$)|\/connect(?:\/|$)|\/webhooks(?:\/|$))/.test(req.path)) {
+    res.status(409).json({ error: 'Purchases and live commerce are disabled in this sandbox.' });
+    return;
+  }
+  next();
 }

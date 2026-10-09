@@ -1,9 +1,13 @@
-import { LoadBldModule } from './modules/LoadBldModule';
-import { useState, useRef, useCallback } from "react";
+import { AiProductBuilder } from './modules/AiProductBuilder';
+import { BLD_LAYOUTS } from "@shared/bldCodes";
+import { SaveDraftDialog } from './modules/SaveDraftDialog';
+import { useToast } from '@/hooks/use-toast';
+import { useState, useRef, useCallback, useEffect } from "react";
 import { ChevronDown, ChevronRight, CheckCircle2, Circle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BuilderProvider, useBuilderContext } from "./BuilderContext";
 import type { BuilderState } from "./types";
+import { QR_PRODUCT_STATES } from "./types";
 import { StateModule } from "./modules/StateModule";
 import { PlacementModule, ColorSection } from "./modules/PlacementModule";
 import type { ProductColor } from "./types";
@@ -15,7 +19,7 @@ import { ComposeContentModule } from "./modules/ComposeContentModule";
 import { CreateGraphicsModule } from "./modules/CreateGraphicsModule";
 import { LoadTemplateModule } from "./modules/LoadTemplateModule";
 import { LoadSavedModule } from "./modules/LoadSavedModule";
-import { BuilderCommandStrip } from "./modules/BuilderStickyBar";
+import { BuilderCommandStrip } from "./modules/BuilderCommandStrip";
 import { BuilderSummaryCard } from "./modules/BuilderSummaryCard";
 import { BuilderBottomBar } from "./modules/BuilderBottomBar";
 import { DraftResumeHandler } from "./modules/DraftResumeHandler";
@@ -37,14 +41,6 @@ const SECTIONS: SectionDef[] = [
   { key: "layout", label: "Layout", number: 4 },
   { key: "output", label: "Output", number: 5 },
 ];
-
-const QR_LABEL: Record<string, string> = {
-  qr_canvas: "QR Canvas",
-  qr_basics: "QR Basics",
-  qr_plus: "QR Plus",
-  qr_play: "QR Play",
-  qr_compose: "QR Compose",
-};
 
 type SectionStatus = "complete" | "partial" | "missing";
 
@@ -92,13 +88,13 @@ function getSectionSummary(key: SectionKey, state: BuilderState): string {
   switch (key) {
     case "product": {
       if (!state.selectedProduct) return "No product selected";
-      const qrLabel = state.qrProductState ? (QR_LABEL[state.qrProductState] ?? state.qrProductState) : "";
+      const qrLabel = QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label ?? "";
       return [state.selectedProduct.title, qrLabel].filter(Boolean).join(" · ");
     }
     case "design":
       if (state.loadedTemplate) return `Template: ${state.loadedTemplate.name || "loaded"}`;
-      if (state.content?.graphicLayoutMode === "zone") return "Zone layout set";
-      if (state.content?.graphicLayoutMode === "freeform") return "Freeform layout set";
+      if (state.content?.graphicLayoutMode === "zone") return `${BLD_LAYOUTS.Z} layout set`;
+      if (state.content?.graphicLayoutMode === "freeform") return `${BLD_LAYOUTS.P} layout set`;
       if (state.loadedGraphic) return "Graphic loaded";
       if (state.loadedBackground) return "Background loaded";
       return "Not configured";
@@ -147,6 +143,7 @@ interface AccordionSectionProps {
   nextLabel?: string;
   sectionRef: React.RefObject<HTMLDivElement>;
   children: React.ReactNode;
+  keepMounted?: boolean;
 }
 
 function AccordionSection({
@@ -161,6 +158,7 @@ function AccordionSection({
   nextLabel,
   sectionRef,
   children,
+  keepMounted,
 }: AccordionSectionProps) {
   return (
     <div className="border-b" data-testid={`section-${sectionKey}`} ref={sectionRef}>
@@ -187,8 +185,8 @@ function AccordionSection({
         )}
       </button>
 
-      {isOpen && (
-        <div className="pb-2">
+      {(isOpen || keepMounted) && (
+        <div className="pb-2" hidden={!isOpen}>
           {children}
           {onNext && nextLabel && (
             <div className="px-4 pt-2 pb-3">
@@ -223,8 +221,12 @@ function DesignColorPicker() {
   );
 }
 
-function BuilderModules() {
-  const { state } = useBuilderContext();
+function BuilderModules({ aiBuilder = false }: { aiBuilder?: boolean }) {
+  const { state, resetBuilder } = useBuilderContext();
+  const { toast } = useToast();
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [generateRequested, setGenerateRequested] = useState(false);
+  useEffect(() => { setGenerateRequested(false); }, [state.activeSessionId]);
 
   const [openSection, setOpenSection] = useState<SectionKey | null>("product");
   const [savedOpen, setSavedOpen] = useState(false);
@@ -273,21 +275,44 @@ function BuilderModules() {
     }, 100);
   }, [openAndScroll]);
 
+  const handleNew = async () => {
+    try {
+      await resetBuilder();
+      setGenerateRequested(false);
+      setSavedOpen(false); setTemplateOpen(false); setSaveOpen(false);
+      openAndScroll('product');
+    } catch (error: any) {
+      toast({ title: 'Could not start a new build', description: error.message, variant: 'destructive' });
+    }
+  };
+  const handleGenerate = () => {
+    if (!state.selectedProduct) {
+      openAndScroll('product');
+      toast({ title: 'Select a product first' });
+      return;
+    }
+    handleOpenOutput();
+    setGenerateRequested(true);
+  };
+  const finishGenerateRequest = useCallback(() => setGenerateRequested(false), []);
+
   return (
     <CollapseAllProvider>
-      <BuilderBottomBar onOpenOutput={handleOpenOutput} />
+      <BuilderBottomBar onOpenOutput={handleOpenOutput} onSave={() => setSaveOpen(true)} onGenerate={handleGenerate} />
 
       <div className="pb-24">
         <DraftResumeHandler />
 
         <BuilderCommandStrip
-          onOpenSaved={() => setSavedOpen(true)}
-          onOpenTemplates={() => setTemplateOpen(true)}
+          onOpenSaved={() => { setGenerateRequested(false); setSavedOpen(true); }}
+          onOpenTemplates={() => { setGenerateRequested(false); setTemplateOpen(true); }}
           onOpenOutput={handleOpenOutput}
+          onNew={handleNew} onSave={() => setSaveOpen(true)} onGenerate={handleGenerate}
         />
+        <SaveDraftDialog open={saveOpen} onOpenChange={setSaveOpen} />
 
         <BuilderSummaryCard />
-        <LoadBldModule />
+        {aiBuilder && <AiProductBuilder key={state.activeSessionId || "new"} />}
 
         <LoadSavedModule open={savedOpen} onOpenChange={setSavedOpen} hideCard />
         <LoadTemplateModule open={templateOpen} onOpenChange={setTemplateOpen} hideCard />
@@ -308,6 +333,7 @@ function BuilderModules() {
               summary={summary}
               status={status}
               isOpen={isOpen}
+              keepMounted={section.key === "output"}
               onToggle={() => handleToggle(section.key)}
               onNext={nextSection ? () => handleNext(section.key) : undefined}
               nextLabel={nextSection?.label}
@@ -356,7 +382,7 @@ function BuilderModules() {
               {section.key === "output" && (
                 <div id="builder-create-section">
                   <InlineDebugBoundary label="CreateGraphicsModule">
-                    <CreateGraphicsModule />
+                    <CreateGraphicsModule key={state.activeSessionId || "new"} generateRequested={generateRequested} onGenerateHandled={finishGenerateRequest} />
                   </InlineDebugBoundary>
                 </div>
               )}
@@ -368,11 +394,11 @@ function BuilderModules() {
   );
 }
 
-export function BuilderHarness() {
+export function BuilderHarness({ aiBuilder = false }: { aiBuilder?: boolean }) {
   return (
     <BuilderProvider>
       <InlineDebugBoundary label="BuilderModules">
-        <BuilderModules />
+        <BuilderModules aiBuilder={aiBuilder} />
       </InlineDebugBoundary>
     </BuilderProvider>
   );

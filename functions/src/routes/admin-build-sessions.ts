@@ -1,5 +1,9 @@
+import { resolveBuildDestination, destinationMetadata } from '../services/build-destination';
+import { resolveInstance as resolveFields } from '../services/instance-resolver';
+import { buildPacketImageOrder, masterBlankImages, resolveCatalogImages } from "../../../shared/productImages";
+import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { validatePacketComposition, packetPrintifyArtwork } from '../services/assembly-store';
-import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '../services/build-session-state';
+import { readGeneratedBuild, existingBuildInstance, saveBuildInstance, saveGeneratedBuildArtifact } from '../services/build-session-state';
 /**
  * Admin Build Sessions (Cloud Functions port)
  *
@@ -17,7 +21,8 @@ import { readGeneratedBuild, existingBuildInstance, saveBuildInstance } from '..
 
 import express, { Request, Response } from 'express';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
-import { db, storage } from '../core';
+import { db, storage, STORAGE_BUCKET_NAME } from '../core';
+import { isSandboxRuntime, resolveRuntimeConfig } from '../runtime-config';
 import { requireAdmin } from '../middleware';
 import { cfGeneratePrintifyComposite, cfUploadBufferToStorage } from '../services/composite-image';
 import { allocateQrgInstance } from '../services/qrg-instance-allocator';
@@ -31,15 +36,6 @@ const PRODUCT_PACKETS_COLLECTION = 'productPackets';
 
 const SESSION_EXPIRY_DAYS = 7;
 
-function resolveFields(base: Record<string, any>, overrides: Record<string, any>): Record<string, any> {
-  const resolved: Record<string, any> = { ...base };
-  for (const [key, val] of Object.entries(overrides)) {
-    if (val !== null && val !== undefined && val !== '') {
-      resolved[key] = val;
-    }
-  }
-  return resolved;
-}
 
 /**
  * Sanitize an arbitrary value for safe Firestore writes.
@@ -133,7 +129,18 @@ export function registerAdminBuildSessions(app: express.Express): void {
   // ── Create or load a build session from a master catalog item ─────────────
   app.post('/admin/build-sessions/from-master', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
-      const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId } = req.body;
+      const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId, forceNew = false, initialWorking } = req.body;
+      if (typeof forceNew !== 'boolean' || (initialWorking !== undefined && !forceNew)) {
+        res.status(400).json({ error: 'initialWorking requires forceNew: true.' }); return;
+      }
+      let templateWorking: Record<string, any> | null = null;
+      if (initialWorking !== undefined) {
+        try { templateWorking = requireBuilderSnapshot(initialWorking); }
+        catch (error: any) { res.status(400).json({ error: error.message }); return; }
+        if (templateWorking.metadata.selectedProductDocId !== sourceMasterId) {
+          res.status(400).json({ error: 'Template product identity must match sourceMasterId.' }); return;
+        }
+      }
 
       if (!sourceMasterId) {
         res.status(400).json({ error: 'sourceMasterId is required' });
@@ -159,7 +166,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       }
 
       // Filter status in-memory to avoid requiring a composite Firestore index.
-      const rawSessions = await db.collection(BUILD_SESSIONS_COLLECTION)
+      const rawSessions = forceNew ? { docs: [] } : await db.collection(BUILD_SESSIONS_COLLECTION)
         .where('ownerAdminId', '==', ownerAdminId)
         .where('sourceMasterId', '==', sourceMasterId)
         .get();
@@ -178,7 +185,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         const doc = existing.docs[0];
         const d = doc.data();
         // Touch lastActiveAt and back-fill blankKey/catalogId if the session predates those fields
-        const existingPatch: Record<string, any> = { lastActiveAt: FieldValue.serverTimestamp() };
+        const existingPatch: Record<string, any> = { lastActiveAt: FieldValue.serverTimestamp(), ...(isSandboxRuntime() ? { expiresAt: null } : {}) };
         if (bodyBlankKey && !d.blankKey) existingPatch.blankKey = bodyBlankKey;
         if (catalogId && !d.catalogId) existingPatch.catalogId = catalogId;
         await doc.ref.update(existingPatch);
@@ -221,7 +228,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const master = masterDoc.data()!;
 
       const now = FieldValue.serverTimestamp();
-      const expiresAt = Timestamp.fromDate(
+      const expiresAt = isSandboxRuntime() ? null : Timestamp.fromDate(
         new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
       );
 
@@ -231,7 +238,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         ownerAdminId,
         catalogId: catalogId || null,
         blankKey: bodyBlankKey || null,
-        working: {
+        working: templateWorking || {
           title: master.title || null,
           description: master.description || null,
           images: master.images || [],
@@ -293,7 +300,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       const source = sourceDoc.data()!;
       const now = FieldValue.serverTimestamp();
-      const expiresAt = Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
+      const expiresAt = isSandboxRuntime() ? null : Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000));
 
       const newSession = {
         sessionType: 'admin_build',
@@ -326,6 +333,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
     try {
       const { id } = req.params;
       const { working, draftName } = req.body;
+      if (draftName !== undefined && typeof draftName !== 'string') {
+        res.status(400).json({ error: 'Draft name must be text.' }); return;
+      }
 
       if (!working && draftName === undefined) {
         res.status(400).json({ error: 'working object or draftName is required' });
@@ -357,13 +367,16 @@ export function registerAdminBuildSessions(app: express.Express): void {
         lastActiveAt: FieldValue.serverTimestamp(),
       };
 
+      if (isSandboxRuntime()) updatePayload.expiresAt = null;
       if (working && typeof working === 'object') {
         updatePayload.working = sanitizeForFirestore(working);
         console.log(`[BuildSessions] patch ${id} | working keys: ${Object.keys(updatePayload.working).join(',')}`);
       }
 
       if (draftName !== undefined) {
-        updatePayload.draftName = draftName;
+        updatePayload.draftName = draftName.trim();
+        // An explicitly saved draft remains resumable until the admin deletes it.
+        updatePayload.expiresAt = isSandboxRuntime() || draftName.trim() ? null : Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 86400000));
       }
 
       await ref.update(updatePayload);
@@ -380,78 +393,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const { id } = req.params;
       const packetFields = req.body;
 
-      const ref = db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
-      const doc = await ref.get();
-
-      if (!doc.exists) {
-        res.status(404).json({ error: 'Build session not found' });
-        return;
-      }
-
-      const session = doc.data()!;
-
-      if (session.status === 'committed') {
-        res.status(409).json({ error: 'Session already committed.' });
-        return;
-      }
-      if (session.status === 'abandoned') {
-        res.status(409).json({ error: 'Cannot generate artifact for an abandoned session.' });
-        return;
-      }
-
-      const now = FieldValue.serverTimestamp();
-      let packetId: string;
-
-      if (packetFields.existingPacketId) {
-        packetId = packetFields.existingPacketId;
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
-          ownerType: 'admin_build_session',
-          buildSessionId: id,
-          sourceMasterId: session.sourceMasterId,
-          sourceAdminInstanceId: null,
-          updatedAt: now,
-        });
-      } else {
-        const packetData = {
-          ownerType: 'admin_build_session',
-          buildSessionId: id,
-          sourceMasterId: session.sourceMasterId,
-          sourceAdminInstanceId: null,
-          masterTitle: session.working?.title || null,
-          adminCatalogTitle: session.working?.title || null,
-          effectiveTitle: session.working?.title || null,
-          masterDescription: session.working?.description || null,
-          adminCatalogDescription: session.working?.description || null,
-          effectiveDescription: session.working?.description || null,
-          productImageUrl: session.working?.images?.[0] || null,
-          ...packetFields,
-          createdAt: now,
-          updatedAt: now,
-        };
-
-        if (session.generated?.packetId) {
-          const { createdAt: _c, ...updateFields } = packetData as any;
-          await db.collection(PRODUCT_PACKETS_COLLECTION)
-            .doc(session.generated.packetId)
-            .update({ ...updateFields, updatedAt: now });
-          packetId = session.generated.packetId;
-        } else {
-          const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
-          packetId = packetRef.id;
-        }
-      }
-
-      const sessionUpdate: Record<string, any> = {
-        'generated.packetId': packetId,
-        'generated.artifactReady': true,
-        status: 'artifact_ready',
-        updatedAt: now,
-        lastActiveAt: now,
-      };
-      if (packetFields.previewImageUrl) {
-        sessionUpdate['generated.previewImageUrl'] = packetFields.previewImageUrl;
-      }
-      await ref.update(sessionUpdate);
+      const packetId = await saveGeneratedBuildArtifact(db, id, packetFields, FieldValue.serverTimestamp());
 
       res.json({ success: true, sessionId: id, packetId, artifactReady: true });
     } catch (err: any) {
@@ -529,7 +471,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // Priority: catalog blankTitles/blankDescriptions/blankImages > master catalog
       let curatedTitle: string = master.title || '';
       let curatedDescription: string | null = master.description || null;
-      let curatedImages: string[] = master.images || [];
+      let curatedImages = masterBlankImages(master);
       if (effectiveCatalogId) {
         try {
           const catDoc = await db.collection('catalogs').doc(effectiveCatalogId).get();
@@ -543,10 +485,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
             const lookupKey = session.blankKey || session.sourceMasterId;
             if (blankTitles[lookupKey]) curatedTitle = blankTitles[lookupKey];
             if (blankDescriptions[lookupKey]) curatedDescription = blankDescriptions[lookupKey];
-            const trimmed: string[] = blankImages[lookupKey] || [];
-            if (trimmed.length > 0) curatedImages = trimmed;
+            curatedImages = resolveCatalogImages(curatedImages, blankImages[lookupKey]);
           }
-        } catch (_) { /* fall back to master values */ }
+        } catch (error) { throw new Error("Could not load the catalog image selection; try again."); }
       }
 
       // Capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes.
@@ -598,7 +539,9 @@ export function registerAdminBuildSessions(app: express.Express): void {
       // authority for images — do NOT let working.images blindly stomp it.
       // working.images starts from master.images and will restore deleted images if applied.
       if (!effectiveCatalogId && w.images?.length) overrides.images = w.images;
-      const effectivePricing = bodyPricing || w.pricing || null;
+      const pricedPacket = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(session.generated.packetId).get();
+      const effectivePricing = pricedPacket.data()?.pricing;
+      if (!effectivePricing || !Number.isFinite(effectivePricing.customerPrice)) throw new Error('Generated packet has no saved pricing. Regenerate it.');
       if (effectivePricing) overrides.pricing = effectivePricing;
       if (w.metadata) overrides.metadata = w.metadata;
 
@@ -607,39 +550,15 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const newPacketId = session.generated?.packetId || null;
 
       const meta = w.metadata || {};
-      // Use metadata from autosave; fall back to values passed in request body
-      // Body values take precedence over stale autosaved metadata so that the
-      // manual/retry commit path (which now always sends store/channel in body)
-      // is never blocked by a debounce race.
-      const selectedStore = (bodyStoreId ? { id: bodyStoreId, name: bodyStoreName || bodyStoreId } : null)
-        || meta.selectedStore || null;
-      const selectedChannel = (bodyChannelId ? { id: bodyChannelId, name: bodyChannelName || bodyChannelId } : null)
-        || meta.selectedChannel || null;
-      const selectedCollection = (bodyCollectionName ? { name: bodyCollectionName } : null)
-        || meta.selectedCollection || null;
-      console.log(`[BuildSessions] commit ${id} | store: ${selectedStore?.id ?? 'null'} channel: ${selectedChannel?.id ?? 'null'} (meta: ${meta.selectedChannel?.id ?? 'null'}, body: ${bodyChannelId ?? 'null'})`);
-      const folderPath = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name]
-        .filter(Boolean).join(' / ') || null;
-
-      // ── Gate 0.5: Verify selected channel exists in storeChannels ──────────
-      if (selectedChannel?.id) {
-        const chanDoc = await db.collection('storeChannels').doc(selectedChannel.id).get();
-        if (!chanDoc.exists) {
-          res.status(400).json({
-            error: `Channel "${selectedChannel.id}" does not exist in storeChannels. ` +
-                   `Create it via the Store Builder before committing, or check for an ID mismatch (e.g. "usa-250" vs "usa250").`,
-          });
-          return;
-        }
-        // Verify the channel actually belongs to the selected store
-        const chanData = chanDoc.data() as any;
-        if (selectedStore?.id && chanData.storeId && chanData.storeId !== selectedStore.id) {
-          res.status(400).json({
-            error: `Channel "${selectedChannel.id}" belongs to store "${chanData.storeId}", not "${selectedStore.id}".`,
-          });
-          return;
-        }
-      }
+      const destination = await resolveBuildDestination(db, {
+        storeId: bodyStoreId || meta.selectedStore?.id,
+        channelId: bodyChannelId || meta.selectedChannel?.id,
+        collectionId: bodyCollectionName && bodyCollectionName !== meta.selectedCollection?.name ? null : meta.selectedCollection?.id,
+        collectionName: bodyCollectionName || meta.selectedCollection?.name,
+      });
+      const { selectedStore, selectedChannel, selectedCollection } = destinationMetadata(destination);
+      const folderPath = destination.folderPath;
+      session.working.metadata = { ...meta, ...destinationMetadata(destination) };
 
       // ── Gate 1: Validate QRG blank identity ────────────────────────────────
       const masterQrgBlankId: string | null = master.qrgBlankId || null;
@@ -657,7 +576,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
         instanceNumber: previousInstance.instanceNumber, qrgBaseCode: previousInstance.qrgBaseCode,
         variantCode: previousInstance.variantCode ?? null, qrgFullCode: previousInstance.qrgFullCode ?? null,
       } : await allocateQrgInstance({ qrgBlankId: masterQrgBlankId, context: 'I' });
-      const qrgScanUrl  = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
+      const qrgScanUrl  = `${resolveRuntimeConfig().origin}/scan/${qrgIdentity.qrgBaseCode}`;
       console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
 
       // ── Gate 3: Register GRF assets from packet (BLOCKING — Assembly requires real IDs) ──
@@ -673,6 +592,8 @@ export function registerAdminBuildSessions(app: express.Express): void {
             console.log(`[BuildSessions] GRF assets registered: bg=${grfIds.backgroundGrfId} qr=${grfIds.qrGrfId} comp=${grfIds.compositeGrfId}`);
             // Back-fill GRF IDs onto packet for schema traceability
             await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
+              ...destination,
+            builderSnapshot: { ...session.working, metadata: session.working.metadata },
               backgroundGrfId:      grfIds.backgroundGrfId      || null,
               qrGrfId:              grfIds.qrGrfId              || null,
               compositeGrfId:       grfIds.compositeGrfId       || null,
@@ -760,26 +681,6 @@ export function registerAdminBuildSessions(app: express.Express): void {
       });
       const instanceId = instanceRef.id;
       console.log(`[BuildSessions] Created instance ${instanceId} (QRG=${qrgIdentity.qrgBaseCode} BLD=${bldId} ASM=${assemblyId})`);
-
-      // ── Back-fill instance ownership + schema chain onto packet ─────────────
-      if (newPacketId) {
-        await db.collection(PRODUCT_PACKETS_COLLECTION).doc(newPacketId).update({
-          ownerType:            'admin',
-          ownerInstanceId:      instanceId,
-          sourceAdminInstanceId: instanceId,
-          bldId,
-          assemblyId,
-          updatedAt: now,
-        });
-      }
-
-      await ref.update({
-        status:             'committed',
-        committedInstanceId: instanceId,
-        bldId,
-        assemblyId,
-        updatedAt: now,
-      });
 
       res.json({
         success: true,
@@ -878,6 +779,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
   // ── Cleanup stale sessions ────────────────────────────────────────────────
   app.post('/admin/build-sessions/cleanup', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+    if (isSandboxRuntime()) { res.status(409).json({ error: 'Sandbox drafts are retained until you explicitly delete them.' }); return; }
     try {
       const cutoff = Timestamp.fromDate(
         new Date(Date.now() - SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000)
@@ -890,12 +792,13 @@ export function registerAdminBuildSessions(app: express.Express): void {
         .get();
 
       const batch = db.batch();
-      stale.docs.forEach((doc: any) => {
+      const disposable = stale.docs.filter((doc: any) => !doc.data().draftName);
+      disposable.forEach((doc: any) => {
         batch.update(doc.ref, { status: 'abandoned' });
       });
       await batch.commit();
 
-      res.json({ success: true, cleaned: stale.size });
+      res.json({ success: true, cleaned: disposable.length });
     } catch (err: any) {
       console.error('[BuildSessions] cleanup error:', err.message);
       res.status(500).json({ error: err.message });
@@ -914,7 +817,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const qrContent: string = packet.qrContent;
       if (!qrContent) { res.status(400).json({ error: 'Packet has no qrContent' }); return; }
 
-      const STORAGE_BUCKET = 'qrgear-c1ffd.firebasestorage.app';
+      const STORAGE_BUCKET = STORAGE_BUCKET_NAME;
       const folder = `content/canvas/admin/${packetId}`;
 
       const resolveImageUrl = (url: string): string => {
@@ -982,35 +885,18 @@ export function registerAdminBuildSessions(app: express.Express): void {
       const qrOnlyUrl = `https://api.qrserver.com/v1/create-qr-code/?size=3000x3000&data=${encodeUri(qrContent)}&format=png&qzone=0&ecc=H&color=000000&bgcolor=ffffff`;
 
       // ── 4. Save composites to packet ──────────────────────────────────────
-      const packetUpdate: Record<string, any> = { compositeUrl, qrOnlyUrl, updatedAt: FieldValue.serverTimestamp() };
-      if (sleeveCompositeUrl) packetUpdate.sleeveCompositeUrl = sleeveCompositeUrl;
+      const packetUpdate: Record<string, any> = {
+        compositeUrl, qrOnlyUrl, sleeveCompositeUrl, sleeveCompositeUrls: sleeveUrls,
+        updatedAt: FieldValue.serverTimestamp(),
+      };
       await packetRef.update(packetUpdate);
 
       // ── 5. Build resolved.images for catalog instance ─────────────────────
-      // Order: front composite, sleeve composite(s), priority mockup, qr-only URL
-      // Drop all stock images (images.printify.com) when we have ≥3 real images
-      const priorityMockupUrl: string | null = packet.priorityMockupUrl || null;
-      const realImages: string[] = [compositeUrl];
-      for (const slv of sleevePlacements) { if (sleeveUrls[slv]) realImages.push(sleeveUrls[slv]); }
-      if (priorityMockupUrl) realImages.push(priorityMockupUrl);
-      realImages.push(qrOnlyUrl);
-
-      // Use real images if ≥3; otherwise fall back to keeping existing non-stock images
       const instanceSnap = await db.collection(ADMIN_INSTANCES_COLLECTION)
         .where('currentPacketId', '==', packetId).limit(1).get();
       if (!instanceSnap.empty) {
         const instRef = instanceSnap.docs[0].ref;
-        const instData = instanceSnap.docs[0].data();
-        let updatedImages: string[];
-        if (realImages.length >= 3) {
-          // We have enough real images — drop all stock printify images
-          updatedImages = realImages;
-        } else {
-          // Not enough real images yet — keep existing non-stock images and prepend composite
-          const existingImages: string[] = (instData.resolved?.images || [])
-            .filter((u: string) => !u.includes('images.printify.com'));
-          updatedImages = [compositeUrl, ...existingImages.filter((u: string) => u !== compositeUrl)];
-        }
+        const updatedImages = buildPacketImageOrder({ ...packet, ...packetUpdate });
         await instRef.update({
           'resolved.images': updatedImages,
           updatedAt: FieldValue.serverTimestamp(),
@@ -1019,13 +905,13 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       // ── 6. Auto re-publish to Printify if instances are already live ─────────
       // Fire-and-forget: response goes out immediately, republish runs in background
-      import('../services/printify-republish').then(({ republishAllInstancesForPacket }) => {
+      if (!isSandboxRuntime()) import('../services/printify-republish').then(({ republishAllInstancesForPacket }) => {
         republishAllInstancesForPacket(packetId).catch((e: any) =>
           console.error('[AutoRepublish] background error for packet', packetId, e.message)
         );
       }).catch(() => {});
 
-      res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: realImages.length });
+      res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: buildPacketImageOrder({ ...packet, ...packetUpdate }).length });
     } catch (err: any) {
       console.error('[QRG] regenerate-composite error:', err.message);
       res.status(500).json({ error: err.message });

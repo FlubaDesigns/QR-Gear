@@ -30,18 +30,18 @@ import { SYSTEM_SUBNAV } from "@/components/admin/adminNavConfig";
 interface ApiKeyStatus {
   printful: {
     masked: string;
-    status: "valid" | "invalid" | "unknown";
+    status: "valid" | "invalid" | "unknown" | "not_configured" | "not_checked";
     source: "dashboard" | "env";
     updatedAt: string | null;
   };
   printify: {
     masked: string;
-    status: "valid" | "invalid" | "unknown";
+    status: "valid" | "invalid" | "unknown" | "not_configured" | "not_checked";
     source: string;
   };
 }
 
-function StatusBadge({ status }: { status: "valid" | "invalid" | "unknown" }) {
+function StatusBadge({ status }: { status: "valid" | "invalid" | "unknown" | "not_configured" | "not_checked" }) {
   if (status === "valid") {
     return (
       <Badge className="bg-green-600/20 text-green-400 gap-1">
@@ -61,7 +61,7 @@ function StatusBadge({ status }: { status: "valid" | "invalid" | "unknown" }) {
   return (
     <Badge className="bg-yellow-600/20 text-yellow-400 gap-1">
       <AlertCircle className="w-3 h-3" />
-      Unknown
+      {status === "not_configured" ? "Not Configured" : "Not Checked"}
     </Badge>
   );
 }
@@ -71,7 +71,7 @@ export default function AdminSettings() {
   const [newPrintfulKey, setNewPrintfulKey] = useState("");
   const [showKey, setShowKey] = useState(false);
 
-  const { data: keyStatus, isLoading } = useQuery<ApiKeyStatus>({
+  const { data: keyStatus, error, isLoading } = useQuery<ApiKeyStatus>({
     queryKey: ["/api/admin/api-keys"],
     refetchInterval: 30000,
   });
@@ -128,6 +128,7 @@ export default function AdminSettings() {
       sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
     >
       <div className="space-y-6 max-w-2xl">
+        {error && <p role="alert">Settings could not load: {error.message}</p>}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-3">
             <CardTitle className="flex items-center gap-2 text-base">

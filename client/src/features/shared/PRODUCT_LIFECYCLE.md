@@ -141,5 +141,5 @@ Clicking a product navigates to Store Builder with the packetId for viewing/edit
 
 - `client/src/features/adminProducts/builder/modules/CreateGraphicsModule.tsx` - Creates packet + link
 - `client/src/features/storeBuilder/StoreBuilderHarness.tsx` - View/edit packets
-- `client/src/features/adminProducts/storeLibrary/StoreLibraryHarness.tsx` - Browse by store/channel
+- `client/src/features/adminProducts/storeManager/StoreManagerTab.tsx` - Manage finished products by store/channel in Placement
 - `server/routes.ts` - All API endpoints

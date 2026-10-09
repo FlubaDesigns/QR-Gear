@@ -57,7 +57,7 @@ export function SourceDetailShape({ item, actions, onClose }: DetailSkinProps) {
         {actions?.onCrop && (
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full min-h-[44px]"
             onClick={handleCrop}
             data-testid="button-detail-crop"
           >
@@ -68,12 +68,12 @@ export function SourceDetailShape({ item, actions, onClose }: DetailSkinProps) {
         {actions?.onDelete && (
           <Button
             variant="destructive"
-            className="w-full"
+            className="w-full min-h-[44px]"
             onClick={handleDelete}
             data-testid="button-detail-delete"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            Archive
+            Delete
           </Button>
         )}
       </div>

@@ -14,6 +14,7 @@ vi.mock('../../core', () => {
     db: {
       collection: (name: string) => ({
         doc: (id: string) => ref(`${name}/${id}`),
+        where: (field: string, _op: string, value: any) => ({ get: async () => ({ docs: [...store.entries()].filter(([key, data]) => key.startsWith(`${name}/`) && data[field] === value).map(([key, data]) => ({ id: key.split('/').pop(), data: () => data })) }) }),
         orderBy: () => ({ get: async () => ({ docs: [...store.entries()].filter(([key]) => key.startsWith(`${name}/`)).map(([key, data]) => ({ id: key.split('/').slice(-1)[0], data: () => data })) }) }),
       }),
       runTransaction: async (fn: any) => fn({

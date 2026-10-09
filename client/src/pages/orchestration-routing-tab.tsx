@@ -28,7 +28,7 @@ import type { RoutingResult, RoutingStats } from "./orchestration-types";
 export function RoutingTabContent() {
   const { toast } = useToast();
 
-  const { data: routingStats } = useQuery<RoutingStats>({
+  const { data: routingStats, error: routingError } = useQuery<RoutingStats>({
     queryKey: ["/api/admin/orchestration/routing/stats"],
   });
 
@@ -67,6 +67,8 @@ export function RoutingTabContent() {
         </Badge>
       </div>
 
+      {routingError && <p role="alert">{routingError.message}</p>}
+      <p>Provider selection stays on each saved product. Automatic routing is not connected yet.</p>
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -77,7 +79,7 @@ export function RoutingTabContent() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">
-              ${(routingStats?.avgSelectedCost || 0).toFixed(2)}
+              {routingStats?.avgSelectedCost == null ? "Not measured" : `$${routingStats.avgSelectedCost.toFixed(2)}`}
             </p>
             <p className="text-xs text-muted-foreground">Per routed order</p>
           </CardContent>
@@ -124,7 +126,9 @@ export function RoutingTabContent() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
+          {routingError && <p role="alert">{routingError.message}</p>}
+      <p>Provider selection stays on each saved product. Automatic routing is not connected yet.</p>
+      <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="blueprintId">Blueprint ID</Label>
               <Input

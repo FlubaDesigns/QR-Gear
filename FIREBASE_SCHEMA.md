@@ -1,6 +1,66 @@
 # QR Gear - Firebase/Firestore Database Schema
 
-Complete schema for setting up Firestore collections in Firebase Console.
+Firestore schema reference. Sections explicitly marked **planned** document approved relationships; they do not describe deployed collections or completed features.
+
+---
+
+## Marketplace fee and authorization contract — October 7, 2026
+
+- `marketplaceListings.fees` is the sole marketplace fee snapshot: `status` (`estimated`, `partial`, `unavailable`; `stale` is derived on read), `source`, `scope` (`per_sale` or `listing`), nullable `amount`, `currency`, input `price`/`sku`/`accountId`, `contextKey`, `retrievedAt`, `components` and explanatory `reason`. Product/QRG identity stays on the existing listing references. `externalOfferId` retains eBay's offer identity. No fee is stored on lookup tables or duplicated into account percentages.
+- `estimatedMargin` is read-time output from the shared pricing engine using a current per-sale estimate and the canonical product pricing subtotal. It is null for partial/unavailable/stale fees, unknown cost, or mismatched currency. It excludes shipping/tax and is not an order settlement record.
+- Legacy `marketplaceAccounts.feePercent` is unused, omitted from API responses and rejected on writes. No destructive data migration is performed.
+- The existing server-only `oauth_pkce_state` collection now stores hashed random state IDs for all three marketplaces: account/platform binding, approved `returnTo`, browser-secret hash, Etsy verifier and numeric `expiresAt` (10 minutes). State is transactionally consumed once. `marketplaceAccounts.oauthAttempt` rejects superseded/disconnected attempts; it is never returned to the client. Provider credentials remain only in existing account token fields. `*Connected` is written only after token and identity checks succeed; `lastHealthCheck` records that verification time, not continuous monitoring.
+- Amazon US SKU estimates and eBay single-offer listing fee retrieval are implemented. Etsy fee estimates and provider settlement imports are not implemented; the UI reports unavailable. Canonical QRG/BLD/GRF/Assembly identities are unchanged.
+
+## Marketplace publishing records — sandbox wiring
+
+Existing collections remain the publishing contract; there is no second catalog or seller credential store.
+
+| Collection | Identity and ownership | Fields used by the shared publishing path |
+|---|---|---|
+| `surfaces` | `masterProductId` is the existing source `admin_catalog_instances` document ID; `sku` must match that instance's canonical QRG identity. | Listing content, `retailPrice`, currency, enabled platforms and existing marketplace settings. `colors`, `sizes`, `options` retain the normalized product choices for review. `readinessErrors` reports blocked or missing selections. These projections do not allocate identities or create variant combinations. |
+| `surfaceVariants` | Existing children reference `surfaceId`. | Existing variant contract is retained. Provider variation payloads are not implemented; these records must not be silently dropped during publication. |
+| `marketplaceAccounts` | Selected account ID and platform own OAuth seller/shop credentials. | Server reads existing platform-specific connected state, seller/shop IDs and refresh tokens. Rotated Etsy refresh tokens are stored here only. Account list responses omit token/secret/verifier fields. |
+| `marketplaceListings` | One record per surface/account. New IDs are deterministic hashes of that pair; existing canonical IDs are reused. | `surfaceId`, `accountId`, `platform`, `qrgCode`, `marketplaceSku`, `productInstanceId`, title, price, status, external identity/URL and latest job reference. `publishOptions` retains Etsy taxonomy/shipping/return policy IDs and maker/era selections for retries. `externalCreateAttempted` prevents blind recreation when Etsy's POST outcome is unknown and no external ID is saved. |
+| `marketplaceSyncJobs` | Each explicit attempt references the same listing, surface, account, platform and QRG identity. | Queued → running → completed/failed, attempts, timestamps, provider result and error. A listing lock prevents overlapping jobs. Failed jobs are not automatically retried; an explicit retry creates an auditable new attempt. |
+| `marketplaceSyncLogs` | Written by the shared job service, linked to job/listing/account/platform. | Level, message and creation time. No seller tokens, request headers or credentials in job/log records. |
+
+Amazon acceptance records a Pending listing; an Etsy draft stays Draft. Only a confirmed active provider result records an Active listing and Published surface. Unsupported variation publication and remote delisting fail visibly. Legacy surface push histories are read only for existing external identity reconciliation; all new outcomes go through listings/jobs/logs. Existing data is not bulk migrated or deleted by these code changes.
+
+---
+
+## Partner Member Storefronts and Builders — planned
+
+**Owner direction: October 7, 2026.** A partner website such as Kingdom Connects will give each of its members access to their own mini storefront and builder. This is the foundation for the second integration push. The partner-site experience is not implemented by this documentation change.
+
+### Identity and relationships
+
+A partner site can have many member storefronts. A member storefront is scoped by **both the partner identity and the member identity**. Neither ID substitutes for the other. Its store/channel destination remains a separate reference to the existing store system.
+
+| Reference | Meaning | Existing contract and intended connection |
+|---|---|---|
+| Partner identity | The participating website/organization | Reuse the existing partner record. `partnerStoreId` already denotes a partner reference in `shared/schema-stores.ts`; reconcile the current `partnerStores` / `partner_stores` route mismatch before implementing the member binding. Do not create another partner registry. |
+| `memberId` | The individual whose mini storefront and builder are being accessed | Reuse the authenticated QR Gear member identity and `member_profiles` record. A partner-local user ID must be scoped to that partner and securely mapped to this identity; do not assume Firebase UIDs match across projects. |
+| `storeId`, `channelId` | Where that member's products are placed | Reference existing store/channel records. A partner's store ID and a member's destination store ID must not be assumed to be interchangeable. |
+| `builderHostId`, `builderProfileId`, `builderPlacementId` | Website integration settings, editing permissions and placement | Reuse the existing contracts in `shared/surfaces.ts`. Link the website configuration to its partner and member context instead of creating a separate builder or copying partner/member records. |
+| Product, build and asset references | Products offered and work saved by that member | Reuse canonical QRG instances, existing builder snapshots/sessions, BLD structures, GRF assets and Assembly bindings. Provider tables remain lookup inputs. |
+| Sales attribution | The partner and member associated with a sale | Preserve the verified partner/member context through checkout. Keep storefront ownership, buyer identity and `affiliateUserId` distinct; earning eligibility and amounts come from the applicable existing pricing/revenue rules. A member reference alone does not award a commission. |
+
+These are relationship requirements, not a new collection definition or a claim that all fields already coexist in one record. The persistent member-to-partner binding must be implemented once, using the existing records and shared schema after the current route inconsistencies are resolved.
+
+### Access and ownership
+
+- Each member accesses their own storefront management, builder sessions and saved work within the selected partner context. Reading a public storefront is separate from permission to edit it.
+- Validate the authenticated member, partner relationship and destination on the server. IDs passed in a URL identify context; they do not grant access. Unknown or mismatched relationships must fail visibly.
+- Resolve host, profile and placement permissions through the existing integration layer. The host's `ownerUserId` identifies the website owner and must not stand in for every member on that website.
+- Use references to shared products/assets and the existing create, save, placement and reviewed-deletion services. Do not create a parallel catalog, builder, identity allocator or orphan-cleanup path for partner sites.
+- Keep the partner/member relationship intact when saving, reopening, placing products and recording orders. Changing or removing a relationship must not transfer another member's work or delete shared assets implicitly.
+
+### Current implementation boundary
+
+`shared/schema-stores.ts` describes partner data; `shared/surfaces.ts` describes host/profile/placement/session contracts; existing member routes authenticate `memberId`. Those pieces do **not** yet form a completed per-partner member storefront flow. In particular, a host owner or affiliate field is not a complete member ownership binding.
+
+This section records the intended relationship only. No collection, field migration, security rule, endpoint or runtime behavior is introduced here. Per-member provisioning, partner identity mapping, the external storefront/builder interface and full end-to-end verification belong to the second integration push. Current work is limited to schema consistency and wiring defects. BLD.md, GRF.md, QRG.md and ASSEMBLY.md retain their existing authority and identity rules.
 
 ---
 

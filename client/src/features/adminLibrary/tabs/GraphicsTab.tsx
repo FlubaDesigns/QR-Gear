@@ -1,8 +1,10 @@
+import { GRF_PACKET_SLOTS, GRF_PURPOSES_BY_CHANNEL } from '@shared/GRF_engine';
 import { Component, useState } from "react";
 import type { ReactNode, ErrorInfo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Layers } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
+import { GRAPHICS_QK } from "../shared/grfQueryKeys";
 import { SkinHorizontalViewer } from "@/features/shared/components/SkinHorizontalViewer";
 import { AdminGraphicCardSkin, grfAssetToSkinItem } from "@/features/shared/components/skins/AdminGraphicSkins";
 import { AdminGraphicShape } from "@/features/shared/components/shapes/AdminGraphicShape";
@@ -10,24 +12,17 @@ import { adminFetch } from "@/lib/adminFetch";
 import type { GrfAsset } from "@/features/shared/components/skins/AdminGraphicSkins";
 
 // ── The three reusable graphic types shown in this tab ────────────────────────
-// These are the only GRF asset types that are surface-agnostic and can be
-// reused across any product. Store mockups and url snapshots are packet-specific
-// and are intentionally excluded.
+// Show print artwork and website graphics. Store mockups and page snapshots
+// remain with their product packets. QR artwork retains its encoded destination.
 
-const REUSABLE_GRAPHIC_TYPES = [
-  { channel: '1', purpose: '1', label: 'QR Composite' },
-  { channel: '1', purpose: '2', label: 'QR Code' },
-  { channel: '3', purpose: '2', label: 'URL Graphic' },
-] as const;
+const REUSABLE_GRAPHIC_TYPES = [GRF_PACKET_SLOTS.qrComposite, GRF_PACKET_SLOTS.qrStandalone,
+  { channel: '3' as const, purpose: '2' }].map(({ channel, purpose }) => ({ channel, purpose,
+    label: GRF_PURPOSES_BY_CHANNEL[channel][purpose].label.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\bQr\b/, 'QR') }));
 
 type GraphicTypeFilter = 'all' | '1-1' | '1-2' | '3-2';
 
 function isReusableGraphic(a: GrfAsset): boolean {
   return REUSABLE_GRAPHIC_TYPES.some(t => t.channel === a.channel && t.purpose === a.purpose);
-}
-
-function getLabelForAsset(a: GrfAsset): string {
-  return REUSABLE_GRAPHIC_TYPES.find(t => t.channel === a.channel && t.purpose === a.purpose)?.label ?? '';
 }
 
 // ── Error boundary ────────────────────────────────────────────────────────────
@@ -73,29 +68,16 @@ class GraphicsBoundary extends Component<
 // ── GraphicsTabInner ──────────────────────────────────────────────────────────
 
 function GraphicsTabInner() {
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<GraphicTypeFilter>("all");
 
   const { data: assets = [], isLoading, isError, error } = useQuery<GrfAsset[]>({
-    queryKey: ["library", "/api/admin", "assets", "grf"],
+    queryKey: GRAPHICS_QK,
     queryFn: () => adminFetch<GrfAsset[]>("/graphics"),
   });
 
-  const archiveMutation = useMutation({
-    mutationFn: (grfId: string) =>
-      adminFetch(`/graphics/${grfId}/archive`, { method: "PATCH" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["library", "/api/admin", "assets", "grf"] });
-      toast({ title: "Archived", description: "Graphic removed from library" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to archive graphic", variant: "destructive" });
-    },
-  });
-
-  // Only the three surface-agnostic types are shown
+  // Keep the library’s print and website graphic categories together.
   const reusable = assets.filter(isReusableGraphic);
 
   const filtered = reusable.filter((a) => {
@@ -120,7 +102,8 @@ function GraphicsTabInner() {
       <button
         onClick={() => setTypeFilter("all")}
         data-testid="tab-type-all"
-        className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+        aria-pressed={typeFilter === "all"}
+        className={`min-h-[44px] px-3 py-2 rounded-md text-xs font-medium transition-colors ${
           typeFilter === "all"
             ? "bg-primary text-primary-foreground"
             : "bg-muted text-muted-foreground hover:text-foreground"
@@ -136,7 +119,8 @@ function GraphicsTabInner() {
             key={key}
             onClick={() => setTypeFilter(key)}
             data-testid={`tab-type-${key}`}
-            className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+            aria-pressed={typeFilter === key}
+            className={`min-h-[44px] px-3 py-2 rounded-md text-xs font-medium transition-colors ${
               typeFilter === key
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:text-foreground"
@@ -156,25 +140,23 @@ function GraphicsTabInner() {
   );
 
   return (
-    <SkinHorizontalViewer
-      items={skinItems}
-      CardSkin={AdminGraphicCardSkin}
-      Shape={AdminGraphicShape}
-      actions={{ onArchive: (id) => archiveMutation.mutate(id) }}
-      isActionPending={archiveMutation.isPending}
-      cardWidth="160px"
-      isLoading={isLoading}
-      emptyMessage={reusable.length === 0
-        ? 'No graphics saved yet. Use "Save to Library" in the Products Builder.'
-        : "No graphics match the selected type."}
-      emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
-      confirmAction={{
-        type: "archive",
-        title: "Archive this graphic?",
-        description: "This will hide the graphic from your library. The underlying image file is not deleted.",
-      }}
-      header={filterHeader}
-    />
+    <>
+      <SkinHorizontalViewer
+        items={skinItems}
+        CardSkin={AdminGraphicCardSkin}
+        Shape={AdminGraphicShape}
+        actions={{ onDelete: setDeleteId }}
+        isActionPending={!!deleteId}
+        cardWidth="160px"
+        isLoading={isLoading}
+        emptyMessage={reusable.length === 0
+          ? 'No QR or website graphics registered yet. Builder “Save to Library” images are in the Images tab.'
+          : "No graphics match the selected type."}
+        emptyIcon={<Layers className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />}
+        header={filterHeader}
+      />
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
+    </>
   );
 }
 

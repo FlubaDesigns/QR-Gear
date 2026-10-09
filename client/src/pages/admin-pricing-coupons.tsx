@@ -25,9 +25,12 @@ export function CouponsSection() {
     discountValue: "",
     maxRedemptions: "",
     validUntil: "",
+    validFrom: "",
+    minOrderAmount: "",
+    isActive: true,
   });
 
-  const { data: coupons, isLoading } = useQuery<Coupon[]>({
+  const { data: coupons, error, isLoading } = useQuery<Coupon[]>({
     queryKey: ["/api/admin/coupons"],
   });
 
@@ -41,12 +44,14 @@ export function CouponsSection() {
       isActive: boolean;
       maxRedemptions?: number | null;
       validUntil?: string | null;
-    }) => apiRequest("POST", "/api/admin/coupons", data),
-    onSuccess: () => {
+      validFrom?: string | null;
+      minOrderAmount?: string | null;
+    }) => apiRequest("POST", "/api/admin/coupons", data).then(r=>r.json()),
+    onSuccess: (result:any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
       setShowAddDialog(false);
-      setNewCoupon({ code: "", name: "", discountType: "percent", discountValue: "", maxRedemptions: "", validUntil: "" });
-      toast({ title: "Success", description: "Coupon created and synced with Stripe." });
+      setNewCoupon({ code: "", name: "", discountType: "percent", discountValue: "", maxRedemptions: "", validUntil: "", validFrom: "", minOrderAmount: "", isActive: true });
+      toast({ title: "Success", description: result.syncStatus === "synced" ? "Coupon saved and synced with Stripe." : "Coupon saved in sandbox. Stripe sync is disabled." });
     },
     onError: (error: any) => {
       const message = error?.message || "Failed to create coupon.";
@@ -102,9 +107,11 @@ export function CouponsSection() {
       discountType: newCoupon.discountType,
       discountValue: newCoupon.discountValue,
       currency: "usd",
-      isActive: true,
+      isActive: newCoupon.isActive,
       maxRedemptions: newCoupon.maxRedemptions ? parseInt(newCoupon.maxRedemptions) : null,
       validUntil: newCoupon.validUntil || null,
+      validFrom: newCoupon.validFrom || null,
+      minOrderAmount: newCoupon.minOrderAmount || null,
     });
   }
 
@@ -115,6 +122,7 @@ export function CouponsSection() {
     return `$${coupon.discountValue} off`;
   }
 
+  if(error)return <p role="alert">Coupons could not load: {error.message}</p>;
   if (isLoading) {
     return (
       <Card>
@@ -142,7 +150,7 @@ export function CouponsSection() {
             </Button>
           </div>
           <CardDescription>
-            Create discount codes that sync with Stripe. Customers can apply these at checkout.
+            Manage saved discount codes. Stripe sync status is shown for each code; sandbox saves do not reach Stripe.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -192,9 +200,11 @@ export function CouponsSection() {
                         Limit: {coupon.maxRedemptions}
                       </Badge>
                     )}
+                    {coupon.validUntil && <Badge variant="outline">Expires {new Date(coupon.validUntil).toLocaleDateString()}</Badge>}
                     {!coupon.isActive && (
                       <Badge variant="outline" className="text-muted-foreground">Disabled</Badge>
                     )}
+                    {!coupon.stripePromotionCodeId && <Badge variant="outline">Not synced with Stripe</Badge>}
                     {coupon.stripePromotionCodeId && (
                       <Badge variant="default" className="bg-[#635BFF] text-white text-xs">Stripe</Badge>
                     )}
@@ -214,7 +224,7 @@ export function CouponsSection() {
               ))}
               
               <p className="text-sm text-muted-foreground mt-4">
-                Coupons are synced with Stripe. Customers enter the code at checkout for automatic discounts.
+                Only codes marked Stripe have synchronized. Checkout discount acceptance still requires end-to-end verification before release.
               </p>
             </div>
           )}
@@ -225,7 +235,7 @@ export function CouponsSection() {
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader className="text-left">
             <DrawerTitle>Create Coupon</DrawerTitle>
-            <DrawerDescription>Create a discount code that syncs with Stripe.</DrawerDescription>
+            <DrawerDescription>Create a saved discount code. Sandbox Stripe synchronization is disabled.</DrawerDescription>
           </DrawerHeader>
           <div className="space-y-4 px-4 pb-4 overflow-y-auto">
             <div className="space-y-2">
@@ -308,6 +318,11 @@ export function CouponsSection() {
               </div>
             </div>
           </div>
+          <div className="px-4 grid grid-cols-2 gap-4">
+            <div><Label htmlFor="coupon-minimum">Minimum order ($)</Label><Input id="coupon-minimum" type="number" min="0" value={newCoupon.minOrderAmount} onChange={e=>setNewCoupon({...newCoupon,minOrderAmount:e.target.value})}/></div>
+            <div><Label htmlFor="coupon-valid-from">Valid from</Label><Input id="coupon-valid-from" type="date" value={newCoupon.validFrom} onChange={e=>setNewCoupon({...newCoupon,validFrom:e.target.value})}/></div>
+          </div>
+          <div className="px-4 flex items-center gap-3"><Switch id="coupon-active" checked={newCoupon.isActive} onCheckedChange={isActive=>setNewCoupon({...newCoupon,isActive})}/><Label htmlFor="coupon-active">Active</Label></div>
           <DrawerFooter className="pt-4 border-t">
             <Button onClick={handleCreateCoupon} disabled={createMutation.isPending} className="w-full" data-testid="button-create-coupon">
               {createMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

@@ -13,6 +13,11 @@
 
 // ── Source tracking ──────────────────────────────────────────────────────────
 
+/** Public merchandising copy uses QR Gear branding; supplier records stay internal. */
+export function publicProductText(value: string): string {
+  return value.replace(/\bBella\s*(?:\+|&(?:amp;)?|and|\/)\s*Canvas\b(?:\s+3001\b)?/gi, 'QR Gear');
+}
+
 export type DescriptionSource =
   | 'provider'  // raw value from Printify / Printful
   | 'catalog'   // admin-curated override on the catalog doc
@@ -67,71 +72,9 @@ export function resolveDisplayText(input: DescriptionLayerInput): ResolvedLayer 
   return { value: '', source: 'none' };
 }
 
-// ── Builder-layer helpers ─────────────────────────────────────────────────────
-
-/**
- * Resolve the effective display title for a builder state.
- *
- * @param packetTitle   - adminCatalogTitle in BuilderState — owned by packet once set.
- * @param catalogTitle  - admin-curated title from the catalog's blankTitles map.
- * @param providerTitle - raw title from the fulfillment provider (masterTitle).
- *
- * Display only. Do NOT write the returned value back into the packet record.
- */
-export function resolveBuilderTitle(opts: {
-  packetTitle: string | null | undefined;
-  catalogTitle: string | null | undefined;
-  providerTitle: string | null | undefined;
-}): ResolvedLayer {
-  return resolveDisplayText({
-    packetValue: opts.packetTitle,
-    catalogValue: opts.catalogTitle,
-    providerValue: opts.providerTitle,
-  });
-}
-
-/**
- * Resolve the effective display description for a builder state.
- *
- * @param packetDescription   - productDescription in BuilderState — owned by packet once set.
- * @param catalogDescription  - admin-curated description from blankDescriptions map.
- * @param providerDescription - raw description from the fulfillment provider (masterDescription).
- *
- * Display only. Do NOT write the returned value back into the packet record.
- */
-export function resolveBuilderDescription(opts: {
-  packetDescription: string | null | undefined;
-  catalogDescription: string | null | undefined;
-  providerDescription: string | null | undefined;
-}): ResolvedLayer {
-  return resolveDisplayText({
-    packetValue: opts.packetDescription,
-    catalogValue: opts.catalogDescription,
-    providerValue: opts.providerDescription,
-  });
-}
-
-/**
- * Resolve effective display text for an admin_catalog_instance, which stores
- * baseSnapshot (catalog-resolved), overrides (packet-set), and resolved (merged).
- *
- * Display only.
- */
-export function resolveInstanceText(opts: {
-  overrideValue: string | null | undefined;
-  baseSnapshotValue: string | null | undefined;
-  memberValue?: string | null | undefined;
-}): ResolvedLayer {
-  return resolveDisplayText({
-    memberValue: opts.memberValue,
-    packetValue: opts.overrideValue,
-    catalogValue: opts.baseSnapshotValue,
-  });
-}
-
 // ── Legacy interface (backward-compat) ───────────────────────────────────────
 
-/** @deprecated Use resolveDisplayText / resolveBuilderDescription instead */
+/** @deprecated Use resolveDisplayText instead */
 export interface DescriptionLayers {
   providerDescription?: string | null;
   adminCatalogDescription?: string | null;

@@ -16,7 +16,7 @@ import {
   GRF_FILTER_ORIGINALS,
   GRF_FILTER_CROPPED,
   GRF_FILTER_BACKGROUNDS,
-  normalizeMimeType,
+  normalizeMimeType, GRF_IMAGE_ACCEPT_TYPES, GRF_IMAGE_MAX_BYTES, GRF_IMAGE_MAX_MB, GRF_CROP_MIME_TYPE,
 } from "@shared/GRF_engine";
 import {
   ORIGINALS_QK,
@@ -151,11 +151,12 @@ export function GRFImagePicker({
       if (!file) return;
       if (fileInputRef.current) fileInputRef.current.value = "";
 
-      const mimeType = normalizeMimeType(file.type || "image/jpeg");
       const filename = file.name;
 
       setUploading(true);
       try {
+        if (file.size > GRF_IMAGE_MAX_BYTES) throw new Error(`Images must be ${GRF_IMAGE_MAX_MB} MB or smaller`);
+        const mimeType = normalizeMimeType(file.type);
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -208,9 +209,7 @@ export function GRFImagePicker({
 
     const raw = sourceAssets.find((a) => a.grfId === sourceAsset.id);
     const grfId = raw?.grfId || sourceAsset.id;
-    const origMime = raw?.mimeType || "image/jpeg";
     const origName = raw?.name || raw?.originalFilename || sourceAsset.name;
-    const origUrl = raw?.publicUrl || sourceAsset.imageUrl;
 
     const croppedImageData = croppedDataUrl.startsWith("data:")
       ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
@@ -222,9 +221,7 @@ export function GRFImagePicker({
         method: "POST",
         json: {
           croppedImageData,
-          croppedMimeType: "image/jpeg",
-          originalMimeType: origMime,
-          originalPublicUrl: origUrl,
+          croppedMimeType: GRF_CROP_MIME_TYPE,
           sourceGrfId: grfId,
         },
       });
@@ -239,6 +236,7 @@ export function GRFImagePicker({
       const error = err as Error;
       console.error("[GRFImagePicker] Crop-mint failed:", error.message);
       toast({ title: "Crop failed", description: error.message, variant: "destructive" });
+      throw error;
     } finally {
       setSaving(false);
     }
@@ -270,9 +268,7 @@ export function GRFImagePicker({
           method: "POST",
           json: {
             croppedImageData,
-            croppedMimeType: "image/jpeg",
-            originalMimeType: bg.mimeType || "image/jpeg",
-            originalPublicUrl: bg.publicUrl,
+            croppedMimeType: GRF_CROP_MIME_TYPE,
             sourceGrfId: bg.grfId,
           },
         });
@@ -417,7 +413,7 @@ export function GRFImagePicker({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept={GRF_IMAGE_ACCEPT_TYPES}
                   onChange={handleFileChange}
                   className="hidden"
                   data-testid="input-picker-upload"
@@ -488,6 +484,7 @@ export function GRFImagePicker({
 
       {/* Unified crop dialog — used for both source crop-mint and background adjust */}
       <CropUtility
+        outputMimeType={GRF_CROP_MIME_TYPE}
         asset={cropAsset}
         open={cropOpen}
         onOpenChange={handleCropClose}

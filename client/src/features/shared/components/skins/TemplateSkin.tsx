@@ -1,4 +1,4 @@
-import { Trash2, Edit, Link as LinkIcon, ExternalLink, Image, Package } from "lucide-react";
+import { Trash2, FolderOpen, Link as LinkIcon, ExternalLink, Image, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,8 @@ export function TemplateCardSkin({ item, onClick }: CardSkinProps) {
     <Card 
       className="overflow-hidden cursor-pointer hover-elevate transition-all" 
       onClick={onClick}
+      role="button" tabIndex={0}
+      onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onClick?.(); } }}
       data-testid={`template-card-${item.id}`}
     >
       <div className="relative aspect-square bg-muted">
@@ -37,9 +39,9 @@ export function TemplateCardSkin({ item, onClick }: CardSkinProps) {
             {item.qrContent}
           </p>
         )}
-        {item.price && (
+        {item.price != null && (
           <p className="text-xs font-medium text-primary">
-            ${item.price.toFixed(2)}
+            Saved price ${item.price.toFixed(2)}
           </p>
         )}
       </CardContent>
@@ -55,7 +57,7 @@ export function TemplateDetailSkin({
   return (
     <div className="space-y-4 w-full max-w-md">
       <div className="space-y-2 text-center">
-        <h3 className="font-semibold text-lg truncate" data-testid="text-gallery-name">
+        <h3 className="font-semibold text-lg break-words" data-testid="text-gallery-name">
           {item.name}
         </h3>
         <div className="flex flex-wrap gap-1 justify-center">
@@ -75,15 +77,16 @@ export function TemplateDetailSkin({
       </div>
 
       <div className="grid-2x2 w-full">
-        {actions?.onEdit && (
+        {actions?.onSelect && (
           <Button
             variant="outline"
             className="w-full h-14 text-base"
-            onClick={() => actions.onEdit?.(item.packetId || item.id)}
-            data-testid="button-gallery-edit"
+            onClick={() => actions.onSelect?.(item.id)}
+            disabled={isActionPending}
+            data-testid="button-use-template"
           >
-            <Edit className="h-5 w-5 mr-2" />
-            Edit
+            <FolderOpen className="h-5 w-5 mr-2" />
+            Use template
           </Button>
         )}
         {actions?.onDelete && (
@@ -111,7 +114,8 @@ export function TemplateDetailSkin({
               href={item.qrContent} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-primary hover:underline"
+              className="text-primary hover:underline min-h-[44px] min-w-[44px] inline-flex items-center justify-center"
+              aria-label="Open QR destination"
             >
               <ExternalLink className="h-4 w-4" />
             </a>
@@ -136,9 +140,9 @@ export function TemplateDetailSkin({
         </div>
       )}
 
-      {item.price && (
+      {item.price != null && (
         <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-md border border-primary/20">
-          <span className="text-sm text-muted-foreground">Price:</span>
+          <span className="text-sm text-muted-foreground">Saved template price:</span>
           <span className="font-semibold text-primary" data-testid="text-gallery-price">
             ${item.price.toFixed(2)}
           </span>

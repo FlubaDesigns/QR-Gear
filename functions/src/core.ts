@@ -1,14 +1,16 @@
 import * as admin from 'firebase-admin';
+import { resolveRuntimeConfig } from './runtime-config';
+const runtime = resolveRuntimeConfig();
 
 if (!admin.apps.length) {
-  admin.initializeApp();
+  admin.initializeApp({ projectId: runtime.projectId, storageBucket: runtime.storageBucket });
 }
 
 export { admin };
 export const db = admin.firestore();
 export const storage = admin.storage();
 
-export const STORAGE_BUCKET_NAME = 'qrgear-c1ffd.firebasestorage.app';
+export const STORAGE_BUCKET_NAME = runtime.storageBucket;
 export function getStorageBucket() {
   return admin.storage().bucket(STORAGE_BUCKET_NAME);
 }
@@ -102,7 +104,7 @@ export function groupPlacementsByLocation(provider: FulfillmentProvider, rawPlac
   return result;
 }
 
-export const QR_GEAR_BRANDED_TAG_URL = 'https://qrgear-c1ffd.web.app/img/qr-gear-neck-tag-600.png';
+export const QR_GEAR_BRANDED_TAG_URL = `${runtime.origin}/img/qr-gear-neck-tag-600.png`;
 export const LABEL_PLACEMENTS_PRINTFUL = ['label_outside', 'label_inside'];
 
 export function docToObject(doc: FirebaseFirestore.DocumentSnapshot): any {

@@ -6,6 +6,7 @@ import {
 } from "@/features/shared/graphics/productGraphicRenderer";
 
 interface UseProductGraphicPreviewOptions {
+  renderOptions?: RenderOptions;
   qrContent?: string;
   qrColor?: "black" | "white";
   headerStyle?: TextStyle | null;
@@ -30,6 +31,7 @@ interface UseProductGraphicPreviewOptions {
     fontSize?: string;
     fontFamily?: string;
     fontWeight?: string;
+    letterSpacing?: number;
   };
   graphicLayoutMode?: "zone" | "freeform";
   enabled?: boolean;
@@ -68,6 +70,7 @@ export function useProductGraphicPreview(
     enabled = true,
     debounceMs = 400,
   } = options;
+  const renderOptionsKey = options.renderOptions ? JSON.stringify(options.renderOptions) : null;
 
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -129,10 +132,11 @@ export function useProductGraphicPreview(
           subBottomFontSize: subBottomStyle?.fontSize,
           subBottomFontFamily: subBottomStyle?.fontFamily,
           subBottomFontWeight: subBottomStyle?.fontWeight,
+          subBottomLetterSpacing: subBottomStyle?.letterSpacing,
           graphicLayoutMode,
         };
 
-        const result = await renderProductGraphic(renderOpts);
+        const result = await renderProductGraphic(renderOptionsKey ? JSON.parse(renderOptionsKey) : renderOpts);
 
         if (currentId === generationId.current) {
           setDataUrl(result);
@@ -152,11 +156,14 @@ export function useProductGraphicPreview(
       }
     };
   }, [
+    renderOptionsKey,
     qrContent,
     qrColor,
     headerStyle?.text,
     headerStyle?.enabled,
     headerStyle?.fontSize,
+    headerStyle?.fontWeight,
+    headerStyle?.letterSpacing,
     headerStyle?.fontFamily,
     headerStyle?.color,
     headerStyle?.strokeColor,
@@ -169,6 +176,8 @@ export function useProductGraphicPreview(
     footerStyle?.text,
     footerStyle?.enabled,
     footerStyle?.fontSize,
+    footerStyle?.fontWeight,
+    footerStyle?.letterSpacing,
     footerStyle?.fontFamily,
     footerStyle?.color,
     footerStyle?.strokeColor,
@@ -197,6 +206,7 @@ export function useProductGraphicPreview(
     subBottomStyle?.fontSize,
     subBottomStyle?.fontFamily,
     subBottomStyle?.fontWeight,
+    subBottomStyle?.letterSpacing,
     graphicLayoutMode,
     enabled,
     debounceMs,

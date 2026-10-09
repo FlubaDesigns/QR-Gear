@@ -25,7 +25,8 @@ export function ModalView({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`${maxWidth} w-[95vw] max-h-[90vh] overflow-hidden p-0 ${className || ""}`}
+        className={`${maxWidth} w-[95vw] max-h-[90dvh] overflow-y-auto p-0 ${className || ""}`}
+        showCloseButton={false}
         aria-describedby={undefined}
         data-testid="modal-view-content"
       >
@@ -36,7 +37,7 @@ export function ModalView({
           <Button
             variant="ghost"
             size="icon"
-            className="absolute top-2 left-2 z-10 bg-background/80"
+            className="absolute top-2 right-2 z-10 min-h-[44px] min-w-[44px] bg-background/80"
             onClick={() => onOpenChange(false)}
             data-testid="button-modal-close"
           >

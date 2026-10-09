@@ -238,100 +238,7 @@ class AutoRepricerService {
    * Run repricing evaluation for all products
    */
   async evaluateAllProducts(dryRun: boolean = true): Promise<RepricingResult[]> {
-    const results: RepricingResult[] = [];
-
-    const allActiveRules = await fsQuery('repricing_rules', [['isActive', '==', true]]);
-    const activeRules = allActiveRules.sort((a: any, b: any) => (b.priority || 0) - (a.priority || 0));
-
-    if (activeRules.length === 0) {
-      return results;
-    }
-
-    const products = await fsGetAll('master_catalog');
-
-    for (const product of products) {
-      const baseCost = parseFloat(product.baseCost || "0");
-      const retailPrice = parseFloat(product.retailPrice || "0");
-      
-      if (baseCost <= 0 || retailPrice <= 0) continue;
-
-      const profit = profitCalculator.calculateOrderProfit(
-        retailPrice,
-        baseCost,
-        0,
-        "direct"
-      );
-      const currentMargin = profit.marginPercent;
-
-      for (const rule of activeRules) {
-        const conditions = rule.conditions as RepricingConditions || {};
-        const actionParams = rule.actionParams as RepricingActionParams || {};
-        const appliesTo = rule.appliesTo || "all";
-        const appliesToIds = rule.appliesToIds || [];
-
-        if (appliesTo === "product" && !appliesToIds.includes(product.id)) {
-          continue;
-        }
-
-        if (this.evaluateConditions(product, null, conditions, currentMargin)) {
-          const newPrice = this.calculateNewPrice(
-            retailPrice,
-            baseCost,
-            rule.actionType,
-            actionParams,
-            "direct"
-          );
-
-          if (Math.abs(newPrice - retailPrice) > 0.01) {
-            const newProfit = profitCalculator.calculateOrderProfit(
-              newPrice,
-              baseCost,
-              0,
-              "direct"
-            );
-
-            const result: RepricingResult = {
-              productId: product.id,
-              productName: product.title,
-              channel: null,
-              previousPrice: retailPrice,
-              newPrice,
-              ruleApplied: rule.name,
-              reason: `Applied rule "${rule.name}" (${rule.actionType})`,
-              marginChange: {
-                from: currentMargin,
-                to: newProfit.marginPercent,
-              },
-            };
-
-            results.push(result);
-
-            if (!dryRun) {
-              await fsUpdate('master_catalog', product.id, { 
-                retailPrice: newPrice.toFixed(2),
-                updatedAt: new Date().toISOString() 
-              });
-
-              await fsInsert('repricing_history', {
-                ruleId: rule.id,
-                masterProductId: product.id,
-                channel: null,
-                previousPrice: retailPrice.toFixed(2),
-                newPrice: newPrice.toFixed(2),
-                reason: result.reason,
-                previousMargin: currentMargin.toFixed(2),
-                newMargin: newProfit.marginPercent.toFixed(2),
-                wasAutomatic: true,
-              });
-            }
-
-            break;
-          }
-        }
-      }
-    }
-
-    return results;
+    throw Object.assign(new Error('Automatic repricing is not connected to canonical packet pricing. Use Admin Pricing preview and apply.'), {status:501});
   }
 
   /**
@@ -416,70 +323,9 @@ class AutoRepricerService {
    * Preview what a rule would do without applying changes
    */
   async previewRule(ruleId: string): Promise<RepricingResult[]> {
-    const rule = await this.getRule(ruleId);
-    if (!rule) return [];
-
-    const results: RepricingResult[] = [];
-    const products = await fsGetAll('master_catalog');
-    const conditions = rule.conditions as RepricingConditions || {};
-    const actionParams = rule.actionParams as RepricingActionParams || {};
-    const appliesTo = rule.appliesTo || "all";
-    const appliesToIds = rule.appliesToIds || [];
-
-    for (const product of products) {
-      const baseCost = parseFloat(product.baseCost || "0");
-      const retailPrice = parseFloat(product.retailPrice || "0");
-      
-      if (baseCost <= 0 || retailPrice <= 0) continue;
-
-      if (appliesTo === "product" && !appliesToIds.includes(product.id)) {
-        continue;
-      }
-
-      const profit = profitCalculator.calculateOrderProfit(
-        retailPrice,
-        baseCost,
-        0,
-        "direct"
-      );
-      const currentMargin = profit.marginPercent;
-
-      if (this.evaluateConditions(product, null, conditions, currentMargin)) {
-        const newPrice = this.calculateNewPrice(
-          retailPrice,
-          baseCost,
-          rule.actionType,
-          actionParams,
-          "direct"
-        );
-
-        if (Math.abs(newPrice - retailPrice) > 0.01) {
-          const newProfit = profitCalculator.calculateOrderProfit(
-            newPrice,
-            baseCost,
-            0,
-            "direct"
-          );
-
-          results.push({
-            productId: product.id,
-            productName: product.title,
-            channel: null,
-            previousPrice: retailPrice,
-            newPrice,
-            ruleApplied: rule.name,
-            reason: `Would apply rule "${rule.name}" (${rule.actionType})`,
-            marginChange: {
-              from: currentMargin,
-              to: newProfit.marginPercent,
-            },
-          });
-        }
-      }
-    }
-
-    return results;
+    throw Object.assign(new Error('Rule previews are not connected to canonical packet pricing. Use Admin Pricing preview and apply.'), {status:501});
   }
+
 }
 
 export const autoRepricer = new AutoRepricerService();

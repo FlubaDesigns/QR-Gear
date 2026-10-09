@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { useLocation } from "wouter";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DeleteBuildDialog, PendingAssetDeletions } from '@/features/shared/components/DeleteBuildDialog';
+import { useEffect, useRef, useState } from "react";
+import { Redirect } from "wouter";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,12 +17,15 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Pencil, Archive, Video, Info } from "lucide-react";
+import { Loader2, Plus, Eye, Trash2, Video, Info, X } from "lucide-react";
 import AdminShell from "@/components/AdminShell";
 import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
 import { useAuth } from "@/hooks/useAuth";
 import { adminFetch } from "@/lib/adminFetch";
+
+import { GRF_VIDEO_ACCEPT_TYPES, GRF_VIDEO_FORMAT_LABELS, GRF_VIDEO_MAX_MB, GRF_VIDEO_MEDIA_TYPE, validateVideoUpload } from '@shared/GRF_engine';
+import { GRAPHICS_QK } from '@/features/adminLibrary/shared/grfQueryKeys';
 
 interface GrfVideoAsset {
   id: string;
@@ -39,7 +43,7 @@ interface GrfVideoAsset {
   createdAt: string | null;
 }
 
-const ACCEPTED_VIDEO_TYPES = "video/mp4,video/webm,video/quicktime";
+const VIDEOS_QK = [...GRAPHICS_QK, { mediaType: GRF_VIDEO_MEDIA_TYPE }];
 
 function VideosContent() {
   const { toast } = useToast();
@@ -51,25 +55,24 @@ function VideosContent() {
   const [uploading, setUploading] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [videoPreview, setVideoPreview] = useState<string | null>(null);
+  const uploadInFlight = useRef(false);
+  useEffect(() => {
+    if (!videoFile) { setVideoPreview(null); return; }
+    const url = URL.createObjectURL(videoFile);
+    setVideoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [videoFile]);
+  const previewUrl = editingAsset?.publicUrl || videoPreview;
 
-  const { data: assets = [], isLoading, error } = useQuery<GrfVideoAsset[]>({
-    queryKey: ["/api/admin/graphics", { mediaType: "2" }],
-    queryFn: () => adminFetch<GrfVideoAsset[]>("/graphics?mediaType=2"),
+  const { data: assets = [], isLoading, error, refetch } = useQuery<GrfVideoAsset[]>({
+    queryKey: VIDEOS_QK,
+    queryFn: () => adminFetch<GrfVideoAsset[]>(`/graphics?mediaType=${GRF_VIDEO_MEDIA_TYPE}`),
   });
 
-  const archiveMutation = useMutation({
-    mutationFn: (grfId: string) =>
-      adminFetch(`/graphics/${grfId}/archive`, { method: "PATCH" }),
-    onSuccess: () => {
-      toast({ title: "Video archived" });
-      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { mediaType: "2" }] });
-    },
-    onError: (err: Error) => {
-      toast({ title: "Failed to archive", description: err.message, variant: "destructive" });
-    },
-  });
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleCloseDialog = () => {
+    if (uploadInFlight.current) return;
     setIsDialogOpen(false);
     setEditingAsset(null);
     setFormName("");
@@ -87,71 +90,57 @@ function VideosContent() {
     setIsDialogOpen(true);
   };
 
-  const handleOpenEdit = (asset: GrfVideoAsset) => {
+  const handleOpenView = (asset: GrfVideoAsset) => {
     setEditingAsset(asset);
     setFormName(asset.name);
     setFormDesc(asset.description || "");
-    setVideoPreview(asset.publicUrl);
+    setVideoFile(null);
     setIsDialogOpen(true);
   };
 
   const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("video/")) {
-      toast({ title: "Please select a video file", variant: "destructive" });
+    try { validateVideoUpload(file.type, file.size); }
+    catch (error) {
+      e.target.value = "";
+      setVideoFile(null);
+      toast({ title: "Cannot upload this video", description: (error as Error).message, variant: "destructive" });
       return;
     }
     setVideoFile(file);
-    setVideoPreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async () => {
+    if (uploadInFlight.current || editingAsset) return;
     if (!formName.trim()) {
       toast({ title: "Name is required", variant: "destructive" });
       return;
     }
-    if (!editingAsset && !videoFile) {
+    if (!videoFile) {
       toast({ title: "Please select a video file", variant: "destructive" });
       return;
     }
 
+    uploadInFlight.current = true;
     setUploading(true);
     try {
-      if (editingAsset) {
-        // For edits we can only update metadata — GRF IDs are immutable.
-        // Re-mint a new GRF with a note, or just show a toast explaining.
-        toast({
-          title: "GRF assets are immutable",
-          description: "Archive this video and mint a new one to replace it.",
-          variant: "destructive",
-        });
-        handleCloseDialog();
-        return;
-      }
-
-      if (!videoFile) return;
-
+      const params = validateVideoUpload(videoFile.type, videoFile.size);
       const reader = new FileReader();
       const imageData = await new Promise<string>((resolve, reject) => {
         reader.onload = () => {
           const result = reader.result as string;
           resolve(result.split(",")[1]);
         };
-        reader.onerror = reject;
+        reader.onerror = () => reject(new Error("Could not read the selected video"));
+        reader.onabort = () => reject(new Error("Video reading was canceled"));
         reader.readAsDataURL(videoFile);
       });
 
-      // D1=1 input_build, D2=2 video, D3=3 url, D4=2 graphic, D5=1 mp4/webm
-      const formatCode = videoFile.type === "video/webm" ? "2" : "1";
       await adminFetch("/graphics/save-grf", {
         method: "POST",
         json: {
-          assetClass: "1",
-          mediaType:  "2",
-          channel:    "3",
-          purpose:    "2",
-          format:     formatCode,
+          ...params,
           imageUrl: `data:${videoFile.type};base64,${imageData}`,
           name: formName.trim(),
           description: formDesc.trim() || null,
@@ -160,12 +149,14 @@ function VideosContent() {
         },
       });
 
-      toast({ title: "Video minted as GRF asset (url/graphic)" });
-      qc.invalidateQueries({ queryKey: ["/api/admin/graphics", { mediaType: "2" }] });
+      toast({ title: "Video uploaded" });
+      qc.invalidateQueries({ queryKey: GRAPHICS_QK });
+      uploadInFlight.current = false;
       handleCloseDialog();
     } catch (err: any) {
       toast({ title: "Upload failed", description: err.message, variant: "destructive" });
     } finally {
+      uploadInFlight.current = false;
       setUploading(false);
     }
   };
@@ -180,7 +171,7 @@ function VideosContent() {
   return (
     <AdminShell
       title="Video Library"
-      subtitle="GRF-06-3 (url_artifact_asset) video backgrounds for QR landing pages"
+      subtitle="Reusable videos for QR landing pages"
       icon={Video}
       backHref="/admin"
       backLabel="Back"
@@ -193,14 +184,17 @@ function VideosContent() {
       >
         <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
         <p className="text-xs text-blue-800 dark:text-blue-300">
-          Videos are stored as GRF-06-3 (url_artifact_asset, Renderable) assets. To replace a video, archive the old one and mint a new asset.
+          Upload a video once and reuse its registered file. Deleting a video first shows the affected builds and files.
         </p>
       </div>
+
+      <PendingAssetDeletions />
 
       {error && (
         <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mb-6" data-testid="error-videos">
           <p className="text-sm font-medium">Failed to load videos</p>
           <p className="text-xs text-muted-foreground">{(error as Error).message}</p>
+          <Button variant="outline" className="min-h-[44px] mt-2" onClick={() => refetch()}>Retry</Button>
         </div>
       )}
 
@@ -213,7 +207,7 @@ function VideosContent() {
           <Video className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="font-medium mb-2">No Videos Found</h3>
           <p className="text-muted-foreground mb-4">
-            Mint a GRF-06-3 video asset to get started.
+            Upload a video to get started.
           </p>
           <Button onClick={handleOpenCreate}>
             <Plus className="h-4 w-4 mr-2" />
@@ -230,21 +224,18 @@ function VideosContent() {
                     <video
                       src={asset.publicUrl}
                       className="w-full h-full object-cover"
-                      muted
-                      loop
-                      onMouseEnter={(e) => (e.target as HTMLVideoElement).play()}
-                      onMouseLeave={(e) => {
-                        const v = e.target as HTMLVideoElement;
-                        v.pause();
-                        v.currentTime = 0;
-                      }}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      aria-label={`Play ${asset.name}`}
+                      onError={() => toast({ title: "Video preview unavailable", description: asset.name, variant: "destructive" })}
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <Video className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
-                  <div className="absolute top-2 right-2">
+                  <div className="absolute top-2 right-2 pointer-events-none">
                     <Badge variant="secondary" className="font-mono text-xs">{asset.grfId}</Badge>
                   </div>
                 </div>
@@ -260,19 +251,23 @@ function VideosContent() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => handleOpenEdit(asset)}
-                      data-testid={`button-edit-video-${asset.grfId}`}
+                      className="h-12 w-12"
+                      aria-label={`View ${asset.name}`}
+                      onClick={() => handleOpenView(asset)}
+                      data-testid={`button-view-video-${asset.grfId}`}
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Eye className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => archiveMutation.mutate(asset.grfId)}
-                      disabled={archiveMutation.isPending}
-                      data-testid={`button-archive-video-${asset.grfId}`}
+                      className="h-12 w-12"
+                      aria-label={`Delete ${asset.name}`}
+                      onClick={() => setDeleteId(asset.grfId)}
+                      disabled={!!deleteId}
+                      data-testid={`button-delete-video-${asset.grfId}`}
                     >
-                      <Archive className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -282,8 +277,9 @@ function VideosContent() {
         </div>
       )}
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={isDialogOpen} onOpenChange={open => { if (!open) handleCloseDialog(); }}>
+        <DialogContent showCloseButton={false} className="max-w-lg max-h-[90dvh] overflow-y-auto pt-16">
+          <DialogClose asChild><Button variant="ghost" size="icon" disabled={uploading} className="absolute left-3 top-3 h-12 w-12" aria-label="Close video" data-testid="button-close-video"><X className="h-5 w-5" /></Button></DialogClose>
           <DialogHeader>
             <DialogTitle>{editingAsset ? "View Video" : "Upload Video"}</DialogTitle>
           </DialogHeader>
@@ -296,6 +292,7 @@ function VideosContent() {
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="Video name"
                 readOnly={!!editingAsset}
+                disabled={uploading}
                 data-testid="input-video-name"
               />
             </div>
@@ -307,6 +304,7 @@ function VideosContent() {
                 onChange={(e) => setFormDesc(e.target.value)}
                 placeholder="Optional description"
                 readOnly={!!editingAsset}
+                disabled={uploading}
                 data-testid="input-video-description"
               />
             </div>
@@ -316,18 +314,19 @@ function VideosContent() {
                 <Input
                   id="video"
                   type="file"
-                  accept={ACCEPTED_VIDEO_TYPES}
+                  accept={GRF_VIDEO_ACCEPT_TYPES}
+                  disabled={uploading}
                   onChange={handleVideoChange}
                   data-testid="input-video-file"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
-                  Supported: MP4, WebM, MOV
+                  Supported: {GRF_VIDEO_FORMAT_LABELS}. Maximum {GRF_VIDEO_MAX_MB} MB.
                 </p>
               </div>
             )}
-            {videoPreview && !videoPreview.startsWith("data:") && (
+            {previewUrl && !previewUrl.startsWith("data:") && (
               <div className="aspect-video bg-muted rounded-md overflow-hidden">
-                <video src={videoPreview} className="w-full h-full object-cover" controls />
+                <video src={previewUrl} className="w-full h-full object-contain" controls playsInline preload="metadata" onError={() => toast({ title: "Video preview unavailable", description: "This browser could not play the selected video.", variant: "destructive" })} />
               </div>
             )}
             {editingAsset && (
@@ -337,14 +336,14 @@ function VideosContent() {
               >
                 <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                 <p className="text-xs text-amber-800 dark:text-amber-300">
-                  GRF assets are immutable. Archive this video and mint a new one to replace it.
+                  This viewer is read-only. Upload a new video to replace the file; review affected builds before deleting the old one.
                 </p>
               </div>
             )}
           </div>
           <DialogFooter className="gap-2">
             <DialogClose asChild>
-              <Button variant="outline" data-testid="button-cancel-video">Cancel</Button>
+              <Button variant="outline" disabled={uploading} className="min-h-[44px]" data-testid="button-cancel-video">{editingAsset ? "Close" : "Cancel"}</Button>
             </DialogClose>
             {!editingAsset && (
               <Button
@@ -359,13 +358,13 @@ function VideosContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
     </AdminShell>
   );
 }
 
 export default function AdminVideosPage() {
-  const { user, isLoading: authLoading } = useAuth();
-  const [, navigate] = useLocation();
+  const { isAuthenticated, isAdmin, isLoading: authLoading } = useAuth();
 
   if (authLoading) {
     return (
@@ -375,10 +374,8 @@ export default function AdminVideosPage() {
     );
   }
 
-  if (!user) {
-    navigate("/");
-    return null;
-  }
+  if (!isAuthenticated) return <Redirect to="/login?engine=1" />;
+  if (!isAdmin) return <Redirect to="/" />;
 
   return <VideosContent />;
 }

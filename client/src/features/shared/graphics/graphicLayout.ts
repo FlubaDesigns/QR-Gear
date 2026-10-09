@@ -6,6 +6,8 @@ export interface GraphicLayoutInput {
   headerActive: boolean;
   footerActive: boolean;
   subBottomActive: boolean;
+  /** Rendered CTA line height in canvas pixels. */
+  subBottomLineHeight?: number;
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
@@ -75,6 +77,7 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     canvasWidth: W,
     canvasHeight: H,
     subBottomActive,
+    subBottomLineHeight = 0,
     qrPositionX = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionX,
     qrPositionY = GRAPHIC_LAYOUT_DEFAULTS.defaultQrPositionY,
     qrSizePercent = GRAPHIC_LAYOUT_DEFAULTS.defaultQrSizePercent,
@@ -122,13 +125,13 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     // 4. Sub-bottom strip sits below QR background box + a clear gap (no edge overlap)
     const subBottomGap    = Math.max(cfg.subBottomGapMin, qrSize * cfg.subBottomGapPct);
     const subBottomTop    = qrBgBottom + subBottomGap;
-    const subBottomHeight = subBottomActive ? Math.max(20, qrSize * 0.08) : 0;
+    const subBottomHeight = subBottomActive ? Math.max(20, qrSize * 0.08, subBottomLineHeight) : 0;
 
-    // 5. Header zone: fills from bleed top down to just above QR
+    // 5. Keep top artwork clear of the visible QR background, including at 100% down.
     const headerZone: Rect = {
       x: SX, y: SY,
       width: SW,
-      height: Math.max(0, qrTop - SY - zonePadding),
+      height: Math.max(0, qrTop - bgPadding - SY - subBottomGap),
     };
 
     // 6. Middle zone: exactly the QR square area

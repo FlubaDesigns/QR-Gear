@@ -43,7 +43,7 @@ export type MarketplacePlatform = 'etsy' | 'ebay' | 'amazon';
 export type SurfaceStatus = 'draft' | 'ready' | 'published' | 'archived' | 'blocked';
 export type ListingStatus = 'pending' | 'draft' | 'active' | 'syncing' | 'error' | 'paused' | 'delisted';
 export type SyncJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled';
-export type SyncJobAction = 'create' | 'update' | 'delete' | 'sync_inventory' | 'full_sync';
+export type SyncJobAction = 'create' | 'update' | 'delete' | 'sync_inventory' | 'full_sync' | 'check_status';
 export type SyncLogLevel = 'info' | 'warn' | 'error';
 
 export type BuilderHostStatus = 'active' | 'paused' | 'disabled';

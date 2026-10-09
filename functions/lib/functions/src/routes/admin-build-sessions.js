@@ -1,18 +1,4 @@
 "use strict";
-/**
- * Admin Build Sessions (Cloud Functions port)
- *
- * Temporary working records that prevent orphan admin_catalog_instances.
- * A session is created when admin starts editing a master product.
- * A real admin_catalog_instance is only created after artifact generation succeeds (commit).
- *
- * Flow:
- *   select master product
- *   → create/load admin_build_session (temp, safe to abandon)
- *   → edit working state (title, description, QR config, graphics, etc.)
- *   → generate artifact (packet/template/graphics)
- *   → commit → creates real admin_catalog_instance, binds artifacts, marks session committed
- */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -48,6 +34,10 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerAdminBuildSessions = registerAdminBuildSessions;
+const productImages_1 = require("../../../shared/productImages");
+const builderSnapshot_1 = require("../../../shared/builderSnapshot");
+const assembly_store_1 = require("../services/assembly-store");
+const build_session_state_1 = require("../services/build-session-state");
 const firestore_1 = require("firebase-admin/firestore");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
@@ -160,7 +150,25 @@ function registerAdminBuildSessions(app) {
     // ── Create or load a build session from a master catalog item ─────────────
     app.post('/admin/build-sessions/from-master', middleware_1.requireAdmin, async (req, res) => {
         try {
-            const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId } = req.body;
+            const { sourceMasterId, catalogId, blankKey: bodyBlankKey, shelfItemId, forceNew = false, initialWorking } = req.body;
+            if (typeof forceNew !== 'boolean' || (initialWorking !== undefined && !forceNew)) {
+                res.status(400).json({ error: 'initialWorking requires forceNew: true.' });
+                return;
+            }
+            let templateWorking = null;
+            if (initialWorking !== undefined) {
+                try {
+                    templateWorking = (0, builderSnapshot_1.requireBuilderSnapshot)(initialWorking);
+                }
+                catch (error) {
+                    res.status(400).json({ error: error.message });
+                    return;
+                }
+                if (templateWorking.metadata.selectedProductDocId !== sourceMasterId) {
+                    res.status(400).json({ error: 'Template product identity must match sourceMasterId.' });
+                    return;
+                }
+            }
             if (!sourceMasterId) {
                 res.status(400).json({ error: 'sourceMasterId is required' });
                 return;
@@ -183,7 +191,7 @@ function registerAdminBuildSessions(app) {
                 }
             }
             // Filter status in-memory to avoid requiring a composite Firestore index.
-            const rawSessions = await core_1.db.collection(BUILD_SESSIONS_COLLECTION)
+            const rawSessions = forceNew ? { docs: [] } : await core_1.db.collection(BUILD_SESSIONS_COLLECTION)
                 .where('ownerAdminId', '==', ownerAdminId)
                 .where('sourceMasterId', '==', sourceMasterId)
                 .get();
@@ -249,7 +257,7 @@ function registerAdminBuildSessions(app) {
                 ownerAdminId,
                 catalogId: catalogId || null,
                 blankKey: bodyBlankKey || null,
-                working: {
+                working: templateWorking || {
                     title: master.title || null,
                     description: master.description || null,
                     images: master.images || [],
@@ -343,6 +351,10 @@ function registerAdminBuildSessions(app) {
         try {
             const { id } = req.params;
             const { working, draftName } = req.body;
+            if (draftName !== undefined && typeof draftName !== 'string') {
+                res.status(400).json({ error: 'Draft name must be text.' });
+                return;
+            }
             if (!working && draftName === undefined) {
                 res.status(400).json({ error: 'working object or draftName is required' });
                 return;
@@ -372,7 +384,9 @@ function registerAdminBuildSessions(app) {
                 console.log(`[BuildSessions] patch ${id} | working keys: ${Object.keys(updatePayload.working).join(',')}`);
             }
             if (draftName !== undefined) {
-                updatePayload.draftName = draftName;
+                updatePayload.draftName = draftName.trim();
+                // An explicitly saved draft remains resumable until the admin deletes it.
+                updatePayload.expiresAt = draftName.trim() ? null : firestore_1.Timestamp.fromDate(new Date(Date.now() + SESSION_EXPIRY_DAYS * 86400000));
             }
             await ref.update(updatePayload);
             res.json({ success: true, sessionId: id });
@@ -387,73 +401,7 @@ function registerAdminBuildSessions(app) {
         try {
             const { id } = req.params;
             const packetFields = req.body;
-            const ref = core_1.db.collection(BUILD_SESSIONS_COLLECTION).doc(id);
-            const doc = await ref.get();
-            if (!doc.exists) {
-                res.status(404).json({ error: 'Build session not found' });
-                return;
-            }
-            const session = doc.data();
-            if (session.status === 'committed') {
-                res.status(409).json({ error: 'Session already committed.' });
-                return;
-            }
-            if (session.status === 'abandoned') {
-                res.status(409).json({ error: 'Cannot generate artifact for an abandoned session.' });
-                return;
-            }
-            const now = firestore_1.FieldValue.serverTimestamp();
-            let packetId;
-            if (packetFields.existingPacketId) {
-                packetId = packetFields.existingPacketId;
-                await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).update({
-                    ownerType: 'admin_build_session',
-                    buildSessionId: id,
-                    sourceMasterId: session.sourceMasterId,
-                    sourceAdminInstanceId: null,
-                    updatedAt: now,
-                });
-            }
-            else {
-                const packetData = {
-                    ownerType: 'admin_build_session',
-                    buildSessionId: id,
-                    sourceMasterId: session.sourceMasterId,
-                    sourceAdminInstanceId: null,
-                    masterTitle: session.working?.title || null,
-                    adminCatalogTitle: session.working?.title || null,
-                    effectiveTitle: session.working?.title || null,
-                    masterDescription: session.working?.description || null,
-                    adminCatalogDescription: session.working?.description || null,
-                    effectiveDescription: session.working?.description || null,
-                    productImageUrl: session.working?.images?.[0] || null,
-                    ...packetFields,
-                    createdAt: now,
-                    updatedAt: now,
-                };
-                if (session.generated?.packetId) {
-                    const { createdAt: _c, ...updateFields } = packetData;
-                    await core_1.db.collection(PRODUCT_PACKETS_COLLECTION)
-                        .doc(session.generated.packetId)
-                        .update({ ...updateFields, updatedAt: now });
-                    packetId = session.generated.packetId;
-                }
-                else {
-                    const packetRef = await core_1.db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
-                    packetId = packetRef.id;
-                }
-            }
-            const sessionUpdate = {
-                'generated.packetId': packetId,
-                'generated.artifactReady': true,
-                status: 'artifact_ready',
-                updatedAt: now,
-                lastActiveAt: now,
-            };
-            if (packetFields.previewImageUrl) {
-                sessionUpdate['generated.previewImageUrl'] = packetFields.previewImageUrl;
-            }
-            await ref.update(sessionUpdate);
+            const packetId = await (0, build_session_state_1.saveGeneratedBuildArtifact)(core_1.db, id, packetFields, firestore_1.FieldValue.serverTimestamp());
             res.json({ success: true, sessionId: id, packetId, artifactReady: true });
         }
         catch (err) {
@@ -477,6 +425,9 @@ function registerAdminBuildSessions(app) {
                 res.json({
                     success: true,
                     alreadyCommitted: true,
+                    packetId: session.generated?.packetId || null,
+                    bldId: session.bldId || null,
+                    assemblyId: session.assemblyId || null,
                     instanceId: session.committedInstanceId,
                     sessionId: id,
                 });
@@ -492,6 +443,15 @@ function registerAdminBuildSessions(app) {
                 });
                 return;
             }
+            // Render, BLD and Assembly must consume the same captured build inputs.
+            try {
+                session.working = await (0, build_session_state_1.readGeneratedBuild)(core_1.db, { ...session, id });
+            }
+            catch (error) {
+                res.status(400).json({ error: error.message });
+                return;
+            }
+            const previousInstance = await (0, build_session_state_1.existingBuildInstance)(core_1.db, { ...session, id });
             const masterDoc = await core_1.db.collection(MASTER_CATALOG_COLLECTION).doc(session.sourceMasterId).get();
             if (!masterDoc.exists) {
                 res.status(404).json({ error: `Master catalog item not found: ${session.sourceMasterId}` });
@@ -504,7 +464,7 @@ function registerAdminBuildSessions(app) {
             // Priority: catalog blankTitles/blankDescriptions/blankImages > master catalog
             let curatedTitle = master.title || '';
             let curatedDescription = master.description || null;
-            let curatedImages = master.images || [];
+            let curatedImages = (0, productImages_1.masterBlankImages)(master);
             if (effectiveCatalogId) {
                 try {
                     const catDoc = await core_1.db.collection('catalogs').doc(effectiveCatalogId).get();
@@ -520,12 +480,12 @@ function registerAdminBuildSessions(app) {
                             curatedTitle = blankTitles[lookupKey];
                         if (blankDescriptions[lookupKey])
                             curatedDescription = blankDescriptions[lookupKey];
-                        const trimmed = blankImages[lookupKey] || [];
-                        if (trimmed.length > 0)
-                            curatedImages = trimmed;
+                        curatedImages = (0, productImages_1.resolveCatalogImages)(curatedImages, blankImages[lookupKey]);
                     }
                 }
-                catch (_) { /* fall back to master values */ }
+                catch (error) {
+                    throw new Error("Could not load the catalog image selection; try again.");
+                }
             }
             // Capture the admin-curated colors/sizes from the packet for enabledColors/enabledSizes.
             const packetId = session.generated?.packetId || null;
@@ -630,7 +590,11 @@ function registerAdminBuildSessions(app) {
                 return;
             }
             // ── Gate 2: Allocate QRG instance (atomically minted — never hand-coded) ──
-            const qrgIdentity = await (0, qrg_instance_allocator_1.allocateQrgInstance)({ qrgBlankId: masterQrgBlankId, context: 'I' });
+            const qrgIdentity = previousInstance ? {
+                qrgBlankId: previousInstance.qrgBlankId, qrgContext: previousInstance.qrgContext,
+                instanceNumber: previousInstance.instanceNumber, qrgBaseCode: previousInstance.qrgBaseCode,
+                variantCode: previousInstance.variantCode ?? null, qrgFullCode: previousInstance.qrgFullCode ?? null,
+            } : await (0, qrg_instance_allocator_1.allocateQrgInstance)({ qrgBlankId: masterQrgBlankId, context: 'I' });
             const qrgScanUrl = `${process.env.APP_URL || 'https://qrgear.com'}/scan/${qrgIdentity.qrgBaseCode}`;
             console.log(`[BuildSessions] QRG allocated: ${qrgIdentity.qrgBaseCode} → ${qrgScanUrl}`);
             // ── Gate 3: Register GRF assets from packet (BLOCKING — Assembly requires real IDs) ──
@@ -668,14 +632,7 @@ function registerAdminBuildSessions(app) {
             // ── Gate 4: Write BLD definition (BLOCKING — commit fails if BLD write fails) ──
             let bldId = null;
             try {
-                const bldResult = await (0, bld_builder_1.writeBldDefinition)({
-                    working: session.working || {},
-                    sourceSessionId: id,
-                    sourceInstanceId: null, // back-filled onto instance after creation
-                    qrgBlankId: qrgIdentity.qrgBlankId,
-                    qrgBaseCode: qrgIdentity.qrgBaseCode,
-                    packetId: newPacketId,
-                });
+                const bldResult = await (0, bld_builder_1.writeBldDefinition)({ working: session.working || {}, packetId: newPacketId });
                 bldId = bldResult.bldId;
                 console.log(`[BuildSessions] BLD written: ${bldId} (${bldResult.instanceCount} instances)`);
             }
@@ -708,7 +665,7 @@ function registerAdminBuildSessions(app) {
                 return;
             }
             // ── Gate 6: Create admin_catalog_instance (all schema records exist) ────
-            const instanceRef = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION).add({
+            const instanceRef = await (0, build_session_state_1.saveBuildInstance)(core_1.db, { ...session, id }, {
                 instanceType: 'admin', sourceMasterId: session.sourceMasterId, sourceSessionId: id,
                 catalogId: effectiveCatalogId, ownerAdminId: session.ownerAdminId,
                 baseSnapshot, overrides, resolved,
@@ -857,11 +814,12 @@ function registerAdminBuildSessions(app) {
                 .limit(100)
                 .get();
             const batch = core_1.db.batch();
-            stale.docs.forEach((doc) => {
+            const disposable = stale.docs.filter((doc) => !doc.data().draftName);
+            disposable.forEach((doc) => {
                 batch.update(doc.ref, { status: 'abandoned' });
             });
             await batch.commit();
-            res.json({ success: true, cleaned: stale.size });
+            res.json({ success: true, cleaned: disposable.length });
         }
         catch (err) {
             console.error('[BuildSessions] cleanup error:', err.message);
@@ -935,39 +893,18 @@ function registerAdminBuildSessions(app) {
             const encodeUri = (s) => encodeURIComponent(s);
             const qrOnlyUrl = `https://api.qrserver.com/v1/create-qr-code/?size=3000x3000&data=${encodeUri(qrContent)}&format=png&qzone=0&ecc=H&color=000000&bgcolor=ffffff`;
             // ── 4. Save composites to packet ──────────────────────────────────────
-            const packetUpdate = { compositeUrl, qrOnlyUrl, updatedAt: firestore_1.FieldValue.serverTimestamp() };
-            if (sleeveCompositeUrl)
-                packetUpdate.sleeveCompositeUrl = sleeveCompositeUrl;
+            const packetUpdate = {
+                compositeUrl, qrOnlyUrl, sleeveCompositeUrl, sleeveCompositeUrls: sleeveUrls,
+                updatedAt: firestore_1.FieldValue.serverTimestamp(),
+            };
             await packetRef.update(packetUpdate);
             // ── 5. Build resolved.images for catalog instance ─────────────────────
-            // Order: front composite, sleeve composite(s), priority mockup, qr-only URL
-            // Drop all stock images (images.printify.com) when we have ≥3 real images
-            const priorityMockupUrl = packet.priorityMockupUrl || null;
-            const realImages = [compositeUrl];
-            for (const slv of sleevePlacements) {
-                if (sleeveUrls[slv])
-                    realImages.push(sleeveUrls[slv]);
-            }
-            if (priorityMockupUrl)
-                realImages.push(priorityMockupUrl);
-            realImages.push(qrOnlyUrl);
-            // Use real images if ≥3; otherwise fall back to keeping existing non-stock images
             const instanceSnap = await core_1.db.collection(ADMIN_INSTANCES_COLLECTION)
                 .where('currentPacketId', '==', packetId).limit(1).get();
             if (!instanceSnap.empty) {
                 const instRef = instanceSnap.docs[0].ref;
                 const instData = instanceSnap.docs[0].data();
-                let updatedImages;
-                if (realImages.length >= 3) {
-                    // We have enough real images — drop all stock printify images
-                    updatedImages = realImages;
-                }
-                else {
-                    // Not enough real images yet — keep existing non-stock images and prepend composite
-                    const existingImages = (instData.resolved?.images || [])
-                        .filter((u) => !u.includes('images.printify.com'));
-                    updatedImages = [compositeUrl, ...existingImages.filter((u) => u !== compositeUrl)];
-                }
+                const updatedImages = (0, productImages_1.buildPacketImageOrder)({ ...packet, ...packetUpdate }, (0, productImages_1.instanceCatalogImages)(instData));
                 await instRef.update({
                     'resolved.images': updatedImages,
                     updatedAt: firestore_1.FieldValue.serverTimestamp(),
@@ -978,7 +915,7 @@ function registerAdminBuildSessions(app) {
             Promise.resolve().then(() => __importStar(require('../services/printify-republish'))).then(({ republishAllInstancesForPacket }) => {
                 republishAllInstancesForPacket(packetId).catch((e) => console.error('[AutoRepublish] background error for packet', packetId, e.message));
             }).catch(() => { });
-            res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: realImages.length });
+            res.json({ success: true, packetId, compositeUrl, sleeveCompositeUrl, qrOnlyUrl, imageCount: (0, productImages_1.buildPacketImageOrder)({ ...packet, ...packetUpdate }).length });
         }
         catch (err) {
             console.error('[QRG] regenerate-composite error:', err.message);
@@ -1004,6 +941,17 @@ function registerAdminBuildSessions(app) {
                 return;
             }
             const packet = packetDoc.data();
+            try {
+                await (0, assembly_store_1.validatePacketComposition)(core_1.db, packetId, packet);
+            }
+            catch (e) {
+                res.status(400).json({ error: e.message });
+                return;
+            }
+            if (packet.fulfillmentProvider && packet.fulfillmentProvider !== 'printify') {
+                res.status(400).json({ error: 'This packet is not a Printify product.' });
+                return;
+            }
             if (!packet.blueprintId) {
                 res.status(400).json({ error: 'Packet is missing blueprintId' });
                 return;
@@ -1014,6 +962,14 @@ function registerAdminBuildSessions(app) {
             }
             if (!packet.assemblyId) {
                 res.status(400).json({ error: 'Packet is missing assemblyId — complete the QRG → BLD → GRF chain in the Library before publishing to Printify' });
+                return;
+            }
+            let artwork;
+            try {
+                artwork = await (0, assembly_store_1.packetPrintifyArtwork)(core_1.db, packet);
+            }
+            catch (e) {
+                res.status(400).json({ error: e.message });
                 return;
             }
             const blueprintId = parseInt(packet.blueprintId, 10);
@@ -1064,28 +1020,8 @@ function registerAdminBuildSessions(app) {
                     printifyVariantMap[`${vColor}/${vSize}`] = v.id;
             }
             // ── 3. Upload composite images to Printify (generic — driven by placements array) ──
-            const PLACEMENT_URL_MAP = {
-                front: 'compositeUrl',
-                left_sleeve: 'sleeveCompositeUrl',
-                right_sleeve: 'rightSleeveCompositeUrl',
-                back: 'backCompositeUrl',
-            };
-            // All available graphic placements — exclude label/tag placements
-            const PUBLISH_LABEL_PLACEMENTS = new Set(['label', 'inside_label', 'neck_label', 'outside_label']);
-            const placements = (packet.placements?.length > 0 ? packet.placements : ['front'])
-                .filter((p) => !PUBLISH_LABEL_PLACEMENTS.has(p));
             const placeholders = [];
-            for (const placement of placements) {
-                const urlField = PLACEMENT_URL_MAP[placement];
-                if (!urlField) {
-                    console.warn(`[PublishToPrintify] Unknown placement "${placement}" — skipping`);
-                    continue;
-                }
-                const imageUrl = packet[urlField];
-                if (!imageUrl) {
-                    console.warn(`[PublishToPrintify] Placement "${placement}" has no image URL (field: ${urlField}) — skipping`);
-                    continue;
-                }
+            for (const { position: placement, imageUrl } of artwork) {
                 const upload = await printifyClient.uploadImage(`${packetId}-${placement}.png`, imageUrl);
                 console.log(`[PublishToPrintify] ${placement} image uploaded: ${upload.id}`);
                 placeholders.push({

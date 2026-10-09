@@ -1,9 +1,10 @@
+import type { PricingSettings } from '@shared/schema-orders';
 import { useState, useEffect, useRef } from "react";
 import { Package, Loader2, Check, CheckCircle2, Copy, Pencil } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { CollapsibleModule } from "@/features/shared/components/CollapsibleModule";
-import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { ImageModalView } from "@/features/shared/components/shapes/ModalView";
 import { Button } from "@/components/ui/button";
 import { useBuilderContext } from "../BuilderContext";
 import { adminFetch } from "@/lib/adminFetch";
@@ -12,6 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import type { PricingBreakdown } from "../types";
 import { PacketResultDisplay } from "./PacketResultDisplay";
 import { useCreatePacket } from "./useCreatePacket";
+import { replaceLeadPhoto } from './replaceLeadPhoto';
+import { queryClient } from '@/lib/queryClient';
+import { refreshBuildLibrary } from '@/features/adminLibrary/shared/grfQueryKeys';
+import { packetLeadColor } from '@shared/productImages';
 
 interface HostingTier {
   code: string;
@@ -19,13 +24,7 @@ interface HostingTier {
   price: number;
 }
 
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  hostingTiers: HostingTier[];
-}
+
 
 export interface PacketResult {
   packetId: string;
@@ -47,18 +46,29 @@ export interface PacketResult {
   enabledColors?: string[];
 }
 
-export function CreateGraphicsModule() {
-  const { state, setContent, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, setActivePacketId, setActiveSession } = useBuilderContext();
+export function CreateGraphicsModule({ generateRequested = false, onGenerateHandled }: { generateRequested?: boolean; onGenerateHandled?: () => void } = {}) {
+  const { state, setContent, setProductTitle, setProductDescription, loadGraphic, selectedRole, selectedStore, selectedChannel, selectedCollection, resetBuilder, resumeSession, setActivePacketId, setActiveSession, beginBuildActivity } = useBuilderContext();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [thumbnailLightbox, setThumbnailLightbox] = useState<string | null>(null);
   const [isReopening, setIsReopening] = useState(false);
   const [isCloningSession, setIsCloningSession] = useState(false);
+  const [leadPhoto, setLeadPhoto] = useState<File | null>(null);
+  const [leadPhotoColor, setLeadPhotoColor] = useState('');
+  const [savingLeadPhoto, setSavingLeadPhoto] = useState(false);
+  const [leadPhotoError, setLeadPhotoError] = useState<string | null>(null);
+  const leadPhotoInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    setLeadPhoto(null);
+    setLeadPhotoColor('');
+    setLeadPhotoError(null);
+    if (leadPhotoInput.current) leadPhotoInput.current.value = '';
+  }, [state.activePacketId]);
 
   const hasActiveSession = !!state.activeSessionId;
   const sessionStatus = state.sessionStatus;
 
-  const { data: pricingSettings } = useQuery<PricingSettings>({
+  const { data: pricingSettings, isLoading: pricingLoading, error: pricingError } = useQuery<PricingSettings>({
     queryKey: ["/api/pricing-settings"],
     queryFn: async () => {
       const res = await fetch(`/api/pricing-settings`);
@@ -70,7 +80,7 @@ export function CreateGraphicsModule() {
 
   // Auto-seed content.title from full folder path when not already set
   useEffect(() => {
-    if (!state.content?.title) {
+    if (state.selectedProduct && !state.content?.title) {
       const parts = [selectedStore?.name, selectedChannel?.name, selectedCollection?.name].filter(Boolean);
       if (parts.length > 0) {
         setContent({ title: parts.join(' / ') });
@@ -83,6 +93,10 @@ export function CreateGraphicsModule() {
 
   const validationErrors: string[] = [];
   if (!state.activeSessionId) validationErrors.push('Wait for the product session to finish loading');
+  if (!state.selectedProduct) validationErrors.push('Select a product');
+  if (state.placementsLoading) validationErrors.push('Wait for product options to finish loading');
+  if (state.placementsError) validationErrors.push(state.placementsError);
+  if (!pricingSettings) validationErrors.push(pricingError ? 'Pricing could not be loaded' : 'Wait for pricing to finish loading');
   if (!state.content.graphicLayoutMode) validationErrors.push('Select a design layout');
   if (!state.selectedPlacements.length) validationErrors.push('Select a print placement');
   if (!selectedCollection) {
@@ -91,7 +105,7 @@ export function CreateGraphicsModule() {
   const canCreate = validationErrors.length === 0;
 
   const {
-    isCreating, packetResult, error, isDeleting,
+    isCreating, packetResult, error,
     isCommitting, commitResult,
     artifactError, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
@@ -101,22 +115,19 @@ export function CreateGraphicsModule() {
     loadGraphic, resetBuilder, pricingSettings,
   });
 
-  // Auto-retry commit once on mount if this session was already artifact_ready
-  // (i.e. a resumed session whose previous auto-commit failed or was interrupted).
-  // We use a ref so this only fires once per mount, never on subsequent renders.
-  const autoRetryFiredRef = useRef(false);
+  const generationRequestHandled = useRef(false);
   useEffect(() => {
-    if (
-      !autoRetryFiredRef.current &&
-      sessionStatus === 'artifact_ready' &&
-      !isCommitting &&
-      !commitResult
-    ) {
-      autoRetryFiredRef.current = true;
-      handleCommitSession();
+    if (!generateRequested) { generationRequestHandled.current = false; return; }
+    if (generationRequestHandled.current || pricingLoading || state.placementsLoading) return;
+    generationRequestHandled.current = true;
+    onGenerateHandled?.();
+    if (packetResult || (state.activePacketId && sessionStatus !== 'working') || state.sessionStatus === 'committed') return;
+    if (!canCreate) {
+      toast({ title: 'Complete the build first', description: validationErrors.join('. '), variant: 'destructive' });
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    void handleCreatePacket();
+  }, [generateRequested, pricingLoading, state.placementsLoading, canCreate, handleCreatePacket, onGenerateHandled]);
 
   // Sync active packet ID whenever a new packet is created
   useEffect(() => {
@@ -145,6 +156,7 @@ export function CreateGraphicsModule() {
           .filter((c): c is string => typeof c === 'string' && c.length > 0);
         const str = (v: unknown): string => (typeof v === 'string' ? v : '');
         const strOrNull = (v: unknown): string | null => (typeof v === 'string' && v ? v : null);
+        setLeadPhotoColor(packetLeadColor(p) || '');
         setPacketResult({
           packetId: state.activePacketId ?? '',
           landingPageUrl: str(p.qrContent) || str(p.landingPageUrl),
@@ -154,6 +166,8 @@ export function CreateGraphicsModule() {
           pricing: p.pricing as PricingBreakdown,
           priorityMockupUrl: strOrNull(p.priorityMockupUrl),
           priorityMockupLoading: false,
+          lifestyleMockupUrl: strOrNull(p.lifestyleMockupUrl),
+          placementMockupUrls: (p.placementMockupUrls as Record<string, string> | null) ?? null,
           compositeUrl: strOrNull(p.compositeUrl),
           assemblyId: strOrNull(p.assemblyId),
           printifyProductId: strOrNull(p.printifyProductId),
@@ -162,8 +176,8 @@ export function CreateGraphicsModule() {
           enabledColors,
         });
         console.log(`[CreateGraphicsModule] Restored packetResult for ${state.activePacketId}`);
-      } catch {
-        // silent — fallback to showing Create Packet button
+      } catch (error: any) {
+        if (!cancelled) setArtifactError(`Could not load saved packet: ${error.message}`);
       }
     };
 
@@ -200,11 +214,35 @@ export function CreateGraphicsModule() {
         method: "POST",
         json: { sourceSessionId: state.activeSessionId },
       });
-      window.location.href = `/admin/products?resume=${data.sessionId}`;
+      await resumeSession(data.sessionId);
     } catch (err: any) {
       toast({ title: 'Could not save as new', description: err.message || 'Please try again.', variant: 'destructive' });
-      setIsCloningSession(false);
-    }
+    } finally { setIsCloningSession(false); }
+  };
+
+  const handleLeadPhoto = async () => {
+    if (!leadPhoto || !packetResult || !state.committedInstanceId || savingLeadPhoto) return;
+    let finish: () => void;
+    try { finish = beginBuildActivity('Saving lead photo…'); } catch { return; }
+    setSavingLeadPhoto(true);
+    setLeadPhotoError(null);
+    const packetId = packetResult.packetId;
+    try {
+      const color = leadPhotoColor || state.selectedColor?.name;
+      if (!color || !state.selectedProduct?.availableColors.some(option => option.name === color)) throw new Error('Choose an available shirt color.');
+      const result = await replaceLeadPhoto(packetId, state.committedInstanceId, leadPhoto, color);
+      setPacketResult(prev => prev?.packetId === packetId ? { ...prev,
+        priorityMockupUrl: result.url, placementMockupUrls: result.placementMockupUrls,
+        lifestyleMockupUrl: result.lifestyleMockupUrl } : prev);
+      void refreshBuildLibrary(queryClient);
+      void queryClient.invalidateQueries({ predicate: query => query.queryKey.some(key => typeof key === 'string' && /catalog-instances|\/shop\//.test(key)) });
+      setLeadPhoto(null);
+      if (leadPhotoInput.current) leadPhotoInput.current.value = '';
+      toast({ title: 'Lead photo saved', description: `The new photo is first for ${result.color}.` });
+    } catch (error: any) {
+      console.error('[Products] Lead photo save failed:', error);
+      setLeadPhotoError(error.message || 'Could not save the lead photo.');
+    } finally { setSavingLeadPhoto(false); finish(); }
   };
 
 
@@ -220,8 +258,30 @@ export function CreateGraphicsModule() {
       defaultOpen
     >
       <div className="space-y-4">
-        {!packetResult && (
+        {!packetResult && (!state.activePacketId || sessionStatus === 'working') && (
           <>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium">Product title</span>
+              <input
+                className="w-full min-h-12 rounded-md border bg-background px-3 py-2"
+                value={state.adminCatalogTitle ?? state.masterTitle ?? state.selectedProduct.title ?? ''}
+                onChange={event => setProductTitle(event.target.value, 'manual')}
+                disabled={isCreating || !['working', 'artifact_ready'].includes(sessionStatus || '')}
+                maxLength={140}
+                data-testid="input-output-product-title"
+              />
+            </label>
+            <label className="block space-y-2">
+              <span className="text-sm font-medium">Product description</span>
+              <textarea
+                className="w-full min-h-28 rounded-md border bg-background px-3 py-2"
+                value={state.productDescription ?? state.masterDescription ?? ''}
+                onChange={event => setProductDescription(event.target.value, 'manual')}
+                disabled={isCreating || !['working', 'artifact_ready'].includes(sessionStatus || '')}
+                maxLength={5000}
+                data-testid="textarea-output-product-description"
+              />
+            </label>
             {validationErrors.length > 0 && (
               <div className="p-4 bg-amber-50 dark:bg-amber-950/50 rounded-md border border-amber-200 dark:border-amber-800">
                 <p className="text-base font-semibold text-amber-700 dark:text-amber-300 mb-3">Complete these items first:</p>
@@ -264,6 +324,7 @@ export function CreateGraphicsModule() {
           </>
         )}
 
+        {artifactError && !packetResult && <p role="alert" className="text-sm text-destructive">{artifactError}</p>}
         {error && (
           <div className="p-3 bg-red-50 dark:bg-red-950/50 rounded-md border border-red-200 dark:border-red-800">
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
@@ -279,7 +340,6 @@ export function CreateGraphicsModule() {
             isPlayMode={isPlayMode}
             isBasicsOrPlusMode={isBasicsOrPlusMode}
             pricingSettings={pricingSettings}
-            isDeleting={isDeleting}
             thumbnailLightbox={thumbnailLightbox}
             onThumbnailLightbox={setThumbnailLightbox}
             onNext={handleNext}
@@ -351,6 +411,23 @@ export function CreateGraphicsModule() {
                   : <Copy className="h-3.5 w-3.5 mr-1.5" />
                 }
                 Save as New
+              </Button>
+            </div>
+            <div className="space-y-3 rounded-md border p-4">
+              <label htmlFor="lead-photo-input" className="block text-base font-semibold">Replace lead photo</label>
+              <p className="text-sm text-muted-foreground">Choose the photo and matching shirt color shown first in the store and on the product page. Your print design and QR page stay the same.</p>
+              <label htmlFor="lead-photo-color" className="block text-sm font-medium">Lead photo shirt color</label>
+              <select id="lead-photo-color" className="w-full min-h-12 rounded-md border bg-background px-3"
+                value={leadPhotoColor || state.selectedColor?.name || ''} disabled={savingLeadPhoto}
+                onChange={event => setLeadPhotoColor(event.target.value)}>
+                {state.selectedProduct.availableColors.map(color => <option key={color.name} value={color.name}>{color.name}</option>)}
+              </select>
+              <input id="lead-photo-input" ref={leadPhotoInput} type="file" accept="image/png,image/jpeg,image/webp"
+                className="block w-full min-h-12 text-sm" disabled={savingLeadPhoto || packetResult.priorityMockupLoading}
+                onChange={event => { setLeadPhoto(event.target.files?.[0] || null); setLeadPhotoError(null); }} />
+              {leadPhotoError && <p role="alert" className="text-sm text-destructive">{leadPhotoError} The photo is kept here so you can retry.</p>}
+              <Button className="min-h-12" onClick={handleLeadPhoto} disabled={!leadPhoto || savingLeadPhoto || packetResult.priorityMockupLoading}>
+                {savingLeadPhoto ? 'Saving lead photo…' : leadPhotoError ? 'Retry photo save' : 'Save lead photo'}
               </Button>
             </div>
           </div>

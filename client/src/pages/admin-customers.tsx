@@ -99,7 +99,7 @@ function CustomerDetailModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { data, isLoading } = useQuery<CustomerDetail>({
+  const { data, isLoading, error } = useQuery<CustomerDetail>({
     queryKey: ["/api/admin/customers", customerId],
     enabled: !!customerId && open,
   });
@@ -116,7 +116,7 @@ function CustomerDetailModal({
           <DialogTitle>Customer Details</DialogTitle>
         </DialogHeader>
 
-        {isLoading ? (
+        {error ? <p role="alert" className="text-destructive">Customers could not load: {error.message}</p> : isLoading ? (
           <div className="space-y-4 p-4">
             <div className="flex items-center gap-3">
               <Skeleton className="h-16 w-16 rounded-full" />
@@ -242,7 +242,7 @@ export default function AdminCustomers() {
   const [search, setSearch] = useState("");
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
-  const { data: customers, isLoading } = useQuery<CustomerWithStats[]>({
+  const { data: customers, isLoading, error } = useQuery<CustomerWithStats[]>({
     queryKey: ["/api/admin/customers"],
   });
 
@@ -279,7 +279,7 @@ export default function AdminCustomers() {
           </div>
         </div>
 
-        {isLoading ? (
+        {error ? <p role="alert" className="text-destructive">Customers could not load: {error.message}</p> : isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <Card key={i}>

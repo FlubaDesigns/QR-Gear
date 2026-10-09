@@ -1,9 +1,11 @@
+import type { PricingSettings } from '@shared/schema-orders';
+import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
 import { useState } from "react";
 import { Check, QrCode, Image, DollarSign, ArrowRight, Link2, Shirt, ListChecks, Trash2, Store, Loader2, AlertTriangle, ExternalLink, Package2, RefreshCw, Palette } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ImageModalView } from "@/features/shared/components/views/ModalView";
+import { ImageModalView } from "@/features/shared/components/shapes/ModalView";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import PhoneMockupCard from "@/components/PhoneMockupCard";
@@ -29,13 +31,7 @@ interface PacketResult {
   enabledColors?: string[];
 }
 
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  hostingTiers: { code: string; name: string; price: number }[];
-}
+
 
 interface PacketResultDisplayProps {
   packetResult: PacketResult;
@@ -45,7 +41,6 @@ interface PacketResultDisplayProps {
   isPlayMode: boolean;
   isBasicsOrPlusMode: boolean;
   pricingSettings: PricingSettings | undefined;
-  isDeleting: boolean;
   thumbnailLightbox: string | null;
   onThumbnailLightbox: (url: string | null) => void;
   onNext: () => void;
@@ -301,7 +296,6 @@ export function PacketResultDisplay({
   isPlayMode,
   isBasicsOrPlusMode,
   pricingSettings,
-  isDeleting,
   thumbnailLightbox,
   onThumbnailLightbox,
   onNext,
@@ -310,6 +304,7 @@ export function PacketResultDisplay({
   artifactError,
   onPrintifyPublished,
 }: PacketResultDisplayProps) {
+  const [deleteOpen, setDeleteOpen] = useState(false);
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 text-green-600 dark:text-green-400">
@@ -666,12 +661,18 @@ export function PacketResultDisplay({
             </div>
             
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Text Lines</span>
+              <span>Header / Footer Zones</span>
               <span>
                 {packetResult.pricing.textUpcharge > 0 ? `+$${packetResult.pricing.textUpcharge.toFixed(2)}` : '$0.00'}
               </span>
             </div>
             
+            {(['centerGraphicUpcharge', 'hostingCost', 'brandLabelCost', 'shippingCost'] as const).map((key, index) => (
+              <div key={key} className="flex justify-between text-sm text-muted-foreground">
+                <span>{['Center Graphic', 'Hosting', 'Brand Label', 'Built-In Shipping'][index]}</span>
+                <span>{typeof packetResult.pricing[key] === 'number' ? `$${packetResult.pricing[key]!.toFixed(2)}` : 'Not recorded — reprice'}</span>
+              </div>
+            ))}
             <div className="flex justify-between text-sm border-t pt-2">
               <span>Subtotal</span>
               <span className="font-medium">${packetResult.pricing.subtotal.toFixed(2)}</span>
@@ -722,17 +723,12 @@ export function PacketResultDisplay({
         </button>
         <button
           type="button"
-          onClick={onDelete}
-          disabled={isDeleting}
-          className={`qr-btn qr-btn--ghost qr-btn--touch qr-btn--xl qr-btn--full ${isDeleting ? 'opacity-50' : ''}`}
+          onClick={() => setDeleteOpen(true)}
+          className="qr-btn qr-btn--ghost qr-btn--touch qr-btn--xl qr-btn--full"
           style={{ color: '#ef4444' }}
           data-testid="button-delete-packet"
         >
-          {isDeleting ? (
-            <Loader2 className="h-6 w-6 animate-spin" />
-          ) : (
-            <Trash2 className="h-6 w-6" />
-          )}
+          <Trash2 className="h-6 w-6" />
           Delete This Packet
         </button>
       </div>
@@ -745,6 +741,7 @@ export function PacketResultDisplay({
           />
         </div>
       )}
+      <DeleteBuildDialog target={deleteOpen ? { kind: 'packets', id: packetResult.packetId } : null} onClose={() => setDeleteOpen(false)} onDeleted={onDelete} />
     </div>
   );
 }

@@ -1,5 +1,8 @@
-import { useState, useEffect } from "react";
-import { useSearch } from "wouter";
+import AdminShell from "@/components/AdminShell";
+import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
+import { BUILD_SUBNAV } from "@/components/admin/adminNavConfig";
+import { PendingAssetDeletions } from '@/features/shared/components/DeleteBuildDialog';
+import { useSearch, useLocation } from "wouter";
 import { QrCode, Layers, ImageIcon, LayoutTemplate, Link2, Upload, Crop, Image } from "lucide-react";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 
@@ -28,26 +31,19 @@ const TABS = [
 export default function LibraryPage() {
   const searchString = useSearch();
   const params = new URLSearchParams(searchString);
-  const initialTab = (params.get("tab") as TabType) || "source";
-  const [tab, setTab] = useState<TabType>(initialTab);
-
-  useEffect(() => {
-    const newTab = params.get("tab") as TabType;
-    if (newTab && TABS.some(t => t.id === newTab) && newTab !== tab) {
-      setTab(newTab);
-    }
-  }, [searchString]);
+  const [location, navigate] = useLocation();
+  const tab = TABS.find(item => item.id === params.get("tab"))?.id ?? "source";
+  function selectTab(id: TabType) {
+    const next = new URLSearchParams(searchString);
+    next.set("tab", id);
+    navigate(`${location}?${next.toString()}`, { replace: true });
+  }
 
   return (
     <AdminAuthProvider apiBase="/api/admin">
-      <div className="page-wrap">
-        <div className="container mobile-compact mobile-compact-stack">
+      <AdminShell title="Asset Library" icon={Layers} sectionNav={<AdminSectionSubNav items={BUILD_SUBNAV} />}>
+        <div className="min-w-0 mobile-compact-stack">
           <div className="glass-card">
-            <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
-              <Layers className="h-5 w-5 text-blue-400" />
-              Asset Library
-            </h1>
-
             {/* Horizontal scrolling tab bar — compact, mobile-friendly */}
             <div
               className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1"
@@ -59,7 +55,7 @@ export default function LibraryPage() {
                 return (
                   <button
                     key={t.id}
-                    onClick={() => setTab(t.id)}
+                    onClick={() => selectTab(t.id)}
                     data-testid={`tab-${t.id}`}
                     style={{ flexShrink: 0 }}
                     className={`inline-flex items-center gap-2 px-4 rounded-md font-semibold text-sm transition-all
@@ -79,6 +75,7 @@ export default function LibraryPage() {
           </div>
 
           <div className="glass-card">
+            <PendingAssetDeletions />
             {tab === "source"      && <SourceImagesTab />}
             {tab === "backgrounds" && <BackgroundsTab />}
             {tab === "cropped"     && <CroppedImagesTab />}
@@ -89,7 +86,7 @@ export default function LibraryPage() {
             {tab === "asm"         && <AssembliesTab />}
           </div>
         </div>
-      </div>
+      </AdminShell>
     </AdminAuthProvider>
   );
 }

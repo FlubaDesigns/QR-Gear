@@ -14,7 +14,7 @@ GRF-[D1][D2][D3][D4][D5]-[NNNNNN]
 
 Three-character brand prefix (`GRF`), five single-digit descriptor positions, and a 6-digit zero-padded global sequence number.
 
-**Example:** `GRF-21241-000001`
+**Example:** `GRF-21212-000001`
 → Output artifact · Image · Store · Glamor Shot · JPEG · Sequence 1
 
 ---
@@ -151,8 +151,8 @@ Filenames are derived from D3+D4 purpose:
 
 | D3 | D4 | Name | Filename |
 |---|---|---|---|
-| print | `1` | qr_composite | `composite.png` |
-| print | `2` | qr_standalone | `qr-standalone.png` |
+| print | `1` | qr_composite | `composite.{ext}` |
+| print | `2` | qr_standalone | `qr-standalone.{ext}` |
 | store | `1` | glamor_shot | `glamor.{ext}` |
 | store | `2` | front | `front.{ext}` |
 | store | `3` | back | `back.{ext}` |
@@ -165,7 +165,9 @@ Filenames are derived from D3+D4 purpose:
 
 **Note:** `original` (assets D4=`1`) preserves the uploaded filename as-is. All other purposes use the canonical filename above.
 
-**Example:** `grf/GRF-21211-000001/glamor.jpg`
+**Example:** `grf/GRF-21212-000001/glamor.jpg`
+
+The extension follows D5 (`jpeg` uses `.jpg`). Builder print slots use PNG, as defined by `GRF_PACKET_SLOTS`.
 
 ---
 
@@ -209,13 +211,34 @@ Atomically incremented in a Firestore transaction for every new GRF ID. Never de
 
 ## Rules
 
-1. **Assembly mappings must use grfId — never raw URLs.**
+1. **Assembly file bindings must use grfId — never raw file URLs.** The external video/document `value` binding is defined separately in `ASSEMBLY.md`.
 2. **Never reuse or renumber a GRF ID.** Permanent once minted.
 3. **Format (D5) must be compatible with media type (D2).**
 4. **D4 is interpreted relative to D3** — the same digit means different things in different channels.
 5. **Input build assets (D1=`1`) are never exposed in store display or URL artifact chains.**
 6. **Hard fail on invalid ID** — stop, throw, do not save, do not continue.
 7. **Original uploads preserve their filename** — all other purposes use canonical filenames.
+
+---
+
+## Source uploads and crops
+
+Source uploads are shared inputs for print and website designs. They accept PNG, JPEG,
+WebP, and SVG up to 20 MB per image. Original bytes and filenames are retained. Unsupported
+formats are rejected rather than relabeled. Limits and MIME rules come from `shared/GRF_engine.ts`.
+
+Source uploads and crops use `createGrfRegistrar` in `functions/src/services/grf-store.ts`
+in both development and Cloud Functions. Identical uploads reuse their registered identity.
+Each distinct crop gets a fresh global sequence and immutable file, linked to its original
+through `sourceGrfId`; identical crop retries reuse the same derivative. Library crops use
+PNG to retain transparency. Background records reference the original file without copying it.
+
+Library removal uses the shared reviewed deletion flow. The preview identifies affected
+build records, derived assets, files, and assets retained because they are still in use.
+Confirmation removes the reviewed build records and unshared files; it does not leave
+a broken Assembly pointing to a deleted graphic. Files shared with surviving builds or
+website content are retained. Failed Storage cleanup remains tracked in `asset_deletions`
+and can be completed from the Library. Counters are never reset by deletion.
 
 ---
 
@@ -232,9 +255,21 @@ POST /api/admin/graphics/save-grf
 GET /api/admin/graphics?channel=2&purpose=1
 ```
 
-**Archive a GRF asset:**
+**Preview and confirm deletion of a GRF asset and its affected builds:**
 ```
-PATCH /api/admin/graphics/:grfId/archive
+GET /api/admin/graphics/:id/deletion-preview
+DELETE /api/admin/graphics/:id
+{ "token": "<token returned by the reviewed preview>" }
+```
+
+A changed dependency plan returns `409` and requires a new review. Both HTTP adapters
+use `functions/src/services/admin-grf-routes.ts` and `build-deletion.ts`; there is no
+separate Archive endpoint.
+
+**Finish tracked file cleanup:**
+```
+GET /api/admin/graphics/deletions/pending
+POST /api/admin/graphics/deletions/:operationId/retry
 ```
 
 ---
@@ -247,7 +282,10 @@ Assembly → { qrgId, bldId, mappings: [{ grfId, ... }] }
 GRF asset → { publicUrl, storagePath, ... }
 ```
 
-The store reads images by walking: `packet → assembly → grfIds → publicUrls`. Raw URLs are never stored on packets or assemblies.
+Assembly file bindings resolve through `grfId → grf_assets.publicUrl`. Assembly does not
+store duplicate file URLs. External video/document links use the explicit `value` binding
+described in `ASSEMBLY.md`. Packet owns the published offer and mockup display data;
+those display fields do not replace Assembly's asset identities.
 
 ---
 

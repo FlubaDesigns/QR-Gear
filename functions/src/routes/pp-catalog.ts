@@ -17,6 +17,19 @@ import { printfulClient } from '../services/printful';
 
 import { registerPpCatalogBrowseRoutes } from './pp-catalog-browse';
 
+/** Normalize both current summaries and historical Printify errorMessage summaries. */
+function serializeSync(id: string, data: any): any {
+  let summary = data.summary ?? (data.status === 'completed' ? data.errorMessage : null);
+  if (typeof summary === 'string') {
+    try { summary = JSON.parse(summary); }
+    catch { console.warn('[Catalog Sync] Invalid saved summary for', id); summary = null; }
+  }
+  const iso = (value: any) => value?.toDate?.()?.toISOString() ?? (typeof value === 'string' ? value : null);
+  return { ...data, id, syncId: id, summary: summary ?? null,
+    errorMessage: data.status === 'failed' ? data.errorMessage : null,
+    startedAt: iso(data.startedAt), completedAt: iso(data.completedAt) };
+}
+
   export function register(app: express.Express): void {
   registerPpCatalogBrowseRoutes(app);
 // ============ PRODUCTS PAGE: STORE-PRODUCT-LINKS CRUD ============
@@ -151,23 +164,19 @@ app.get('/admin/catalog/sync-status', requireAdmin, async (req: Request, res: Re
     if (syncId) {
       const syncDoc = await db.collection("catalogSyncs").doc(syncId).get();
       if (!syncDoc.exists) { res.status(404).json({ error: "Sync not found" }); return; }
-      const syncData = syncDoc.data();
-      let summary = null;
-      if (syncData?.status === 'completed' && syncData?.errorMessage) {
-        try { summary = JSON.parse(syncData.errorMessage); } catch {}
-      }
-      res.json({ id: syncDoc.id, ...syncData, summary });
+      res.json(serializeSync(syncDoc.id, syncDoc.data()));
       return;
     }
-    const latestSnapshot = await db.collection("catalogSyncs").orderBy("startedAt", "desc").limit(1).get();
-    if (latestSnapshot.empty) { res.json({ status: 'none', message: 'No sync has been run yet' }); return; }
-    const latest = { id: latestSnapshot.docs[0].id, ...latestSnapshot.docs[0].data() };
-    let summary = null;
-    if ((latest as any).status === 'completed' && (latest as any).errorMessage) {
-      try { summary = JSON.parse((latest as any).errorMessage); } catch {}
+    const provider = req.query.provider as string | undefined;
+    if (provider && provider !== 'printify' && provider !== 'printful') {
+      res.status(400).json({ error: 'provider must be printify or printful' }); return;
     }
-    const bpSnapshot = await db.collection("printify_blueprints").limit(1).get();
-    res.json({ ...latest, summary, totalBlueprints: bpSnapshot.size, isConfigured: printifyClient.isConfigured });
+    let query: FirebaseFirestore.Query = db.collection("catalogSyncs");
+    if (provider) query = query.where('syncType', '==', provider === 'printify' ? 'smart' : 'printful');
+    const latestSnapshot = await query.orderBy("startedAt", "desc").limit(1).get();
+    if (latestSnapshot.empty) { res.json({ status: 'none', message: 'No sync has been run yet' }); return; }
+    const doc = latestSnapshot.docs[0];
+    res.json(serializeSync(doc.id, doc.data()));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -201,7 +210,7 @@ app.post('/admin/catalog/sync', requireAdmin, async (req: Request, res: Response
         for (const doc of existingBpSnapshot.docs) { existingBpMap.set(doc.data().id || parseInt(doc.id), doc); }
         const blueprints = await printifyClient.getCatalogBlueprints();
         console.log(`[SmartSync CF] Found ${blueprints.length} blueprints`);
-        let bpAdded = 0, bpUpdated = 0, bpSkipped = 0;
+        let bpAdded = 0, bpUpdated = 0, bpSkipped = 0, bpFailed = 0;
         for (const bp of blueprints) {
           try {
             const existing = existingBpMap.get(bp.id);
@@ -230,13 +239,13 @@ app.post('/admin/catalog/sync', requireAdmin, async (req: Request, res: Response
               if (existingData) { bpUpdated++; } else { bpAdded++; }
             } else { bpSkipped++; }
             await new Promise(r => setTimeout(r, 50));
-          } catch (bpError: any) { console.error(`[SmartSync CF] Error syncing bp ${bp.id}:`, bpError.message); }
+          } catch (bpError: any) { bpFailed++; console.error(`[SmartSync CF] Error syncing bp ${bp.id}:`, bpError.message); }
         }
-        const summary = { blueprints: { added: bpAdded, updated: bpUpdated, skipped: bpSkipped, total: blueprints.length } };
+        const summary = { blueprints: { added: bpAdded, updated: bpUpdated, skipped: bpSkipped, failed: bpFailed, total: blueprints.length } };
         await syncRef.update({
-          status: 'completed', blueprintsCount: bpAdded + bpUpdated,
+          status: bpFailed ? 'failed' : 'completed', blueprintsCount: bpAdded + bpUpdated,
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          errorMessage: JSON.stringify(summary),
+          summary, errorMessage: bpFailed ? `${bpFailed} Printify lookups failed; QRG catalog was not rebuilt.` : null,
         });
         console.log(`[SmartSync CF] Done:`, JSON.stringify(summary));
       } catch (error: any) {
@@ -251,7 +260,21 @@ app.post('/admin/catalog/sync', requireAdmin, async (req: Request, res: Response
 
 app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!printfulClient.isConfigured) { res.status(503).json({ error: "Printful API key not configured" }); return; }
+    // Reading the supplier catalog is allowed in sandbox; ordering remains guarded.
+    const catalogProducts = await printfulClient.getCatalogProducts();
+    if (!Array.isArray(catalogProducts)) throw new Error('Printful returned an invalid catalog');
+    const latestSnapshot = await db.collection("catalogSyncs").orderBy("startedAt", "desc").limit(1).get();
+    if (!latestSnapshot.empty) {
+      const latest = latestSnapshot.docs[0].data();
+      if (latest.status === 'running') {
+        const startedAt = latest.startedAt?.toDate?.()?.getTime() || 0;
+        if (Date.now() - startedAt < 30 * 60 * 1000) {
+          res.status(409).json({ error: "Sync already in progress", syncId: latestSnapshot.docs[0].id });
+          return;
+        }
+        await latestSnapshot.docs[0].ref.update({ status: 'failed', errorMessage: 'Timed out - cleared as stale' });
+      }
+    }
     const syncRef = await db.collection("catalogSyncs").add({
       syncType: 'printful', status: 'running', productsCount: 0,
       startedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -260,18 +283,16 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
     (async () => {
       try {
         console.log('[Printful Sync CF] Starting full catalog sync...');
-        const headers = { 'Authorization': `Bearer ${await getPrintfulApiKeyAsync()}`, 'Content-Type': 'application/json' };
-        const catResp = await fetch('https://api.printful.com/products', { headers });
-        if (!catResp.ok) throw new Error(`Printful catalog API error: ${catResp.status}`);
-        const catData = await catResp.json();
-        const products = catData.result || [];
+        const products = catalogProducts;
         console.log(`[Printful Sync CF] Found ${products.length} products`);
 
-        const existingSnap = await db.collection('printfulCatalog').get();
+        const existingSnap = await db.collection('printful_products').get();
+        const legacySnap = await db.collection('printfulCatalog').get();
+        const legacyIds = new Set(legacySnap.docs.map(doc => doc.id));
         const existingMap = new Map<number, any>();
         existingSnap.forEach(doc => existingMap.set(parseInt(doc.id), doc.data()));
 
-        let added = 0, updated = 0, skipped = 0;
+        let added = 0, updated = 0, skipped = 0, failed = 0;
         for (const product of products) {
           try {
             const pid = product.id;
@@ -280,11 +301,12 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
 
             let minPrice: string | null = null;
             let maxPrice: string | null = null;
+            let variants: any[] = [];
             try {
-              const detailResp = await fetch(`https://api.printful.com/products/${pid}`, { headers });
-              if (detailResp.ok) {
-                const detailData = await detailResp.json();
-                const variants = detailData.result?.variants || [];
+              const detailData = await printfulClient.getProduct(pid);
+              {
+                if (!Array.isArray(detailData?.variants)) throw new Error(`Printful returned invalid variants for ${pid}`);
+                variants = detailData.variants;
                 if (variants.length > 0) {
                   const prices = variants.map((v: any) => parseFloat(v.price)).filter((p: number) => !isNaN(p) && p > 0);
                   if (prices.length > 0) {
@@ -295,7 +317,8 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
               }
               await new Promise(r => setTimeout(r, 200));
             } catch (priceErr: any) {
-              console.error(`[Printful Sync CF] Price fetch error for ${pid}:`, priceErr.message);
+              console.error(`[Printful Sync CF] Detail fetch error for ${pid}:`, priceErr.message);
+              throw priceErr;
             }
 
             const productData: any = {
@@ -303,24 +326,41 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
               model: product.model || null, image: product.image || null,
               variantCount: product.variant_count || 0,
               category, description: product.description || null,
+              availableSizes: Array.from(new Set(variants.map(v => v.size).filter(Boolean))),
+              availableColors: Array.from(new Map(variants.filter(v => v.color).map(v => [v.color, { name: v.color, hex: v.color_code || null }])).values()),
               isAvailable: true, lastSyncedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
             if (minPrice !== null) { productData.minPrice = minPrice; productData.maxPrice = maxPrice; }
 
-            const changed = !existing || existing.title !== product.title || existing.brand !== (product.brand || null) || existing.variantCount !== (product.variant_count || 0) || !existing.minPrice;
+            // Variant rows are lookup inputs to the existing QRG master builder.
+            for (let offset = 0; offset < variants.length; offset += 400) {
+              const batch = db.batch();
+              for (const variant of variants.slice(offset, offset + 400)) {
+                batch.set(db.collection('printful_variants').doc(String(variant.id)), {
+                  ...variant, productId: pid, colorCode: variant.color_code || null,
+                }, { merge: true });
+              }
+              await batch.commit();
+            }
+            const changed = !existing || !legacyIds.has(String(pid)) || Object.keys(productData)
+              .filter(key => key !== 'lastSyncedAt')
+              .some(key => JSON.stringify(existing[key]) !== JSON.stringify(productData[key]));
             if (changed) {
-              await db.collection('printfulCatalog').doc(String(pid)).set(productData, { merge: true });
+              const batch = db.batch();
+              batch.set(db.collection('printful_products').doc(String(pid)), productData, { merge: true });
+              batch.set(db.collection('printfulCatalog').doc(String(pid)), productData, { merge: true });
+              await batch.commit();
               if (existing) { updated++; } else { added++; }
             } else { skipped++; }
             await new Promise(r => setTimeout(r, 30));
-          } catch (pErr: any) { console.error(`[Printful Sync CF] Error syncing product ${product.id}:`, pErr.message); }
+          } catch (pErr: any) { failed++; console.error(`[Printful Sync CF] Error syncing product ${product.id}:`, pErr.message); }
         }
 
-        const summary = { products: { added, updated, skipped, total: products.length } };
+        const summary = { products: { added, updated, skipped, failed, total: products.length } };
         await syncRef.update({
-          status: 'completed', productsCount: added + updated,
+          status: failed ? 'failed' : 'completed', productsCount: added + updated,
           completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          summary: JSON.stringify(summary),
+          summary, errorMessage: failed ? `${failed} Printful lookups failed; QRG catalog was not rebuilt.` : null,
         });
         console.log(`[Printful Sync CF] Done:`, JSON.stringify(summary));
       } catch (syncError: any) {
@@ -329,7 +369,7 @@ app.post('/admin/catalog/sync-printful', requireAdmin, async (req: Request, res:
       }
     })();
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

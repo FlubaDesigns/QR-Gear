@@ -1,3 +1,5 @@
+import { catalogColorOptions } from "../services/catalog-color-options";
+import { resolveQrgPrintSpecs } from '../services/qrg-print-specs';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db, isEmbroideryPlacement, normalizePlacements } from '../core';
@@ -5,7 +7,7 @@ import { requireAdmin } from '../middleware';
 import { syncMasterCatalog, enrichMasterCatalog, syncPrintifyToStaging, syncPrintfulToStaging, QRG_BLANK_CATEGORIES, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
 import { printifyClient } from '../services/printify';
 import { printfulClient } from '../services/printful';
-import { SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
+import { buildColorSizeFromDoc } from '../../../shared/masterCatalog';
 
 export function register(app: express.Express): void {
 
@@ -668,49 +670,12 @@ export function register(app: express.Express): void {
         } catch (_) { /* handled below */ }
       }
 
-      // 5. Build availableSizes from qrgVariants (or fall back to availableSizes codes)
+      // 5. Use the shared QRG projection for canonical SSCC and older variant keys.
+      // No supplier-table reads and no invented color/size combinations.
       const qrgVariants: Record<string, any> = product.qrgVariants || {};
-      const sizeCodesInVariants = new Set<string>();
-      const colorCodesInVariants = new Set<string>();
-      const sizeProviderValues: Record<string, Set<string>> = {};
-      const colorProviderValues: Record<string, Set<string>> = {};
-
-      for (const [vc, variant] of Object.entries(qrgVariants)) {
-        const v = variant as any;
-        const sc = vc.slice(0, 3); // TSS
-        const cc = vc.slice(5, 7); // CC
-        sizeCodesInVariants.add(sc);
-        colorCodesInVariants.add(cc);
-        if (v.sizeLabel) {
-          if (!sizeProviderValues[sc]) sizeProviderValues[sc] = new Set();
-          sizeProviderValues[sc].add(v.sizeLabel);
-        }
-        if (v.colorLabel) {
-          if (!colorProviderValues[cc]) colorProviderValues[cc] = new Set();
-          colorProviderValues[cc].add(v.colorLabel);
-        }
-      }
-
-      const sizeCodes: string[] = sizeCodesInVariants.size > 0
-        ? Array.from(sizeCodesInVariants).sort()
-        : (Array.isArray(product.availableSizes) ? product.availableSizes : []);
-      const colorCodes: string[] = colorCodesInVariants.size > 0
-        ? Array.from(colorCodesInVariants).sort()
-        : (Array.isArray(product.availableColors) ? product.availableColors : []);
-
-      const availableSizes = sizeCodes.map((code: string) => ({
-        code,
-        label: SIZE_LABELS[code] ?? code,
-        providerValues: sizeProviderValues[code] ? Array.from(sizeProviderValues[code]) : [],
-      }));
-
-      // Build {name, hex}[] colors — priority: providerMappings real colors > QRG code stubs
-      const providerColorArr: any[] = isProviderObj
-        ? (pm[requestedProvider]?.colors || pm.printful?.colors || pm.printify?.colors || [])
-        : [];
-      const availableColors: Array<{ name: string; hex: string }> = providerColorArr.length > 0
-        ? providerColorArr.map((c: any) => ({ name: c.name || String(c), hex: c.hex || '#CCCCCC' }))
-        : colorCodes.map((code: string) => ({ name: String(code), hex: '#CCCCCC' }));
+      const { colorMap, sizeMap } = buildColorSizeFromDoc(product);
+      const availableSizes = sizeMap.map(size => ({ code: size.qrgSizeCode, label: size.sizeLabel }));
+      const availableColors = colorMap.map(color => ({ name: color.colorName, hex: color.hex }));
 
       // 6. Resolve print locations — filter by selected provider via print_placements crosswalk
       // Rule: showPlacement = print_placements[internalName].providers[requestedProvider] exists
@@ -997,6 +962,14 @@ export function register(app: express.Express): void {
         }];
       }
 
+      // Product-specific dimensions are imported by QRG, never by the AI or UI.
+      // A cached generic rectangle cannot certify print support for offered sizes.
+      if (requestedProvider === 'printful') {
+        printLocations = await resolveQrgPrintSpecs(product, doc.ref,
+          id => printfulClient.getPrintfiles(id), req.query.refreshPrintSpecs === 'true');
+        layoutSource = 'qrg_verified_printfiles';
+      }
+
       // 7. Build response — schema-first: QRG identity leads, provider IDs are metadata only
       res.json({
         docId,
@@ -1011,7 +984,7 @@ export function register(app: express.Express): void {
         model: product.model || null,
         category: product.qrgCategory || product.category || null,
         availableSizes,
-        availableColors,
+        availableColors: await catalogColorOptions(db, req.query.catalogId, docId, availableColors),
         providerMappings: isProviderObj ? pm : null,
         printLocations,
         provider: {

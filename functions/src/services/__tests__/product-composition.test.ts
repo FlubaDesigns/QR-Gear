@@ -1,3 +1,4 @@
+import { saveBuildInstance } from '../build-session-state';
 import { describe, it, expect } from 'vitest';
 import { buildWorkingSnapshot, requireBuilderSnapshot } from '../../../../shared/builderSnapshot';
 import { applyBuilderBld, extractBldInstances, sameBldStructure } from '../../../../shared/bldCodes';
@@ -5,10 +6,10 @@ import { validateAssemblyMappings } from '../../../../shared/assemblyCodes';
 import { createGrfRegistrar } from '../grf-store';
 import { resolveBuilderBld } from '../bld-store';
 import { createAutoAssembly, extractAssemblyMappings, validatePacketComposition, packetPrintifyArtwork } from '../assembly-store';
-import { readGeneratedBuild, deleteBuildPacket } from '../build-session-state';
+import { readGeneratedBuild } from '../build-session-state';
 
 function database(seed: Record<string, any>) {
-  const store = new Map(Object.entries(seed));
+  const store = new Map(Object.entries(seed)); let generatedId = 0;
   const patch = (path: string, data: any) => {
     const result = structuredClone(store.get(path) || {});
     for (const [field, value] of Object.entries(data)) {
@@ -21,7 +22,7 @@ function database(seed: Record<string, any>) {
   const ref = (path: string): any => ({ path, id: path.split('/').pop(),
     get: async () => ({ exists: store.has(path), data: () => structuredClone(store.get(path)), ref: ref(path) }),
     set: async (data: any) => store.set(path, data), update: async (data: any) => patch(path, data) });
-  const db: any = { collection: (collection: string) => ({ doc: (id: string) => ref(`${collection}/${id}`),
+  const db: any = { collection: (collection: string) => ({ doc: function(id?: string) { if (arguments.length && id === undefined) throw new Error('Firestore rejects doc(undefined)'); return ref(`${collection}/${id || `auto-${++generatedId}`}`); },
     where: (field: string, op: string, value: any) => {
       const query: any = { limit: () => query, get: async () => {
         const docs = Array.from(store.entries()).filter(([path, data]) => {
@@ -69,6 +70,31 @@ async function generated() {
   return { db, store, snapshot, packet, grfs, bld, asm, uploads, registrar };
 }
 describe('product builder composition', () => {
+  it('commits catalog ownership, packet links and the saved build together while preserving the existing identity', async () => {
+    const f = await generated();
+    f.store.set('admin_build_sessions/s', { sourceMasterId: 'master', generated: { packetId: 'p' }, working: f.snapshot });
+    f.store.set('admin_catalog_instances/item', { sourceSessionId: 's', sourceMasterId: 'master', createdAt: 'original', qrgBaseCode: 'QRG-11001-I-000001' });
+    const data = { currentPacketId: 'p', sourceMasterId: 'master', sourceSessionId: 's', bldId: f.bld.bldId, assemblyId: f.asm.assemblyId, qrgBlankId: '11001', createdAt: 'replacement', updatedAt: 'now' };
+    await saveBuildInstance(f.db, { id: 's', committedInstanceId: 'item' }, data);
+    expect(f.store.get('admin_catalog_instances/item')).toMatchObject({ createdAt: 'original', qrgBaseCode: 'QRG-11001-I-000001', currentPacketId: 'p' });
+    expect(f.packet()).toMatchObject({ ownerInstanceId: 'item', assemblyId: f.asm.assemblyId });
+    expect(f.store.get('admin_build_sessions/s')).toMatchObject({ committedInstanceId: 'item', status: 'committed', assemblyId: f.asm.assemblyId });
+    await expect(validatePacketComposition(f.db, 'p', f.packet())).resolves.toBeTruthy();
+  });
+  it('creates a new catalog identity using the Firestore auto-ID call and commits all links', async () => {
+    const f = await generated();
+    f.store.set('admin_build_sessions/s', { generated: { packetId: 'p' }, working: f.snapshot });
+    const ref = await saveBuildInstance(f.db, { id: 's' }, { currentPacketId: 'p', sourceMasterId: 'master', sourceSessionId: 's', bldId: f.bld.bldId, assemblyId: f.asm.assemblyId, qrgBlankId: '11001', createdAt: 'now', updatedAt: 'now' });
+    expect(ref.id).toMatch(/^auto-/); expect(f.store.get('admin_build_sessions/s').committedInstanceId).toBe(ref.id); expect(f.packet().ownerInstanceId).toBe(ref.id);
+  });
+  it('rejects a mismatched catalog connection without partial saves', async () => {
+    const f = await generated();
+    f.store.set('admin_build_sessions/s', { generated: { packetId: 'p' }, working: f.snapshot });
+    f.store.set('admin_catalog_instances/item', { sourceSessionId: 's' });
+    const before = JSON.stringify(Array.from(f.store));
+    await expect(saveBuildInstance(f.db, { id: 's', committedInstanceId: 'item' }, { currentPacketId: 'p', sourceMasterId: 'master', bldId: 'BLD-SZ0-999', assemblyId: f.asm.assemblyId, qrgBlankId: '11001' })).rejects.toThrow('identities disagree');
+    expect(JSON.stringify(Array.from(f.store))).toBe(before);
+  });
   it('generates real QR bytes, binds physical slots and resolves back/sleeve publication', async () => {
     const f = await generated();
     expect(f.uploads[0].subarray(1, 4).toString()).toBe('PNG');
@@ -117,14 +143,10 @@ describe('product builder composition', () => {
     f.store.delete(`assemblies/${f.asm.assemblyId}`);
     await expect(validatePacketComposition(f.db, 'p', f.packet())).rejects.toThrow('not linked');
   });
-  it('resumes the generated snapshot and deletes output while retaining reusable assets', async () => {
+  it('resumes the exact generated snapshot', async () => {
     const f = await generated();
     const saved = await readGeneratedBuild(f.db, { id: 's', sourceMasterId: 'master', generated: { packetId: 'p' } });
     expect(saved).toEqual(requireBuilderSnapshot(f.snapshot));
-    await deleteBuildPacket(f.db, 'p', 'now');
-    expect(f.store.has('productPackets/p')).toBe(false);
-    expect(f.store.has(`bld_definitions/${f.bld.bldId}`)).toBe(true);
-    expect(f.store.has(`grf_assets/${f.grfs.qrGrfId}`)).toBe(true);
-    expect(f.store.get(`assemblies/${f.asm.assemblyId}`).packetIds).toEqual([]);
+
   });
 });

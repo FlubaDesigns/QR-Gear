@@ -133,6 +133,8 @@ export interface ProviderLayout {
 }
 
 export interface CatalogProduct {
+  /** Catalog supplying this selection; its saved color choices constrain fulfillment lookups. */
+  catalogId?: string | null;
   id: number;
   /** Firestore document ID — always send this as sourceMasterId to build-session endpoints */
   docId?: string;
@@ -200,6 +202,8 @@ export type QRProductState =
   | "qr_play"      // Motion - Video that plays when QR is scanned
   | "qr_compose"   // Living Space - Rotating playlist of Canvas/Play items
   | null;
+
+export const DEFAULT_QR_PRODUCT_STATE: QRProductState = "qr_canvas";
 
 export const QR_PRODUCT_STATES = [
   { id: "qr_basics", label: "QR Basics", state: "Permanent", description: "A simple, scannable QR code. Text, URL, or contact info encoded permanently." },
@@ -278,7 +282,7 @@ export interface ContentData {
     order: number;
   }>;
   composeMode: 'auto-rotate' | 'scan-to-reveal' | '';
-  composeHostingTerm: '1-year' | '3-year' | '5-year' | '';
+  composeHostingTerm: string;
   composeStep: 'pick-items' | 'mode' | 'durations' | 'order' | 'hosting' | 'preview' | 'publish' | 'confirm' | '';
   composeMockup: string;
   composeInstanceId: string | null;
@@ -295,7 +299,12 @@ export interface PricingBreakdown {
   markupFixed: number;        // Fixed markup amount
   markupAmount: number;       // Calculated total markup in dollars
   customerPrice: number;
-  hostingTierCode: string;
+  hostingTierCode: string | null;
+  centerGraphicUpcharge?: number;
+  shippingCost?: number;
+  brandLabelCost?: number;
+  brandLabelPosition?: string | null;
+  fulfillmentProvider?: string;
 }
 
 // Re-export placement types and data from shared location (single source of truth)
@@ -336,6 +345,8 @@ export interface TemplateProductHint {
 export type TextLayerSource = 'provider' | 'catalog' | 'packet' | 'manual' | 'none' | null;
 
 export interface BuilderState {
+  draftName: string | null;
+  forceNewSession: boolean;
   sourceType: SourceType;
   loadedTemplate: LoadedTemplate | null;
   loadedGraphic: LoadedGraphic | null;
@@ -366,7 +377,6 @@ export interface BuilderState {
   placementSizes: _PlacementSizeConfig;
   placementMethods: PrintMethodSelection;
   activePacketId: string | null;
-  templateBaseline: string | null;
   templateProductHint: TemplateProductHint | null;
   activeSessionId: string | null;
   sessionStatus: 'working' | 'artifact_ready' | 'committed' | 'abandoned' | null;

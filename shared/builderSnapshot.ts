@@ -56,7 +56,9 @@ export function buildWorkingSnapshot(state: Record<string, any>, ctx: BuilderSna
       selectedPlacements: state.selectedPlacements,
       providerLayouts: Object.fromEntries((state.selectedProduct?.placements || [])
         .filter((p: any) => state.selectedPlacements?.includes(p.id) && p.dimensions)
-        .map((p: any) => [p.id, { dimensions: p.dimensions, providerPlacementId: p.providerPlacement || p.id, provider: p.provider }])),
+        .map((p: any) => [p.id, { dimensions: p.dimensions, printArea: p.printArea, safeArea: p.safeArea, dpi: p.dpi,
+          layoutSource: p.layoutSource, sourceTable: p.sourceTable,
+          providerPlacementId: p.providerPlacementId || p.providerPlacement || p.id, provider: p.provider }])),
       placementConfig: state.placementConfig,
       placementSizes: state.placementSizes,
       placementMethods: state.placementMethods,
@@ -143,6 +145,7 @@ export function productGraphicOptions(value: any, qrContent: string, placement?:
   return {
     qrContent, qrColor: 'black', transparent: true,
     placement: placement || snapshot.layoutConfig.selectedPlacements[0],
+    placementSize: snapshot.layoutConfig.placementSizes?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || 'medium',
     headerStyle: c.headerStyle?.enabled ? c.headerStyle : null,
     footerStyle: c.footerStyle?.enabled ? c.footerStyle : null,
     backgroundColor: snapshot.qrConfig.selectedColor?.hex,
@@ -152,6 +155,41 @@ export function productGraphicOptions(value: any, qrContent: string, placement?:
     areaImageOffsetX: c.areaImageOffsetX, areaImageOffsetY: c.areaImageOffsetY, areaImageScale: c.areaImageScale,
     subBottomEnabled: sb.enabled, subBottomText: sb.text, subBottomFontFamily: sb.fontFamily,
     subBottomFontSize: sb.fontSize, subBottomFontWeight: sb.fontWeight, subBottomColor: sb.color,
+    subBottomLetterSpacing: sb.letterSpacing,
     providerLayout: snapshot.layoutConfig.providerLayouts?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || snapshot.providerLayout,
+  };
+}
+
+/** Resolve the canonical blank for both builder and storefront mockup requests. */
+export function packetMockupSourceId(packet: Record<string, any>): string {
+  const sourceId = requireBuilderSnapshot(packet.builderSnapshot).metadata.selectedProductDocId;
+  if (typeof sourceId !== 'string' || !/^qrg_[1-6][1-9]\d{3}$/.test(sourceId)) throw new Error('Saved build has no canonical QRG blank');
+  return sourceId;
+}
+
+/** A color change changes the shirt variant, never the saved placement artwork. */
+export function buildPacketMockupRequest(packet: Record<string, any>, master: Record<string, any>, placement: string, colorName?: string) {
+  const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
+  if (!snapshot.layoutConfig.selectedPlacements.includes(placement)) throw new Error('Placement does not belong to this saved build');
+  const selectedColor = colorName || snapshot.qrConfig.selectedColor?.name;
+  if (!selectedColor) throw new Error('Saved build has no selected color');
+  const variants = Object.values(master.qrgVariants || {}) as any[];
+  const variant = variants.find(v => v.colorLabel === selectedColor && v.providerVariants?.printful?.variantId);
+  if (!variant) throw new Error(`QRG has no Printful variant for ${selectedColor}. Refresh it through QRG table logic.`);
+  const mapping = variant.providerVariants.printful;
+  const productId = Number(mapping.productId), variantId = Number(mapping.variantId);
+  if (!Number.isSafeInteger(productId) || productId <= 0 || !Number.isSafeInteger(variantId) || variantId <= 0) throw new Error('QRG Printful mapping is invalid');
+  const layout = snapshot.layoutConfig.providerLayouts?.[placement];
+  const width = layout?.dimensions?.widthPx, height = layout?.dimensions?.heightPx;
+  if (layout?.provider !== 'printful' || !layout.providerPlacementId || !Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
+    throw new Error('Saved build is missing its Printful print-area dimensions');
+  }
+  const artworkUrl = packet.placementGraphicUrls?.[placement];
+  if (!artworkUrl) throw new Error('The saved placement has no generated print artwork');
+  return {
+    blueprintId: productId, printProviderId: 0, colorName: selectedColor,
+    placement, artworkUrl, artworkVariant: 'black' as const, fulfillmentProvider: 'printful' as const,
+    hasCompositeGraphic: true, printfulVariantId: variantId,
+    printArea: { width, height, placement: layout.providerPlacementId },
   };
 }

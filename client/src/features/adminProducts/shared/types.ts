@@ -1,3 +1,4 @@
+import type { StoreRole } from "@shared/storeRoles";
 export interface Product {
   id: string;
   name: string;
@@ -21,7 +22,8 @@ export interface FulfillmentProvider {
   role: 'fulfillment' | 'mockup';
 }
 
-export type RoleType = 'internal' | 'marketplace' | 'partner' | 'external' | 'member';
+// Partner remains readable in older drafts; supported store roles come from STORE_ROLES.
+export type RoleType = StoreRole | 'partner';
 
 export interface Role {
   id: RoleType;
@@ -64,7 +66,7 @@ export interface LibraryAsset {
 
 export interface ProductsApi {
   getQueryKey: (type: string) => string[];
-  invalidateProducts: (type?: string) => void;
+  invalidateProducts: (type?: string) => Promise<void>;
   fetchProducts: (provider?: string) => Promise<Product[]>;
   syncCatalog: (provider?: string) => Promise<{ synced: number }>;
   fetchStores: (roleType: RoleType) => Promise<Store[]>;
@@ -78,8 +80,17 @@ export interface ProductsContextValue {
   requiresAuth: boolean;
   api: ProductsApi;
   providers: FulfillmentProvider[];
+  providersLoading: boolean;
+  providersError: string | null;
+  destinationError: string | null;
   selectedProviders: string[];
   setSelectedProviders: (providers: string[]) => void;
+  preferredProvider: string | null;
+  providerPreferenceLoading: boolean;
+  providerPreferenceError: string | null;
+  providerPreferenceSaving: boolean;
+  saveProviderPreference: (provider: string) => Promise<unknown>;
+  reloadProviderPreference: () => Promise<unknown>;
   selectedRole: RoleType | null;
   setSelectedRole: (role: RoleType | null) => void;
   selectedStore: Store | null;

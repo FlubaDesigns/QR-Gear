@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { PUBLIC_SHOP_PATH } from '@shared/navigation';
 import { Link, useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShoppingCart, Menu, X, Settings, User, Shield, LogIn, LogOut, Sun, Moon, Type } from "lucide-react";
@@ -78,7 +79,7 @@ export default function Navbar() {
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/build", label: "Create" },
-    { href: "/shop/internal/qrgear", label: "Shop" },
+    { href: PUBLIC_SHOP_PATH, label: "Shop" },
   ];
 
   return (

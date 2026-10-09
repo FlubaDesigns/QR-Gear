@@ -12,48 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import {
-  Plus, Trash2, ShoppingBag, Settings, RefreshCw, Loader2, ExternalLink,
-  CheckCircle, AlertCircle, Package, Layers, Link2, ListChecks, ScrollText,
-  Pencil, Play, Clock, XCircle, Info, AlertTriangle, Zap,
-} from "lucide-react";
+import { Plus, Trash2, Settings, Loader2, ExternalLink, CheckCircle, AlertCircle, Package, Pencil, Zap } from "lucide-react";
 import { SiEtsy, SiEbay, SiAmazon } from "react-icons/si";
 
 export type MarketplacePlatform = "etsy" | "ebay" | "amazon";
 
-const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string }> = {
-  etsy: { name: "Etsy", icon: SiEtsy, color: "text-orange-500" },
-  ebay: { name: "eBay", icon: SiEbay, color: "text-blue-500" },
-  amazon: { name: "Amazon", icon: SiAmazon, color: "text-yellow-500" },
+const PLATFORM_INFO: Record<MarketplacePlatform, { name: string; icon: typeof SiEtsy; color: string; signupUrl: string }> = {
+  etsy: { name: "Etsy", icon: SiEtsy, color: "text-orange-500", signupUrl: "https://www.etsy.com/sell" },
+  ebay: { name: "eBay", icon: SiEbay, color: "text-blue-500", signupUrl: "https://www.ebay.com/sellercenter/selling/start-selling-on-ebay" },
+  amazon: { name: "Amazon", icon: SiAmazon, color: "text-yellow-500", signupUrl: "https://sell.amazon.com/" },
 };
 
-export interface MarketplaceAccount {
-  id: string;
-  platform: MarketplacePlatform;
-  accountName: string;
-  shopId: string;
-  shopName: string;
-  feePercent: number;
-  isActive: boolean;
-  healthStatus?: string;
-  // Amazon SP-API OAuth fields
-  amazonConnected?: boolean;
-  amazonSellerId?: string;
-  amazonMarketplaceId?: string;
-  amazonMarketplaceIds?: string[];
-  amazonConnectedAt?: string;
-  // eBay OAuth fields
-  ebayConnected?: boolean;
-  ebayUserId?: string;
-  ebayUsername?: string;
-  ebayConnectedAt?: string;
-  // Etsy OAuth fields
-  etsyConnected?: boolean;
-  etsyUserId?: string;
-  etsyShopId?: string;
-  etsyShopName?: string;
-  etsyConnectedAt?: string;
-}
+export type MarketplaceAccount = import("@shared/surfaces").MarketplaceAccount;
 
 export function AccountsSection() {
   const { toast } = useToast();
@@ -66,7 +36,6 @@ export function AccountsSection() {
     accountName: "",
     shopId: "",
     shopName: "",
-    feePercent: "0",
   });
 
   // Detect redirect back from Amazon or eBay OAuth and show result toast
@@ -76,7 +45,7 @@ export function AccountsSection() {
     const amazonResult = params.get("amazon_connect");
     if (amazonResult) {
       if (amazonResult === "success") {
-        toast({ title: "Amazon account connected", description: "Your seller account is now linked and ready to push listings." });
+        toast({ title: "Amazon account connected", description: "Your seller account is now linked after seller verification." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
       } else if (amazonResult === "error") {
         const reason = params.get("reason") || "unknown error";
@@ -89,7 +58,7 @@ export function AccountsSection() {
     const ebayResult = params.get("ebay_connect");
     if (ebayResult) {
       if (ebayResult === "success") {
-        toast({ title: "eBay account connected", description: "Your eBay seller account is now linked and ready to push listings." });
+        toast({ title: "eBay account connected", description: "Your eBay seller account is now linked after seller verification." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
       } else if (ebayResult === "error") {
         const reason = params.get("reason") || "unknown error";
@@ -102,7 +71,7 @@ export function AccountsSection() {
     const etsyResult = params.get("etsy_connect");
     if (etsyResult) {
       if (etsyResult === "success") {
-        toast({ title: "Etsy account connected", description: "Your Etsy shop is now linked and ready to push listings." });
+        toast({ title: "Etsy account connected", description: "Your Etsy shop is now linked after seller verification." });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/accounts"] });
       } else if (etsyResult === "error") {
         const reason = params.get("reason") || "unknown error";
@@ -112,7 +81,7 @@ export function AccountsSection() {
     }
   }, []);
 
-  const { data: accounts = [], isLoading } = useQuery<MarketplaceAccount[]>({
+  const { data: accounts = [], isLoading, error: accountsError, refetch: reloadAccounts } = useQuery<MarketplaceAccount[]>({
     queryKey: ["/api/admin/surfaces/accounts"],
   });
 
@@ -120,7 +89,6 @@ export function AccountsSection() {
     mutationFn: async (data: typeof form) => {
       const res = await apiRequest("POST", "/api/admin/surfaces/accounts", {
         ...data,
-        feePercent: parseFloat(data.feePercent) || 0,
       });
       return res.json();
     },
@@ -169,7 +137,7 @@ export function AccountsSection() {
 
   const connectAmazonMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const res = await apiRequest("GET", `/api/marketplace/amazon/oauth/start?accountId=${accountId}`, undefined);
+      const res = await apiRequest("GET", `/api/marketplace/amazon/oauth/start?accountId=${encodeURIComponent(accountId)}&returnTo=${encodeURIComponent(window.location.origin + "/admin/marketplaces")}`, undefined);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
@@ -177,8 +145,8 @@ export function AccountsSection() {
     onSuccess: (data) => {
       setConnectingId(null);
       if (data.oauthUrl) {
-        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
-        toast({ title: "Amazon authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+        window.location.assign(data.oauthUrl);
+        toast({ title: "Amazon authorization opened", description: "Authorize QR Gear to link this seller account." });
       }
     },
     onError: (err: Error) => {
@@ -208,7 +176,7 @@ export function AccountsSection() {
 
   const connectEbayMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const res = await apiRequest("GET", `/api/marketplace/ebay/oauth/start?accountId=${accountId}`, undefined);
+      const res = await apiRequest("GET", `/api/marketplace/ebay/oauth/start?accountId=${encodeURIComponent(accountId)}&returnTo=${encodeURIComponent(window.location.origin + "/admin/marketplaces")}`, undefined);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
@@ -216,8 +184,8 @@ export function AccountsSection() {
     onSuccess: (data) => {
       setConnectingId(null);
       if (data.oauthUrl) {
-        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
-        toast({ title: "eBay authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+        window.location.assign(data.oauthUrl);
+        toast({ title: "eBay authorization opened", description: "Authorize QR Gear to link this seller account." });
       }
     },
     onError: (err: Error) => {
@@ -257,7 +225,7 @@ export function AccountsSection() {
 
   const connectEtsyMutation = useMutation({
     mutationFn: async (accountId: string) => {
-      const res = await apiRequest("GET", `/api/marketplace/etsy/oauth/start?accountId=${accountId}`, undefined);
+      const res = await apiRequest("GET", `/api/marketplace/etsy/oauth/start?accountId=${encodeURIComponent(accountId)}&returnTo=${encodeURIComponent(window.location.origin + "/admin/marketplaces")}`, undefined);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data as { oauthUrl: string; accountId: string; setupRequired?: boolean };
@@ -265,8 +233,8 @@ export function AccountsSection() {
     onSuccess: (data) => {
       setConnectingId(null);
       if (data.oauthUrl) {
-        window.open(data.oauthUrl, "_blank", "noopener,noreferrer");
-        toast({ title: "Etsy authorization opened", description: "Authorize QR Gear in the new tab, then return here." });
+        window.location.assign(data.oauthUrl);
+        toast({ title: "Etsy authorization opened", description: "Authorize QR Gear to link this seller account." });
       }
     },
     onError: (err: Error) => {
@@ -275,7 +243,7 @@ export function AccountsSection() {
       toast({
         title: isSetup ? "Etsy app credentials not set up yet" : "Could not start Etsy connection",
         description: isSetup
-          ? "Set ETSY_KEYSTRING and ETSY_REDIRECT_URI in the server environment, then try again."
+          ? "Set ETSY_KEYSTRING, ETSY_SHARED_SECRET and ETSY_REDIRECT_URI in the server environment, then try again."
           : err.message,
         variant: "destructive",
       });
@@ -299,7 +267,7 @@ export function AccountsSection() {
     connectEtsyMutation.mutate(accountId);
   };
 
-  const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "", feePercent: "0" });
+  const resetForm = () => setForm({ platform: "etsy", accountName: "", shopId: "", shopName: "" });
 
   const openEdit = (acct: MarketplaceAccount) => {
     setEditingId(acct.id);
@@ -308,13 +276,12 @@ export function AccountsSection() {
       accountName: acct.accountName,
       shopId: acct.shopId,
       shopName: acct.shopName,
-      feePercent: String(acct.feePercent || 0),
     });
   };
 
   const handleSave = () => {
     if (editingId) {
-      updateMutation.mutate({ id: editingId, data: { ...form, feePercent: parseFloat(form.feePercent) || 0 } });
+      updateMutation.mutate({ id: editingId, data: { ...form } });
     } else {
       if (!form.accountName.trim()) { toast({ title: "Account name required", variant: "destructive" }); return; }
       createMutation.mutate(form);
@@ -341,7 +308,7 @@ export function AccountsSection() {
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : accounts.length === 0 ? (
+      ) : accountsError ? (<div role="alert" className="space-y-2"><p>Could not load accounts: {accountsError.message}</p><Button onClick={() => reloadAccounts()}>Retry</Button></div>) : accounts.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
             <Settings className="h-16 w-16 text-muted-foreground/30" />
@@ -362,7 +329,7 @@ export function AccountsSection() {
             const PIcon = info?.icon;
             return (
               <Card key={acct.id} data-testid={`card-account-${acct.id}`}>
-                <CardContent className="flex items-center justify-between gap-4 py-4">
+                <CardContent className="flex flex-col items-stretch gap-4 py-4">
                   <div className="flex items-center gap-3 min-w-0">
                     {PIcon && <PIcon className={`h-6 w-6 flex-shrink-0 ${info.color}`} />}
                     <div className="min-w-0">
@@ -397,13 +364,12 @@ export function AccountsSection() {
                         {acct.platform === "etsy" && acct.etsyShopName && (
                           <span className="text-xs text-muted-foreground">{acct.etsyShopName}</span>
                         )}
-                        {acct.feePercent > 0 && (
-                          <span className="text-xs text-muted-foreground">{acct.feePercent}% fee</span>
-                        )}
+
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 [&>button]:min-h-12 [&>a]:min-h-12">
+                    <Button asChild variant="outline" data-testid={`link-marketplace-signup-${acct.id}`}><a href={info.signupUrl} target="_blank" rel="noopener noreferrer">Sign up for {info.name}<ExternalLink className="ml-2 h-4 w-4" /></a></Button>
                     {acct.platform === "amazon" && (
                       acct.amazonConnected ? (
                         <Button
@@ -515,16 +481,19 @@ export function AccountsSection() {
                 {(Object.entries(PLATFORM_INFO) as [MarketplacePlatform, typeof PLATFORM_INFO["etsy"]][]).map(([key, info]) => {
                   const Icon = info.icon;
                   return (
+                    <div key={key} className="min-w-0 space-y-2">
                     <Button
-                      key={key}
                       variant={form.platform === key ? "default" : "outline"}
-                      className="flex flex-col items-center gap-2 h-auto py-4"
+                      className="flex w-full flex-col items-center gap-2 h-auto py-4"
+                      disabled={editingId !== null}
                       onClick={() => setForm({ ...form, platform: key })}
                       data-testid={`button-platform-${key}`}
                     >
                       <Icon className={`h-6 w-6 ${form.platform !== key ? info.color : ""}`} />
                       <span className="text-sm">{info.name}</span>
                     </Button>
+                    <a className="flex min-h-12 items-center justify-center text-center text-sm underline" href={info.signupUrl} target="_blank" rel="noopener noreferrer" data-testid={`link-signup-${key}`}>Sign up for {info.name}</a>
+                    </div>
                   );
                 })}
               </div>
@@ -541,12 +510,9 @@ export function AccountsSection() {
               <Label htmlFor="shop-name">Shop Name</Label>
               <Input id="shop-name" placeholder="Your shop name on the marketplace" value={form.shopName} onChange={(e) => setForm({ ...form, shopName: e.target.value })} data-testid="input-shop-name" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="fee-pct">Marketplace Fee %</Label>
-              <Input id="fee-pct" type="number" min="0" max="100" step="0.1" value={form.feePercent} onChange={(e) => setForm({ ...form, feePercent: e.target.value })} data-testid="input-fee-percent" />
-            </div>
+            <p className="text-sm text-muted-foreground">Fees are retrieved for each item in Listings after connecting your seller account.</p>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 [&>button]:min-h-12">
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditingId(null); resetForm(); }} data-testid="button-cancel-account">Cancel</Button>
             <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-account">
               {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -678,10 +644,6 @@ type SurfaceForm = {
   ebay_subtitle: string;
   ebay_bestOfferEnabled: boolean;
   ebay_itemSpecifics: string;
-  ebay_shippingPolicyId: string;
-  ebay_returnsPolicyId: string;
-  ebay_paymentPolicyId: string;
-  ebay_handlingTime: string;
   ebay_packageWeightLbs: string;
   ebay_dimLength: string;
   ebay_dimWidth: string;
@@ -692,24 +654,6 @@ type SurfaceForm = {
   ebay_brand: string;
   ebay_priceOverride: string;
   ebay_quantity: string;
-};
-
-const DEFAULT_FORM: SurfaceForm = {
-  masterProductId: "", title: "", subtitle: "", description: "",
-  bulletPoints: "", tags: "", keywords: "",
-  retailPrice: "", compareAtPrice: "", sku: "",
-  storeId: "", channelId: "", collectionId: "",
-  supportsEmbedStore: false, supportsEmbedProduct: false, supportsEmbedBuilder: false,
-  enabledPlatforms: [],
-  brand: "", condition: "", material: "", department: "",
-  shippingProfileRef: "", returnsProfileRef: "",
-  ebay_categoryId: "", ebay_conditionId: "", ebay_listingFormat: "FIXED_PRICE",
-  ebay_subtitle: "", ebay_bestOfferEnabled: false, ebay_itemSpecifics: "",
-  ebay_shippingPolicyId: "", ebay_returnsPolicyId: "", ebay_paymentPolicyId: "",
-  ebay_handlingTime: "", ebay_packageWeightLbs: "",
-  ebay_dimLength: "", ebay_dimWidth: "", ebay_dimHeight: "",
-  ebay_upc: "", ebay_ean: "", ebay_mpn: "",
-  ebay_brand: "", ebay_priceOverride: "", ebay_quantity: "",
 };
 
 // Hydrate form from an existing SurfaceData for editing
@@ -746,10 +690,6 @@ function surfaceToForm(s: SurfaceData): SurfaceForm {
     ebay_subtitle: eb.subtitle || "",
     ebay_bestOfferEnabled: !!eb.bestOfferEnabled,
     ebay_itemSpecifics: serializeItemSpecifics(eb.itemSpecifics),
-    ebay_shippingPolicyId: eb.shippingPolicyId || "",
-    ebay_returnsPolicyId: eb.returnsPolicyId || "",
-    ebay_paymentPolicyId: eb.paymentPolicyId || "",
-    ebay_handlingTime: eb.handlingTime != null ? String(eb.handlingTime) : "",
     ebay_packageWeightLbs: eb.packageWeightLbs != null ? String(eb.packageWeightLbs) : "",
     ebay_dimLength: dims?.length != null ? String(dims.length) : "",
     ebay_dimWidth: dims?.width != null ? String(dims.width) : "",
@@ -773,10 +713,6 @@ function buildSurfacePayload(data: SurfaceForm) {
     subtitle: data.ebay_subtitle || undefined,
     itemSpecifics: parseItemSpecifics(data.ebay_itemSpecifics),
     bestOfferEnabled: data.ebay_bestOfferEnabled,
-    shippingPolicyId: data.ebay_shippingPolicyId || undefined,
-    returnsPolicyId: data.ebay_returnsPolicyId || undefined,
-    paymentPolicyId: data.ebay_paymentPolicyId || undefined,
-    handlingTime: data.ebay_handlingTime ? parseInt(data.ebay_handlingTime) : undefined,
     packageWeightLbs: data.ebay_packageWeightLbs ? parseFloat(data.ebay_packageWeightLbs) : undefined,
     packageDimensionsInches: (data.ebay_dimLength && data.ebay_dimWidth && data.ebay_dimHeight) ? {
       length: parseFloat(data.ebay_dimLength),
@@ -819,541 +755,6 @@ function buildSurfacePayload(data: SurfaceForm) {
   };
 }
 
-// ─── Push to Amazon dialog ────────────────────────────────────────────────────
-
-function PushToAmazonDialog({
-  open,
-  onClose,
-  surfaceId,
-  surfaceTitle,
-  surfaceSku,
-}: {
-  open: boolean;
-  onClose: () => void;
-  surfaceId: string;
-  surfaceTitle: string;
-  surfaceSku?: string;
-}) {
-  const { toast } = useToast();
-  const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
-
-  const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
-    queryKey: ["/api/admin/surfaces/accounts"],
-    enabled: open,
-  });
-
-  const amazonAccounts = allAccounts.filter(
-    (a) => a.platform === "amazon" && a.amazonConnected && a.isActive
-  );
-
-  useEffect(() => {
-    if (amazonAccounts.length === 1 && !selectedAccountId) {
-      setSelectedAccountId(amazonAccounts[0].id);
-    }
-  }, [amazonAccounts.length]);
-
-  const pushMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-amazon`, {
-        accountId: selectedAccountId,
-        ...(skuOverride ? { sku: skuOverride } : {}),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Push failed");
-      return data;
-    },
-    onSuccess: (data) => {
-      if (data.success) {
-        toast({ title: "Pushed to Amazon", description: `Listing submitted (SKU: ${data.sku}). Check Seller Central for status.` });
-      } else {
-        toast({
-          title: "Amazon returned issues",
-          description: data.issues?.map((i: any) => i.message).join("; ") || data.error || "Unknown issue",
-          variant: "destructive",
-        });
-      }
-      onClose();
-    },
-    onError: (err: Error) =>
-      toast({ title: "Push failed", description: err.message, variant: "destructive" }),
-  });
-
-  const handleClose = () => {
-    if (pushMutation.isPending) return;
-    setSelectedAccountId("");
-    setSkuOverride(surfaceSku || "");
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Push to Amazon</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-muted-foreground">
-            Submit <span className="font-medium">{surfaceTitle || "this surface"}</span> as a listing to Amazon via SP-API.
-          </p>
-
-          {amazonAccounts.length === 0 ? (
-            <div className="rounded-md border p-4 space-y-2">
-              <p className="text-sm font-medium text-destructive">No connected Amazon accounts</p>
-              <p className="text-xs text-muted-foreground">Go to the Accounts tab, add an Amazon account, and complete the SP-API OAuth flow first.</p>
-            </div>
-          ) : (
-            <>
-              {amazonAccounts.length > 1 && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Amazon Seller Account</Label>
-                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                    <SelectTrigger data-testid="select-push-account">
-                      <SelectValue placeholder="Select account…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {amazonAccounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id} data-testid={`option-push-account-${a.id}`}>
-                          {a.accountName}
-                          {a.amazonSellerId && <span className="text-muted-foreground ml-2 text-xs">{a.amazonSellerId}</span>}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {amazonAccounts.length === 1 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <SiAmazon className="h-4 w-4 text-yellow-500" />
-                  <span className="font-medium">{amazonAccounts[0].accountName}</span>
-                  {amazonAccounts[0].amazonSellerId && (
-                    <span className="text-muted-foreground text-xs">({amazonAccounts[0].amazonSellerId})</span>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <Label className="text-xs">SKU</Label>
-                <Input
-                  value={skuOverride}
-                  onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder="Leave blank to auto-assign from surface SKU"
-                  data-testid="input-push-sku"
-                />
-                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={pushMutation.isPending} data-testid="button-push-cancel">
-            Cancel
-          </Button>
-          <Button
-            onClick={() => pushMutation.mutate()}
-            disabled={!selectedAccountId || pushMutation.isPending || amazonAccounts.length === 0}
-            data-testid="button-push-confirm"
-          >
-            {pushMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pushing…</>
-            ) : (
-              <><SiAmazon className="h-4 w-4 mr-2" />Push to Amazon</>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Push to eBay dialog ──────────────────────────────────────────────────────
-
-function PushToEbayDialog({
-  open,
-  onClose,
-  surfaceId,
-  surfaceTitle,
-  surfaceSku,
-}: {
-  open: boolean;
-  onClose: () => void;
-  surfaceId: string;
-  surfaceTitle: string;
-  surfaceSku?: string;
-}) {
-  const { toast } = useToast();
-  const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
-
-  const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
-    queryKey: ["/api/admin/surfaces/accounts"],
-    enabled: open,
-  });
-
-  const ebayAccounts = allAccounts.filter(
-    (a) => a.platform === "ebay" && a.ebayConnected && a.isActive
-  );
-
-  useEffect(() => {
-    if (ebayAccounts.length === 1 && !selectedAccountId) {
-      setSelectedAccountId(ebayAccounts[0].id);
-    }
-  }, [ebayAccounts.length]);
-
-  const pushMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-ebay`, {
-        accountId: selectedAccountId,
-        ...(skuOverride ? { sku: skuOverride } : {}),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Push failed");
-      return data;
-    },
-    onSuccess: (data) => {
-      if (data.success) {
-        toast({
-          title: "Pushed to eBay",
-          description: `Listing published (SKU: ${data.sku}${data.listingId ? `, Listing ID: ${data.listingId}` : ""}).`,
-        });
-      } else {
-        toast({
-          title: "eBay push failed",
-          description: data.error || "Unknown error",
-          variant: "destructive",
-        });
-      }
-      onClose();
-    },
-    onError: (err: Error) =>
-      toast({ title: "Push failed", description: err.message, variant: "destructive" }),
-  });
-
-  const handleClose = () => {
-    if (pushMutation.isPending) return;
-    setSelectedAccountId("");
-    setSkuOverride(surfaceSku || "");
-    onClose();
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Push to eBay</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-muted-foreground">
-            Publish <span className="font-medium">{surfaceTitle || "this surface"}</span> as an active eBay listing via the Inventory API.
-          </p>
-
-          {ebayAccounts.length === 0 ? (
-            <div className="rounded-md border p-4 space-y-2">
-              <p className="text-sm font-medium text-destructive">No connected eBay accounts</p>
-              <p className="text-xs text-muted-foreground">Go to the Accounts tab, add an eBay account, and complete the OAuth flow first.</p>
-            </div>
-          ) : (
-            <>
-              {ebayAccounts.length > 1 && (
-                <div className="space-y-1">
-                  <Label className="text-xs">eBay Seller Account</Label>
-                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                    <SelectTrigger data-testid="select-ebay-push-account">
-                      <SelectValue placeholder="Select account…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ebayAccounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id} data-testid={`option-ebay-push-account-${a.id}`}>
-                          {a.accountName}
-                          {a.ebayUsername && <span className="text-muted-foreground ml-2 text-xs">{a.ebayUsername}</span>}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {ebayAccounts.length === 1 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <SiEbay className="h-4 w-4 text-blue-500" />
-                  <span className="font-medium">{ebayAccounts[0].accountName}</span>
-                  {ebayAccounts[0].ebayUsername && (
-                    <span className="text-muted-foreground text-xs">({ebayAccounts[0].ebayUsername})</span>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <Label className="text-xs">SKU</Label>
-                <Input
-                  value={skuOverride}
-                  onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder="Leave blank to auto-assign from surface SKU"
-                  data-testid="input-ebay-push-sku"
-                />
-                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={pushMutation.isPending} data-testid="button-ebay-push-cancel">
-            Cancel
-          </Button>
-          <Button
-            onClick={() => pushMutation.mutate()}
-            disabled={!selectedAccountId || pushMutation.isPending || ebayAccounts.length === 0}
-            data-testid="button-ebay-push-confirm"
-          >
-            {pushMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pushing…</>
-            ) : (
-              <><SiEbay className="h-4 w-4 mr-2" />Push to eBay</>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Push surface to Etsy ────────────────────────────────────────────────────
-
-function PushToEtsyDialog({
-  open,
-  onClose,
-  surfaceId,
-  surfaceTitle,
-  surfaceSku,
-}: {
-  open: boolean;
-  onClose: () => void;
-  surfaceId: string;
-  surfaceTitle: string;
-  surfaceSku?: string;
-}) {
-  const { toast } = useToast();
-  const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [skuOverride, setSkuOverride] = useState(surfaceSku || "");
-  const [taxonomyId, setTaxonomyId] = useState("");
-  const [shippingProfileId, setShippingProfileId] = useState("");
-  const [returnPolicyId, setReturnPolicyId] = useState("");
-  const [whoMade, setWhoMade] = useState<"i_did" | "someone_else" | "collective">("i_did");
-  const [whenMade, setWhenMade] = useState("made_to_order");
-
-  const { data: allAccounts = [] } = useQuery<MarketplaceAccount[]>({
-    queryKey: ["/api/admin/surfaces/accounts"],
-    enabled: open,
-  });
-
-  const etsyAccounts = allAccounts.filter(
-    (a) => a.platform === "etsy" && a.etsyConnected && a.isActive
-  );
-
-  useEffect(() => {
-    if (etsyAccounts.length === 1 && !selectedAccountId) {
-      setSelectedAccountId(etsyAccounts[0].id);
-    }
-  }, [etsyAccounts.length]);
-
-  const pushMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/push-to-etsy`, {
-        accountId: selectedAccountId,
-        taxonomyId: parseInt(taxonomyId, 10),
-        shippingProfileId: parseInt(shippingProfileId, 10),
-        ...(returnPolicyId ? { returnPolicyId: parseInt(returnPolicyId, 10) } : {}),
-        whoMade,
-        whenMade,
-        ...(skuOverride ? { sku: skuOverride } : {}),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Push failed");
-      return data;
-    },
-    onSuccess: (data) => {
-      if (data.success) {
-        const desc = [
-          `State: ${data.state || "unknown"}`,
-          data.listingId ? `Listing ID: ${data.listingId}` : null,
-          data.imagesUploaded != null ? `Images uploaded: ${data.imagesUploaded}` : null,
-          ...(data.warnings || []),
-        ].filter(Boolean).join(" • ");
-        toast({ title: "Pushed to Etsy", description: desc });
-      } else {
-        toast({ title: "Etsy push failed", description: data.error || "Unknown error", variant: "destructive" });
-      }
-      onClose();
-    },
-    onError: (err: Error) =>
-      toast({ title: "Push failed", description: err.message, variant: "destructive" }),
-  });
-
-  const handleClose = () => {
-    if (pushMutation.isPending) return;
-    setSelectedAccountId("");
-    setSkuOverride(surfaceSku || "");
-    setTaxonomyId("");
-    setShippingProfileId("");
-    setReturnPolicyId("");
-    setWhoMade("i_did");
-    setWhenMade("made_to_order");
-    onClose();
-  };
-
-  const canPush = !!selectedAccountId && !!taxonomyId && !!shippingProfileId && etsyAccounts.length > 0;
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Push to Etsy</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-muted-foreground">
-            Publish <span className="font-medium">{surfaceTitle || "this surface"}</span> as an Etsy listing via the Listings API.
-          </p>
-
-          {etsyAccounts.length === 0 ? (
-            <div className="rounded-md border p-4 space-y-2">
-              <p className="text-sm font-medium text-destructive">No connected Etsy accounts</p>
-              <p className="text-xs text-muted-foreground">Go to the Accounts tab, add an Etsy account, and complete the OAuth flow first.</p>
-            </div>
-          ) : (
-            <>
-              {etsyAccounts.length > 1 && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Etsy Shop Account</Label>
-                  <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-                    <SelectTrigger data-testid="select-etsy-push-account">
-                      <SelectValue placeholder="Select account…" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {etsyAccounts.map((a) => (
-                        <SelectItem key={a.id} value={a.id} data-testid={`option-etsy-push-account-${a.id}`}>
-                          {a.accountName}
-                          {a.etsyShopName && <span className="text-muted-foreground ml-2 text-xs">{a.etsyShopName}</span>}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              {etsyAccounts.length === 1 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <SiEtsy className="h-4 w-4 text-orange-500" />
-                  <span className="font-medium">{etsyAccounts[0].accountName}</span>
-                  {etsyAccounts[0].etsyShopName && (
-                    <span className="text-muted-foreground text-xs">({etsyAccounts[0].etsyShopName})</span>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-1">
-                <Label className="text-xs">Taxonomy ID * <span className="text-muted-foreground">(Etsy category)</span></Label>
-                <Input
-                  value={taxonomyId}
-                  onChange={(e) => setTaxonomyId(e.target.value)}
-                  placeholder="e.g. 2078"
-                  data-testid="input-etsy-push-taxonomy-id"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Find yours at{" "}
-                  <a href="https://www.etsy.com/developers/documentation/getting_started/taxonomy" target="_blank" rel="noopener noreferrer" className="underline">
-                    Etsy Taxonomy docs
-                  </a>
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Shipping Profile ID *</Label>
-                <Input
-                  value={shippingProfileId}
-                  onChange={(e) => setShippingProfileId(e.target.value)}
-                  placeholder="From your Etsy shop's shipping settings"
-                  data-testid="input-etsy-push-shipping-profile-id"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">Return Policy ID <span className="text-muted-foreground">(optional)</span></Label>
-                <Input
-                  value={returnPolicyId}
-                  onChange={(e) => setReturnPolicyId(e.target.value)}
-                  placeholder="From your Etsy shop's return policies"
-                  data-testid="input-etsy-push-return-policy-id"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Who Made</Label>
-                  <Select value={whoMade} onValueChange={(v) => setWhoMade(v as typeof whoMade)}>
-                    <SelectTrigger data-testid="select-etsy-push-who-made"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="i_did">I did</SelectItem>
-                      <SelectItem value="someone_else">Someone else</SelectItem>
-                      <SelectItem value="collective">Collective</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">When Made</Label>
-                  <Select value={whenMade} onValueChange={setWhenMade}>
-                    <SelectTrigger data-testid="select-etsy-push-when-made"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="made_to_order">Made to order</SelectItem>
-                      <SelectItem value="2020_2024">2020 – 2024</SelectItem>
-                      <SelectItem value="2010_2019">2010 – 2019</SelectItem>
-                      <SelectItem value="2004_2009">2004 – 2009</SelectItem>
-                      <SelectItem value="before_2004">Before 2004</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <Label className="text-xs">SKU</Label>
-                <Input
-                  value={skuOverride}
-                  onChange={(e) => setSkuOverride(e.target.value)}
-                  placeholder="Leave blank to auto-assign from surface SKU"
-                  data-testid="input-etsy-push-sku"
-                />
-                <p className="text-xs text-muted-foreground">Leave blank to use the surface SKU or an auto-generated one.</p>
-              </div>
-            </>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={pushMutation.isPending} data-testid="button-etsy-push-cancel">
-            Cancel
-          </Button>
-          <Button
-            onClick={() => pushMutation.mutate()}
-            disabled={!canPush || pushMutation.isPending}
-            data-testid="button-etsy-push-confirm"
-          >
-            {pushMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Pushing…</>
-            ) : (
-              <><SiEtsy className="h-4 w-4 mr-2" />Push to Etsy</>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─── Admin instance shape used by the generate dialog ────────────────────────
 
 interface AdminInstancePreview {
@@ -1365,7 +766,7 @@ interface AdminInstancePreview {
 
 // ─── Generate Surface from Built Product dialog ───────────────────────────────
 
-function GenerateFromProductDialog({
+export function GenerateFromProductDialog({
   open,
   onClose,
   onGenerated,
@@ -1382,9 +783,13 @@ function GenerateFromProductDialog({
     data: instances = [],
     isLoading: instancesLoading,
     error: instancesError,
-  } = useQuery<AdminInstancePreview[]>({
+  } = useQuery<{ instances: AdminInstancePreview[] }, Error, AdminInstancePreview[]>({
     queryKey: ["/api/admin/catalog-instances"],
     enabled: open,
+    select: (response) => {
+      if (!Array.isArray(response.instances)) throw new Error("Invalid product response.");
+      return response.instances;
+    },
   });
 
   const generateMutation = useMutation({
@@ -1394,7 +799,7 @@ function GenerateFromProductDialog({
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
-      toast({ title: "Surface generated", description: "Draft surface created — open it to review and fill in any remaining fields." });
+      toast({ title: "Product added", description: "Review item setup, then choose its marketplace account." });
       onGenerated(data.surfaceId);
       onClose();
     },
@@ -1419,14 +824,14 @@ function GenerateFromProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg [&>button]:left-4 [&>button]:right-auto [&>button]:h-12 [&>button]:w-12">
         <DialogHeader>
-          <DialogTitle>Generate Surface from Built Product</DialogTitle>
+          <DialogTitle className="pl-12">Add Product to Listings</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           <p className="text-sm text-muted-foreground">
-            Pick a committed built product and a target marketplace. A draft Surface will be created with title, description, images, pricing, colors, and sizes pre-filled from the product pipeline.
+            Choose a built product and marketplace. Review its setup next, then choose your seller account.
           </p>
 
           {instancesError ? (
@@ -1492,11 +897,11 @@ function GenerateFromProductDialog({
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Fields requiring external lookup (eBay category ID, policy IDs) will be left blank for you to fill in the Surface editor before publishing.
+            Fields requiring external lookup (eBay category ID, policy IDs) will be left blank for you to fill in Item Setup before publishing.
           </p>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2 [&>button]:min-h-12">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -1518,7 +923,7 @@ function GenerateFromProductDialog({
             ) : (
               <>
                 <Zap className="h-4 w-4 mr-2" />
-                Generate Surface
+                Add Product
               </>
             )}
           </Button>
@@ -1530,303 +935,52 @@ function GenerateFromProductDialog({
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function SurfacesSection() {
+export function MarketplaceItemSetup({ surface, onClose, onSaved }: {
+  surface: SurfaceData;
+  onClose: () => void;
+  onSaved: (surfaceId: string) => void;
+}) {
   const { toast } = useToast();
-  const [showAdd, setShowAdd] = useState(false);
-  const [showGenerate, setShowGenerate] = useState(false);
-  const [pushTarget, setPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
-  const [ebayPushTarget, setEbayPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
-  const [etsyPushTarget, setEtsyPushTarget] = useState<{ id: string; title: string; sku?: string } | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState<SurfaceForm>(DEFAULT_FORM);
-
-  const setF = (patch: Partial<SurfaceForm>) => setForm((f) => ({ ...f, ...patch }));
-
-  const { data: surfaces = [], isLoading } = useQuery<SurfaceData[]>({
-    queryKey: ["/api/admin/surfaces"],
-  });
-
-  const createMutation = useMutation({
-    mutationFn: async (data: SurfaceForm) => {
-      const res = await apiRequest("POST", "/api/admin/surfaces", buildSurfacePayload(data));
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
-      setShowAdd(false);
-      setForm(DEFAULT_FORM);
-      toast({ title: "Surface created" });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
+  const [initialForm] = useState<SurfaceForm>(() => surfaceToForm(surface));
+  const [form, setForm] = useState<SurfaceForm>(initialForm);
+  const setF = (patch: Partial<SurfaceForm>) => setForm(f => ({ ...f, ...patch }));
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: SurfaceForm }) => {
-      const res = await apiRequest("PATCH", `/api/admin/surfaces/${id}`, buildSurfacePayload(data));
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/admin/surfaces/${surface.id}`, buildSurfacePayload(form));
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
-      setEditingId(null);
-      setForm(DEFAULT_FORM);
-      toast({ title: "Surface updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces/listings"] });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/surfaces/${surface.id}`] });
+      toast({ title: "Item setup saved" });
+      onSaved(surface.id);
     },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+    onError: (err: Error) => toast({ title: "Save failed", description: err.message, variant: "destructive" }),
   });
-
-  const checkReadinessMutation = useMutation({
-    mutationFn: async (surfaceId: string) => {
-      const res = await apiRequest("POST", `/api/admin/surfaces/${surfaceId}/check-readiness`, {});
-      return res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
-      if (data.ready) {
-        toast({ title: "Surface is ready for publishing" });
-      } else {
-        toast({ title: "Surface not ready", description: data.errors.slice(0, 3).join(" • "), variant: "destructive" });
-      }
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const res = await apiRequest("DELETE", `/api/admin/surfaces/${id}`, {});
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/surfaces"] });
-      toast({ title: "Surface deleted" });
-    },
-    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
-  });
-
-  const openEdit = (s: SurfaceData) => {
-    setForm(surfaceToForm(s));
-    setEditingId(s.id);
-  };
-
-  const handleGenerated = (surfaceId: string) => {
-    const generated = surfaces.find((s) => s.id === surfaceId);
-    if (generated) {
-      openEdit(generated);
-    }
-  };
-
+  const isSaving = updateMutation.isPending;
   const closeDialog = () => {
-    setShowAdd(false);
-    setEditingId(null);
-    setForm(DEFAULT_FORM);
+    if (isSaving) return;
+    if (JSON.stringify(form) !== JSON.stringify(initialForm) && !window.confirm("Discard unsaved item setup changes?")) return;
+    onClose();
   };
-
-  const isSaving = createMutation.isPending || updateMutation.isPending;
-  const isDialogOpen = showAdd || editingId !== null;
-
-  const togglePlatform = (p: MarketplacePlatform) => {
-    setF({
-      enabledPlatforms: form.enabledPlatforms.includes(p)
-        ? form.enabledPlatforms.filter((x) => x !== p)
-        : [...form.enabledPlatforms, p],
-    });
-  };
-
-  const handleSave = () => {
-    if (editingId) {
-      updateMutation.mutate({ id: editingId, data: form });
-    } else {
-      createMutation.mutate(form);
-    }
-  };
-
-  const statusBadge = (status: string) => {
-    switch (status) {
-      case "ready": return <Badge variant="default" className="text-xs"><CheckCircle className="h-3 w-3 mr-1" />Ready</Badge>;
-      case "published": return <Badge variant="default" className="text-xs"><ExternalLink className="h-3 w-3 mr-1" />Published</Badge>;
-      case "archived": return <Badge variant="secondary" className="text-xs">Archived</Badge>;
-      default: return <Badge variant="secondary" className="text-xs">Draft</Badge>;
-    }
-  };
-
+  const togglePlatform = (platform: MarketplacePlatform) => setF({ enabledPlatforms: form.enabledPlatforms.includes(platform)
+    ? form.enabledPlatforms.filter(p => p !== platform) : [...form.enabledPlatforms, platform] });
+  const handleSave = () => updateMutation.mutate();
   const ebayEnabled = form.enabledPlatforms.includes("ebay");
-
   return (
-    <div className="p-4 space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h2 className="text-lg font-semibold" data-testid="text-surfaces-title">Surfaces</h2>
-          <p className="text-sm text-muted-foreground">Marketplace-ready product configurations</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setShowGenerate(true)} data-testid="button-generate-surface">
-            <Zap className="h-4 w-4 mr-2" />
-            Generate from Product
-          </Button>
-          <Button onClick={() => setShowAdd(true)} data-testid="button-add-surface">
-            <Plus className="h-4 w-4 mr-2" />
-            Create Surface
-          </Button>
-        </div>
-      </div>
-
-      <GenerateFromProductDialog
-        open={showGenerate}
-        onClose={() => setShowGenerate(false)}
-        onGenerated={handleGenerated}
-      />
-
-      {pushTarget && (
-        <PushToAmazonDialog
-          open={!!pushTarget}
-          onClose={() => setPushTarget(null)}
-          surfaceId={pushTarget.id}
-          surfaceTitle={pushTarget.title}
-          surfaceSku={pushTarget.sku}
-        />
-      )}
-
-      {ebayPushTarget && (
-        <PushToEbayDialog
-          open={!!ebayPushTarget}
-          onClose={() => setEbayPushTarget(null)}
-          surfaceId={ebayPushTarget.id}
-          surfaceTitle={ebayPushTarget.title}
-          surfaceSku={ebayPushTarget.sku}
-        />
-      )}
-
-      {etsyPushTarget && (
-        <PushToEtsyDialog
-          open={!!etsyPushTarget}
-          onClose={() => setEtsyPushTarget(null)}
-          surfaceId={etsyPushTarget.id}
-          surfaceTitle={etsyPushTarget.title}
-          surfaceSku={etsyPushTarget.sku}
-        />
-      )}
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
-      ) : surfaces.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 gap-4">
-            <Layers className="h-16 w-16 text-muted-foreground/30" />
-            <div className="text-center">
-              <h3 className="text-lg font-semibold" data-testid="text-empty-surfaces">No Surfaces</h3>
-              <p className="text-sm text-muted-foreground mt-1">Create a surface to prepare a product for marketplace publishing.</p>
-            </div>
-            <Button onClick={() => setShowAdd(true)} data-testid="button-add-first-surface">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Surface
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {surfaces.map((surface) => (
-            <Card key={surface.id} data-testid={`card-surface-${surface.id}`}>
-              <CardContent className="py-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium truncate" data-testid={`text-surface-title-${surface.id}`}>
-                        {surface.title || "Untitled Surface"}
-                      </p>
-                      {statusBadge(surface.status)}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                      {surface.sku && <span className="text-xs text-muted-foreground font-mono">SKU: {surface.sku}</span>}
-                      {surface.retailPrice > 0 && <span className="text-xs text-muted-foreground">${surface.retailPrice.toFixed(2)}</span>}
-                      {surface.brand && <span className="text-xs text-muted-foreground">{surface.brand}</span>}
-                      {surface.enabledPlatforms?.map((p) => {
-                        const info = PLATFORM_INFO[p];
-                        const PIcon = info?.icon;
-                        return PIcon ? <PIcon key={p} className={`h-4 w-4 ${info.color}`} /> : null;
-                      })}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
-                      {surface.supportsEmbedStore && <Badge variant="secondary" className="text-xs">Embed Store</Badge>}
-                      {surface.supportsEmbedProduct && <Badge variant="secondary" className="text-xs">Embed Product</Badge>}
-                      {surface.supportsEmbedBuilder && <Badge variant="secondary" className="text-xs">Embed Builder</Badge>}
-                      {surface.ebay?.categoryId && <Badge variant="secondary" className="text-xs"><SiEbay className="h-3 w-3 mr-1" />Cat {surface.ebay.categoryId}</Badge>}
-                      {surface.storeId && <span className="text-xs text-muted-foreground">Store: {surface.storeId.slice(0, 8)}</span>}
-                    </div>
-                    {surface.readinessErrors?.length > 0 && (
-                      <div className="mt-2 space-y-0.5">
-                        {surface.readinessErrors.slice(0, 4).map((e, i) => (
-                          <p key={i} className="text-xs text-destructive flex items-center gap-1">
-                            <AlertCircle className="h-3 w-3 flex-shrink-0" />{e}
-                          </p>
-                        ))}
-                        {surface.readinessErrors.length > 4 && (
-                          <p className="text-xs text-muted-foreground">{surface.readinessErrors.length - 4} more error(s)…</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    {surface.enabledPlatforms?.includes("amazon") && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPushTarget({ id: surface.id, title: surface.title || "Untitled", sku: surface.sku })}
-                        data-testid={`button-push-amazon-${surface.id}`}
-                      >
-                        <SiAmazon className="h-3 w-3 mr-1 text-yellow-500" />
-                        Push
-                      </Button>
-                    )}
-                    {(surface.enabledPlatforms?.includes("ebay") || surface.supportsEbay) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEbayPushTarget({ id: surface.id, title: surface.title || "Untitled", sku: surface.sku })}
-                        data-testid={`button-push-ebay-${surface.id}`}
-                      >
-                        <SiEbay className="h-3 w-3 mr-1 text-blue-500" />
-                        Push
-                      </Button>
-                    )}
-                    {(surface.enabledPlatforms?.includes("etsy") || surface.supportsEtsy) && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setEtsyPushTarget({ id: surface.id, title: surface.title || "Untitled", sku: surface.sku })}
-                        data-testid={`button-push-etsy-${surface.id}`}
-                      >
-                        <SiEtsy className="h-3 w-3 mr-1 text-orange-500" />
-                        Push
-                      </Button>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => checkReadinessMutation.mutate(surface.id)} disabled={checkReadinessMutation.isPending} data-testid={`button-check-readiness-${surface.id}`}>
-                      {checkReadinessMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
-                      Check
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(surface)} data-testid={`button-edit-surface-${surface.id}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => { if (confirm(`Delete surface "${surface.title || surface.id}"?`)) deleteMutation.mutate(surface.id); }} data-testid={`button-delete-surface-${surface.id}`}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      <Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+      <Dialog open onOpenChange={(open) => { if (!open) closeDialog(); }}>
+        <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto [&>button]:left-4 [&>button]:right-auto [&>button]:h-12 [&>button]:w-12">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Surface" : "Create Surface"}</DialogTitle>
+            <DialogTitle className="pl-12">Item Setup</DialogTitle>
+            <p className="text-sm text-muted-foreground">Shared by this item’s marketplace listings. Save here, then Sync published listings to send changes.</p>
           </DialogHeader>
           <div className="space-y-4 py-4">
 
             {/* ─── Core fields ─── */}
             <div className="space-y-2">
-              <Label htmlFor="s-mpid">Master Product ID</Label>
-              <Input id="s-mpid" placeholder="Firestore product ID" value={form.masterProductId} onChange={(e) => setF({ masterProductId: e.target.value })} data-testid="input-surface-product-id" />
+              <Label htmlFor="s-mpid">Built Product</Label>
+              <Input id="s-mpid" readOnly value={form.masterProductId} data-testid="input-surface-product-id" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-title">Listing Title</Label>
@@ -1844,7 +998,7 @@ export function SurfacesSection() {
               <Label htmlFor="s-bullets">Bullet Points (one per line)</Label>
               <Textarea id="s-bullets" placeholder="Key feature 1&#10;Key feature 2" value={form.bulletPoints} onChange={(e) => setF({ bulletPoints: e.target.value })} data-testid="input-surface-bullets" rows={3} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="s-price">Retail Price</Label>
                 <Input id="s-price" type="number" min="0" step="0.01" value={form.retailPrice} onChange={(e) => setF({ retailPrice: e.target.value })} data-testid="input-surface-price" />
@@ -1856,7 +1010,7 @@ export function SurfacesSection() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-sku">SKU</Label>
-              <Input id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setF({ sku: e.target.value })} data-testid="input-surface-sku" />
+              <Input readOnly id="s-sku" placeholder="e.g. QG-TSHIRT-001" value={form.sku} onChange={(e) => setF({ sku: e.target.value })} data-testid="input-surface-sku" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="s-tags">Tags (comma-separated)</Label>
@@ -1871,7 +1025,7 @@ export function SurfacesSection() {
             <div className="border-t pt-4">
               <p className="text-sm font-semibold mb-3">Common Product Details</p>
               <p className="text-xs text-muted-foreground mb-3">Used across all enabled marketplaces and fed into eBay aspects.</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="s-brand" className="text-xs">Brand</Label>
                   <Input id="s-brand" placeholder="e.g. QR Gear" value={form.brand} onChange={(e) => setF({ brand: e.target.value })} data-testid="input-surface-brand" />
@@ -1922,7 +1076,7 @@ export function SurfacesSection() {
             {/* ─── Linked Resources ─── */}
             <div className="border-t pt-4">
               <p className="text-sm font-medium mb-3">Linked Resources</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="space-y-1">
                   <Label htmlFor="s-store" className="text-xs">Store ID</Label>
                   <Input id="s-store" placeholder="Optional" value={form.storeId} onChange={(e) => setF({ storeId: e.target.value })} data-testid="input-surface-store-id" />
@@ -1984,7 +1138,7 @@ export function SurfacesSection() {
                 <p className="text-xs text-muted-foreground -mt-2">These fields produce the eBay-specific listing payload. Fields marked with * are required for readiness.</p>
 
                 {/* Category / Condition / Format */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="eb-cat" className="text-xs">Category ID *</Label>
                     <Input id="eb-cat" placeholder="e.g. 15687" value={form.ebay_categoryId} onChange={(e) => setF({ ebay_categoryId: e.target.value })} data-testid="input-ebay-category-id" />
@@ -1998,23 +1152,24 @@ export function SurfacesSection() {
                         <SelectItem value="1000">1000 — New</SelectItem>
                         <SelectItem value="1500">1500 — New Other</SelectItem>
                         <SelectItem value="2000">2000 — Certified Refurbished</SelectItem>
-                        <SelectItem value="2500">2500 — Excellent Refurbished</SelectItem>
-                        <SelectItem value="3000">3000 — Very Good Refurbished</SelectItem>
-                        <SelectItem value="4000">4000 — Good Refurbished</SelectItem>
-                        <SelectItem value="7000">7000 — Used</SelectItem>
+                        <SelectItem value="2500">2500 — Seller Refurbished</SelectItem>
+                        <SelectItem value="3000">3000 — Used</SelectItem>
+                        <SelectItem value="4000">4000 — Very Good</SelectItem>
+                        <SelectItem value="5000">5000 — Good</SelectItem>
+                        <SelectItem value="6000">6000 — Acceptable</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="eb-format" className="text-xs">Listing Format *</Label>
                     <Select value={form.ebay_listingFormat} onValueChange={(v) => setF({ ebay_listingFormat: v as "FIXED_PRICE" | "AUCTION" })}>
                       <SelectTrigger id="eb-format" data-testid="select-ebay-listing-format"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="FIXED_PRICE">Fixed Price</SelectItem>
-                        <SelectItem value="AUCTION">Auction</SelectItem>
+
                       </SelectContent>
                     </Select>
                   </div>
@@ -2046,29 +1201,10 @@ export function SurfacesSection() {
                   Enable Best Offer
                 </label>
 
-                {/* Business Policies */}
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Business Policy IDs</p>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-ship" className="text-xs">Shipping Policy ID</Label>
-                    <Input id="eb-ship" placeholder="Policy ID" value={form.ebay_shippingPolicyId} onChange={(e) => setF({ ebay_shippingPolicyId: e.target.value })} data-testid="input-ebay-shipping-policy" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-ret" className="text-xs">Returns Policy ID</Label>
-                    <Input id="eb-ret" placeholder="Policy ID" value={form.ebay_returnsPolicyId} onChange={(e) => setF({ ebay_returnsPolicyId: e.target.value })} data-testid="input-ebay-returns-policy" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-pay" className="text-xs">Payment Policy ID</Label>
-                    <Input id="eb-pay" placeholder="Policy ID" value={form.ebay_paymentPolicyId} onChange={(e) => setF({ ebay_paymentPolicyId: e.target.value })} data-testid="input-ebay-payment-policy" />
-                  </div>
-                </div>
-
+                <p className="text-sm">Use eBay Setup on the listing to choose seller policies, location and category requirements.</p>
                 {/* Handling + Package */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="eb-handling" className="text-xs">Handling Time (days)</Label>
-                    <Input id="eb-handling" type="number" min="0" max="30" placeholder="e.g. 3" value={form.ebay_handlingTime} onChange={(e) => setF({ ebay_handlingTime: e.target.value })} data-testid="input-ebay-handling-time" />
-                  </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
                   <div className="space-y-1">
                     <Label htmlFor="eb-weight" className="text-xs">Package Weight (lbs)</Label>
                     <Input id="eb-weight" type="number" min="0" step="0.1" placeholder="e.g. 0.5" value={form.ebay_packageWeightLbs} onChange={(e) => setF({ ebay_packageWeightLbs: e.target.value })} data-testid="input-ebay-package-weight" />
@@ -2076,7 +1212,7 @@ export function SurfacesSection() {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Package Dimensions (inches: L × W × H)</Label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <Input type="number" min="0" step="0.1" placeholder="Length" value={form.ebay_dimLength} onChange={(e) => setF({ ebay_dimLength: e.target.value })} data-testid="input-ebay-dim-length" />
                     <Input type="number" min="0" step="0.1" placeholder="Width" value={form.ebay_dimWidth} onChange={(e) => setF({ ebay_dimWidth: e.target.value })} data-testid="input-ebay-dim-width" />
                     <Input type="number" min="0" step="0.1" placeholder="Height" value={form.ebay_dimHeight} onChange={(e) => setF({ ebay_dimHeight: e.target.value })} data-testid="input-ebay-dim-height" />
@@ -2085,7 +1221,7 @@ export function SurfacesSection() {
 
                 {/* Identifiers */}
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Product Identifiers</p>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="eb-upc" className="text-xs">UPC</Label>
                     <Input id="eb-upc" placeholder="Optional" value={form.ebay_upc} onChange={(e) => setF({ ebay_upc: e.target.value })} data-testid="input-ebay-upc" />
@@ -2106,48 +1242,33 @@ export function SurfacesSection() {
 
                 {/* eBay overrides */}
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">eBay Overrides</p>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="eb-price-ovr" className="text-xs">Price Override (USD)</Label>
                     <Input id="eb-price-ovr" type="number" min="0" step="0.01" placeholder="Leave blank to use Retail Price" value={form.ebay_priceOverride} onChange={(e) => setF({ ebay_priceOverride: e.target.value })} data-testid="input-ebay-price-override" />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="eb-qty" className="text-xs">Quantity Override</Label>
-                    <Input id="eb-qty" type="number" min="0" step="1" placeholder="Leave blank to use 999" value={form.ebay_quantity} onChange={(e) => setF({ ebay_quantity: e.target.value })} data-testid="input-ebay-quantity-override" />
+                    <Label htmlFor="eb-qty" className="text-xs">Quantity per variation</Label>
+                    <Input id="eb-qty" type="number" min="0" step="1" placeholder="Leave blank to use 100" value={form.ebay_quantity} onChange={(e) => setF({ ebay_quantity: e.target.value })} data-testid="input-ebay-quantity-override" />
                   </div>
                 </div>
               </div>
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog} data-testid="button-cancel-surface">Cancel</Button>
+          <DialogFooter className="gap-2 [&>button]:min-h-12">
+            <Button variant="outline" disabled={isSaving} onClick={closeDialog} data-testid="button-cancel-surface">Cancel</Button>
             <Button onClick={handleSave} disabled={isSaving} data-testid="button-save-surface">
               {isSaving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {editingId ? "Save Changes" : "Create Surface"}
+              Save Item Setup
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
   );
 }
 
+
 // ============ LISTINGS SECTION ============
 
-export interface ListingData {
-  id: string;
-  surfaceId: string;
-  accountId: string;
-  platform: MarketplacePlatform;
-  externalListingId?: string;
-  externalUrl?: string;
-  status: string;
-  title: string;
-  price: number;
-  lastSyncAt?: string;
-  errorMessage?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
+export type ListingData = import("@shared/surfaces").MarketplaceListing & { currency?: string };

@@ -8,6 +8,11 @@ import {
   GRF_CHANNELS,
   GRF_PURPOSES_BY_CHANNEL,
   GRF_FORMATS,
+  GRF_CROP_MIME_TYPE,
+  originalGrfParams,
+  croppedGrfParams,
+  backgroundGrfParams,
+  buildGrfId,
 } from "@shared/GRF_engine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -346,19 +351,21 @@ export default function AdminSchemaKeys() {
           <div className="space-y-2">
             <Label>Library asset strings — Source Images crop operation</Label>
             <p className="text-xs text-muted-foreground">
-              Every crop produces three GRF records. D5 on the background always matches the source — not the cropped output. Cropped output is always JPEG.
+              Each distinct crop gets its own GRF record. The source and background are reused. The background retains the source format; new crops use {GRF_CROP_MIME_TYPE}. Identical crop retries reuse the existing crop.
             </p>
             <KeyTable
               cols={["Asset", "GRF string", "D4", "D5", "Note"]}
-              rows={[
-                ["Source (PNG upload)",    "GRF-11411-NNNNNN", "1 = original",   "1 = PNG",  "Raw upload, filename preserved"],
-                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Crop always outputs JPEG"],
-                ["Background (PNG→PNG)",   "GRF-11431-NNNNNN", "3 = background", "1 = PNG",  "Inherits source format"],
-                ["—", "—", "—", "—", "—"],
-                ["Source (JPEG upload)",   "GRF-11412-NNNNNN", "1 = original",   "2 = JPEG", "Raw upload, filename preserved"],
-                ["Cropped (JPEG output)",  "GRF-11422-NNNNNN", "2 = cropped",    "2 = JPEG", "Same as PNG case"],
-                ["Background (JPEG→JPEG)", "GRF-11432-NNNNNN", "3 = background", "2 = JPEG", "Inherits source format"],
-              ]}
+              rows={['image/png', 'image/jpeg'].flatMap(sourceMime => [
+                { label: 'Source', params: originalGrfParams(sourceMime), note: 'Raw upload, filename preserved' },
+                { label: 'Cropped', params: croppedGrfParams(GRF_CROP_MIME_TYPE), note: 'Distinct saved crop; transparency preserved' },
+                { label: 'Background', params: backgroundGrfParams(sourceMime), note: 'References the original file; retains its format' },
+              ].map(({ label, params, note }) => [
+                `${label} (${GRF_FORMATS[params.mediaType][params.format].label})`,
+                buildGrfId({ ...params, sequence: 1 }),
+                `${params.purpose} = ${GRF_PURPOSES_BY_CHANNEL[params.channel][params.purpose].label}`,
+                `${params.format} = ${GRF_FORMATS[params.mediaType][params.format].label}`,
+                note,
+              ]))}
             />
           </div>
 
@@ -546,39 +553,39 @@ export default function AdminSchemaKeys() {
                     },
                     {
                       surface: "Library › Backgrounds",
-                      code: "1·1·1·1",
+                      code: "1·1·1·0",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
+                      view: "ScrollGridView",
                       skin: "BackgroundCardSkin",
-                      shape: "BackgroundShape",
-                      note: "",
+                      shape: "None",
+                      note: "Flat cards; shared crop editor and archive confirmation",
                     },
                     {
                       surface: "Library › Cropped Images",
-                      code: "1·1·1·1",
+                      code: "1·1·1·0",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
+                      view: "ScrollGridView",
                       skin: "CroppedCardSkin",
-                      shape: "CroppedShape",
-                      note: "",
+                      shape: "None",
+                      note: "Full-image previews; shared archive confirmation",
                     },
                     {
                       surface: "Library › Templates",
                       code: "1·1·1·1",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
+                      view: "ScrollGridView",
                       skin: "TemplateCardSkin",
-                      shape: "ModalView + TemplateDetailSkin",
-                      note: "",
+                      shape: "TemplateShape + TemplateDetailSkin",
+                      note: "Shared template display, deletion, and Products loading",
                     },
                     {
                       surface: "Library › Images",
-                      code: "1·1·?·1",
+                      code: "1·1·1·1",
                       viewer: "SinglePaneViewer",
-                      view: "VScrollView",
-                      skin: "— (inline, no named Skin)",
-                      shape: "ItemModalView",
-                      note: "⚠ Non-conformant — no CardSkin",
+                      view: "ScrollGridView",
+                      skin: "AdminImageCardSkin",
+                      shape: "AdminImageShape",
+                      note: "Shared image browser for website and product assets",
                     },
                   ].map((row) => (
                     <tr key={row.surface} className={row.note ? "bg-amber-500/5" : ""}>

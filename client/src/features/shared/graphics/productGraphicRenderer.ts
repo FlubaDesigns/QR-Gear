@@ -1,3 +1,5 @@
+import { loadGoogleFonts } from '@/lib/fontLoader';
+import { printArtworkFrame, type PrintSize } from '@shared/printSizing';
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { DEFAULT_FONT_SIZE_NUM } from "@/features/shared/components/TextStyleEditor";
 import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from "@/features/shared/graphics/graphicLayout";
@@ -54,6 +56,7 @@ export interface RenderOptions {
   backgroundColor?: string;
   transparent?: boolean;
   placement?: string;
+  placementSize?: PrintSize;
   qrPositionX?: number;
   qrPositionY?: number;
   qrSizePercent?: number;
@@ -70,6 +73,7 @@ export interface RenderOptions {
   subBottomFontSize?: string;
   subBottomFontFamily?: string;
   subBottomFontWeight?: string;
+  subBottomLetterSpacing?: number;
   graphicLayoutMode?: "zone" | "freeform";
   /** Canonical BLD zone layout from working.bld.layout.zones.
    *  When canvas is 1200×1800 (canonical front), middle.size is preferred
@@ -189,6 +193,7 @@ function drawTextInZone(
 ) {
   const fSize = scaledFontSize(style.fontSize, canvasW);
   ctx.font = `${style.fontWeight || 'bold'} ${fSize}px ${style.fontFamily}`;
+  (ctx as any).letterSpacing = `${(style.letterSpacing || 0) * (canvasW / 1200) * 2.5}px`;
   ctx.textBaseline = "top";
   ctx.textAlign = "center";
 
@@ -244,6 +249,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     subBottomFontSize = "14px",
     subBottomFontFamily = "sans-serif",
     subBottomFontWeight = "400",
+    subBottomLetterSpacing = 0,
     graphicLayoutMode = "zone",
     bldZones,
     providerLayout,
@@ -302,6 +308,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     headerActive,
     footerActive,
     subBottomActive,
+    subBottomLineHeight: scaledFontSize(subBottomFontSize, W) * 1.3,
     // Zone mode: positionLR/UD implicit center per BLD.md — pass 50 regardless of stored value
     // Palette mode: prefer stored BLD positionLR/UD when at canonical 1200×1800 dimensions
     qrPositionX: graphicLayoutMode === "zone" ? 50 : resolvedQrPositionX,
@@ -309,6 +316,12 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     qrSizePercent: resolvedQrSizePercent,
     layoutMode: graphicLayoutMode,
   });
+
+  const fontNames: string[] = [];
+  if (headerActive && headerStyle && !headerImageUrl && !(headerStyle.mode === 'image' && headerStyle.imageUrl)) fontNames.push(headerStyle.fontFamily);
+  if (footerActive && footerStyle && !footerImageUrl && !(footerStyle.mode === 'image' && footerStyle.imageUrl)) fontNames.push(footerStyle.fontFamily);
+  if (subBottomActive) fontNames.push(subBottomFontFamily);
+  await loadGoogleFonts(fontNames);
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -322,6 +335,18 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
   if (!transparent && backgroundColor) {
     ctx.fillStyle = backgroundColor;
     ctx.fillRect(0, 0, W, H);
+  }
+
+  // Scale the entire composition once, preserving relative QR/text/image geometry.
+  // Transparent margins are baked into the full-size file; the provider must not
+  // apply a second scale when placing that file on the same print-area canvas.
+  if (options.placementSize) {
+    const frame = printArtworkFrame(providerLayout || {}, options.placementSize);
+    ctx.translate(frame.left, frame.top);
+    ctx.scale(frame.artworkWidth / W, frame.artworkHeight / H);
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.clip();
   }
 
   const qrImgSize = 1000;
@@ -397,6 +422,7 @@ export async function renderProductGraphic(options: RenderOptions): Promise<stri
     const sbFSize = scaledFontSize(subBottomFontSize, W);
     ctx.fillStyle = subBottomColor;
     ctx.font = `${subBottomFontWeight || "400"} ${sbFSize}px ${subBottomFontFamily || "sans-serif"}`;
+    (ctx as any).letterSpacing = `${subBottomLetterSpacing * (W / 1200) * 2.5}px`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(

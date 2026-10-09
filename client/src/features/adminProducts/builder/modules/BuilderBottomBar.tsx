@@ -1,129 +1,20 @@
-import { Wand2, CheckCircle2, Bookmark, BookmarkCheck, Loader2, X } from "lucide-react";
-import { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useBuilderContext } from "../BuilderContext";
-import { adminFetch } from "@/lib/adminFetch";
-import { useToast } from "@/hooks/use-toast";
+import { Wand2, CheckCircle2, Bookmark } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useBuilderContext } from '../BuilderContext';
+import type { BuilderCommands } from './BuilderCommandStrip';
 
-interface BuilderBottomBarProps {
-  onOpenOutput: () => void;
-}
-
-export function BuilderBottomBar({ onOpenOutput }: BuilderBottomBarProps) {
-  const { state } = useBuilderContext();
-  const { toast } = useToast();
-  const [draftMode, setDraftMode] = useState(false);
-  const [draftName, setDraftName] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [savedName, setSavedName] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const { activeSessionId, activePacketId, sessionStatus } = state;
-  const canSaveDraft = !!activeSessionId;
-  const hasPacket = !!activePacketId || sessionStatus === "artifact_ready" || sessionStatus === "committed";
-
-  const openDraftInput = () => {
-    setDraftName(savedName || "");
-    setDraftMode(true);
-    setTimeout(() => inputRef.current?.focus(), 50);
-  };
-
-  const cancelDraft = () => {
-    setDraftMode(false);
-    setDraftName("");
-  };
-
-  const saveDraft = async () => {
-    if (!activeSessionId) return;
-    const name = draftName.trim();
-    if (!name) { inputRef.current?.focus(); return; }
-    setSaving(true);
-    try {
-      await adminFetch(`/build-sessions/${activeSessionId}`, {
-        method: "PATCH",
-        json: { draftName: name },
-      });
-      setSavedName(name);
-      setDraftMode(false);
-      setDraftName("");
-      toast({ title: "Draft saved", description: `"${name}" saved.` });
-    } catch {
-      toast({ title: "Could not save draft", variant: "destructive" });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div
-      className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur border-t safe-area-bottom"
-      data-testid="builder-bottom-bar"
-    >
-      {draftMode ? (
-        <div className="flex items-center gap-2 px-3 py-2">
-          <Input
-            ref={inputRef}
-            value={draftName}
-            onChange={e => setDraftName(e.target.value)}
-            onKeyDown={e => { if (e.key === "Enter") saveDraft(); if (e.key === "Escape") cancelDraft(); }}
-            placeholder="Name this draft…"
-            className="flex-1 min-w-0"
-            data-testid="input-bottom-bar-draft-name"
-          />
-          <Button
-            size="default"
-            onClick={saveDraft}
-            disabled={saving || !draftName.trim()}
-            data-testid="button-bottom-bar-save-draft-confirm"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
-          </Button>
-          <Button size="icon" variant="ghost" onClick={cancelDraft} data-testid="button-bottom-bar-cancel-draft">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 px-3 py-2">
-          <Button
-            variant="outline"
-            size="default"
-            onClick={openDraftInput}
-            disabled={!canSaveDraft}
-            className="flex-1 gap-1.5 text-sm"
-            data-testid="button-bottom-bar-save-draft"
-          >
-            {savedName ? (
-              <><BookmarkCheck className="h-4 w-4" /><span className="truncate max-w-[80px]">{savedName}</span></>
-            ) : (
-              <><Bookmark className="h-4 w-4" />Save Draft</>
-            )}
-          </Button>
-
-          {hasPacket ? (
-            <Button
-              variant="outline"
-              size="default"
-              onClick={onOpenOutput}
-              className="flex-1 gap-1.5 text-sm text-green-700 dark:text-green-400 border-green-500/40"
-              data-testid="button-bottom-bar-view-packet"
-            >
-              <CheckCircle2 className="h-4 w-4" />
-              View Packet
-            </Button>
-          ) : (
-            <Button
-              size="default"
-              onClick={onOpenOutput}
-              className="flex-1 gap-1.5 text-sm"
-              data-testid="button-bottom-bar-create"
-            >
-              <Wand2 className="h-4 w-4" />
-              Generate
-            </Button>
-          )}
-        </div>
-      )}
+export function BuilderBottomBar({ onSave, onGenerate, onOpenOutput }: Pick<BuilderCommands, 'onSave' | 'onGenerate' | 'onOpenOutput'>) {
+  const { state, busy } = useBuilderContext();
+  const hasPacket = !!state.activePacketId;
+  return <div className="fixed bottom-0 inset-x-0 z-50 bg-background/95 backdrop-blur border-t safe-area-bottom" data-testid="builder-bottom-bar">
+    <div className="flex items-center gap-2 px-3 py-2">
+      <Button variant="outline" className="flex-1 gap-1.5" onClick={onSave}
+        disabled={!!busy || !state.activeSessionId || !['working', 'artifact_ready'].includes(state.sessionStatus || '')}
+        data-testid="button-bottom-bar-save-draft"><Bookmark className="h-4 w-4" />Save Draft</Button>
+      <Button className="flex-1 gap-1.5" onClick={hasPacket ? onOpenOutput : onGenerate} disabled={!!busy}
+        data-testid={hasPacket ? 'button-bottom-bar-view-packet' : 'button-bottom-bar-create'}>
+        {hasPacket ? <><CheckCircle2 className="h-4 w-4" />View Packet</> : <><Wand2 className="h-4 w-4" />Generate</>}
+      </Button>
     </div>
-  );
+  </div>;
 }

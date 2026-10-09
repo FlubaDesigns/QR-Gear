@@ -1,8 +1,11 @@
+import { decodeVideoUpload } from './video-validation';
+import { decodeLibraryImage, LibraryImageError } from './image-validation';
 import { createHash } from 'crypto';
 import { extractBuilderLayers } from '../../../shared/bldCodes';
 import {
   buildGrfId, parseGrfId, grfStoragePath,
-  GRF_COUNTER_KEY, GRF_PACKET_SLOTS, isValidGrfId,
+  GRF_COUNTER_KEY, GRF_PACKET_SLOTS, isValidGrfId, inspectGrfAsset,
+  originalGrfParams, croppedGrfParams, backgroundGrfParams,
 } from '../../../shared/GRF_engine';
 import type { GrfAssetClass, GrfMediaType, GrfChannel } from '../../../shared/GRF_engine';
 
@@ -52,6 +55,7 @@ export interface MockupGrfIds {
   storeFrontGrfId: string | null;
   storeBackGrfId:  string | null;
 }
+export { LibraryImageError } from './image-validation';
 export function createGrfRegistrar({ db, now, bucket }: { db: FirebaseFirestore.Firestore; now: () => any; bucket: () => any }) {
 const GRF_ASSETS_COLLECTION  = 'grf_assets';
 const GRF_COUNTERS_COLLECTION = 'grf_counters';
@@ -73,6 +77,14 @@ const GRF_COUNTERS_COLLECTION = 'grf_counters';
 async function registerGrfAsset(
   opts: RegisterGrfAssetOptions,
 ): Promise<RegisterGrfAssetResult> {
+  // Builder image uploads can remain inline in a saved layer. Treat them as
+  // validated bytes, never as a URL used in a Firestore equality query.
+  if (opts.sourceUrl?.startsWith('data:')) {
+    if (opts.imageData) throw new Error('Provide exactly one GRF source.');
+    const inlineMime = /^data:([^;]+);base64,/.exec(opts.sourceUrl)?.[1];
+    const decoded = decodeLibraryImage(opts.sourceUrl, opts.mimeType || inlineMime || '');
+    opts = { ...opts, sourceUrl: undefined, ...decoded };
+  }
   const {
     assetClass, mediaType, channel, purpose, format,
     sourceUrl, imageData,
@@ -83,18 +95,30 @@ async function registerGrfAsset(
     sourceSessionId, packetId,
   } = opts;
 
+  // Validate the encoded identity and MIME before reserving an ID or uploading bytes.
+  const expected = parseGrfId(buildGrfId({ assetClass, mediaType, channel, purpose, format, sequence: 1 }));
+  const schemaErrors = inspectGrfAsset({ grfId: buildGrfId({ assetClass, mediaType, channel, purpose, format, sequence: 1 }), assetClass, mediaType, channel, purpose, format, mimeType: mimeType || expected.mimeType });
+  if (schemaErrors.length) throw new LibraryImageError(schemaErrors.join(' '));
   if (!sourceUrl && !imageData) {
     throw new Error('[GRFRegistrar] Either sourceUrl or imageData is required');
   }
 
   if (!!sourceUrl === !!imageData) throw new Error('Provide exactly one GRF source.');
+  if (mediaType === '2' && imageData) decodeVideoUpload(imageData, mimeType || expected.mimeType);
   // Transactionally reserve the permanent ID before uploading. A failed upload retries
   // the same reservation; concurrent registrations of the same file share one identity.
   const hash = imageData ? createHash('sha256').update(Buffer.from(imageData, 'base64')).digest('hex') : null;
   const query = db.collection(GRF_ASSETS_COLLECTION).where(hash ? 'contentHash' : 'sourceUrl', '==', hash || sourceUrl);
   const reservation: Record<string, any> = await db.runTransaction(async tx => {
     const matches = await tx.get(query);
-    const existing = matches.docs.find(d => isValidGrfId(d.data().grfId));
+    const existing = matches.docs.find(d => {
+      const data = d.data();
+      if (!isValidGrfId(data.grfId)) return false;
+      const p = parseGrfId(data.grfId);
+      return p.assetClass === assetClass && p.mediaType === mediaType && p.channel === channel &&
+        p.purpose === purpose && p.format === format &&
+        (!sourceGrfId || data.sourceGrfId === sourceGrfId);
+    });
     if (existing) {
       const data = existing.data();
       if (data.isActive === false) throw new Error('This GRF file is archived. Restore it before reuse.');
@@ -108,6 +132,7 @@ async function registerGrfAsset(
     const ref = db.collection(GRF_ASSETS_COLLECTION).doc(grfId);
     if ((await tx.get(ref)).exists) throw new Error('GRF counter points to an existing asset.');
     const data = { grfId, sequence, sourceUrl: sourceUrl || null, contentHash: hash,
+      sourceGrfId: sourceGrfId || null, originalFilename: originalFilename || null,
       registrationState: 'pending', isActive: true, createdAt: now() };
     tx.set(counterRef, { count: sequence, updatedAt: now() }, { merge: true });
     tx.create(ref, data);
@@ -127,7 +152,7 @@ async function registerGrfAsset(
   if (imageData) {
     const ext         = (mimeType || '').includes('png') ? 'png' : 'jpg';
     const canonicalPath = storagePathOverride
-      || grfStoragePath(grfId)
+      || grfStoragePath(grfId, reservation.originalFilename || originalFilename || undefined)
       || `grf/${grfId}/original.${ext}`;
 
     const storageBucket = bucket();
@@ -160,7 +185,7 @@ async function registerGrfAsset(
     channelName:    parsed.channelName,
     purposeName:    parsed.purposeName,
     formatName:     parsed.formatName,
-    mimeType:       mimeType || parsed.mimeType,
+    mimeType:       parsed.mimeType,
     name:           name    || `${parsed.purposeName} ${grfId}`,
     description:    description    || null,
     storagePath,
@@ -222,6 +247,7 @@ async function registerPacketGrfAssets(
   const qrBytes = await QRCode.toBuffer(packetData.qrContent.trim(), { type: 'png', width: 3000, margin: 2, errorCorrectionLevel: 'M' });
   const qr = await registerGrfAsset({ imageData: qrBytes.toString('base64'), mimeType: 'image/png', sourceSessionId, packetId, ...GRF_PACKET_SLOTS.qrStandalone });
   result.qrGrfId = qr.grfId;
+  await db.collection(GRF_ASSETS_COLLECTION).doc(qr.grfId).update({ qrPayloadHash: createHash('sha256').update(packetData.qrContent.trim()).digest('hex') });
   if (packetId) await db.collection('productPackets').doc(packetId).update({ qrOnlyUrl: qr.publicUrl });
 
   const compositeUrl = packetData.compositeUrl || packetData.productGraphicUrl || null;
@@ -306,5 +332,34 @@ async function registerMockupGrfAssets(
   return result;
 }
 
-return { registerGrfAsset, registerPacketGrfAssets, registerMockupGrfAssets };
+async function registerSourceImage(input: { imageUrl: string; mimeType: string; name?: string; originalFilename?: string }) {
+  const { imageData, mimeType } = decodeLibraryImage(input.imageUrl, input.mimeType);
+  const originalFilename = String(input.originalFilename || input.name || 'image').split(/[\\/]/).pop()!;
+  const result = await registerGrfAsset({ ...originalGrfParams(mimeType), imageData, mimeType, originalFilename, name: originalFilename });
+  const asset = (await db.collection(GRF_ASSETS_COLLECTION).doc(result.grfId).get()).data();
+  return { success: true, grfId: result.grfId, asset };
+}
+
+async function registerSourceCrop(input: { sourceGrfId: string; croppedImageData: string; croppedMimeType: string }) {
+  const { imageData, mimeType } = decodeLibraryImage(input.croppedImageData, input.croppedMimeType);
+  if (!isValidGrfId(input.sourceGrfId)) throw new LibraryImageError('Invalid source GRF ID');
+  const source = (await db.collection(GRF_ASSETS_COLLECTION).doc(input.sourceGrfId).get()).data();
+  if (!source || source.isActive === false) throw new LibraryImageError('Source image is missing or archived');
+  const sourceType = parseGrfId(input.sourceGrfId);
+  if (sourceType.channel !== '4' || !['1', '3'].includes(sourceType.purpose)) throw new LibraryImageError('Choose an original or background image to crop');
+  const originalId = sourceType.purpose === '1' ? input.sourceGrfId : source.sourceGrfId;
+  if (!isValidGrfId(originalId)) throw new LibraryImageError('Background has no valid original image');
+  const original = originalId === input.sourceGrfId ? source : (await db.collection(GRF_ASSETS_COLLECTION).doc(originalId).get()).data();
+  const originalType = parseGrfId(originalId);
+  if (!original || original.isActive === false || originalType.channel !== '4' || originalType.purpose !== '1' || !original.publicUrl) {
+    throw new LibraryImageError('Original image is missing or archived');
+  }
+  // Each distinct crop gets an immutable file/ID. Identical retries reuse that file.
+  const cropped = await registerGrfAsset({ ...croppedGrfParams(mimeType), imageData, mimeType, sourceGrfId: originalId });
+  const background = await registerGrfAsset({ ...backgroundGrfParams(originalType.mimeType), sourceUrl: original.publicUrl,
+    mimeType: originalType.mimeType, sourceGrfId: originalId, originalFilename: original.originalFilename });
+  return { success: true, croppedGrfId: cropped.grfId, backgroundGrfId: background.grfId, croppedPublicUrl: cropped.publicUrl };
+}
+
+return { registerGrfAsset, registerPacketGrfAssets, registerMockupGrfAssets, registerSourceImage, registerSourceCrop };
 }

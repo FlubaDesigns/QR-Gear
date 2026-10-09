@@ -1,3 +1,7 @@
+import {readHostingTiers,changeHostingTier} from '../services/hosting-tiers';
+import { HealthMonitorService } from '../services/health-monitor';
+import { registerFontRoutes } from '../services/font-settings';
+import { projectTemplateDisplay } from '../../../shared/templateDisplay';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -16,6 +20,13 @@ import { printfulClient, updatePrintfulKeyCache } from '../services/printful';
 
 
   export function register(app: express.Express): void {
+for(const path of ['/hosting-tiers','/admin/hosting-tiers']) app.get(path,...(path.startsWith('/admin')?[requireAdmin]:[]),async(_req:Request,res:Response)=>{
+  try{res.json(await readHostingTiers(db));}catch(e:any){res.status(409).json({error:'Save valid hosting tiers in Admin Pricing first.'});}
+});
+for(const method of ['post','put','delete'] as const) app[method](method==='post'?'/admin/hosting-tiers':'/admin/hosting-tiers/:id',requireAdmin,async(req:Request,res:Response)=>{
+  try{res.json({success:true,tiers:await changeHostingTier(db,method.toUpperCase(),req.params.id,req.body)});}catch(e:any){res.status(e.status||400).json({error:e.message});}
+});
+app.post('/admin/hosting-tiers/seed',requireAdmin,(_req:Request,res:Response)=>{res.status(409).json({error:'Hosting tiers are controlled in Admin Pricing. No code defaults were applied.'});});
 // ============ BATCH: MISC ADMIN ROUTES ============
 
 
@@ -85,16 +96,6 @@ app.post('/pricing/quote', async (req: Request, res: Response): Promise<void> =>
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/pricing-settings/sync', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('testSettings').doc('pricing').get();
-    if (!doc.exists) { res.json({ success: true, message: "No pricing settings to sync" }); return; }
-    const settings = doc.data();
-    await db.collection('testSettings').doc('pricing').update({ lastSyncedAt: new Date().toISOString() });
-    res.json({ success: true, settings });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
 app.get('/admin/catalog/cost-sync-status', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('system').doc('cost-sync-status').get();
@@ -110,42 +111,15 @@ app.get('/admin/catalog/sync-history', requireAdmin, async (_req: Request, res: 
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/hosting-tiers', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('hosting_tiers').where('isActive', '==', true).orderBy('sortOrder', 'asc').get();
-    const tiers = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ tiers });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.get('/admin/hosting-tiers', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('hosting_tiers').orderBy('sortOrder', 'asc').get();
-    const tiers = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ tiers });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.post('/admin/hosting-tiers', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('hosting_tiers').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.put('/admin/hosting-tiers/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('hosting_tiers').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.delete('/admin/hosting-tiers/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('hosting_tiers').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+
+
+
+
+
 
 app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -171,7 +145,7 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
         id: data.packetId || null,
         qrContent: data.qrContent || null,
         productName: data.productName || data.name || null,
-        compositeUrl: data.artworkUrl || data.thumbnailUrl || data.compositeUrl || null,
+        compositeUrl: data.compositeUrl || data.artworkUrl || null,
         priorityMockupUrl: data.priorityMockupUrl || null,
         blueprintId: data.blueprintId || null,
         printProviderId: data.printProviderId || null,
@@ -209,38 +183,16 @@ app.get('/admin/templates', requireAdmin, async (_req: Request, res: Response): 
 
       if (!packet) noPacket++;
 
-      // ── Normalized picker display fields ────────────────────────────────────
-      // These are derived independently of packet so the frontend card always
-      // has a reliable title and image regardless of packet completeness.
-
-      const previewTitle =
-        data.productName ||
-        data.name ||
-        packet?.productName ||
-        'Untitled Template';
-
-      const previewImageUrl =
-        data.priorityMockupUrl ||
-        data.compositeUrl ||
-        data.thumbnailUrl ||
-        data.artworkUrl ||
-        packet?.priorityMockupUrl ||
-        packet?.compositeUrl ||
-        null;
-
-      if (previewImageUrl) withPreview++;
+      const preview = projectTemplateDisplay({ ...data, packet });
+      if (preview.previewImageUrl) withPreview++;
       if (!data.productName && !data.name) withFallbackTitle++;
-
-      const previewPrice: number | null = (data.pricing as any)?.customerPrice ?? null;
 
       return {
         id: d.id,
         ...data,
         packetId: data.packetId || null,
         packet,
-        previewTitle,
-        previewImageUrl,
-        previewPrice,
+        ...preview,
       };
     });
 
@@ -266,35 +218,6 @@ app.put('/admin/templates/:id', requireAdmin, async (req: Request, res: Response
 app.delete('/admin/templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     await db.collection('productTemplates').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.get('/admin/product-categories', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('product_categories').orderBy('sortOrder', 'asc').get();
-    const categories = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ categories });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.post('/admin/product-categories', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('product_categories').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.put('/admin/product-categories/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('product_categories').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.delete('/admin/product-categories/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('product_categories').doc(req.params.id).delete();
     res.json({ success: true });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -531,21 +454,7 @@ app.post('/mockup/priority', requireAuth, async (req: Request, res: Response): P
 
 app.get('/admin/api-keys', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('system_config').doc('api_keys').get();
-    const data = doc.exists ? doc.data()! : {};
-    const printfulKey = data.printfulApiKey || process.env.PRINTFUL_API_KEY || '';
-    const masked = printfulKey.length > 8 ? printfulKey.substring(0, 4) + '...' + printfulKey.substring(printfulKey.length - 4) : '(not set)';
-    let printfulStatus: 'valid' | 'invalid' | 'unknown' = 'unknown';
-    try {
-      const testRes = await fetch('https://api.printful.com/stores', {
-        headers: { 'Authorization': `Bearer ${printfulKey}` },
-      });
-      printfulStatus = testRes.ok ? 'valid' : 'invalid';
-    } catch { printfulStatus = 'unknown'; }
-    res.json({
-      printful: { masked, status: printfulStatus, source: data.printfulApiKey ? 'dashboard' : 'env', updatedAt: data.printfulUpdatedAt || null },
-      printify: { masked: (process.env.PRINTIFY_API_KEY || '').substring(0, 8) + '...', status: 'valid', source: 'env' },
-    });
+    res.json(await new HealthMonitorService(db).getKeyStatus());
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
@@ -576,39 +485,12 @@ app.post('/admin/api-keys', requireAdmin, async (req: Request, res: Response): P
 
 app.post('/admin/api-keys/test', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { provider } = req.body;
-    if (provider === 'printful') {
-      const key = await getPrintfulApiKeyAsync();
-      const testRes = await fetch('https://api.printful.com/stores', {
-        headers: { 'Authorization': `Bearer ${key}` },
-      });
-      const data = await testRes.json();
-      if (testRes.ok) {
-        res.json({ success: true, status: 'valid', stores: data.result?.length || 0 });
-      } else {
-        res.json({ success: false, status: 'invalid', error: `HTTP ${testRes.status}` });
-      }
-    } else {
-      res.status(400).json({ error: `Unsupported provider: ${provider}` });
-    }
+    const result=await new HealthMonitorService(db).checkProvider(req.body.provider);
+    res.json({success:result.isHealthy,status:result.status,stores:result.stores,error:result.errorMessage});
   } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
 });
 
-app.post('/admin/hosting-tiers/seed', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const defaultTiers = [
-      { code: '1_year', name: '1 Year', price: 5, durationDays: 365 },
-      { code: '2_year', name: '2 Years', price: 8, durationDays: 730 },
-      { code: '3_year', name: '3 Years', price: 10, durationDays: 1095 },
-    ];
-    const batch = db.batch();
-    for (const tier of defaultTiers) {
-      batch.set(db.collection('hosting_tiers').doc(tier.code), tier);
-    }
-    await batch.commit();
-    res.json({ success: true, tiers: defaultTiers });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+
 
 app.post('/admin/channel-items/seed', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -688,20 +570,7 @@ app.patch('/admin/email-templates/:id', requireAdmin, async (req: Request, res: 
 
 // /admin/background-assets/migrate — removed (legacy library_assets pipeline purged)
 
-app.get('/fonts', async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('config').doc('fonts').get();
-    if (!doc.exists) { res.json({ fonts: ['Arial', 'Georgia', 'Verdana', 'Impact', 'Comic Sans MS'] }); return; }
-    res.json(doc.data());
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
-
-app.put('/admin/fonts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('config').doc('fonts').set({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+registerFontRoutes(app, '', requireAdmin, () => db);
 
 app.get('/admin/provider-counts', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {

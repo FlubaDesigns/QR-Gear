@@ -1,3 +1,5 @@
+import {vi} from 'vitest';
+vi.mock('../../core',()=>({db:{},admin:{}}));
 import { describe, it, expect } from 'vitest';
 import { extractRequestDomain, isDomainAllowed } from '../embed-validation';
 

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutGrid, List, GalleryHorizontal, Palette, Ruler, Package, Trash2 } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
-import { PublishStatusBadge } from "@/features/adminProducts/storeLibrary/components/PublishStatusBadge";
+import { PublishStatusBadge } from "@/features/adminProducts/storeManager/PublishStatusBadge";
 
 export type StoreProductViewLayout = "grid" | "list" | "swipe";
 

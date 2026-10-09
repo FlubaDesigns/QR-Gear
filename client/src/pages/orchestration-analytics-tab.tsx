@@ -21,18 +21,21 @@ function getDeviceIcon(deviceType: string) {
 }
 
 export function AnalyticsTabContent() {
-  const { data: qrAnalyticsSummary, isLoading: qrAnalyticsLoading } = useQuery<QrAnalyticsSummary>({
+  const { data: qrAnalyticsSummary, error: summaryError, isLoading: qrAnalyticsLoading } = useQuery<QrAnalyticsSummary>({
     queryKey: ["/api/admin/orchestration/qr-analytics/summary"],
   });
 
-  const { data: productScans = [], isLoading: productScansLoading } = useQuery<ProductScanAnalytics[]>({
+  const { data: productScans = [], error: productError, isLoading: productScansLoading } = useQuery<ProductScanAnalytics[]>({
     queryKey: ["/api/admin/orchestration/qr-analytics/products"],
   });
 
-  const { data: scanTrends = [], isLoading: scanTrendsLoading } = useQuery<ScanTrend[]>({
+  const { data: scanTrends = [], error: trendsError, isLoading: scanTrendsLoading } = useQuery<ScanTrend[]>({
     queryKey: ["/api/admin/orchestration/qr-analytics/trends"],
   });
 
+  const error = summaryError || productError || trendsError;
+  if(error) return <p role="alert">QR Analytics could not load: {error.message}</p>;
+  if(!Array.isArray(productScans) || !Array.isArray(scanTrends)) return <p role="alert">QR Analytics returned an invalid response. Reload or contact support.</p>;
   return (
     <>
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -60,7 +63,7 @@ export function AnalyticsTabContent() {
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">This Week</p>
+                <p className="text-sm text-muted-foreground">Last 7 Days</p>
                 <p className="text-2xl font-bold" data-testid="text-scans-week">{qrAnalyticsSummary?.scansThisWeek || 0}</p>
               </CardContent>
             </Card>

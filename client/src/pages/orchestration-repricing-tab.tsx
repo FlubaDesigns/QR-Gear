@@ -37,15 +37,15 @@ import type { RepricingStats } from "./orchestration-types";
 export function RepricingTabContent() {
   const { toast } = useToast();
 
-  const { data: repricingStats, isLoading: repricingStatsLoading } = useQuery<RepricingStats>({
+  const { error: statsError, data: repricingStats, isLoading: repricingStatsLoading } = useQuery<RepricingStats>({
     queryKey: ["/api/admin/orchestration/repricing/stats"],
   });
 
-  const { data: repricingRules = [], isLoading: repricingRulesLoading } = useQuery<any[]>({
+  const { error: rulesError, data: repricingRules = [], isLoading: repricingRulesLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/orchestration/repricing/rules"],
   });
 
-  const { data: repricingHistory = [], isLoading: repricingHistoryLoading } = useQuery<any[]>({
+  const { error: historyError, data: repricingHistory = [], isLoading: repricingHistoryLoading } = useQuery<any[]>({
     queryKey: ["/api/admin/orchestration/repricing/history"],
   });
 
@@ -144,6 +144,8 @@ export function RepricingTabContent() {
 
   return (
     <>
+      {(statsError||rulesError||historyError)&&<p role="alert">{(statsError||rulesError||historyError)?.message}</p>}
+      <p>Saved rules are retained. Rule execution is not connected to catalog prices. Use <a className="underline" href="/admin/pricing">Pricing preview and apply</a> for saved products.</p>
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <h2 className="text-lg font-semibold">Auto-Repricing Rules</h2>
         <div className="flex items-center gap-2 flex-wrap">

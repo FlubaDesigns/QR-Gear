@@ -21,7 +21,7 @@
 11. [Store & Channel System](#store--channel-system)
 12. [Payments — Stripe](#payments--stripe)
 13. [Print Fulfillment — Printify & Printful](#print-fulfillment--printify--printful)
-14. [Email — Resend / NexusMail](#email--resend--nexusmail)
+14. [Email — Resend](#email--resend)
 15. [Authentication](#authentication)
 16. [Deployment Guide](#deployment-guide)
 17. [Environment Variables](#environment-variables)
@@ -204,7 +204,7 @@ All routes are registered in `functions/src/routes/` and mounted on the Express 
 | `am-sync.ts` | `GET/POST/PUT/DELETE /admin/templates`, `/admin/product-categories`, `/admin/template-categories` |
 | `admin-products.ts` | `/admin/qr-templates`, `/admin/product-configs`, `/admin/catalog-instances` |
 | `admin-stores.ts` | `/admin/stores`, `/admin/channels`, store management |
-| `admin-settings.ts` | `/admin/settings`, `/admin/nexusmail/*` email templates |
+| `admin-settings.ts` | `/admin/settings` |
 | `admin-orders.ts` | `/admin/orders`, order fulfillment, tracking |
 | `file-routes.ts` | `/admin/templates/full-save`, `/admin/images`, `/library-files/:file` |
 | `pp-catalog.ts` | `/admin/store-product-links` (CRUD + DELETE), `/admin/stores/:id/channels/:id/products` |
@@ -420,18 +420,12 @@ When a template is saved (full-save), mockup jobs are queued for each color × p
 
 ---
 
-## Email — Resend / NexusMail
+## Email — Resend
 
-Email is sent via Resend. The admin panel has a NexusMail system for managing email templates.
-
-### Email Templates
-- Stored in Firestore: `nexusmailTemplates` collection
-- Seed defaults: `POST /api/admin/nexusmail/seed-templates`
-- Supported template types: order confirmation, welcome, renewal reminder, etc.
-
-### Environment
-- `RESEND_API_KEY` — Resend API credentials
-- From address: configured in admin settings
+Transactional email uses `functions/src/services/email.ts` and `QR_RESEND_API_KEY`.
+The sender is `QR Gear <noreply@qrgear.com>`.
+System → Email manages `email_templates` and displays `email_logs` for order and shipping emails.
+Activation emails use the same Resend service.
 
 ---
 

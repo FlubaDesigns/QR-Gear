@@ -1,3 +1,4 @@
+import { sortProductSizes, sizeUpcharge } from '@shared/storefrontTypes';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
@@ -77,6 +78,7 @@ interface StoreProduct {
   qrProductType: string;
   price: number | null;
   availableSizes: string[];
+  sizeUpcharges?: Record<string, number>;
   availableColors: string[];
   availablePlacements: string[];
   defaultColor: string | null;
@@ -114,6 +116,8 @@ export default function ShopProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [mockupFetching, setMockupFetching] = useState(false);
+  const [mockupError, setMockupError] = useState<string | null>(null);
+  const mockupRequestId = useRef(0);
   // Local mockup cache — starts from API data, enriched on-demand as colors are picked
   const [localMockupsByColor, setLocalMockupsByColor] = useState<
     Record<string, { front?: string; lifestyle?: string; angles?: string[] }> | null
@@ -137,20 +141,24 @@ export default function ShopProductPage() {
   // Initialise selection once per product load — use options[] contract first, fallback to raw fields
   useEffect(() => {
     if (!product) return;
+    mockupRequestId.current += 1;
+    setMockupFetching(false);
+    setMockupError(null);
     // Seed local mockup cache from API data
     setLocalMockupsByColor(product.mockupsByColor ?? null);
 
     const colorOpt = product.options?.find(o => o.name === 'color');
     const defaultColor =
-      colorOpt?.values.find(v => v.available)?.label ??
+      colorOpt?.values.find(v => v.available && v.label.toLowerCase() === product.defaultColor?.toLowerCase())?.label ??
       product.defaultColor ??
+      colorOpt?.values.find(v => v.available)?.label ??
       null;
     if (defaultColor) setSelectedColor(defaultColor);
 
     const sizeOpt = product.options?.find(o => o.name === 'size');
     const defaultSize =
-      sizeOpt?.values.find(v => v.available)?.label ??
-      product.availableSizes?.[0] ??
+      sortProductSizes(sizeOpt?.values.filter(v => v.available).map(v => v.label) || [])[0] ??
+      sortProductSizes(product.availableSizes || [])[0] ??
       null;
     if (defaultSize) setSelectedSize(defaultSize);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,20 +166,23 @@ export default function ShopProductPage() {
 
   // Normalize color name the same way buildProductGallery does
   const normalizeColorKey = (s: string) =>
-    s.replace(/^(Solid|Heather)\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+    s.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
 
   // Returns true if the color already has a mockup in the local cache
   const isMockupCached = (color: string): boolean => {
     if (!localMockupsByColor) return false;
     const target = normalizeColorKey(color);
     return Object.keys(localMockupsByColor).some(
-      (key) => normalizeColorKey(key.split('_')[0]) === target,
+      (key) => normalizeColorKey(key.split('_')[0]) === target && !!localMockupsByColor[key]?.front,
     );
   };
 
   const handleColorChange = async (color: string) => {
+    const requestId = ++mockupRequestId.current;
     setSelectedColor(color);
     setColorError(false);
+    setMockupError(null);
+    setMockupFetching(false);
     if (!linkId || isMockupCached(color)) return;
     setMockupFetching(true);
     try {
@@ -180,22 +191,20 @@ export default function ShopProductPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ colorName: color }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.mockupUrl) {
-          setLocalMockupsByColor((prev) => ({
-            ...(prev ?? {}),
-            [color]: {
-              front: data.mockupUrl,
-              ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
-            },
-          }));
-        }
-      }
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.mockupUrl) throw new Error('Color mockup unavailable');
+      if (requestId !== mockupRequestId.current) return;
+      setLocalMockupsByColor((prev) => ({
+        ...(prev ?? {}),
+        [color]: {
+          front: data.mockupUrl,
+          ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
+        },
+      }));
     } catch {
-      // Silent — gallery will fall back to generic images
+      if (requestId === mockupRequestId.current) setMockupError(`We couldn't load the ${color} shirt preview. Please try again.`);
     } finally {
-      setMockupFetching(false);
+      if (requestId === mockupRequestId.current) setMockupFetching(false);
     }
   };
 
@@ -337,7 +346,7 @@ export default function ShopProductPage() {
         }
       : null);
 
-  const sizeOption = product.options?.find(o => o.name === 'size') ??
+  const rawSizeOption = product.options?.find(o => o.name === 'size') ??
     (product.availableSizes?.length
       ? {
           name: 'size',
@@ -346,6 +355,14 @@ export default function ShopProductPage() {
           values: product.availableSizes.map(s => ({ label: s, available: true })),
         }
       : null);
+
+  const sizeOption = rawSizeOption ? { ...rawSizeOption } : null;
+  if (sizeOption) {
+    const labels = sortProductSizes(sizeOption.values.map(v => v.label));
+    sizeOption.values = labels.map(label => sizeOption.values.find(v => v.label === label)!);
+  }
+  const selectedUpcharge = sizeUpcharge(selectedSize, product.sizeUpcharges || {});
+  const selectedPrice = product.price === null ? null : Math.round((product.price + selectedUpcharge) * 100) / 100;
 
   // Build breadcrumb crumbs from product channel/collection data
   const breadcrumbs = (() => {
@@ -397,11 +414,18 @@ export default function ShopProductPage() {
               ) : displayImage ? (
                 <ProductImageGallery images={[{ url: displayImage, alt: product.name }]} />
               ) : (
-                <div className="aspect-square flex items-center justify-center bg-muted rounded-md">
+                <div className="aspect-square flex flex-col items-center justify-center gap-3 bg-muted rounded-md">
                   <QrCode className="h-24 w-24 text-muted-foreground/50" />
+                  <p className="text-sm text-muted-foreground">Generated images unavailable</p>
                 </div>
               )}
             </Card>
+            {mockupError && (
+              <div role="alert" className="mt-3 text-sm text-destructive">
+                <p>{mockupError}</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => selectedColor && handleColorChange(selectedColor)}>Retry preview</Button>
+              </div>
+            )}
           </div>
 
           <div className="space-y-6">
@@ -452,6 +476,7 @@ export default function ShopProductPage() {
               qrCodeUrl={product.qrCodeUrl}
               landingPageSnapshotUrl={product.landingPageSnapshotUrl}
               playMediaUrl={product.playMediaUrl}
+              playPosterUrl={product.compositeUrl}
               composeImages={product.composeImages}
               qrProductType={product.qrProductType}
               productName={product.name}
@@ -469,7 +494,7 @@ export default function ShopProductPage() {
             <div>
               {product.price !== null ? (
                 <p className="text-3xl font-bold text-foreground" data-testid="text-product-price">
-                  ${product.price.toFixed(2)}
+                  ${selectedPrice!.toFixed(2)}
                 </p>
               ) : (
                 <p className="text-lg text-muted-foreground" data-testid="text-price-unavailable">
@@ -485,10 +510,6 @@ export default function ShopProductPage() {
                 <li className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Truck className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
                   Premium print quality
-                </li>
-                <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Shield className="h-3.5 w-3.5 flex-shrink-0 text-primary" />
-                  Yours alone — not sold in stores
                 </li>
               </ul>
             </div>
@@ -580,7 +601,7 @@ export default function ShopProductPage() {
                           onClick={() => sv.available && onSizePick(sv.label)}
                           data-testid={`button-size-${sv.label.toLowerCase()}`}
                         >
-                          {sv.label}
+                          {sv.label}{sizeUpcharge(sv.label, product.sizeUpcharges || {}) > 0 ? ` (+$${sizeUpcharge(sv.label, product.sizeUpcharges || {})})` : ''}
                         </Button>
                       ))}
                     </div>
@@ -674,7 +695,7 @@ export default function ShopProductPage() {
                   <ShoppingCart className="h-5 w-5 mr-2" />
                 )}
                 {product.price
-                  ? `Add to Cart — $${(product.price * quantity).toFixed(2)}`
+                  ? `Add to Cart — $${(selectedPrice! * quantity).toFixed(2)}`
                   : "Price Not Available"}
               </Button>
 

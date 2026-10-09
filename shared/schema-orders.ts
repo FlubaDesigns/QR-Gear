@@ -6,6 +6,25 @@ import { users, hostedImages } from "./schema-users";
 import { products, qrDesigns, dynamicContentSets } from "./schema-products";
 import { masterProducts } from "./schema-stores";
 
+// Contract for the existing testSettings/pricing document. Amounts are owned
+// by Admin Pricing; validation must never substitute a business default.
+const pricingAmount = z.number().finite().nonnegative();
+export const pricingSettingsSchema = z.object({
+  markupPercent: pricingAmount,
+  markupFixed: pricingAmount,
+  additionalPlacementCost: pricingAmount,
+  textLineUpcharge: pricingAmount,
+  centerGraphicUpcharge: pricingAmount,
+  memberProfitShare: pricingAmount.max(1),
+  builtInShippingCost: pricingAmount,
+  sizeUpcharges: z.record(pricingAmount),
+  hostingTiers: z.array(z.object({ code: z.string().trim().min(1), name: z.string().trim().min(1), price: pricingAmount }))
+    .refine(tiers => new Set(tiers.map(t => t.code)).size === tiers.length, 'Hosting tier codes must be unique'),
+  brandLabelPricing: z.object({ printifyInside: pricingAmount, printifyOutside: pricingAmount, printfulInside: pricingAmount, printfulOutside: pricingAmount }),
+  preferredLabelPosition: z.enum(['inside', 'outside']),
+});
+export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
+
 export const giftBackgrounds = pgTable("gift_backgrounds", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),

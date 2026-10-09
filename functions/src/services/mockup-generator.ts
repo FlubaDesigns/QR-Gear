@@ -1,5 +1,6 @@
 import { admin, db, storage, FulfillmentProvider, PrintMethod, normalizePlacement, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isColorDark } from '../core';
   import { printfulClient } from './printful';
+  import { getPrintfulApiKeyAsync } from './printful';
   import { downloadAndStoreImage } from './storage-helpers';
 
   // ============ MOCKUP GENERATION (Full Implementation) ============
@@ -16,6 +17,8 @@ interface MockupRequest {
   printMethod?: PrintMethod;
   qrSize?: 'small' | 'medium' | 'large';
   hasCompositeGraphic?: boolean;
+  printfulVariantId?: number;
+  printArea?: { width: number; height: number; placement: string };
 }
 
 interface MockupResult {
@@ -131,7 +134,9 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   const artworkUrl = await toPublicUrl(request.artworkUrl);
   
   const crypto = require('crypto');
-  const artworkHash = crypto.createHash('md5').update(artworkUrl).digest('hex').substring(0, 12);
+  const artworkHash = crypto.createHash('sha256').update(JSON.stringify({ artworkUrl: request.artworkUrl,
+    provider: fulfillmentProvider, variantId: request.printfulVariantId, placement: request.placement,
+    printMethod: request.printMethod, printArea: request.printArea })).digest('hex').substring(0, 24);
   const sizeSuffix = request.hasCompositeGraphic ? 'comp' : (request.qrSize || 'medium');
   const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${artworkHash}_${sizeSuffix}`;
   const cacheDoc = await db.collection('mockup_cache').doc(cacheKey).get();
@@ -150,9 +155,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   
   console.log(`[Mockup] Cache MISS: ${colorName} - generating via Printful`);
   
-  if (!printfulClient.isConfigured) {
-    throw new Error('Printful API key not configured');
-  }
+  await getPrintfulApiKeyAsync(true);
   
   // For Printful native products, blueprintId IS the Printful product ID
   // For Printify products, we need to map blueprint to Printful product
@@ -171,7 +174,9 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   }
   
   // Get variants for this color
-  const variants = await printfulClient.getVariantsByColor(printfulProductId, colorName);
+  const variants = request.printfulVariantId
+    ? [{ id: request.printfulVariantId, color: colorName }]
+    : await printfulClient.getVariantsByColor(printfulProductId, colorName);
   console.log(`[Mockup] Got ${variants.length} variants for color: ${colorName}`);
   if (variants.length === 0) {
     throw new Error(`No Printful variants found for color: ${colorName}`);
@@ -185,7 +190,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   }
   
   // Get printfile specs to get position info
-  const printfileData = await printfulClient.getPrintfiles(printfulProductId);
+  const printfileData = request.printArea ? null : await printfulClient.getPrintfiles(printfulProductId);
   const availPlacements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
 
   // Build printfile ID to dimensions lookup
@@ -216,8 +221,8 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   }
 
   const canonicalPlacement = request.placement || 'front';
-  const placement = toProviderPlacement('printful', canonicalPlacement, availPlacements, request.printMethod);
-  const dims = getDimensionsForPlacement(placement);
+  const placement = request.printArea?.placement || toProviderPlacement('printful', canonicalPlacement, availPlacements, request.printMethod);
+  const dims = request.printArea || getDimensionsForPlacement(placement);
   
   let artWidth = dims.width;
   let artHeight = dims.height;
@@ -249,7 +254,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   }];
 
   // Hardcoded label_inside for QR Gear branded neck tag
-  if (availPlacements.includes('label_inside')) {
+  if (placement !== 'label_inside' && availPlacements.includes('label_inside')) {
     const labelDims = getDimensionsForPlacement('label_inside');
     mockupFiles.push({
       placement: 'label_inside',
@@ -298,7 +303,9 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
       }
       
       // Success - continue with the rest of the function
-      return await processMockupResult(result, blueprintId, colorName, artworkVariant, cacheKey);
+      const matching = result.mockups.filter(mockup => mockup.placement === placement && mockup.variant_ids.includes(variantId));
+      if (!matching.length) throw new Error('Printful returned no mockup for the requested color and placement');
+      return await processMockupResult({ ...result, mockups: matching }, blueprintId, colorName, artworkVariant, cacheKey);
       
     } catch (err: any) {
       lastError = err;

@@ -1,4 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { StorePublishStatus } from "./StorePublishStatus";
+import { Input } from "@/components/ui/input";
+import { StoreManager } from "@/features/storeBuilder/StoreManager";
+import { AllChannelsManager } from "./AllChannelsManager";
+import { STORE_ROLES, isStoreRole } from "@shared/storeRoles";
+import { refreshStoreViews } from "@/features/storeBuilder/storeQueries";
+import { DeleteBuildDialog } from '@/features/shared/components/DeleteBuildDialog';
+import { useState, useCallback, useEffect, useRef, useId } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Store, Hash, Layers, ChevronRight, ChevronDown,
@@ -17,7 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { RoleType, Store as StoreType, Channel, Collection } from "../shared/types";
 import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
 
-interface AdminInstance {
+export interface AdminInstance {
   id: string;
   storeId?: string;
   storeName?: string;
@@ -50,13 +57,13 @@ interface AdminInstance {
   colorMap?: Record<string, string>;
   customerPrice?: string;
   currentPacketId?: string;
+  printifyProductId?: string;
+  publishStatus?: "synced" | "pending" | "error";
+  lastPublishedAt?: string;
+  publishError?: string;
 }
 
-const ROLES: { value: RoleType; label: string }[] = [
-  { value: "internal", label: "Internal" },
-  { value: "external", label: "External" },
-  { value: "member", label: "Member" },
-];
+const ROLES = STORE_ROLES.map(role => ({ value: role.id, label: role.name }));
 
 function getImageUrl(instance: AdminInstance): string | null {
   const img = instance.resolved?.images?.[0];
@@ -65,11 +72,12 @@ function getImageUrl(instance: AdminInstance): string | null {
   return img.url ?? null;
 }
 
-function ColorToggle({ color, enabled, onToggle, colorMap }: {
+function ColorToggle({ color, enabled, onToggle, colorMap, disabled }: {
   color: string;
   enabled: boolean;
   onToggle: () => void;
   colorMap?: Record<string, string>;
+  disabled?: boolean;
 }) {
   const isHex = color.startsWith("#");
   // 1. Stored hex from colorMap (exact Printify/Printful value)
@@ -79,13 +87,15 @@ function ColorToggle({ color, enabled, onToggle, colorMap }: {
   const displayName = color.length > 10 ? color.slice(0, 9) + "…" : color;
   return (
     <button
+      disabled={disabled}
+      aria-pressed={enabled}
       onClick={onToggle}
       title={color}
       data-testid={`toggle-color-${color}`}
       className="flex flex-col items-center gap-1.5 focus:outline-none flex-shrink-0"
     >
       <div
-        className={`relative w-9 h-9 rounded-md border-2 transition-all flex items-center justify-center bg-white/10
+        className={`relative w-12 h-12 rounded-md border-2 transition-all flex items-center justify-center bg-white/10
           ${enabled ? "border-white/70" : "border-white/15 opacity-30"}`}
         style={bgColor ? { backgroundColor: bgColor } : undefined}
       >
@@ -106,11 +116,13 @@ function ColorToggle({ color, enabled, onToggle, colorMap }: {
   );
 }
 
-function SizeChip({ size, enabled, onToggle }: { size: string; enabled: boolean; onToggle: () => void }) {
+function SizeChip({ size, enabled, onToggle, disabled }: { size: string; enabled: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <button
+      disabled={disabled}
+      aria-pressed={enabled}
       onClick={onToggle}
-      className={`relative px-3 py-2 rounded-md text-sm font-medium border transition-all min-h-[2.25rem] min-w-[2.75rem] flex items-center justify-center gap-1.5
+      className={`relative px-3 py-2 rounded-md text-sm font-medium border transition-all min-h-12 min-w-12 flex items-center justify-center gap-1.5
         ${enabled
           ? "border-white/35 bg-white/12 text-white"
           : "border-white/10 bg-transparent text-white/25 opacity-40"
@@ -123,7 +135,7 @@ function SizeChip({ size, enabled, onToggle }: { size: string; enabled: boolean;
   );
 }
 
-function MoveDialog({
+export function MoveDialog({
   instance,
   onClose,
   onMoved,
@@ -132,13 +144,16 @@ function MoveDialog({
   onClose: () => void;
   onMoved: () => void;
 }) {
+  const moveLock = useRef(false);
+  const collectionListId = useId();
   const [role, setRole] = useState<RoleType | "">("");
   const [destStore, setDestStore] = useState<StoreType | null>(null);
   const [destChannel, setDestChannel] = useState<Channel | null>(null);
   const [destCollection, setDestCollection] = useState<Collection | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const { data: stores = [], isLoading: loadingStores } = useQuery<StoreType[]>({
+  const { data: stores = [], isLoading: loadingStores, error: storesError, refetch: retryStores } = useQuery<StoreType[]>({
     queryKey: ["stores", role],
     queryFn: async () => {
       if (!role) return [];
@@ -148,7 +163,7 @@ function MoveDialog({
     enabled: !!role,
   });
 
-  const { data: channels = [], isLoading: loadingChannels } = useQuery<Channel[]>({
+  const { data: channels = [], isLoading: loadingChannels, error: channelsError, refetch: retryChannels } = useQuery<Channel[]>({
     queryKey: ["channels", destStore?.id],
     queryFn: async () => {
       if (!destStore) return [];
@@ -158,7 +173,7 @@ function MoveDialog({
     enabled: !!destStore,
   });
 
-  const { data: collections = [], isLoading: loadingCollections } = useQuery<Collection[]>({
+  const { data: collections = [], isLoading: loadingCollections, error: collectionsError, refetch: retryCollections } = useQuery<Collection[]>({
     queryKey: ["collections", destStore?.id, destChannel?.id],
     queryFn: async () => {
       if (!destStore || !destChannel) return [];
@@ -184,34 +199,38 @@ function MoveDialog({
       };
       await adminFetch(`/catalog-instances/${instance.id}`, { method: "PATCH", json: { folderUpdate } });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
+      await refreshStoreViews(queryClient);
       toast({ title: "Moved", description: "Item moved successfully." });
       onMoved();
       onClose();
     },
     onError: () => toast({ title: "Error", description: "Could not move item.", variant: "destructive" }),
+    onSettled: () => { moveLock.current = false; },
   });
 
   const storeOptions = stores.map(s => ({ value: s.id, label: s.name, icon: <Store className="h-4 w-4" /> }));
   const channelOptions = channels.map(c => ({ value: c.id, label: c.name, icon: <Hash className="h-4 w-4" /> }));
   const existingCollectionNames = collections.map(c => c.name);
 
-  const canMove = !!destStore && !!destChannel;
+  const canMove = !!destStore && !!destChannel && !storesError && !channelsError && !collectionsError && !loadingCollections;
 
   return (
     <div className="mt-3 p-3 rounded-lg border border-white/15 bg-white/5 space-y-3">
       <p className="glass-subtitle text-xs uppercase tracking-wider">Move to</p>
+      {(storesError || channelsError || collectionsError) && <div role="alert"><p>Could not load destinations.</p><Button className="h-12" onClick={() => { void retryStores(); void retryChannels(); if (destChannel) void retryCollections(); }}>Retry</Button></div>}
+      <fieldset disabled={moveMutation.isPending} className="min-w-0">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        <CustomDropdown value={role} onChange={v => { setRole(v as RoleType); setDestStore(null); setDestChannel(null); }} options={ROLES.map(r => ({ value: r.value, label: r.label }))} placeholder="Role..." />
-        <CustomDropdown value={destStore?.id ?? ""} onChange={v => { const s = stores.find(x => x.id === v); setDestStore(s ?? null); setDestChannel(null); }} options={storeOptions} placeholder="Store..." loading={loadingStores} disabled={!role} />
+        <CustomDropdown value={role} onChange={v => { setRole(v as RoleType); setDestStore(null); setDestChannel(null); setDestCollection(null); }} options={ROLES.map(r => ({ value: r.value, label: r.label }))} placeholder="Role..." />
+        <CustomDropdown value={destStore?.id ?? ""} onChange={v => { const s = stores.find(x => x.id === v); setDestStore(s ?? null); setDestChannel(null); setDestCollection(null); }} options={storeOptions} placeholder="Store..." loading={loadingStores} disabled={!role} />
         <CustomDropdown value={destChannel?.id ?? ""} onChange={v => { const c = channels.find(x => x.id === v); setDestChannel(c ?? null); setDestCollection(null); }} options={channelOptions} placeholder="Channel..." loading={loadingChannels} disabled={!destStore} />
         {/* Collection: free-text with autocomplete so new names (e.g. "Armed Forces") can be entered */}
         <div className="relative">
-          <datalist id="move-collection-list">
+          <datalist id={collectionListId}>
             {existingCollectionNames.map(n => <option key={n} value={n} />)}
           </datalist>
           <input
-            list="move-collection-list"
+            list={collectionListId}
             value={destCollection?.name ?? ""}
             onChange={e => setDestCollection(e.target.value.trim() ? { name: e.target.value } : null)}
             placeholder={loadingCollections ? "Loading…" : "Collection (optional)…"}
@@ -221,16 +240,17 @@ function MoveDialog({
           />
         </div>
       </div>
+      </fieldset>
       <div className="flex gap-2">
         <button
-          onClick={() => moveMutation.mutate()}
+          onClick={() => { if (!canMove || moveLock.current) return; moveLock.current = true; moveMutation.mutate(); }}
           disabled={!canMove || moveMutation.isPending}
-          className="qr-btn qr-btn--primary qr-btn--touch flex-1"
+          className="min-h-12 qr-btn qr-btn--primary qr-btn--touch flex-1"
           data-testid="button-confirm-move"
         >
           {moveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Confirm Move"}
         </button>
-        <button onClick={onClose} className="qr-btn qr-btn--ghost qr-btn--touch" data-testid="button-cancel-move">
+        <button disabled={moveMutation.isPending} onClick={onClose} aria-label="Cancel move" className="order-first min-h-12 min-w-12 qr-btn qr-btn--ghost qr-btn--touch" data-testid="button-cancel-move">
           <X className="h-4 w-4" />
         </button>
       </div>
@@ -254,7 +274,7 @@ function AccordionSection({
     <div className="border-t border-white/10">
       <button
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between py-3 text-left"
+        className="min-h-12 w-full flex items-center justify-between py-3 text-left"
         data-testid={`accordion-${label.toLowerCase().replace(/\s+/g, '-')}`}
       >
         <span className="glass-subtitle text-xs uppercase tracking-wider flex items-center gap-2">
@@ -283,7 +303,7 @@ function ImageLightbox({ url, alt, onClose }: { url: string; alt: string; onClos
       />
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white"
+        className="absolute top-4 left-4 h-12 w-12 flex items-center justify-center rounded-full bg-white/10 text-white"
         data-testid="lightbox-close"
       >
         <X className="h-5 w-5" />
@@ -293,7 +313,7 @@ function ImageLightbox({ url, alt, onClose }: { url: string; alt: string; onClos
   );
 }
 
-function InstanceCard({
+export function InstanceCard({
   instance,
   onDeleted,
   onMoved,
@@ -313,30 +333,22 @@ function InstanceCard({
   const toStr = (v: any): string => typeof v === 'string' ? v : v?.name || v?.label || v?.hex || String(v ?? '');
   const allColors = (instance.resolved?.colors ?? []).map(toStr).filter(Boolean);
   const allSizes = (instance.resolved?.sizes ?? []).map(toStr).filter(Boolean);
-  const enabledColors = instance.enabledColors?.length ? instance.enabledColors : allColors;
-  const enabledSizes = instance.enabledSizes?.length ? instance.enabledSizes : allSizes;
+  const enabledColors = instance.enabledColors ?? allColors;
+  const enabledSizes = instance.enabledSizes ?? allSizes;
 
+  const patchLock = useRef(false);
   const patchMutation = useMutation({
     mutationFn: (body: Record<string, any>) =>
       adminFetch(`/catalog-instances/${instance.id}`, { method: "PATCH", json: body }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["admin-instances"] });
+      return refreshStoreViews(queryClient);
     },
     onError: () => toast({ title: "Error", description: "Could not save changes.", variant: "destructive" }),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: () =>
-      adminFetch(`/catalog-instances/${instance.id}`, { method: "DELETE" }),
-    onSuccess: () => {
-      setDeleteOpen(false);
-      toast({ title: "Deleted", description: "Item removed." });
-      onDeleted();
-    },
-    onError: () => toast({ title: "Error", description: "Could not delete.", variant: "destructive" }),
+    onSettled: () => { patchLock.current = false; },
   });
 
   const toggleColor = useCallback((color: string) => {
+    if (patchLock.current) return; patchLock.current = true;
     const next = enabledColors.includes(color)
       ? enabledColors.filter(c => c !== color)
       : [...enabledColors, color];
@@ -344,6 +356,7 @@ function InstanceCard({
   }, [enabledColors, patchMutation]);
 
   const toggleSize = useCallback((size: string) => {
+    if (patchLock.current) return; patchLock.current = true;
     const next = enabledSizes.includes(size)
       ? enabledSizes.filter(s => s !== size)
       : [...enabledSizes, size];
@@ -352,7 +365,8 @@ function InstanceCard({
 
   const imageUrl = getImageUrl(instance);
   const title = instance.resolved?.title ?? "Untitled";
-  const customerPrice = instance.resolved?.pricing?.customerPrice;
+  const rawPrice = instance.resolved?.pricing?.customerPrice;
+  const customerPrice = rawPrice == null || String(rawPrice).trim() === "" ? null : Number(rawPrice);
 
   return (
     <div
@@ -373,11 +387,11 @@ function InstanceCard({
           }
         </button>
         <div className="flex-1 min-w-0 py-0.5">
-          <p className="glass-body font-medium text-base leading-snug" data-testid={`text-instance-title-${instance.id}`}>{title}</p>
+          <p className="glass-body font-medium text-base leading-snug [overflow-wrap:anywhere]" data-testid={`text-instance-title-${instance.id}`}>{title}</p>
           {instance.folderPath && (
-            <p className="glass-subtitle text-xs mt-1 leading-relaxed">{instance.folderPath}</p>
+            <p className="glass-subtitle text-xs mt-1 leading-relaxed [overflow-wrap:anywhere]">{instance.folderPath}</p>
           )}
-          {customerPrice != null && (
+          {customerPrice != null && Number.isFinite(customerPrice) && (
             <p className="glass-subtitle text-xs mt-1.5">
               Price: ${customerPrice.toFixed(2)}
             </p>
@@ -405,6 +419,7 @@ function InstanceCard({
                     key={color}
                     color={color}
                     enabled={enabledColors.includes(color)}
+                    disabled={patchMutation.isPending}
                     onToggle={() => toggleColor(color)}
                     colorMap={instance.colorMap}
                   />
@@ -423,6 +438,7 @@ function InstanceCard({
                     key={size}
                     size={size}
                     enabled={enabledSizes.includes(size)}
+                    disabled={patchMutation.isPending}
                     onToggle={() => toggleSize(size)}
                   />
                 ))}
@@ -453,39 +469,21 @@ function InstanceCard({
         )}
       </AccordionSection>
 
+      <StorePublishStatus product={instance} />
+
       {/* Bottom-right delete */}
       <div className="flex justify-end mt-2 pt-2 border-t border-white/10">
         <button
           onClick={() => setDeleteOpen(true)}
-          className="p-2 text-white/40 hover-elevate rounded"
-          title="Remove from store"
+          className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded"
+          title="Delete product and affected builds" aria-label="Delete product and affected builds"
           data-testid={`button-delete-${instance.id}`}
         >
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
 
-      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove this item?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will remove <strong>{title}</strong> from the store. The underlying packet and template are not deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid={`button-cancel-delete-${instance.id}`}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteMutation.mutate()}
-              disabled={deleteMutation.isPending}
-              className="bg-destructive text-destructive-foreground"
-              data-testid={`button-confirm-delete-${instance.id}`}
-            >
-              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Yes, remove"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteBuildDialog target={deleteOpen ? { kind: 'catalog-instances', id: instance.id } : null} onClose={() => setDeleteOpen(false)} onDeleted={onDeleted} />
 
       {lightboxOpen && imageUrl && (
         <ImageLightbox url={imageUrl} alt={title} onClose={() => setLightboxOpen(false)} />
@@ -513,7 +511,7 @@ function CollectionList({
   const [confirmCol, setConfirmCol] = useState<string | null>(null);
   const [deleteColOpen, setDeleteColOpen] = useState(false);
 
-  const { data: collections = [], isLoading } = useQuery<Collection[]>({
+  const { data: collections = [], isLoading, error: collectionsError, refetch: retryCollections } = useQuery<Collection[]>({
     queryKey: ["collections", storeId, channel.id],
     queryFn: async () => {
       const d = await adminFetch<any>(`/stores/${storeId}/channels/${channel.id}/collections`);
@@ -529,7 +527,7 @@ function CollectionList({
       toast({ title: "Collection deleted" });
       setConfirmCol(null);
       setDeleteColOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["collections", storeId, channel.id] });
+      void refreshStoreViews(queryClient);
       onCollectionDeleted();
     },
     onError: () => toast({ title: "Error", description: "Could not delete collection.", variant: "destructive" }),
@@ -539,6 +537,7 @@ function CollectionList({
     return <div className="pl-9 py-2"><Loader2 className="h-4 w-4 animate-spin text-white/30" /></div>;
   }
 
+  if (collectionsError) return <div role="alert"><p>Could not load collections.</p><Button className="h-12" onClick={() => retryCollections()}>Retry</Button></div>;
   if (!collections.length) {
     return <p className="pl-9 py-2 text-xs text-white/25 italic">No collections</p>;
   }
@@ -552,7 +551,7 @@ function CollectionList({
             <div key={col.name} className="flex items-center gap-1 group">
               <button
                 onClick={() => onSelect(col.name)}
-                className={`flex-1 flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm text-left transition-all hover-elevate
+                className={`min-h-12 min-w-0 flex-1 flex items-center gap-2.5 px-3 py-3 rounded-lg text-sm text-left transition-all hover-elevate
                   ${isSelected ? "bg-purple-500/20 text-purple-200" : "glass-subtitle"}`}
                 data-testid={`button-select-collection-${col.name}`}
               >
@@ -561,7 +560,7 @@ function CollectionList({
               </button>
               <button
                 onClick={() => { setConfirmCol(col.name); setDeleteColOpen(true); }}
-                className="p-2 text-white/40 hover-elevate rounded flex-shrink-0"
+                className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded flex-shrink-0"
                 data-testid={`button-delete-collection-${col.name}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -571,20 +570,20 @@ function CollectionList({
         })}
       </div>
 
-      <AlertDialog open={deleteColOpen} onOpenChange={(o) => { setDeleteColOpen(o); if (!o) setConfirmCol(null); }}>
+      <AlertDialog open={deleteColOpen} onOpenChange={(o) => { if (!deleteColMutation.isPending) { setDeleteColOpen(o); if (!o) setConfirmCol(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete collection?</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete <strong>"{confirmCol}"</strong>? Products inside will not be deleted.
+              Delete <strong>"{confirmCol}"</strong>? All listings in this collection will be archived and hidden. Build files are retained.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-12" disabled={deleteColMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => confirmCol && deleteColMutation.mutate(confirmCol)}
+              onClick={event => { event.preventDefault(); if (confirmCol) deleteColMutation.mutate(confirmCol); }}
               disabled={deleteColMutation.isPending}
-              className="bg-destructive text-destructive-foreground"
+              className="min-h-12 bg-destructive text-destructive-foreground"
             >
               {deleteColMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
             </AlertDialogAction>
@@ -611,6 +610,7 @@ function ChannelTree({
   onChannelDeleted: () => void;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [expandedChannels, setExpandedChannels] = useState<Set<string>>(new Set());
   const [confirmChannelId, setConfirmChannelId] = useState<string | null>(null);
   const [deleteChannelOpen, setDeleteChannelOpen] = useState(false);
@@ -630,6 +630,7 @@ function ChannelTree({
       toast({ title: "Channel deleted" });
       setConfirmChannelId(null);
       setDeleteChannelOpen(false);
+      void refreshStoreViews(queryClient);
       onChannelDeleted();
     },
     onError: () => toast({ title: "Error", description: "Could not delete channel.", variant: "destructive" }),
@@ -648,7 +649,7 @@ function ChannelTree({
             <div className="flex items-center gap-1">
               <button
                 onClick={() => toggleExpand(channel.id)}
-                className="p-2 text-white/40 hover-elevate rounded flex-shrink-0"
+                className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded flex-shrink-0"
                 data-testid={`button-expand-channel-${channel.id}`}
               >
                 {isExpanded
@@ -657,7 +658,7 @@ function ChannelTree({
               </button>
               <button
                 onClick={() => { onSelect(channel.id, null); if (!isExpanded) toggleExpand(channel.id); }}
-                className={`flex-1 flex items-center gap-2.5 px-2 py-3 rounded-lg text-sm text-left transition-all hover-elevate
+                className={`min-h-12 min-w-0 flex-1 flex items-center gap-2.5 px-2 py-3 rounded-lg text-sm text-left transition-all hover-elevate
                   ${isChannelSelected ? "bg-ice-2/20 glass-body" : "glass-subtitle"}`}
                 data-testid={`button-select-channel-${channel.id}`}
               >
@@ -669,7 +670,7 @@ function ChannelTree({
               </button>
               <button
                 onClick={() => { setConfirmChannelId(channel.id); setDeleteChannelOpen(true); }}
-                className="p-2 text-white/40 hover-elevate rounded flex-shrink-0"
+                className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded flex-shrink-0"
                 data-testid={`button-delete-channel-${channel.id}`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -689,20 +690,20 @@ function ChannelTree({
       })}
     </div>
 
-      <AlertDialog open={deleteChannelOpen} onOpenChange={(o) => { setDeleteChannelOpen(o); if (!o) setConfirmChannelId(null); }}>
+      <AlertDialog open={deleteChannelOpen} onOpenChange={(o) => { if (!deleteChannelMutation.isPending) { setDeleteChannelOpen(o); if (!o) setConfirmChannelId(null); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete channel?</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete <strong>"{pendingChannel?.name}"</strong>? This cannot be undone.
+              Delete <strong>"{pendingChannel?.name}"</strong>? All listings in this channel will be archived and hidden. Build files are retained.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-12" disabled={deleteChannelMutation.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => confirmChannelId && deleteChannelMutation.mutate(confirmChannelId)}
+              onClick={event => { event.preventDefault(); if (confirmChannelId) deleteChannelMutation.mutate(confirmChannelId); }}
               disabled={deleteChannelMutation.isPending}
-              className="bg-destructive text-destructive-foreground"
+              className="min-h-12 bg-destructive text-destructive-foreground"
             >
               {deleteChannelMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
             </AlertDialogAction>
@@ -715,14 +716,14 @@ function ChannelTree({
 
 function UnplacedItems() {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
-  const { data, isLoading, refetch } = useQuery<{ instances: AdminInstance[] }>({
+  const { data, isLoading, error, refetch } = useQuery<{ instances: AdminInstance[] }>({
     queryKey: ["admin-instances-unplaced"],
     queryFn: async () => {
-      const d = await adminFetch<any>("/catalog-instances");
+      const d = await adminFetch<any>("/catalog-instances?unplaced=true");
       const all: AdminInstance[] = d.instances ?? [];
-      return { instances: all.filter(i => !i.storeId && i.status !== "deleted") };
+      return { instances: all.filter(i => (!i.storeId || !i.channelId) && i.status !== "deleted") };
     },
     enabled: open,
     staleTime: 30_000,
@@ -733,14 +734,14 @@ function UnplacedItems() {
   return (
     <div className="glass-card p-4">
       <button
-        className="w-full flex items-center justify-between"
+        className="min-h-12 w-full flex flex-wrap items-center justify-between gap-2"
         onClick={() => setOpen(v => !v)}
         data-testid="button-toggle-unplaced"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <Package className="h-4 w-4 text-amber-400/70" />
           <span className="glass-body text-sm font-medium">Unplaced Items</span>
-          <span className="text-xs text-white/30">(packets not yet assigned to a store)</span>
+          <span className="text-xs text-white/30">(products needing a store or channel)</span>
         </div>
         <div className="flex items-center gap-2">
           {!isLoading && open && (
@@ -756,8 +757,8 @@ function UnplacedItems() {
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-white/40" />
             </div>
-          ) : unplaced.length === 0 ? (
-            <p className="text-sm text-white/30 italic text-center py-6">All packets are assigned to a store.</p>
+          ) : error ? (<div role="alert"><p>Could not load unplaced products.</p><Button className="h-12" onClick={() => refetch()}>Retry</Button></div>) : unplaced.length === 0 ? (
+            <p className="text-sm text-white/30 italic text-center py-6">No unplaced products.</p>
           ) : (
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
               {unplaced.map(inst => (
@@ -781,11 +782,14 @@ function UnplacedItems() {
   );
 }
 
-export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string } = {}) {
+export function StoreManagerTab({ initialPacketId, initialStoreId, initialChannelKey, initialRole }: { initialPacketId?: string; initialStoreId?: string; initialChannelKey?: string; initialRole?: string } = {}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [selectedRole, setSelectedRole] = useState<RoleType | "">("");
+  const [selectedRole, setSelectedRole] = useState<RoleType | "">(isStoreRole(initialRole) ? initialRole : "");
+  const [search, setSearch] = useState("");
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkAttempt, setLinkAttempt] = useState(0);
   const [selectedStore, setSelectedStore] = useState<StoreType | null>(null);
   const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
   const [selectedCollectionName, setSelectedCollectionName] = useState<string | null>(null);
@@ -797,9 +801,10 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     storeId: string;
     storeName: string;
     channelId: string | null;
-    instanceId: string;
+    instanceId: string | null;
   } | null>(null);
   const [highlightedInstanceId, setHighlightedInstanceId] = useState<string | null>(null);
+  const navigationVersion = useRef(0);
   const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const [deleteStoreError, setDeleteStoreError] = useState<string | null>(null);
@@ -814,7 +819,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
       setSelectedStore(null);
       setSelectedChannelId(null);
       setSelectedCollectionName(null);
-      queryClient.invalidateQueries({ queryKey: ["stores", selectedRole] });
+      void refreshStoreViews(queryClient);
       toast({ title: "Store deleted" });
     },
     onError: (err: any) => {
@@ -823,39 +828,34 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     },
   });
 
-  // ── Fetch instance by packetId on mount ─────────────────────────────────────
+  // Existing packet links and retired Store Products links use the same destination selection.
   useEffect(() => {
-    if (!initialPacketId) return;
-    adminFetch<any>(`/catalog-instances/by-packet/${initialPacketId}`)
-      .then((data) => {
-        const inst = data.instance;
-        if (!inst || !data.storeRoleType || !inst.storeId) {
-          console.warn("[StoreManagerTab] by-packet lookup: missing instance/store info", data);
-          return;
-        }
-        setAutoSelect({
-          roleType: data.storeRoleType,
-          storeId: inst.storeId,
-          storeName: inst.storeName ?? inst.storeId,
-          channelId: inst.channelId ?? null,
-          instanceId: inst.id,
+    let cancelled = false;
+    const version = navigationVersion.current;
+    setLinkError(null); setAutoSelect(null); setSelectedStore(null); setSelectedChannelId(null); setSelectedCollectionName(null);
+    setSelectedRole(isStoreRole(initialRole) ? initialRole : "");
+    if (!initialStoreId && !initialPacketId) return;
+    const lookup = initialStoreId
+      ? adminFetch<StoreType[]>("/stores").then(stores => {
+          const store = stores.find(s => s.id === initialStoreId);
+          if (!store) throw new Error("This store no longer exists. Choose another store.");
+          return { roleType: store.roleType, storeId: store.id, storeName: store.name, channelId: initialChannelKey || null, instanceId: null };
+        })
+      : adminFetch<any>(`/catalog-instances/by-packet/${initialPacketId}`).then(data => {
+          const inst = data.instance;
+          if (!inst || !data.storeRoleType || !inst.storeId) return null;
+          return { roleType: data.storeRoleType, storeId: inst.storeId, storeName: inst.storeName ?? inst.storeId, channelId: inst.channelId ?? null, instanceId: inst.id };
         });
-        setHighlightedInstanceId(inst.id);
-        // Kick off the role selection so the stores query fires
-        setSelectedRole(data.storeRoleType as RoleType);
-      })
-      .catch((err) => {
-        console.error("[StoreManagerTab] by-packet lookup failed:", err);
-        toast({
-          title: "Could not locate product",
-          description: "The committed product could not be found. Navigate manually.",
-          variant: "destructive",
-        });
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPacketId]);
+    lookup.then(destination => {
+      if (cancelled || version !== navigationVersion.current || !destination) return;
+      setAutoSelect(destination); setHighlightedInstanceId(destination.instanceId); setSelectedRole(destination.roleType as RoleType);
+    }).catch(error => {
+      if (!cancelled && version === navigationVersion.current) setLinkError(error.message || "Could not load the linked destination.");
+    });
+    return () => { cancelled = true; };
+  }, [initialPacketId, initialStoreId, initialChannelKey, initialRole, linkAttempt]);
 
-  const { data: stores = [], isLoading: loadingStores } = useQuery<StoreType[]>({
+  const { data: stores = [], isLoading: loadingStores, error: storesError, refetch: retryStores } = useQuery<StoreType[]>({
     queryKey: ["stores", selectedRole],
     queryFn: async () => {
       if (!selectedRole) return [];
@@ -865,7 +865,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     enabled: !!selectedRole,
   });
 
-  const { data: channels = [], isLoading: loadingChannels } = useQuery<Channel[]>({
+  const { data: channels = [], isLoading: loadingChannels, error: channelsError, refetch: retryChannels } = useQuery<Channel[]>({
     queryKey: ["channels", selectedStore?.id],
     queryFn: async () => {
       if (!selectedStore) return [];
@@ -876,7 +876,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
   });
 
   const instancesQueryKey = ["admin-instances", selectedStore?.id, selectedChannelId, selectedCollectionName];
-  const { data: instancesData, isLoading: loadingInstances } = useQuery<{ instances: AdminInstance[] }>({
+  const { data: instancesData, isLoading: loadingInstances, error: instancesError, refetch: retryInstances } = useQuery<{ instances: AdminInstance[] }>({
     queryKey: instancesQueryKey,
     queryFn: async () => {
       if (!selectedStore) return { instances: [] };
@@ -886,28 +886,30 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
       if (selectedCollectionName) params.set("collectionName", selectedCollectionName);
       return adminFetch<any>(`/catalog-instances?${params}`);
     },
-    enabled: !!selectedStore,
+    enabled: !!selectedStore && !linkError && (!autoSelect?.channelId || !!selectedChannelId),
   });
 
   // ── Auto-set store once the stores list loads ────────────────────────────────
   useEffect(() => {
-    if (!autoSelect || !stores.length || loadingStores) return;
+    if (!autoSelect || selectedRole !== autoSelect.roleType || loadingStores || storesError) return;
     const store = stores.find(s => s.id === autoSelect.storeId);
+    if (!store) { setLinkError("This store no longer exists. Choose another store."); return; }
     if (store && selectedStore?.id !== store.id) {
       setSelectedStore(store);
       setSelectedChannelId(null);
       setSelectedCollectionName(null);
     }
-  }, [autoSelect, stores, loadingStores]);
+  }, [autoSelect, selectedRole, stores, loadingStores, storesError]);
 
-  // ── Auto-set channel once the channels list loads ────────────────────────────
+  // Resolve old channel-name links without ever using names in the product query.
   useEffect(() => {
-    if (!autoSelect || !channels.length || loadingChannels) return;
-    if (autoSelect.channelId && selectedChannelId !== autoSelect.channelId) {
-      setSelectedChannelId(autoSelect.channelId);
-      setSelectedCollectionName(null);
+    if (!autoSelect || loadingChannels || !selectedStore || selectedStore.id !== autoSelect.storeId || channelsError) return;
+    if (autoSelect.channelId) {
+      const channel = channels.find(c => c.id === autoSelect.channelId || c.name === autoSelect.channelId);
+      if (!channel) { setLinkError("This channel no longer exists. Choose another channel."); return; }
+      setSelectedChannelId(channel.id); setSelectedCollectionName(null);
     }
-  }, [autoSelect, channels, loadingChannels]);
+  }, [autoSelect, channels, loadingChannels, selectedStore, channelsError]);
 
   // ── Scroll to highlighted instance once it appears ───────────────────────────
   useEffect(() => {
@@ -918,9 +920,17 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     return () => clearTimeout(timer);
   }, [highlightedInstanceId, instancesData]);
 
-  const instances = instancesData?.instances ?? [];
+  useEffect(() => {
+    if (selectedStore && !loadingStores && !storesError && !stores.some(s => s.id === selectedStore.id)) {
+      setSelectedStore(null); setSelectedChannelId(null); setSelectedCollectionName(null);
+    }
+  }, [stores, loadingStores, storesError, selectedStore]);
+  const allInstances = instancesData?.instances ?? [];
+  const instances = allInstances.filter(item => `${item.resolved?.title || ""} ${item.id} ${item.collectionName || ""}`.toLowerCase().includes(search.toLowerCase()));
 
   const handleRoleChange = (role: string) => {
+    navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSearch("");
+    setHighlightedInstanceId(null);
     setSelectedRole(role as RoleType);
     setSelectedStore(null);
     setSelectedChannelId(null);
@@ -928,6 +938,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
   };
 
   const handleStoreChange = (storeId: string) => {
+    navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSearch(""); setHighlightedInstanceId(null);
     const store = stores.find(s => s.id === storeId);
     setSelectedStore(store ?? null);
     setSelectedChannelId(null);
@@ -935,12 +946,13 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
   };
 
   const handleFolderSelect = (channelId: string, collectionName: string | null) => {
+    navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSearch(""); setHighlightedInstanceId(null);
     setSelectedChannelId(channelId);
     setSelectedCollectionName(collectionName);
   };
 
   const refreshInstances = () => {
-    queryClient.invalidateQueries({ queryKey: instancesQueryKey });
+    void refreshStoreViews(queryClient);
   };
 
   const backfillImagesMutation = useMutation({
@@ -950,7 +962,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
         title: "Gallery images rebuilt",
         description: `Updated ${data.updated ?? 0} of ${data.total ?? 0} products.`,
       });
-      queryClient.invalidateQueries({ queryKey: instancesQueryKey });
+      void refreshStoreViews(queryClient);
     },
     onError: (err: any) => {
       toast({ title: "Backfill failed", description: err.message, variant: "destructive" });
@@ -969,18 +981,21 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
     : (selectedChannel?.name ?? "");
 
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4">
+      {linkError && <div role="alert" className="space-y-2"><p>{linkError}</p><Button className="h-12" onClick={() => setLinkAttempt(n => n + 1)}>Retry linked destination</Button></div>}
+      {(storesError || channelsError || instancesError) && <div role="alert" className="space-y-2 rounded-md border border-destructive p-3"><p>Could not load store contents.</p><Button className="h-12" onClick={() => { void retryStores(); if (selectedStore) { void retryChannels(); void retryInstances(); } }}>Retry</Button></div>}
       {/* Unplaced items — always visible so committed packets can be found and moved */}
       <UnplacedItems />
+      <details className="glass-card p-4"><summary className="min-h-12 cursor-pointer py-3">Create a store</summary><StoreManager createOnly /></details>
 
       {/* Role + Store selectors */}
       <div className="glass-card p-4">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
           <span className="glass-subtitle text-xs uppercase tracking-wider">Store Manager</span>
           <button
             onClick={() => backfillImagesMutation.mutate()}
             disabled={backfillImagesMutation.isPending}
-            className="flex items-center gap-1.5 text-xs text-white/30 hover-elevate rounded px-2 py-1"
+            className="min-h-12 flex items-center gap-1.5 text-sm text-white/60 hover-elevate rounded px-3 py-2"
             title="Rebuild gallery images for all products from their packet mockups"
             data-testid="button-backfill-images"
           >
@@ -991,7 +1006,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
           </button>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Role</label>
             <CustomDropdown
               value={selectedRole}
@@ -1001,10 +1016,10 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
               data-testid="select-role-manager"
             />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <label className="glass-subtitle text-xs uppercase tracking-wider mb-2 block">Store</label>
             <div className="flex gap-2 items-center">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <CustomDropdown
                   value={selectedStore?.id ?? ""}
                   onChange={handleStoreChange}
@@ -1021,7 +1036,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
                     href={`/shop/${selectedRole}/${selectedStore.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="p-2 text-white/40 hover-elevate rounded flex-shrink-0 mt-0.5"
+                    className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded flex-shrink-0 mt-0.5"
                     data-testid="link-visit-store"
                     title="Visit store"
                   >
@@ -1029,7 +1044,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
                   </a>
                   <button
                     onClick={() => setDeleteStoreOpen(true)}
-                    className="p-2 text-white/40 hover-elevate rounded flex-shrink-0 mt-0.5"
+                    className="min-h-12 min-w-12 flex items-center justify-center text-white/60 hover-elevate rounded flex-shrink-0 mt-0.5"
                     data-testid="button-delete-store"
                     title="Delete store"
                   >
@@ -1044,13 +1059,16 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
 
       {selectedStore && (
         <>
+          <details className="glass-card p-4" key={selectedStore.id}><summary className="min-h-12 cursor-pointer py-3">Manage {selectedStore.name}</summary><StoreManager storeId={selectedStore.id} /></details>
+          <div className="flex flex-wrap gap-2"><Input className="h-12 text-base flex-1 min-w-0" aria-label="Find store products" placeholder="Find a product…" value={search} onChange={event => setSearch(event.target.value)} /><Button className="h-12" variant="outline" disabled={loadingInstances || !!linkError} onClick={refreshInstances}>Refresh</Button></div>
           {/* ── Two-panel layout: stacked on mobile, side-by-side on desktop ── */}
           <div className="flex flex-col md:flex-row gap-4">
 
             {/* Left: channel tree */}
             <div className="md:w-60 md:flex-shrink-0 glass-card p-3">
               <p className="glass-subtitle text-xs uppercase tracking-wider mb-3 px-1">Channels</p>
-              {loadingChannels ? (
+              <Button className="min-h-12 w-full mb-2" variant={selectedChannelId ? "outline" : "default"} onClick={() => { navigationVersion.current++; setAutoSelect(null); setLinkError(null); setSelectedChannelId(null); setSelectedCollectionName(null); }}>All channels</Button>
+              {channelsError ? null : loadingChannels ? (
                 <div className="flex justify-center py-10">
                   <Loader2 className="h-5 w-5 animate-spin text-white/40" />
                 </div>
@@ -1074,7 +1092,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
 
             {/* Right: instance grid — always visible */}
             <div className="flex-1 min-w-0">
-              {loadingInstances ? (
+              {(instancesError || linkError) ? null : loadingInstances ? (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-6 w-6 animate-spin text-white/40" />
                 </div>
@@ -1082,7 +1100,7 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
                 <div className="flex flex-col items-center justify-center py-20 text-white/30 gap-3">
                   <Package className="h-9 w-9" />
                   <p className="text-sm text-center px-4">
-                    No products in {selectedCollectionName ?? selectedChannel?.name ?? "this folder"}
+                    {search ? "No products match your search." : `No products in ${selectedCollectionName ?? selectedChannel?.name ?? "this store"}`}
                   </p>
                 </div>
               ) : (
@@ -1130,8 +1148,9 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
         </>
       )}
 
+      <details className="glass-card p-4"><summary className="min-h-12 cursor-pointer py-3">Channels without a store</summary><AllChannelsManager orphanedOnly /></details>
       {/* No store selected yet */}
-      {!selectedStore && selectedRole && !loadingStores && stores.length === 0 && (
+      {!storesError && !selectedStore && selectedRole && !loadingStores && stores.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-white/30 gap-3">
           <Store className="h-9 w-9" />
           <p className="text-sm">No stores found for this role</p>
@@ -1143,16 +1162,16 @@ export function StoreManagerTab({ initialPacketId }: { initialPacketId?: string 
           <AlertDialogHeader>
             <AlertDialogTitle>Delete store?</AlertDialogTitle>
             <AlertDialogDescription>
-              Delete <strong>"{selectedStore?.name}"</strong>? This cannot be undone.
+              Delete <strong>"{selectedStore?.name}"</strong> and its channels? All listings will be archived and hidden. Build files are retained.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteStoreError && (
             <p className="text-sm text-destructive px-1">{deleteStoreError}</p>
           )}
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteStoreMutation.isPending} data-testid="button-cancel-delete-store">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="h-12" disabled={deleteStoreMutation.isPending} data-testid="button-cancel-delete-store">Cancel</AlertDialogCancel>
             <Button
-              variant="destructive"
+              variant="destructive" className="h-12"
               onClick={() => deleteStoreMutation.mutate()}
               disabled={deleteStoreMutation.isPending}
               data-testid="button-confirm-delete-store"

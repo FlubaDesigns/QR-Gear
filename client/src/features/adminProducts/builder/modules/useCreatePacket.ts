@@ -1,12 +1,16 @@
+import type { PricingSettings } from '@shared/schema-orders';
+import { queryClient } from "@/lib/queryClient";
+import { refreshBuildLibrary, ORIGINALS_QK } from "@/features/adminLibrary/shared/grfQueryKeys";
+import { TEMPLATE_LIBRARY_QK } from "@/features/shared/templateLibrary";
 import { packetBuildFields, productGraphicOptions, requireBuilderSnapshot } from '@shared/builderSnapshot';
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { adminFetch } from "@/lib/adminFetch";
 import { useToast } from "@/hooks/use-toast";
 import { renderProductGraphic, type RenderOptions } from "@/features/shared/graphics/productGraphicRenderer";
 import { renderLandingPage } from "@/features/shared/graphics/landingPageRenderer";
 import { generateQRCodeUrl } from "@/features/shared/components/wizardSteps/wizardTypes";
-import type { PricingBreakdown } from "../types";
+import { DEFAULT_QR_PRODUCT_STATE, type PricingBreakdown } from "../types";
 import type { PacketResult } from "./CreateGraphicsModule";
 import { useBuilderContext } from "../BuilderContext";
 
@@ -16,13 +20,7 @@ interface CommitResult {
   packetId: string | null;
 }
 
-interface PricingSettings {
-  markupPercent: number;
-  markupFixed: number;
-  additionalPlacementCost: number;
-  textLineUpcharge: number;
-  hostingTiers: { code: string; name: string; price: number }[];
-}
+
 
 interface UseCreatePacketArgs {
   state: any;
@@ -31,7 +29,7 @@ interface UseCreatePacketArgs {
   selectedChannel: any;
   selectedCollection: any;
   loadGraphic: (g: { compositeUrl: string; qrOnlyUrl: string }) => void;
-  resetBuilder: () => void;
+  resetBuilder: () => Promise<void>;
   pricingSettings: PricingSettings | undefined;
 }
 
@@ -44,38 +42,11 @@ export function useCreatePacket({
   const [isCreating, setIsCreating] = useState(false);
   const [packetResult, setPacketResult] = useState<PacketResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [isCommitting, setIsCommitting] = useState(false);
   const [commitResult, setCommitResult] = useState<CommitResult | null>(null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
-  const { setActiveSession, saveWorking, setActivePacketId } = useBuilderContext();
+  const { setActiveSession, saveWorking, setActivePacketId, beginBuildActivity } = useBuilderContext();
 
-  const calculatePricing = useCallback((): PricingBreakdown | null => {
-    if (!pricingSettings || !state.selectedProduct || !state.content) return null;
-
-    const product = state.selectedProduct as any;
-    const baseProductCost = parseFloat(product.maxPrice || product.basePrice || product.minPrice || product.customerPrice || "0");
-    const placementCount = (state.selectedPlacements || []).length || 1;
-    const additionalPlacements = Math.max(0, placementCount - 1);
-    const placementCost = additionalPlacements * pricingSettings.additionalPlacementCost;
-
-    let textLineCount = 0;
-    if (state.content.headerStyle?.enabled && state.content.headerStyle.text) textLineCount++;
-    if (state.content.footerStyle?.enabled && state.content.footerStyle.text) textLineCount++;
-    const textUpcharge = textLineCount * pricingSettings.textLineUpcharge;
-    const hostingCost = 0;
-    const subtotal = baseProductCost + placementCost + textUpcharge;
-    const markupAmount = (subtotal * (pricingSettings.markupPercent / 100)) + pricingSettings.markupFixed;
-    const customerPrice = subtotal + markupAmount;
-
-    return {
-      baseProductCost, placementCost, textUpcharge, hostingCost, subtotal,
-      markupPercent: pricingSettings.markupPercent,
-      markupFixed: pricingSettings.markupFixed,
-      markupAmount, customerPrice,
-      hostingTierCode: state.content.hostingTierCode || "1_year",
-    };
-  }, [pricingSettings, state.selectedProduct, state.selectedPlacements, state.content]);
 
   /**
    * If the background URL is a raw base64 data URI, upload it to Firebase Storage
@@ -91,22 +62,14 @@ export function useCreatePacket({
     try {
       const mimeMatch = rawUrl.match(/^data:([^;]+);base64,/);
       const mimeType = mimeMatch ? mimeMatch[1] : "image/jpeg";
-      const base64Data = rawUrl.replace(/^data:[^;]+;base64,/, "");
       const ext = mimeType.split("/")[1] || "jpg";
-      const uploadResult = await adminFetch<{ storageUrl: string }>("/background-assets", {
+      const uploadResult = await adminFetch<{ asset: { publicUrl: string } }>("/library/upload-source", {
         method: "POST",
-        json: {
-          name: `bg-${Date.now()}.${ext}`,
-          assetType: "source",
-          imageData: base64Data,
-          mimeType,
-        },
+        json: { imageUrl: rawUrl, mimeType, originalFilename: `bg-${Date.now()}.${ext}` },
       });
-      if (!uploadResult.storageUrl) {
-        throw new Error("Background upload succeeded but returned no storageUrl");
-      }
-      console.log("[CreatePacket] Background uploaded to Storage:", uploadResult.storageUrl);
-      return uploadResult.storageUrl;
+      if (!uploadResult.asset?.publicUrl) throw new Error("Background upload returned no registered image URL");
+      void queryClient.invalidateQueries({ queryKey: ORIGINALS_QK });
+      return uploadResult.asset.publicUrl;
     } catch (err: any) {
       console.error("[CreatePacket] Background upload failed — stripping base64 to prevent Firestore overflow:", err.message);
       toast({
@@ -121,6 +84,10 @@ export function useCreatePacket({
   const handleCreatePacket = async () => {
     console.log('[CreateGraphics] handleCreatePacket called');
     if (isCreating) return;
+    if (state.placementsLoading || state.placementsError) {
+      setError(state.placementsError || 'Wait for QRG print specifications to finish loading.');
+      return;
+    }
 
     // ── Gate: QRG blank identity must exist before any schema write ────────
     const product = state.selectedProduct as any;
@@ -133,6 +100,8 @@ export function useCreatePacket({
       return;
     }
 
+    let finish: () => void;
+    try { finish = beginBuildActivity('Generating packet…'); } catch { return; }
     setIsCreating(true);
     setError(null);
     setArtifactError(null);
@@ -142,8 +111,6 @@ export function useCreatePacket({
       const snapshot = requireBuilderSnapshot(await saveWorking());
       const content = snapshot.graphics.content;
       const playMediaFile = state.content?.playMediaFile;
-      const pricing = calculatePricing();
-      if (!pricing) throw new Error("Could not calculate pricing");
       const availableColors = product?.availableColors || [];
       const availableSizes = product?.availableSizes || [];
       const availablePlacements = product?.availablePlacements || [];
@@ -152,7 +119,7 @@ export function useCreatePacket({
         return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 50);
       };
 
-      const landingPageSlug = generateSlug(content.title || 'product') + '-' + Date.now().toString(36);
+      const landingPageSlug = generateSlug(snapshot.title || content.title || 'product') + '-' + Date.now().toString(36);
       const isPlayMode = state.qrProductState === "qr_play";
 
       // Upload any base64 background to Storage before it touches any Firestore write.
@@ -163,7 +130,6 @@ export function useCreatePacket({
         qrOnlyUrl: "",
         compositeUrl: "",
         qrContent: isPlayMode ? "" : (content.url || content.title || "").trim(),
-        pricing,
         productId: state.selectedProduct?.id || null,
         productName: state.selectedProduct?.title || product?.name || null,
         masterTitle: state.masterTitle ?? null,
@@ -208,6 +174,9 @@ export function useCreatePacket({
         json: packetPayload,
       });
       const packetId = packetData.packetId;
+      const pricing: PricingBreakdown = packetData.pricing;
+      if (!pricing || !packetData.builderSnapshot) throw new Error('Server returned no saved pricing or build snapshot.');
+      Object.assign(snapshot, packetData.builderSnapshot);
 
       let uploadedPlayMediaUrl: string | null = null;
       let uploadedPlayMediaType: string | null = null;
@@ -252,11 +221,6 @@ export function useCreatePacket({
         } catch (uploadErr: any) {
           const errMsg = uploadErr?.message || uploadErr?.toString?.() || JSON.stringify(uploadErr) || "Unknown error";
           throw new Error(`Play media upload failed: ${errMsg}`);
-          toast({
-            title: "Video Upload Failed",
-            description: errMsg.slice(0, 200),
-            variant: "destructive",
-          });
         }
       } else if (isPlayMode && content.playMediaSource === "url" && content.playMediaUrl) {
         uploadedPlayMediaUrl = content.playMediaUrl;
@@ -293,7 +257,7 @@ export function useCreatePacket({
             .filter((b: any) => b.enabled && b.text)
             .map((b: any) => ({
               text: b.text, enabled: b.enabled, fontFamily: b.fontFamily,
-              fontSize: b.fontSize, color: b.color, letterSpacing: b.letterSpacing,
+              fontSize: b.fontSize, fontWeight: b.fontWeight, color: b.color, letterSpacing: b.letterSpacing,
               strokeColor: b.strokeColor, strokeWidth: b.strokeWidth,
               verticalOffset: b.verticalOffset, horizontalOffset: b.horizontalOffset,
             }));
@@ -354,8 +318,9 @@ export function useCreatePacket({
         }
       }
 
-      const placementGraphicUrls: Record<string, string> = { [primaryPlacement]: productGraphicUrl };
+      const placementGraphicUrls: Record<string, string> = { ...packetData.placementGraphicUrls, [primaryPlacement]: productGraphicUrl };
       for (const placement of snapshot.layoutConfig.selectedPlacements.slice(1)) {
+        if (placementGraphicUrls[placement]) continue;
         if (!snapshot.layoutConfig.providerLayouts?.[placement]?.dimensions) throw new Error(`Print dimensions are missing for ${placement}. Reload the product options.`);
         const graphic = await renderProductGraphic(productGraphicOptions(snapshot, finalQrContent.trim(), placement) as RenderOptions);
         const upload = await adminFetch<{ publicUrl: string }>('/content/upload', {
@@ -427,6 +392,7 @@ export function useCreatePacket({
             });
 
             if (commitData) {
+              void refreshBuildLibrary(queryClient);
               committedInstanceId = commitData.instanceId;
               committedAssemblyId = commitData.assemblyId;
               setActiveSession(state.activeSessionId, 'committed', commitData.instanceId);
@@ -447,7 +413,7 @@ export function useCreatePacket({
         .filter(Boolean).join(' / ') || product?.title || 'Product';
 
       const templateColors = productColors.length > 0 ? productColors : [{ name: 'Black', hex: '#000000' }];
-      adminFetch('/templates/full-save', {
+      await adminFetch('/templates/full-save', {
         method: 'POST',
         json: {
           name: grfName,
@@ -475,7 +441,7 @@ export function useCreatePacket({
           subBottomFontWeight: content.subBottomStyle?.fontWeight || '400',
           subBottomColor: content.subBottomStyle?.color || '#666666',
           backgroundUrl: resolvedBgUrl,
-          qrProductState: state.qrProductState || 'qr_canvas',
+          qrProductState: state.qrProductState || DEFAULT_QR_PRODUCT_STATE,
           areaImageUrl: content.areaImageUrl || null,
           areaImageMode: content.areaImageMode || 'behind-qr',
           areaImageOffsetX: content.areaImageOffsetX ?? 50,
@@ -488,7 +454,11 @@ export function useCreatePacket({
           storeId: selectedStore?.id || null,
           channelId: selectedChannel?.id || null,
         },
-      }).catch((e: any) => console.warn('[CreatePacket] Template auto-save failed:', e.message));
+      }).then(() => queryClient.invalidateQueries({ queryKey: TEMPLATE_LIBRARY_QK }))
+        .catch((e: any) => {
+          console.warn('[CreatePacket] Template auto-save failed:', e.message);
+          toast({ title: 'Template was not saved', description: 'Your packet was created, but saving its reusable template failed. ' + e.message, variant: 'destructive' });
+        });
 
       loadGraphic({ compositeUrl: productGraphicUrl, qrOnlyUrl: qrUrl });
 
@@ -519,9 +489,7 @@ export function useCreatePacket({
       // Fire mockup generation for every selected placement in parallel (fire-and-forget).
       // When all results are in, save placementMockupUrls + lifestyleMockupUrl to the packet,
       // then call rebuild-images on the committed instance to update resolved.images immediately.
-      const allPlacements: string[] = (state.selectedPlacements && state.selectedPlacements.length > 0)
-        ? state.selectedPlacements
-        : ["front"];
+      const allPlacements: string[] = snapshot.layoutConfig.selectedPlacements;
       const capturedInstanceId = committedInstanceId;
       const capturedPacketId = packetId;
 
@@ -529,17 +497,8 @@ export function useCreatePacket({
         allPlacements.map((placement: string) =>
           adminFetch<any>("/mockup/priority", {
             method: "POST",
-            json: {
-              blueprintId: product?.blueprintId || 0,
-              printProviderId: product?.printProviderId || null,
-              colorName: state.selectedColor?.name || 'Black',
-              colorHex: state.selectedColor?.hex || '#000000',
-              placement: placement.toLowerCase(),
-              artworkUrl: productGraphicUrl,
-              qrSize: state.placementSizes?.[placement] || "medium",
-              fulfillmentProvider: state.fulfillmentProvider || product?.fulfillmentProvider || 'printify',
-            },
-          }).catch(() => null)
+            json: { packetId: capturedPacketId, placement },
+          }).catch((error: Error) => ({ success: false, error: error.message }))
         )
       ).then(async (results) => {
         const placementMockupUrls: Record<string, string> = {};
@@ -554,11 +513,11 @@ export function useCreatePacket({
           }
         });
 
-        const primaryMockupUrl = placementMockupUrls[allPlacements[0]] || null;
+        const primaryMockupUrl = allPlacements.map(placement => placementMockupUrls[placement]).find(Boolean) || null;
 
         if (!primaryMockupUrl) {
-          const errorMsg = "Mockup generation failed for all placements";
-          setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+          const errorMsg = results.map((result: any, index: number) => `${allPlacements[index]}: ${result?.error || "No mockup returned"}`).join("; ");
+          setPacketResult(prev => prev && prev.packetId === capturedPacketId ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
           toast({ title: "Mockup Generation Failed", description: errorMsg, variant: "destructive" });
           return;
         }
@@ -566,22 +525,34 @@ export function useCreatePacket({
         const packetPatch: Record<string, any> = {
           placementMockupUrls,
           priorityMockupUrl: primaryMockupUrl,
+          mockupsByColor: {
+            [snapshot.qrConfig.selectedColor.name]: Object.fromEntries(
+              allPlacements.flatMap((placement, index) => {
+                const data = results[index];
+                if (!data?.success || !data?.mockupUrl) return [];
+                return [[placement, {
+                  [snapshot.layoutConfig.placementSizes[placement] || 'medium']: data.mockupUrl,
+                  ...(data.lifestyleMockupUrl ? { lifestyle: data.lifestyleMockupUrl } : {}),
+                }]];
+              }),
+            ),
+          },
         };
         if (lifestyleMockupUrl) packetPatch.lifestyleMockupUrl = lifestyleMockupUrl;
 
         await adminFetch(`/packets/${capturedPacketId}`, {
           method: "PATCH",
           json: packetPatch,
-        }).catch(() => {});
+        });
 
         if (capturedInstanceId) {
           await adminFetch(`/catalog-instances/${capturedInstanceId}/rebuild-images`, {
             method: "POST",
             json: {},
-          }).catch(() => {});
+          });
         }
 
-        setPacketResult(prev => prev ? {
+        setPacketResult(prev => prev && prev.packetId === capturedPacketId ? {
           ...prev,
           priorityMockupUrl: primaryMockupUrl,
           lifestyleMockupUrl: lifestyleMockupUrl,
@@ -591,7 +562,7 @@ export function useCreatePacket({
         toast({ title: "Digital Proof Ready", description: "Your product preview is ready!" });
       }).catch((err) => {
         const errorMsg = err.message || "Failed to connect to mockup service";
-        setPacketResult(prev => prev ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
+        setPacketResult(prev => prev && prev.packetId === capturedPacketId ? { ...prev, priorityMockupLoading: false, priorityMockupError: errorMsg } : prev);
         toast({ title: "Mockup Service Error", description: errorMsg, variant: "destructive" });
       });
 
@@ -600,6 +571,7 @@ export function useCreatePacket({
       setError(err.message || "Failed to create packet");
       toast({ title: "Error", description: err.message || "Failed to create packet", variant: "destructive" });
     } finally {
+      finish();
       setIsCreating(false);
     }
   };
@@ -610,30 +582,23 @@ export function useCreatePacket({
     }
   };
 
-  const handleReset = () => {
-    setPacketResult(null);
-    setError(null);
-    resetBuilder();
+  const handleReset = async () => {
+    try {
+      await resetBuilder();
+      setPacketResult(null); setError(null);
+    } catch (error: any) {
+      toast({ title: 'Could not start a new build', description: error.message, variant: 'destructive' });
+    }
   };
 
-  const handleDeletePacket = async () => {
-    if (!packetResult?.packetId || isDeleting) return;
-    setIsDeleting(true);
-    try {
-      await adminFetch(`/packets/${packetResult.packetId}`, { method: "DELETE" });
-      setActivePacketId(null);
-      setActiveSession(state.activeSessionId, 'working', state.committedInstanceId);
-      setCommitResult(null);
-      setArtifactError(null);
-      toast({ title: "Packet Deleted", description: "Starting fresh..." });
-      setPacketResult(null);
-      setError(null);
-    } catch (err: any) {
-      console.error("Delete packet failed:", err);
-      toast({ title: "Delete Failed", description: err.message || "Could not delete packet", variant: "destructive" });
-    } finally {
-      setIsDeleting(false);
-    }
+  const handleDeletePacket = () => {
+    // The shared dialog has deleted the complete build, including its saved session.
+    setActivePacketId(null);
+    setActiveSession(null, null, null);
+    setCommitResult(null);
+    setArtifactError(null);
+    setPacketResult(null);
+    setError(null);
   };
 
   const handleCommitSession = async () => {
@@ -647,6 +612,8 @@ export function useCreatePacket({
       return;
     }
 
+    let finish: () => void;
+    try { finish = beginBuildActivity("Saving generated product…"); } catch { return; }
     setIsCommitting(true);
     try {
       const data = await adminFetch<any>(`/build-sessions/${state.activeSessionId}/commit`, {
@@ -666,6 +633,7 @@ export function useCreatePacket({
         sessionId: data.sessionId,
         packetId: data.packetId || null,
       };
+      void refreshBuildLibrary(queryClient);
       setCommitResult(result);
       setActiveSession(state.activeSessionId, 'committed', data.instanceId);
       setPacketResult(prev => prev ? { ...prev, assemblyId: data.assemblyId } : prev);
@@ -683,14 +651,15 @@ export function useCreatePacket({
         variant: "destructive",
       });
     } finally {
+      finish();
       setIsCommitting(false);
     }
   };
 
   return {
-    isCreating, packetResult, error, isDeleting,
+    isCreating, packetResult, error,
     isCommitting, commitResult, artifactError,
-    calculatePricing, handleCreatePacket, handleNext, handleReset, handleDeletePacket,
+    handleCreatePacket, handleNext, handleReset, handleDeletePacket,
     handleCommitSession,
     setPacketResult, setError, setCommitResult, setArtifactError,
   };

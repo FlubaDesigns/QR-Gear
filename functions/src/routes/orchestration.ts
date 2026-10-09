@@ -1,3 +1,5 @@
+import { HealthMonitorService } from '../services/health-monitor';
+import { QrAnalyticsService } from '../services/qr-analytics';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -15,6 +17,7 @@ import { printfulClient } from '../services/printful';
 import Stripe from 'stripe';
 
   export function register(app: express.Express): void {
+  const qrAnalyticsService = new QrAnalyticsService(db);
   // ============ BATCH: ORCHESTRATION (BUNDLES, BULK-PUBLISH, PROFIT, ANALYTICS) ============
 
 app.get('/admin/orchestration/bundles', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -131,15 +134,7 @@ app.post('/bundles/:id/calculate', async (req: Request, res: Response): Promise<
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/admin/orchestration/bulk-publish', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { productIds, channelTypes } = req.body;
-    if (!productIds?.length || !channelTypes?.length) { res.status(400).json({ error: "productIds and channelTypes required" }); return; }
-    const jobId = `bulk_${Date.now()}`;
-    await db.collection('bulk_publish_jobs').doc(jobId).set({ productIds, channelTypes, status: 'queued', createdAt: new Date(), progress: 0 });
-    res.json({ jobId, message: "Bulk publish job started" });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.post('/admin/orchestration/bulk-publish',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Bulk publishing has no deployed worker. Use Marketplace publish for each saved surface.',code:'NOT_IMPLEMENTED'});});
 
 app.get('/admin/orchestration/bulk-publish/:jobId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -159,34 +154,27 @@ app.get('/admin/orchestration/bulk-publish-jobs', requireAdmin, async (req: Requ
 // Orchestration: Provider Health, Routing, Profit, Repricing, QR Analytics
 // These use Firestore-based data; services that require imports are stubbed with Firestore queries
 
-app.get('/admin/orchestration/provider-health', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snap = await db.collection('provider_health_checks').orderBy('checkedAt', 'desc').limit(20).get();
-    res.json({ checks: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+const health = new HealthMonitorService(db);
+app.get('/admin/orchestration/provider-health', requireAdmin, async (_req:Request,res:Response)=>{
+  try {res.json(await health.getHealthDashboard());}catch(e:any){console.error('[Health]',e);res.status(500).json({error:e.message});}
+});
+app.post('/admin/orchestration/provider-health/check', requireAdmin, async (_req:Request,res:Response)=>{
+  try {res.json({checks:await health.checkAllProviders()});}catch(e:any){console.error('[Health]',e);res.status(500).json({error:e.message});}
+});
+app.post('/admin/orchestration/provider-health/:providerType/check', requireAdmin, async (req:Request,res:Response)=>{
+  try {res.json(await health.checkProvider(req.params.providerType));}catch(e:any){res.status(e.status||500).json({error:e.message});}
+});
+app.get('/admin/orchestration/provider-health/:providerType/history', requireAdmin, async (req:Request,res:Response)=>{
+  try {res.json(await health.getProviderHistory(req.params.providerType));}catch(e:any){res.status(500).json({error:e.message});}
 });
 
-app.post('/admin/orchestration/provider-health/check', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ success: true, message: "Health check initiated" }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/admin/orchestration/provider-health/:providerType/check', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ provider: req.params.providerType, status: 'healthy', checkedAt: new Date() }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/admin/orchestration/provider-health/:providerType/history', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snap = await db.collection('provider_health_checks').where('providerType', '==', req.params.providerType).orderBy('checkedAt', 'desc').limit(100).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/admin/orchestration/routing/recommendations/:blueprintId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ blueprintId: req.params.blueprintId, recommendations: [] }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.get('/admin/orchestration/routing/recommendations/:blueprintId',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Automatic provider recommendations are not connected to verified QRG variants. Choose the provider on the product screen.',code:'NOT_IMPLEMENTED'});});
 
 app.get('/admin/orchestration/routing/stats', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ totalRoutings: 0, byProvider: {} }); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  try {const snap=await db.collection('routing_decisions').get();const rows=snap.docs.map(d=>d.data()).filter(r=>r.selectedProvider?.providerId!=null);
+ const byProvider:Record<string,number>={};for(const r of rows){const key=String(r.selectedProvider.providerId);byProvider[key]=(byProvider[key]||0)+1;}
+ const costs=rows.map(r=>r.selectedProvider.costCents).filter(n=>typeof n==='number'&&Number.isFinite(n));
+ res.json({totalRoutings:rows.length,byProvider,avgSelectedCost:costs.length?costs.reduce((a,b)=>a+b,0)/costs.length/100:null,routingTimestamp:rows.length?rows[rows.length-1].createdAt:null}); } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/admin/orchestration/routing/history', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -196,60 +184,19 @@ app.get('/admin/orchestration/routing/history', requireAdmin, async (req: Reques
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/admin/orchestration/profit/dashboard', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orders = await db.collection('orders').orderBy('createdAt', 'desc').limit(100).get();
-    let totalRevenue = 0, totalCost = 0;
-    orders.docs.forEach(d => { const o = d.data() as any; totalRevenue += parseFloat(o.total || 0); totalCost += parseFloat(o.productionCost || 0); });
-    res.json({ totalRevenue, totalCost, totalProfit: totalRevenue - totalCost, orderCount: orders.size });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.get('/admin/orchestration/profit/dashboard',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
-app.get('/admin/orchestration/profit/channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json([]); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.get('/admin/orchestration/profit/channels',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
-app.get('/admin/orchestration/profit/products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json([]); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.get('/admin/orchestration/profit/products',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
-app.get('/admin/orchestration/profit/alerts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json([]); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.get('/admin/orchestration/profit/alerts',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
-app.post('/admin/orchestration/profit/calculate', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { revenue, productionCost, shippingCost = 0, channel = 'direct' } = req.body;
-    const gross = revenue - productionCost - shippingCost;
-    const channelFees: Record<string, number> = { direct: 0, etsy: 0.065, ebay: 0.13, amazon: 0.15, printify: 0, printful: 0 };
-    const fee = revenue * (channelFees[channel] || 0);
-    res.json({ revenue, productionCost, shippingCost, channelFee: fee, netProfit: gross - fee, margin: revenue > 0 ? ((gross - fee) / revenue) * 100 : 0 });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.post('/admin/orchestration/profit/calculate',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
-app.post('/admin/orchestration/profit/compare-channels', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { productionCost, basePrice } = req.body;
-    const channels = ['direct', 'etsy', 'ebay', 'amazon'];
-    const feeRates: Record<string, number> = { direct: 0, etsy: 0.065, ebay: 0.13, amazon: 0.15 };
-    const comparison = channels.map(ch => {
-      const fee = basePrice * (feeRates[ch] || 0);
-      const profit = basePrice - productionCost - fee;
-      return { channel: ch, price: basePrice, fee, profit, margin: basePrice > 0 ? (profit / basePrice) * 100 : 0 };
-    });
-    res.json(comparison);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.post('/admin/orchestration/profit/compare-channels',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
-app.post('/admin/orchestration/profit/recommended-price', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { productionCost, targetMarginPercent = 50, channel = 'direct' } = req.body;
-    const feeRates: Record<string, number> = { direct: 0, etsy: 0.065, ebay: 0.13, amazon: 0.15 };
-    const feeRate = feeRates[channel] || 0;
-    const recommended = productionCost / (1 - targetMarginPercent / 100 - feeRate);
-    res.json({ productionCost, targetMarginPercent, channel, recommendedPrice: Math.ceil(recommended * 100) / 100 });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.post('/admin/orchestration/profit/recommended-price',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Complete profit reporting needs recorded production, shipping and payment fees. Use per-item Marketplace fee results; no fixed fee percentages or invented profit are substituted.',code:'NOT_IMPLEMENTED'});});
 
 app.get('/admin/orchestration/repricing/rules', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
@@ -259,7 +206,9 @@ app.get('/admin/orchestration/repricing/rules', requireAdmin, async (req: Reques
 });
 
 app.get('/admin/orchestration/repricing/stats', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ totalRules: 0, activeRules: 0, lastRun: null }); } catch (e: any) { res.status(500).json({ error: e.message }); }
+  try {const rules=(await db.collection('repricing_rules').get()).docs.map(d=>d.data());const history=(await db.collection('repricing_history').get()).docs.map(d=>d.data());
+ const recent=history.filter(h=>new Date(h.appliedAt||h.executedAt).getTime()>Date.now()-86400000);const dates=history.map(h=>h.appliedAt||h.executedAt).filter(Boolean).sort();
+ res.json({totalRules:rules.length,activeRules:rules.filter(r=>r.isActive).length,lastRunTime:dates[dates.length-1]||null,productsAdjusted24h:recent.length,avgPriceChange:recent.length?recent.reduce((n,h)=>n+Math.abs(Number(h.newPrice)-Number(h.previousPrice)),0)/recent.length:0}); } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/admin/orchestration/repricing/history', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -306,53 +255,23 @@ app.post('/admin/orchestration/repricing/rules/:ruleId/toggle', requireAdmin, as
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/admin/orchestration/repricing/rules/:ruleId/preview', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ ruleId: req.params.ruleId, affectedProducts: [], preview: [] }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.get('/admin/orchestration/repricing/rules/:ruleId/preview',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Rule-based repricing is not connected to canonical catalog prices. Use Admin Pricing preview and apply.',code:'NOT_IMPLEMENTED'});});
 
-app.post('/admin/orchestration/repricing/run', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { const { dryRun = true } = req.body; res.json({ dryRun, productsAffected: 0, results: [] }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
+app.post('/admin/orchestration/repricing/run',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Rule-based repricing is not connected to canonical catalog prices. Use Admin Pricing preview and apply.',code:'NOT_IMPLEMENTED'});});
 
-app.get('/admin/orchestration/qr-analytics/summary', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+for (const [name, read] of Object.entries({
+  summary: () => qrAnalyticsService.getSummary(), products: () => qrAnalyticsService.getProductAnalytics(),
+  trends: () => qrAnalyticsService.getTrends(), recent: () => qrAnalyticsService.getRecentScans(),
+})) app.get(`/admin/orchestration/qr-analytics/${name}`, requireAdmin, async (_req: Request,res: Response) => {
+  try { res.json(await read()); } catch(e:any) { console.error('[QR Analytics]',e);res.status(500).json({error:e.message}); }
+});
+app.post('/qr/scan', async (req: Request,res: Response) => {
   try {
-    const snap = await db.collection('qr_scans').get();
-    res.json({ totalScans: snap.size, uniqueProducts: new Set(snap.docs.map(d => (d.data() as any).masterProductId)).size });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+    const {masterProductId,customDesignId,qrUrl,country,region}=req.body;
+    if (!masterProductId && !customDesignId && !qrUrl) {res.status(400).json({error:'At least one identifier required'});return;}
+    const userAgent=req.headers['user-agent']||'';
+    await qrAnalyticsService.logScan({masterProductId,customDesignId,qrUrl,country,region,userAgent,deviceType:qrAnalyticsService.detectDeviceType(userAgent)});
+    res.json({success:true});
+  } catch(e:any) {console.error('[QR Scan]',e);res.status(500).json({error:e.message});}
 });
-
-app.get('/admin/orchestration/qr-analytics/products', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snap = await db.collection('qr_scans').orderBy('scannedAt', 'desc').limit(100).get();
-    const byProduct: Record<string, number> = {};
-    snap.docs.forEach(d => { const pid = (d.data() as any).masterProductId || 'unknown'; byProduct[pid] = (byProduct[pid] || 0) + 1; });
-    res.json(Object.entries(byProduct).map(([productId, scans]) => ({ productId, scans })));
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/admin/orchestration/qr-analytics/trends', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json({ trends: [] }); } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/admin/orchestration/qr-analytics/recent', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const limit = parseInt(req.query.limit as string) || 50;
-    const snap = await db.collection('qr_scans').orderBy('scannedAt', 'desc').limit(Math.min(limit, 200)).get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/qr/scan', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { masterProductId, customDesignId, qrUrl, country, region } = req.body;
-    if (!masterProductId && !customDesignId && !qrUrl) { res.status(400).json({ error: "At least one identifier required" }); return; }
-    const ua = req.headers['user-agent'] || '';
-    const deviceType = /mobile/i.test(ua) ? 'mobile' : /tablet/i.test(ua) ? 'tablet' : 'desktop';
-    await db.collection('qr_scans').add({ masterProductId, customDesignId, qrUrl, country, region, deviceType, userAgent: ua, scannedAt: new Date() });
-    res.json({ success: true });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
-
-  }
-  
+}

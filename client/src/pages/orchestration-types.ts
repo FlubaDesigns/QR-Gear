@@ -4,6 +4,7 @@ export type ProductType = "hat" | "shirt" | "mug" | "bag" | "other";
 export type ProductStatus = "draft" | "active" | "paused" | "archived";
 
 export interface ProviderHealthStatus {
+  status?: string;
   providerType: string;
   displayName: string;
   isHealthy: boolean;
@@ -24,7 +25,7 @@ export interface HealthDashboard {
     totalProviders: number;
     healthyProviders: number;
     unhealthyProviders: number;
-    overallHealth: "healthy" | "degraded" | "critical";
+    overallHealth: "healthy" | "degraded" | "critical" | "not_checked";
   };
 }
 

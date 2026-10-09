@@ -1,5 +1,8 @@
+import { priceNewPacket } from '../services/pricing';
+import { syncCatalogMarkup } from '../services/catalog-instance-update';
+import { pricingSettingsSchema } from '../../../shared/schema-orders';
+import { updatePacketWithComposition } from '../services/composition-links';
 import { validatePacketComposition } from '../services/assembly-store';
-import { deleteBuildPacket } from '../services/build-session-state';
 import { packetBuildFields } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -23,11 +26,12 @@ import { printfulClient } from '../services/printful';
 
 app.get('/admin/fulfillment-providers', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const printifyKey = process.env.PRINTIFY_API_KEY || getPrintifyApiKey();
-    const printfulKey = process.env.PRINTFUL_API_KEY || getPrintfulApiKey();
+    const config = (await db.collection('system_config').doc('api_keys').get()).data() || {};
+    const printifyKey = process.env.PRINTIFY_API_KEY;
+    const printfulKey = config.printfulApiKey || process.env.PRINTFUL_API_KEY;
     const apliiqKey = process.env.APLIIQ_API_KEY;
     const providers = [
-      { id: "printify", name: "Printify", configured: !!printifyKey && printifyKey.length > 10, role: "fulfillment", description: "Print-on-demand fulfillment via Printify network" },
+      { id: "printify", name: "Printify", configured: !!printifyKey && printifyKey.length > 10 && !!process.env.PRINTIFY_SHOP_ID, role: "fulfillment", description: "Print-on-demand fulfillment via Printify network" },
       { id: "printful", name: "Printful", configured: !!printfulKey && printfulKey.length > 10, role: "fulfillment", description: "Print-on-demand fulfillment via Printful" },
       { id: "apliiq", name: "Apliiq", configured: !!apliiqKey && (apliiqKey?.length || 0) > 10, role: "fulfillment", description: "Custom apparel via Apliiq" },
     ];
@@ -39,110 +43,35 @@ app.get('/admin/fulfillment-providers', requireAdmin, async (_req: Request, res:
   }
 });
 
-// ============ PRODUCTS PAGE: PRICING SETTINGS (PUBLIC) ============
-
-app.get('/pricing-settings', async (_req: Request, res: Response): Promise<void> => {
+// Public and admin readers share the same saved settings. Both save URLs use
+// this one admin-only handler; the old copy in members-library is removed.
+const readPricing = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection("testSettings").doc("pricing").get();
-    const defaultSizeUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-    const defaultBrandLabelPricing = { printifyInside: 0.55, printifyOutside: 0.55, printfulInside: 0.99, printfulOutside: 2.49 };
-    if (!doc.exists) {
-      res.json({
-        markupPercent: 25, markupFixed: 0, additionalPlacementCost: 4,
-        textLineUpcharge: 2, centerGraphicUpcharge: 5, memberProfitShare: 0.25,
-        builtInShippingCost: 4.95,
-        sizeUpcharges: defaultSizeUpcharges,
-        hostingTiers: [
-          { code: "1_year", name: "1 Year", price: 5 },
-          { code: "2_year", name: "2 Years", price: 8 },
-          { code: "3_year", name: "3 Years", price: 10 },
-        ],
-        brandLabelPricing: defaultBrandLabelPricing,
-        preferredLabelPosition: 'outside',
-      });
-      return;
-    }
-    const data = doc.data();
-    res.json({
-      ...data,
-      memberProfitShare: data?.memberProfitShare ?? 0.25,
-      builtInShippingCost: data?.builtInShippingCost ?? 4.95,
-      sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
-      brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
-      preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
-    });
-  } catch (error: any) {
-    console.error("[Pricing Settings Public CF] Error:", error);
-    res.status(500).json({ error: error.message });
+    const saved = await db.collection('testSettings').doc('pricing').get();
+    if (_req.path.includes('/admin/')) { res.setHeader('Cache-Control', 'no-store'); res.json(saved.data() || {}); return; }
+    const parsed = pricingSettingsSchema.safeParse(saved.data());
+    if (!parsed.success) { res.status(409).json({ error: 'Saved pricing is incomplete or invalid. Review Admin Pricing configuration.' }); return; }
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ ...saved.data(), ...parsed.data });
+  } catch (error: any) { res.status(503).json({ error: error.message }); }
+};
+app.post(['/admin/pricing-settings/sync', '/pricing-settings/sync'], requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  if (req.body?.previewToken !== undefined && (typeof req.body.previewToken !== 'string' || !/^[a-f0-9]{64}$/.test(req.body.previewToken))) {
+    res.status(400).json({ error: 'A valid markup preview is required.' }); return;
   }
+  try {
+    res.json(await syncCatalogMarkup(db, admin.firestore.FieldValue.serverTimestamp(), (req as any).user.uid, req.body?.previewToken));
+  } catch (error: any) { res.status(error.status || 503).json({ error: error.message }); }
 });
-
-// ============ PRODUCTS PAGE: PRICING SETTINGS (ADMIN) ============
-
-app.get('/admin/pricing-settings', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+app.get('/pricing-settings', readPricing);
+app.get('/admin/pricing-settings', requireAdmin, readPricing);
+app.post(['/admin/pricing-settings', '/pricing-settings'], requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const parsed = pricingSettingsSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ') }); return; }
   try {
-    const doc = await db.collection("testSettings").doc("pricing").get();
-    const defaultSizeUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-    const defaultBrandLabelPricing = { printifyInside: 0.55, printifyOutside: 0.55, printfulInside: 0.99, printfulOutside: 2.49 };
-    if (!doc.exists) {
-      res.json({
-        markupPercent: 25, markupFixed: 0, additionalPlacementCost: 4, textLineUpcharge: 2, centerGraphicUpcharge: 5,
-        memberProfitShare: 0.25, builtInShippingCost: 4.95, sizeUpcharges: defaultSizeUpcharges,
-        hostingTiers: [
-          { code: "1_year", name: "1 Year", price: 5 },
-          { code: "2_year", name: "2 Years", price: 8 },
-          { code: "3_year", name: "3 Years", price: 10 },
-        ],
-        brandLabelPricing: defaultBrandLabelPricing,
-        preferredLabelPosition: 'outside',
-      });
-      return;
-    }
-    const data = doc.data();
-    res.json({
-      ...data,
-      memberProfitShare: data?.memberProfitShare ?? 0.25,
-      builtInShippingCost: data?.builtInShippingCost ?? 4.95,
-      sizeUpcharges: data?.sizeUpcharges ?? defaultSizeUpcharges,
-      brandLabelPricing: data?.brandLabelPricing ?? defaultBrandLabelPricing,
-      preferredLabelPosition: data?.preferredLabelPosition ?? 'outside',
-    });
-  } catch (error: any) {
-    console.error("[Pricing Settings] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/admin/pricing-settings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, centerGraphicUpcharge, memberProfitShare, builtInShippingCost, hostingTiers, sizeUpcharges, brandLabelPricing, preferredLabelPosition } = req.body;
-    const defaultSizeUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-    const defaultBrandLabelPricing = { printifyInside: 0.55, printifyOutside: 0.55, printfulInside: 0.99, printfulOutside: 2.49 };
-    const settings = {
-      markupPercent: parseFloat(markupPercent) || 25,
-      markupFixed: parseFloat(markupFixed) || 0,
-      additionalPlacementCost: parseFloat(additionalPlacementCost) || 4,
-      textLineUpcharge: parseFloat(textLineUpcharge) || 2,
-      centerGraphicUpcharge: parseFloat(centerGraphicUpcharge) || 5,
-      memberProfitShare: parseFloat(memberProfitShare) || 0.25,
-      builtInShippingCost: typeof builtInShippingCost === 'number' ? builtInShippingCost : 4.95,
-      sizeUpcharges: sizeUpcharges || defaultSizeUpcharges,
-      hostingTiers: hostingTiers || [
-        { code: "1_year", name: "1 Year", price: 5 },
-        { code: "2_year", name: "2 Years", price: 8 },
-        { code: "3_year", name: "3 Years", price: 10 },
-      ],
-      brandLabelPricing: brandLabelPricing || defaultBrandLabelPricing,
-      preferredLabelPosition: preferredLabelPosition || 'outside',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    };
-    await db.collection("testSettings").doc("pricing").set(settings, { merge: true });
-    console.log("[Pricing Settings] Saved settings");
-    res.json({ success: true, settings, message: "Pricing settings saved" });
-  } catch (error: any) {
-    console.error("[Pricing Settings] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+    await db.collection('testSettings').doc('pricing').set({ ...parsed.data, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { mergeFields: [...Object.keys(parsed.data), 'updatedAt'] });
+    res.json({ success: true, settings: parsed.data, message: 'Pricing settings saved' });
+  } catch (error: any) { res.status(503).json({ error: error.message }); }
 });
 
 function stripUndef(obj: any): any {
@@ -210,7 +139,10 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
       createdAt: now, updatedAt: now,
     };
       if (req.body.builderSnapshot) {
-        try { Object.assign(packetData, packetBuildFields(req.body.builderSnapshot)); }
+        try {
+          const priced = await priceNewPacket(db, req.body.builderSnapshot, QR_GEAR_BRANDED_TAG_URL);
+          Object.assign(packetData, packetBuildFields(priced.builderSnapshot), { pricing: priced.pricing, customerPrice: priced.pricing.customerPrice, placementGraphicUrls: priced.placementGraphicUrls });
+        }
         catch (error: any) { res.status(400).json({ error: error.message }); return; }
       }
     const packetRef = await db.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
@@ -268,7 +200,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
     }
 
     res.json({
-      success: true, packetId, mockupJobsQueued,
+      success: true, packetId, pricing: packetData.pricing, builderSnapshot: (packetData as any).builderSnapshot, placementGraphicUrls: (packetData as any).placementGraphicUrls, mockupJobsQueued,
       message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
     });
   } catch (error: any) {
@@ -355,44 +287,7 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
     }
     // ── end data-URI guard ────────────────────────────────────────────────────
 
-    // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
-    if (cleanUpdates.status === 'published' || doc.data()?.status === 'published') {
-      try { await validatePacketComposition(db, packetId, { ...doc.data(), ...cleanUpdates }); }
-      catch (e: any) { res.status(400).json({ error: e.message }); return; }
-    }
-    // ── end publish guard ──────────────────────────────────────────────────
-
-    // ── Fix 13: assemblyId bi-directional sync (atomic transaction) ───────
-    // When assemblyId is being set or changed, keep assemblies.packetIds in sync
-    // inside a single Firestore transaction so both writes succeed or both fail.
-    if ('assemblyId' in cleanUpdates) {
-      const existingAssemblyId: string | null = (doc.data() as any)?.assemblyId || null;
-      const newAssemblyId: string | null = cleanUpdates.assemblyId || null;
-
-      if (newAssemblyId !== existingAssemblyId) {
-        const oldRef = existingAssemblyId ? db.collection('assemblies').doc(existingAssemblyId) : null;
-        const newRef = newAssemblyId     ? db.collection('assemblies').doc(newAssemblyId)      : null;
-
-        await db.runTransaction(async (txn) => {
-          const oldDoc = oldRef ? await txn.get(oldRef) : null;
-          const newDoc = newRef ? await txn.get(newRef) : null;
-          const now    = admin.firestore.FieldValue.serverTimestamp();
-
-          if (oldDoc?.exists && oldRef) {
-            const filtered = ((oldDoc.data() as any).packetIds || []).filter((p: string) => p !== packetId);
-            txn.update(oldRef, { packetIds: filtered, updatedAt: now });
-          }
-          if (newDoc?.exists && newRef) {
-            const existing = (newDoc.data() as any).packetIds || [];
-            const merged   = [...new Set([...existing, packetId])];
-            txn.update(newRef, { packetIds: merged, updatedAt: now });
-          }
-        });
-      }
-    }
-    // ── end assemblyId sync ────────────────────────────────────────────────
-
-    await docRef.update({ ...cleanUpdates, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    await updatePacketWithComposition(db, packetId, cleanUpdates, admin.firestore.FieldValue.serverTimestamp());
 
     // ── GRF registration for mockup URLs ────────────────────────────────────
     const incomingLifestyle     = cleanUpdates.lifestyleMockupUrl  || null;
@@ -415,19 +310,5 @@ app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Re
   }
 });
 
-app.delete('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { packetId } = req.params;
-    if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const docRef = db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
-    const doc = await docRef.get();
-    if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-      await deleteBuildPacket(db, packetId, admin.firestore.FieldValue.serverTimestamp());
-      res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
-  } catch (error: any) {
-    console.error("[Packets DELETE] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
   }

@@ -1,27 +1,17 @@
-import { Request, Response, NextFunction } from 'express';
-  import express from 'express';
-  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { printfulClient } from '../services/printful';
-  import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
-  import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
-  import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
-  import type { MockupRequest, MockupResult } from '../services/mockup-generator';
-  import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
-  import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
-  import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
-  import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { executeSyncJob, retryFailedJob, processRetryQueue, startRetrySweep } from '../services/marketplace-sync';
-import { normalizeProductForPublishing, createSurfaceDraftFromNormalizedProduct, resolveAndNormalizeForPublishing } from '../services/surface-generator';
+import { validateEtsySettings } from '../../../shared/etsy';
+import { etsyCredentials, getEtsySetupOptions, validateEtsyShopSettings } from '../services/etsy-api';
+import { amazonCredentials, getAmazonSetupOptions, validateAmazonSettings, buildAmazonSubmissions, previewAmazonSubmissions, amazonProductFromSurface } from '../services/amazon-sp-api';
+import { getEbaySetupOptions, createEbayInventoryLocation } from '../services/ebay-api';
+import { resolveMarketplaceVariants } from '../services/marketplace-variants';
+import { publicMarketplaceAccount } from '../services/marketplace-oauth';
+import { refreshListingFees, listingWithFees } from '../services/marketplace-fees';
+import { Request, Response } from 'express';
+import express from 'express';
+import { db } from '../core';
+import { requireAdmin } from '../middleware';
+import { getOrCreateMarketplaceListing, runMarketplaceJob, retryFailedJob, processRetryQueue, MarketplaceError } from '../services/marketplace-sync';
+import { normalizeProductForPublishing, marketplaceSelectionErrors, createSurfaceDraftFromNormalizedProduct, resolveAndNormalizeForPublishing } from '../services/surface-generator';
 import type { SupportedMarketplace, GenerateDefaults } from '../services/surface-generator';
-import { resolveQrgToProductInstance } from '../services/qrg-resolver';
-import { pushListingToAmazon } from '../services/amazon-sp-api';
-import type { AmazonListingProduct } from '../services/amazon-sp-api';
-import { pushListingToEbay } from '../services/ebay-api';
-import type { EbayListingProduct } from '../services/ebay-api';
-import { pushListingToEtsy, refreshAccessToken as refreshEtsyToken } from '../services/etsy-api';
-import type { EtsyListingProduct } from '../services/etsy-api';
 import {
   SURFACES_COLLECTION,
   SURFACE_VARIANTS_COLLECTION,
@@ -36,143 +26,10 @@ import { isValidQrgCode } from '../../../shared/qrgCodes';
 const VALID_PLATFORMS = new Set<string>(MARKETPLACE_PLATFORMS);
 const VALID_SURFACE_STATUSES = new Set<string>(['draft', 'ready', 'published', 'archived']);
 const VALID_LISTING_STATUSES = new Set<string>(['pending', 'draft', 'active', 'syncing', 'error', 'paused', 'delisted']);
-const VALID_JOB_STATUSES = new Set<string>(['queued', 'running', 'completed', 'failed', 'cancelled']);
-const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_inventory', 'full_sync']);
-const VALID_LOG_LEVELS = new Set<string>(['info', 'warn', 'error']);
+const VALID_JOB_ACTIONS = new Set<string>(['create', 'update', 'delete', 'sync_inventory', 'full_sync', 'check_status']);
 
   export function register(app: express.Express): void {
 
-  startRetrySweep();
-
-  // ============ MARKETPLACE ENDPOINTS ============
-
-app.get('/admin/marketplace/stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('stores').where('roleType', '==', 'marketplace').get();
-    const stores = snapshot.docs.map((doc: any) => {
-      const data = doc.data();
-      const config = data.marketplaceConfig || {};
-      config.apiKeyConfigured = !!(config.apiKeyRef);
-      return { id: doc.id, ...data, marketplaceConfig: config };
-    });
-    stores.sort((a: any, b: any) => (a.name || '').localeCompare(b.name || ''));
-    res.json(stores);
-  } catch (error: any) {
-    console.error('[Marketplace] GET stores error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/admin/marketplace/stores/:storeId/config', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const storeDoc = await db.collection('stores').doc(storeId).get();
-    if (!storeDoc.exists) { res.status(404).json({ error: 'Store not found' }); return; }
-    const storeData = storeDoc.data();
-    if (storeData?.roleType !== 'marketplace') { res.status(400).json({ error: 'Store is not a marketplace store' }); return; }
-    const { platform, apiKeyRef, shopId, shopName, feePercent, syncEnabled } = req.body;
-    const updatedConfig: Record<string, any> = { ...(storeData?.marketplaceConfig || {}) };
-    if (platform !== undefined) updatedConfig.platform = platform;
-    if (apiKeyRef !== undefined) updatedConfig.apiKeyRef = apiKeyRef;
-    if (shopId !== undefined) updatedConfig.shopId = shopId;
-    if (shopName !== undefined) updatedConfig.shopName = shopName;
-    if (feePercent !== undefined) updatedConfig.feePercent = typeof feePercent === 'number' ? feePercent : parseFloat(feePercent) || 0;
-    if (syncEnabled !== undefined) updatedConfig.syncEnabled = syncEnabled === true;
-    updatedConfig.updatedAt = new Date().toISOString();
-    await db.collection('stores').doc(storeId).update({ marketplaceConfig: updatedConfig });
-    res.json({ id: storeId, marketplaceConfig: updatedConfig });
-  } catch (error: any) {
-    console.error('[Marketplace] PUT config error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/admin/marketplace/stores/:storeId/listings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const storeDoc = await db.collection('stores').doc(storeId).get();
-    if (!storeDoc.exists) { res.status(404).json({ error: 'Store not found' }); return; }
-    const storeData = storeDoc.data();
-    if (storeData?.roleType !== 'marketplace') { res.status(400).json({ error: 'Store is not a marketplace store' }); return; }
-    const { productId, title, price, sku } = req.body;
-    if (!productId) { res.status(400).json({ error: 'productId is required' }); return; }
-    const platform = storeData?.marketplaceConfig?.platform || 'unknown';
-    const listingData = {
-      storeId,
-      productId,
-      platform,
-      title: title || '',
-      price: typeof price === 'number' ? price : parseFloat(price) || 0,
-      sku: sku || '',
-      status: 'pending',
-      marketplaceListingId: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    const docRef = await db.collection('marketplaceListings').add(listingData);
-    res.json({ id: docRef.id, ...listingData });
-  } catch (error: any) {
-    console.error('[Marketplace] POST listing error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/admin/marketplace/stores/:storeId/listings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const storeDoc = await db.collection('stores').doc(storeId).get();
-    if (!storeDoc.exists) { res.status(404).json({ error: 'Store not found' }); return; }
-    const snapshot = await db.collection('marketplaceListings').where('storeId', '==', storeId).get();
-    const listings = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-    listings.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-    res.json(listings);
-  } catch (error: any) {
-    console.error('[Marketplace] GET listings error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/admin/marketplace/stores/:storeId/listings/:listingId/push', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId, listingId } = req.params;
-    const listingDoc = await db.collection('marketplaceListings').doc(listingId).get();
-    if (!listingDoc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
-    const listing = listingDoc.data();
-    if (listing?.storeId !== storeId) { res.status(400).json({ error: 'Listing does not belong to this store' }); return; }
-    const storeDoc = await db.collection('stores').doc(storeId).get();
-    const storeData = storeDoc.data();
-    const platform = storeData?.marketplaceConfig?.platform || 'unknown';
-    const apiKeyRef = storeData?.marketplaceConfig?.apiKeyRef;
-    if (!apiKeyRef) {
-      await db.collection('marketplaceListings').doc(listingId).update({ status: 'error', errorMessage: 'No API key configured for this marketplace', updatedAt: new Date().toISOString() });
-      res.status(400).json({ error: 'No API key configured. Set up API credentials in marketplace config first.', message: 'API key not configured' });
-      return;
-    }
-    await db.collection('marketplaceListings').doc(listingId).update({ status: 'syncing', updatedAt: new Date().toISOString() });
-    res.json({ message: `Listing queued for push to ${platform}. API integration will process it.`, status: 'syncing' });
-  } catch (error: any) {
-    console.error('[Marketplace] POST push listing error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.patch('/admin/stores/:storeId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { storeId } = req.params;
-    const storeDoc = await db.collection('stores').doc(storeId).get();
-    if (!storeDoc.exists) { res.status(404).json({ error: 'Store not found' }); return; }
-    const updates: Record<string, any> = {};
-    if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
-    if (req.body.name !== undefined) updates.name = req.body.name;
-    if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
-    updates.updatedAt = new Date().toISOString();
-    await db.collection('stores').doc(storeId).update(updates);
-    res.json({ id: storeId, ...storeDoc.data(), ...updates });
-  } catch (error: any) {
-    console.error('[Stores] PATCH error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
 
 
 // ============ CANONICAL SURFACES SYSTEM ============
@@ -182,7 +39,10 @@ app.patch('/admin/stores/:storeId', requireAdmin, async (req: Request, res: Resp
 app.get('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).get();
-    const accounts = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+    const accounts = snapshot.docs.map((doc: any) => {
+      const data = doc.data();
+      return publicMarketplaceAccount(data, doc.id);
+    });
     accounts.sort((a: any, b: any) => (a.accountName || '').localeCompare(b.accountName || ''));
     res.json(accounts);
   } catch (error: any) {
@@ -193,7 +53,8 @@ app.get('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Resp
 
 app.post('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { platform, accountName, shopId, shopName, feePercent } = req.body;
+    const { platform, accountName, shopId, shopName } = req.body;
+    if (req.body.feePercent !== undefined) { res.status(400).json({ error: 'Fees belong to individual listings and are retrieved from the marketplace.' }); return; }
     if (!platform || !accountName) {
       res.status(400).json({ error: 'platform and accountName are required' }); return;
     }
@@ -207,7 +68,6 @@ app.post('/admin/surfaces/accounts', requireAdmin, async (req: Request, res: Res
       shopId: shopId || '',
       shopName: shopName || '',
       isActive: true,
-      feePercent: typeof feePercent === 'number' ? feePercent : parseFloat(feePercent) || 0,
       apiKeyConfigured: false,
       healthStatus: 'unknown',
       createdAt: now,
@@ -227,17 +87,16 @@ app.patch('/admin/surfaces/accounts/:accountId', requireAdmin, async (req: Reque
     const doc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
     const updates: Record<string, any> = {};
-    const allowed = ['accountName', 'shopId', 'shopName', 'isActive', 'feePercent', 'platform'];
+    if (req.body.feePercent !== undefined) { res.status(400).json({ error: 'Fees belong to individual listings and are retrieved from the marketplace.' }); return; }
+    if (req.body.platform !== undefined && req.body.platform !== doc.data()!.platform) { res.status(400).json({ error: 'Create a separate account to use another marketplace.' }); return; }
+    const allowed = ['accountName', 'shopId', 'shopName', 'isActive'];
     for (const key of allowed) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
-    if (updates.feePercent !== undefined) {
-      updates.feePercent = typeof updates.feePercent === 'number' ? updates.feePercent : parseFloat(updates.feePercent) || 0;
     }
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
     updates.updatedAt = new Date().toISOString();
     await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).update(updates);
-    res.json({ id: accountId, ...doc.data(), ...updates });
+    res.json(publicMarketplaceAccount({ ...doc.data(), ...updates }, accountId));
   } catch (error: any) {
     console.error('[Surfaces] PATCH account error:', error);
     res.status(500).json({ error: error.message });
@@ -271,20 +130,6 @@ app.get('/admin/surfaces', requireAdmin, async (req: Request, res: Response): Pr
     res.json(surfaces);
   } catch (error: any) {
     console.error('[Surfaces] GET surfaces error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.get('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { surfaceId } = req.params;
-    const doc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
-    if (!doc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
-    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
-    const variants = variantsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ ...doc.data(), id: doc.id, variants });
-  } catch (error: any) {
-    console.error('[Surfaces] GET surface error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -389,7 +234,11 @@ app.patch('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: 
     }
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
     updates.updatedAt = new Date().toISOString();
-    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updates);
+    await db.runTransaction(async tx => {
+      const linked = await tx.get(db.collection(MARKETPLACE_LISTINGS_COLLECTION).where('surfaceId', '==', surfaceId));
+      if (linked.docs.some(row => row.data().status === 'syncing')) throw new MarketplaceError('Wait for this item’s running job before saving setup.', 409);
+      tx.update(db.collection(SURFACES_COLLECTION).doc(surfaceId), updates);
+    });
     res.json({ id: surfaceId, ...doc.data(), ...updates });
   } catch (error: any) {
     console.error('[Surfaces] PATCH surface error:', error);
@@ -437,7 +286,14 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
       errors.push(`Invalid QRG code format: "${surface.sku}" — must match QRG-[STNNN]-[C]-[NNNNNN] or QRG-[STNNN]-[C]-[NNNNNN]-[SSCC]`);
     }
     const enabledVariants = variants.filter((v: any) => v.enabled);
-    if (enabledVariants.length === 0) errors.push('At least one enabled variant is required');
+    try {
+      const product = await normalizeProductForPublishing(surface.masterProductId, db);
+      if (product.sku !== surface.sku) errors.push('Surface QRG identity does not match its product.');
+      if (surface.enabledPlatforms?.length && surface.enabledPlatforms.every((platform: string) => ['amazon', 'ebay', 'etsy'].includes(platform))) {
+        if (variants.length) errors.push('Legacy surface variants need reconciliation with the built product.');
+        await resolveMarketplaceVariants(product, db);
+      } else errors.push(...marketplaceSelectionErrors(product, variants.length > 0));
+    } catch (error: any) { errors.push(error.message); }
     const variantSkus: string[] = [];
     for (const v of enabledVariants) {
       if (!v.sku || v.sku.trim().length === 0) {
@@ -454,7 +310,7 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
     if (!hasAnyChannel) errors.push('At least one selling channel must be enabled (marketplace or embed)');
 
     // eBay-specific readiness validation
-    if (surface.supportsEbay) {
+    if (surface.enabledPlatforms?.includes('ebay')) {
       const eb = surface.ebay || {};
       if (!eb.categoryId || !String(eb.categoryId).trim()) {
         errors.push('eBay: Category ID is required (ebay.categoryId)');
@@ -462,8 +318,8 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
       if (!eb.conditionId || !String(eb.conditionId).trim()) {
         errors.push('eBay: Condition ID is required (ebay.conditionId)');
       }
-      if (!eb.listingFormat) {
-        errors.push('eBay: Listing format must be set (FIXED_PRICE or AUCTION)');
+      if (eb.listingFormat !== 'FIXED_PRICE') {
+        errors.push('eBay: This connection requires fixed-price listings.');
       }
       // At least one aspect/identifier must be known — brand from common or itemSpecifics
       const hasBrand = (surface.brand && surface.brand.trim()) || (eb.brand && eb.brand.trim());
@@ -471,16 +327,12 @@ app.post('/admin/surfaces/:surfaceId/check-readiness', requireAdmin, async (req:
       if (!hasBrand && !hasItemSpecifics) {
         errors.push('eBay: At least a Brand or one item specific is required for eBay aspects');
       }
-      // Warn (non-blocking) about shipping policy — surface can still be "ready" without it
-      if (!eb.shippingPolicyId && !eb.returnsPolicyId) {
-        // Not a blocking error — just surfaces in logs via readiness response
-        // so callers can surface this as a warning in the UI
-      }
+
     }
 
-    const newStatus = errors.length === 0 ? 'ready' : 'draft';
+    const newStatus = surface.status === 'published' ? 'published' : errors.length === 0 ? 'ready' : 'draft';
     await db.collection(SURFACES_COLLECTION).doc(surfaceId).update({ readinessErrors: errors, status: newStatus, updatedAt: new Date().toISOString() });
-    res.json({ ready: errors.length === 0, errors, status: newStatus });
+    res.json({ ready: errors.length === 0, errors, status: newStatus, ...(surface.enabledPlatforms?.some((platform: string) => ['ebay', 'amazon', 'etsy'].includes(platform)) ? { note: 'Item checks only. Marketplace Setup and publishing validate the selected seller requirements.' } : {}) });
   } catch (error: any) {
     console.error('[Surfaces] POST check-readiness error:', error);
     res.status(500).json({ error: error.message });
@@ -531,366 +383,21 @@ app.post('/admin/surfaces/generate-from-instance', requireAdmin, async (req: Req
   }
 });
 
-// --- Push Surface to Amazon ---
-
-app.post('/admin/surfaces/:surfaceId/push-to-amazon', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { surfaceId } = req.params;
-    const { accountId, sku: skuOverride } = req.body;
-
-    if (!accountId) {
-      res.status(400).json({ error: 'accountId is required' });
-      return;
+// Both direct Push and Listings use the same account, lock, job and result records.
+for (const platform of MARKETPLACE_PLATFORMS) {
+  app.post(`/admin/surfaces/:surfaceId/push-to-${platform}`, requireAdmin, async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { accountId } = req.body;
+      if (typeof accountId !== 'string' || !accountId) throw new MarketplaceError('accountId is required.');
+      const listing = await getOrCreateMarketplaceListing(req.params.surfaceId, accountId, platform);
+      const result = await runMarketplaceJob(listing.id, 'full_sync', platform === 'etsy' ? req.body : {});
+      res.json({ ...result, surfaceId: req.params.surfaceId, accountId, marketplaceListingId: listing.id });
+    } catch (error: any) {
+      console.error('[Marketplace] Push failed:', error.message);
+      res.status(error instanceof MarketplaceError ? error.status : 500).json({ error: error.message });
     }
-
-    // Load surface
-    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
-    if (!surfaceDoc.exists) {
-      res.status(404).json({ error: 'Surface not found' });
-      return;
-    }
-    const surface = surfaceDoc.data() as any;
-
-    // Load account and verify it is an Amazon account with credentials
-    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
-    if (!accountDoc.exists) {
-      res.status(404).json({ error: 'Account not found' });
-      return;
-    }
-    const account = accountDoc.data() as any;
-
-    if (account.platform !== 'amazon') {
-      res.status(400).json({ error: 'Account is not an Amazon account' });
-      return;
-    }
-    if (!account.amazonConnected || !account.amazonRefreshToken) {
-      res.status(400).json({
-        error: 'Amazon account not connected. Complete the OAuth flow first.',
-        setupRequired: true,
-      });
-      return;
-    }
-    if (!account.amazonSellerId) {
-      res.status(400).json({ error: 'Amazon Seller ID not recorded on this account. Reconnect via OAuth.' });
-      return;
-    }
-
-    const credentials = {
-      sellerId: account.amazonSellerId,
-      marketplaceId: account.amazonMarketplaceId || 'ATVPDKIKX0DER',
-      refreshToken: account.amazonRefreshToken,
-    };
-
-    // SKU must be the stored QRG identity — no client overrides accepted
-    const sku = surface.sku;
-    if (!sku || !isValidQrgCode(sku)) {
-      res.status(400).json({ error: 'Marketplace action blocked: valid QRG identity required. Ensure the instance has a valid qrgBaseCode before pushing to Amazon.' });
-      return;
-    }
-
-    // Map surface data to AmazonListingProduct
-    const product: AmazonListingProduct = {
-      title: surface.title || 'QR Gear Product',
-      description: surface.description || '',
-      bulletPoints: surface.bulletPoints || [],
-      keywords: surface.tags || [],
-      price: surface.price || surface.basePrice || 0,
-      currencyCode: 'USD',
-      quantity: 100,
-      condition: 'new_new',
-      brandName: surface.brand || 'QR Gear',
-      imageUrls: (surface.images || []).map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean),
-      productType: surface.amazonProductType || 'SHIRT',
-    };
-
-    if (product.price <= 0) {
-      res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to Amazon.' });
-      return;
-    }
-
-    console.log(`[Amazon Push] Pushing surface ${surfaceId} as SKU ${sku} to account ${accountId}`);
-    const result = await pushListingToAmazon(credentials, product, sku);
-
-    // Record the push attempt on the surface
-    const now = new Date().toISOString();
-    const updateData: Record<string, any> = {
-      [`amazonPushHistory.${now.replace(/[:.]/g, '_')}`]: {
-        accountId,
-        sku,
-        success: result.success,
-        status: result.status,
-        error: result.error || null,
-        submissionId: result.submissionId || null,
-        pushedAt: now,
-      },
-      lastAmazonPushAt: now,
-      lastAmazonPushSuccess: result.success,
-      lastAmazonPushSku: sku,
-    };
-    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updateData);
-
-    res.json({ ...result, surfaceId, accountId });
-  } catch (error: any) {
-    console.error('[Amazon Push] push-to-amazon error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// --- Push Surface to eBay ---
-
-app.post('/admin/surfaces/:surfaceId/push-to-ebay', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { surfaceId } = req.params;
-    const { accountId, sku: skuOverride } = req.body;
-
-    if (!accountId) {
-      res.status(400).json({ error: 'accountId is required' });
-      return;
-    }
-
-    // Load surface
-    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
-    if (!surfaceDoc.exists) {
-      res.status(404).json({ error: 'Surface not found' });
-      return;
-    }
-    const surface = surfaceDoc.data() as any;
-
-    // Load account and verify it is an eBay account with credentials
-    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
-    if (!accountDoc.exists) {
-      res.status(404).json({ error: 'Account not found' });
-      return;
-    }
-    const account = accountDoc.data() as any;
-
-    if (account.platform !== 'ebay') {
-      res.status(400).json({ error: 'Account is not an eBay account' });
-      return;
-    }
-    if (!account.ebayConnected || !account.ebayRefreshToken) {
-      res.status(400).json({
-        error: 'eBay account not connected. Complete the OAuth flow first.',
-        setupRequired: true,
-      });
-      return;
-    }
-
-    const credentials = {
-      userId: account.ebayUserId || '',
-      username: account.ebayUsername || '',
-      refreshToken: account.ebayRefreshToken,
-    };
-
-    // SKU must be the stored QRG identity — no client overrides accepted
-    const sku = surface.sku;
-    if (!sku || !isValidQrgCode(sku)) {
-      res.status(400).json({ error: 'Marketplace action blocked: valid QRG identity required. Ensure the instance has a valid qrgBaseCode before pushing to eBay.' });
-      return;
-    }
-
-    // eBay block fields from surface
-    const eb = surface.ebay || {};
-
-    if (!eb.categoryId) {
-      res.status(400).json({ error: 'Surface is missing eBay category ID (ebay.categoryId). Edit the surface and set it before pushing.' });
-      return;
-    }
-
-    if (surface.retailPrice == null || surface.retailPrice <= 0) {
-      res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to eBay.' });
-      return;
-    }
-
-    // Parse itemSpecifics — stored as Record<string,string> or JSON string
-    let aspects: Record<string, string[]> = {};
-    if (eb.itemSpecifics) {
-      const raw = typeof eb.itemSpecifics === 'string'
-        ? JSON.parse(eb.itemSpecifics)
-        : eb.itemSpecifics;
-      for (const [k, v] of Object.entries(raw)) {
-        aspects[k] = Array.isArray(v) ? v : [String(v)];
-      }
-    }
-
-    // Map surface data to EbayListingProduct
-    const product: EbayListingProduct = {
-      title: surface.title || 'QR Gear Product',
-      description: surface.description || '',
-      price: eb.priceOverride || surface.retailPrice || surface.price || surface.basePrice || 0,
-      currencyCode: surface.currency || 'USD',
-      quantity: eb.quantity || 100,
-      condition: eb.conditionId || 'NEW',
-      brand: eb.brand || surface.brand || 'QR Gear',
-      imageUrls: (surface.images || []).map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean),
-      categoryId: String(eb.categoryId),
-      listingFormat: eb.listingFormat || 'FIXED_PRICE',
-      fulfillmentPolicyId: eb.shippingPolicyId || undefined,
-      paymentPolicyId: eb.paymentPolicyId || undefined,
-      returnPolicyId: eb.returnsPolicyId || undefined,
-      merchantLocationKey: eb.merchantLocationKey || undefined,
-      upc: eb.upc || undefined,
-      ean: eb.ean || undefined,
-      mpn: eb.mpn || undefined,
-      aspects: Object.keys(aspects).length > 0 ? aspects : undefined,
-      bestOfferEnabled: eb.bestOfferEnabled || false,
-      subtitle: eb.subtitle || undefined,
-    };
-
-    console.log(`[eBay Push] Pushing surface ${surfaceId} as SKU ${sku} to account ${accountId}`);
-    const result = await pushListingToEbay(credentials, product, sku);
-
-    // Record the push attempt on the surface
-    const now = new Date().toISOString();
-    const updateData: Record<string, any> = {
-      [`ebayPushHistory.${now.replace(/[:.]/g, '_')}`]: {
-        accountId,
-        sku,
-        success: result.success,
-        status: result.status,
-        listingId: result.listingId || null,
-        offerId: result.offerId || null,
-        error: result.error || null,
-        pushedAt: now,
-      },
-      lastEbayPushAt: now,
-      lastEbayPushSuccess: result.success,
-      lastEbayPushSku: sku,
-    };
-    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updateData);
-
-    res.json({ ...result, surfaceId, accountId });
-  } catch (error: any) {
-    console.error('[eBay Push] push-to-ebay error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// --- Push Surface to Etsy ---
-
-app.post('/admin/surfaces/:surfaceId/push-to-etsy', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { surfaceId } = req.params;
-    const {
-      accountId,
-      sku: skuOverride,
-      taxonomyId,
-      shippingProfileId,
-      returnPolicyId,
-      whoMade = 'i_did',
-      whenMade = 'made_to_order',
-    } = req.body;
-
-    if (!accountId) {
-      res.status(400).json({ error: 'accountId is required' });
-      return;
-    }
-    if (!taxonomyId) {
-      res.status(400).json({ error: 'taxonomyId is required (Etsy category ID). Find yours at https://www.etsy.com/developers/documentation/getting_started/taxonomy' });
-      return;
-    }
-    if (!shippingProfileId) {
-      res.status(400).json({ error: 'shippingProfileId is required. Create a shipping profile in your Etsy shop and paste its ID here.' });
-      return;
-    }
-
-    // Load surface
-    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
-    if (!surfaceDoc.exists) {
-      res.status(404).json({ error: 'Surface not found' });
-      return;
-    }
-    const surface = surfaceDoc.data() as any;
-
-    // Load account and verify
-    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
-    if (!accountDoc.exists) {
-      res.status(404).json({ error: 'Account not found' });
-      return;
-    }
-    const account = accountDoc.data() as any;
-
-    if (account.platform !== 'etsy') {
-      res.status(400).json({ error: 'Account is not an Etsy account' });
-      return;
-    }
-    if (!account.etsyConnected || !account.etsyRefreshToken) {
-      res.status(400).json({
-        error: 'Etsy account not connected. Complete the OAuth flow first.',
-        setupRequired: true,
-      });
-      return;
-    }
-    if (!account.etsyShopId) {
-      res.status(400).json({ error: 'Etsy Shop ID not found on this account. Reconnect via OAuth to re-fetch your shop.' });
-      return;
-    }
-
-    if (surface.retailPrice == null || surface.retailPrice <= 0) {
-      res.status(400).json({ error: 'Surface has no price set. Set a price before pushing to Etsy.' });
-      return;
-    }
-
-    // SKU must be the stored QRG identity — no client overrides accepted
-    const sku = surface.sku;
-    if (!sku || !isValidQrgCode(sku)) {
-      res.status(400).json({ error: 'Marketplace action blocked: valid QRG identity required. Ensure the instance has a valid qrgBaseCode before pushing to Etsy.' });
-      return;
-    }
-
-    const credentials = {
-      accessToken: '',  // will be refreshed inside pushListingToEtsy
-      refreshToken: account.etsyRefreshToken,
-      shopId: account.etsyShopId,
-      shopName: account.etsyShopName || '',
-      userId: account.etsyUserId || '',
-    };
-
-    const product: EtsyListingProduct = {
-      title: (surface.title || 'QR Gear Product').slice(0, 140),
-      description: surface.description || '',
-      price: surface.retailPrice || surface.price || surface.basePrice || 0,
-      currencyCode: surface.currency || 'USD',
-      quantity: 100,
-      tags: (surface.tags || []).slice(0, 13),
-      imageUrls: (surface.images || []).map((img: any) => (typeof img === 'string' ? img : img?.url)).filter(Boolean),
-      taxonomyId: parseInt(String(taxonomyId), 10),
-      shippingProfileId: parseInt(String(shippingProfileId), 10),
-      returnPolicyId: returnPolicyId ? parseInt(String(returnPolicyId), 10) : undefined,
-      whoMade: whoMade || 'i_did',
-      whenMade: whenMade || 'made_to_order',
-      materials: surface.brand ? [surface.brand] : undefined,
-      sku,
-    };
-
-    console.log(`[Etsy Push] Pushing surface ${surfaceId} as SKU ${sku} to account ${accountId} (shop ${account.etsyShopId})`);
-    const result = await pushListingToEtsy(credentials, product);
-
-    // Record the push attempt on the surface
-    const now = new Date().toISOString();
-    const updateData: Record<string, any> = {
-      [`etsyPushHistory.${now.replace(/[:.]/g, '_')}`]: {
-        accountId,
-        sku,
-        success: result.success,
-        state: result.state || null,
-        listingId: result.listingId || null,
-        url: result.url || null,
-        error: result.error || null,
-        pushedAt: now,
-      },
-      lastEtsyPushAt: now,
-      lastEtsyPushSuccess: result.success,
-      lastEtsyPushSku: sku,
-    };
-    await db.collection(SURFACES_COLLECTION).doc(surfaceId).update(updateData);
-
-    res.json({ ...result, surfaceId, accountId });
-  } catch (error: any) {
-    console.error('[Etsy Push] push-to-etsy error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
+  });
+}
 
 // --- Surface Variants ---
 
@@ -989,7 +496,7 @@ app.get('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Resp
     const snapshot = await query.get();
     const listings = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
     listings.sort((a: any, b: any) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
-    res.json(listings);
+    res.json(await Promise.all(listings.map(listingWithFees)));
   } catch (error: any) {
     console.error('[Surfaces] GET listings error:', error);
     res.status(500).json({ error: error.message });
@@ -999,49 +506,178 @@ app.get('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Resp
 app.post('/admin/surfaces/listings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { surfaceId, accountId } = req.body;
-    if (!surfaceId || !accountId) { res.status(400).json({ error: 'surfaceId and accountId are required' }); return; }
-    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
-    if (!surfaceDoc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
-    const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(accountId).get();
-    if (!accountDoc.exists) { res.status(404).json({ error: 'Account not found' }); return; }
-    const surface = surfaceDoc.data() as any;
-    const account = accountDoc.data() as any;
-    // Validate QRG identity before creating listing
-    const qrgCode = surface.sku;
-    if (!qrgCode || !isValidQrgCode(qrgCode)) {
-      res.status(400).json({
-        ok: false,
-        errors: ['Missing valid QRG code'],
-        error: 'Marketplace action blocked: surface has no valid QRG code. Generate the surface from a committed product instance first.',
-      });
-      return;
-    }
-    const existingSnap = await db.collection(MARKETPLACE_LISTINGS_COLLECTION)
-      .where('surfaceId', '==', surfaceId)
-      .where('accountId', '==', accountId)
-      .limit(1).get();
-    if (!existingSnap.empty) {
-      res.status(400).json({ error: 'A listing already exists for this surface on this account' }); return;
-    }
-    const now = new Date().toISOString();
-    const data = {
-      surfaceId,
-      accountId,
-      platform: account.platform,
-      qrgCode,
-      marketplaceSku: qrgCode,
-      productInstanceId: surface.masterProductId || '',
-      status: 'pending',
-      title: surface.title || '',
-      price: surface.retailPrice || 0,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const docRef = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).add(data);
-    res.json({ id: docRef.id, ...data });
+    if (typeof surfaceId !== 'string' || typeof accountId !== 'string' || !surfaceId || !accountId) throw new MarketplaceError('surfaceId and accountId are required.');
+    res.json(await getOrCreateMarketplaceListing(surfaceId, accountId));
   } catch (error: any) {
-    console.error('[Surfaces] POST listing error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Marketplace] Create listing failed:', error.message);
+    res.status(error instanceof MarketplaceError ? error.status : 500).json({ error: error.message });
+  }
+});
+
+async function etsySetupContext(listingId: string) {
+  const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), snap = await listingRef.get();
+  if (!snap.exists) throw new MarketplaceError('Listing not found.', 404);
+  const listing = snap.data()!;
+  if (listing.platform !== 'etsy') throw new MarketplaceError('This is not an Etsy listing.');
+  const accountRef = db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(listing.accountId), account = (await accountRef.get()).data();
+  const credentials = etsyCredentials(account || {});
+  const surface = (await db.collection(SURFACES_COLLECTION).doc(listing.surfaceId).get()).data();
+  if (!surface) throw new MarketplaceError('Item setup is missing.', 404);
+  const product = await normalizeProductForPublishing(surface.masterProductId, db);
+  if (product.sku !== surface.sku || listing.marketplaceSku !== surface.sku) throw new MarketplaceError('Listing and product identity do not match.');
+  const variants = await resolveMarketplaceVariants(product, db);
+  const persist = async (token: string) => { await accountRef.update({ etsyRefreshToken: token, updatedAt: new Date().toISOString() }); };
+  return { listingRef, listing, surface, variants, credentials, persist };
+}
+app.get('/admin/surfaces/listings/:listingId/etsy-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await etsySetupContext(req.params.listingId);
+    const options = await getEtsySetupOptions(context.credentials, context.persist);
+    res.json({ options, variants: context.variants, settings: context.listing.publishOptions || {}, shopName: context.credentials.shopName });
+  } catch (error: any) { console.error('[Etsy setup] Load failed:', error.message); res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+app.patch('/admin/surfaces/listings/:listingId/etsy-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const settings = validateEtsySettings(req.body.settings), context = await etsySetupContext(req.params.listingId);
+    validateEtsyShopSettings(settings, await getEtsySetupOptions(context.credentials, context.persist), context.surface.currency || 'USD');
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(context.listingRef);
+      if (!snap.exists || snap.data()!.status === 'syncing') throw new MarketplaceError('Wait for the running job before saving setup.', 409);
+      if (snap.data()!.accountId !== context.listing.accountId) throw new MarketplaceError('Seller changed. Reload setup.', 409);
+      tx.update(context.listingRef, { publishOptions: settings, updatedAt: new Date().toISOString() });
+    });
+    res.json({ success: true });
+  } catch (error: any) { console.error('[Etsy setup] Save failed:', error.message); res.status(error instanceof MarketplaceError ? error.status : 400).json({ error: error.message }); }
+});
+
+async function amazonSetupContext(listingId: string) {
+  const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), listingDoc = await listingRef.get();
+  if (!listingDoc.exists) throw new MarketplaceError('Listing not found.', 404);
+  const listing = listingDoc.data()!;
+  if (listing.platform !== 'amazon') throw new MarketplaceError('This is not an Amazon listing.');
+  const account = (await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(listing.accountId).get()).data();
+  if (!account?.isActive || account.platform !== 'amazon' || !account.amazonConnected) throw new MarketplaceError('Connect this Amazon seller account first.');
+  const surfaceRef = db.collection(SURFACES_COLLECTION).doc(listing.surfaceId), surfaceDoc = await surfaceRef.get();
+  if (!surfaceDoc.exists) throw new MarketplaceError('Item setup is missing.', 404);
+  const surface = surfaceDoc.data()!, product = await normalizeProductForPublishing(surface.masterProductId, db);
+  if (product.sku !== surface.sku || listing.marketplaceSku !== surface.sku) throw new MarketplaceError('Listing and product identity do not match.');
+  if (!(await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', listing.surfaceId).get()).empty) throw new MarketplaceError('Legacy surface variants need reconciliation with the built product.');
+  const variants = await resolveMarketplaceVariants(product, db);
+  return { listingRef, listing, surfaceRef, surface, variants, credentials: amazonCredentials(account) };
+}
+app.get('/admin/surfaces/listings/:listingId/amazon-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await amazonSetupContext(req.params.listingId);
+    const productType = typeof req.query.productType === 'string' ? req.query.productType : context.listing.publishOptions?.amazon?.productType || '';
+    const query = typeof req.query.q === 'string' ? req.query.q : '';
+    const options = await getAmazonSetupOptions(context.credentials, productType, query, context.variants.length > 0);
+    res.json({ options, productType, variants: context.variants, settings: context.listing.publishOptions?.amazon || { productType: '', quantity: 0, attributes: {} } });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+app.patch('/admin/surfaces/listings/:listingId/amazon-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await amazonSetupContext(req.params.listingId), settings = validateAmazonSettings(req.body.settings);
+    await db.runTransaction(async tx => {
+      const snap = await tx.get(context.listingRef);
+      if (!snap.exists || snap.data()!.status === 'syncing') throw new MarketplaceError('Wait for the running job before saving setup.', 409);
+      if (snap.data()!.accountId !== context.listing.accountId) throw new MarketplaceError('Seller changed. Reload setup.', 409);
+      tx.update(context.listingRef, { publishOptions: { ...snap.data()!.publishOptions, amazon: settings }, updatedAt: new Date().toISOString() });
+    });
+    res.json({ success: true });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 400).json({ error: error.message }); }
+});
+app.post('/admin/surfaces/listings/:listingId/amazon-preview', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await amazonSetupContext(req.params.listingId), settings = validateAmazonSettings(req.body.settings);
+    const options = await getAmazonSetupOptions(context.credentials, settings.productType, '', context.variants.length > 0);
+    const submissions = buildAmazonSubmissions(amazonProductFromSurface(context.surface), context.surface.sku, settings, context.variants, options);
+    const errors = await previewAmazonSubmissions(context.credentials, submissions);
+    res.json({ valid: errors.length === 0, errors });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
+async function ebaySetupContext(listingId: string) {
+  const listingRef = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId), listingDoc = await listingRef.get();
+  if (!listingDoc.exists) throw new MarketplaceError('Listing not found.', 404);
+  const listing = listingDoc.data()!;
+  if (listing.platform !== 'ebay') throw new MarketplaceError('This is not an eBay listing.');
+  const accountDoc = await db.collection(MARKETPLACE_ACCOUNTS_COLLECTION).doc(listing.accountId).get(), account = accountDoc.data();
+  if (!account?.isActive || account.platform !== 'ebay' || !account.ebayConnected || !account.ebayRefreshToken) throw new MarketplaceError('Connect this eBay seller account first.');
+  const surfaceRef = db.collection(SURFACES_COLLECTION).doc(listing.surfaceId), surfaceDoc = await surfaceRef.get();
+  if (!surfaceDoc.exists) throw new MarketplaceError('Item setup is missing.', 404);
+  return { listingRef, listing, surfaceRef, surface: surfaceDoc.data()!, credentials: { userId: account.ebayUserId || '', username: account.ebayUsername || '', refreshToken: account.ebayRefreshToken } };
+}
+
+app.get('/admin/surfaces/listings/:listingId/ebay-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await ebaySetupContext(req.params.listingId);
+    const categoryId = typeof req.query.categoryId === 'string' ? req.query.categoryId : context.surface.ebay?.categoryId || '';
+    const query = typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : '';
+    const options = await getEbaySetupOptions(context.credentials, categoryId, query);
+    const product = await normalizeProductForPublishing(context.surface.masterProductId, db);
+    const variants = await resolveMarketplaceVariants(product, db);
+    res.json({ options, variants, settings: context.listing.publishOptions?.ebay || {}, categoryId, itemSpecifics: context.surface.ebay?.itemSpecifics || {} });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
+app.post('/admin/surfaces/listings/:listingId/ebay-location', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await ebaySetupContext(req.params.listingId);
+    const { name, postalCode, country } = req.body;
+    if ([name, postalCode, country].some(value => typeof value !== 'string')) throw new MarketplaceError('Location name, postal code and country are required.');
+    res.json(await createEbayInventoryLocation(context.credentials, context.listing.accountId, { name, postalCode, country }));
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
+app.patch('/admin/surfaces/listings/:listingId/ebay-setup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const context = await ebaySetupContext(req.params.listingId);
+    const settings: Record<string, any> = {};
+    for (const key of ['fulfillmentPolicyId', 'paymentPolicyId', 'returnPolicyId', 'merchantLocationKey']) {
+      if (typeof req.body.settings?.[key] !== 'string' || !req.body.settings[key].trim()) throw new MarketplaceError('Choose all three seller policies and an inventory location.');
+      settings[key] = req.body.settings[key].trim();
+    }
+    if (req.body.settings.variationValues !== undefined) {
+      const mappings = req.body.settings.variationValues;
+      if (!mappings || typeof mappings !== 'object' || Array.isArray(mappings) || Object.keys(mappings).some(key => !['Size', 'Color'].includes(key))) throw new MarketplaceError('Invalid eBay variation mappings.');
+      for (const values of Object.values(mappings)) {
+        if (!values || typeof values !== 'object' || Array.isArray(values) || Object.values(values).some(value => typeof value !== 'string' || !value.trim())) throw new MarketplaceError('Variation mappings must contain text values.');
+      }
+      settings.variationValues = mappings;
+    }
+    const categoryId = String(req.body.categoryId || '').trim();
+    if (!/^\d+$/.test(categoryId)) throw new MarketplaceError('Choose an eBay category.');
+    const itemSpecifics = req.body.itemSpecifics;
+    if (!itemSpecifics || typeof itemSpecifics !== 'object' || Array.isArray(itemSpecifics) || Object.values(itemSpecifics).some(value => typeof value !== 'string')) throw new MarketplaceError('Item specifics must contain text values.');
+    // Check ownership against the selected seller before writing settings.
+    const options = await getEbaySetupOptions(context.credentials, categoryId);
+    for (const [field, rows] of [['fulfillmentPolicyId', options.fulfillmentPolicies], ['paymentPolicyId', options.paymentPolicies], ['returnPolicyId', options.returnPolicies], ['merchantLocationKey', options.locations]] as const) {
+      if (!rows.some((row: any) => row[field] === settings[field])) throw new MarketplaceError(`Selected ${field} is not available for this seller.`);
+    }
+    await db.runTransaction(async tx => {
+      const listingDoc = await tx.get(context.listingRef), surfaceDoc = await tx.get(context.surfaceRef);
+      const linked = await tx.get(db.collection(MARKETPLACE_LISTINGS_COLLECTION).where('surfaceId', '==', context.listing.surfaceId));
+      if (!listingDoc.exists || !surfaceDoc.exists || linked.docs.some(doc => doc.data().status === 'syncing')) throw new MarketplaceError('Wait for this item’s running job before saving setup.', 409);
+      if (listingDoc.data()!.accountId !== context.listing.accountId) throw new MarketplaceError('Seller changed. Reload setup.', 409);
+      const ebay = { ...surfaceDoc.data()!.ebay, categoryId, itemSpecifics, listingFormat: 'FIXED_PRICE' };
+      for (const key of ['shippingPolicyId', 'returnsPolicyId', 'paymentPolicyId', 'merchantLocationKey']) delete ebay[key];
+      const timestamp = new Date().toISOString();
+      tx.update(context.surfaceRef, { ebay, updatedAt: timestamp });
+      tx.update(context.listingRef, { publishOptions: { ...listingDoc.data()!.publishOptions, ebay: settings }, updatedAt: timestamp });
+    });
+    res.json({ success: true });
+  } catch (error: any) { res.status(error instanceof MarketplaceError ? error.status : 502).json({ error: error.message }); }
+});
+
+app.post('/admin/surfaces/listings/:listingId/fees', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const ref = db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(req.params.listingId);
+    if (!(await ref.get()).exists) { res.status(404).json({ error: 'Listing not found' }); return; }
+    const fees = await refreshListingFees(req.params.listingId);
+    res.status(fees.status === 'unavailable' ? 422 : 200).json({ fees, ...(fees.status === 'unavailable' ? { error: fees.reason } : {}) });
+  } catch (error: any) {
+    console.error('[Marketplace fees] Refresh failed:', error.message);
+    res.status(409).json({ error: 'Could not refresh fees. Reload this item and retry.' });
   }
 });
 
@@ -1050,6 +686,9 @@ app.delete('/admin/surfaces/listings/:listingId', requireAdmin, async (req: Requ
     const { listingId } = req.params;
     const doc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
+    if (doc.data()?.amazonItems?.length || doc.data()?.externalListingId || doc.data()?.externalOfferId || doc.data()?.externalCreateAttempted || doc.data()?.status === 'syncing') {
+      res.status(409).json({ error: 'This record tracks an external listing or an in-progress attempt and cannot be removed.' }); return;
+    }
     await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).delete();
     res.json({ success: true });
   } catch (error: any) {
@@ -1079,72 +718,11 @@ app.get('/admin/surfaces/jobs', requireAdmin, async (req: Request, res: Response
 app.post('/admin/surfaces/jobs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { listingId, action } = req.body;
-    if (!listingId || !action) { res.status(400).json({ error: 'listingId and action are required' }); return; }
-    if (!VALID_JOB_ACTIONS.has(action)) { res.status(400).json({ error: `Invalid action. Must be one of: ${[...VALID_JOB_ACTIONS].join(', ')}` }); return; }
-    const listingDoc = await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).get();
-    if (!listingDoc.exists) { res.status(404).json({ error: 'Listing not found' }); return; }
-    const listing = listingDoc.data() as any;
-
-    // Load surface to validate and carry QRG identity into the job
-    const surfaceDoc = await db.collection(SURFACES_COLLECTION).doc(listing.surfaceId).get();
-    if (!surfaceDoc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
-    const surface = surfaceDoc.data() as any;
-    const qrgCode = surface.sku;
-    if (!qrgCode || !isValidQrgCode(qrgCode)) {
-      res.status(400).json({
-        ok: false,
-        errors: ['Missing valid QRG code'],
-        error: 'Marketplace action blocked: surface has no valid QRG code. Cannot enqueue sync job.',
-      });
-      return;
-    }
-
-    const now = new Date().toISOString();
-    const data = {
-      listingId,
-      surfaceId: listing.surfaceId,
-      accountId: listing.accountId,
-      platform: listing.platform,
-      qrgCode,
-      marketplaceSku: qrgCode,
-      productInstanceId: surface.masterProductId || listing.productInstanceId || '',
-      action,
-      status: 'queued',
-      attempts: 0,
-      maxAttempts: 3,
-      createdAt: now,
-      updatedAt: now,
-    };
-    const docRef = await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).add(data);
-    await db.collection(MARKETPLACE_LISTINGS_COLLECTION).doc(listingId).update({ status: 'syncing', lastSyncJobId: docRef.id, updatedAt: now });
-    res.json({ id: docRef.id, ...data });
-
-    executeSyncJob(docRef.id).catch((err) =>
-      console.error(`[Surfaces] Async sync execution failed for job ${docRef.id}:`, err)
-    );
+    if (typeof listingId !== 'string' || !listingId || !VALID_JOB_ACTIONS.has(action)) throw new MarketplaceError('A listingId and valid action are required.');
+    res.json(await runMarketplaceJob(listingId, action));
   } catch (error: any) {
-    console.error('[Surfaces] POST job error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.patch('/admin/surfaces/jobs/:jobId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { jobId } = req.params;
-    const doc = await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId).get();
-    if (!doc.exists) { res.status(404).json({ error: 'Job not found' }); return; }
-    const updates: Record<string, any> = {};
-    const allowed = ['status', 'attempts', 'lastAttemptAt', 'completedAt', 'errorMessage', 'result'];
-    for (const key of allowed) {
-      if (req.body[key] !== undefined) updates[key] = req.body[key];
-    }
-    if (Object.keys(updates).length === 0) { res.status(400).json({ error: 'No valid fields to update' }); return; }
-    updates.updatedAt = new Date().toISOString();
-    await db.collection(MARKETPLACE_SYNC_JOBS_COLLECTION).doc(jobId).update(updates);
-    res.json({ id: jobId, ...doc.data(), ...updates });
-  } catch (error: any) {
-    console.error('[Surfaces] PATCH job error:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Marketplace] Job failed:', error.message);
+    res.status(error instanceof MarketplaceError ? error.status : 500).json({ error: error.message });
   }
 });
 
@@ -1152,8 +730,7 @@ app.post('/admin/surfaces/jobs/:jobId/retry', requireAdmin, async (req: Request,
   try {
     const { jobId } = req.params;
     const result = await retryFailedJob(jobId);
-    if (!result.success) { res.status(400).json({ error: result.error }); return; }
-    res.json({ id: jobId, status: 'queued', message: 'Job re-queued for retry' });
+    res.json(result);
   } catch (error: any) {
     console.error('[Surfaces] POST job retry error:', error);
     res.status(500).json({ error: error.message });
@@ -1190,26 +767,16 @@ app.get('/admin/surfaces/logs', requireAdmin, async (req: Request, res: Response
   }
 });
 
-app.post('/admin/surfaces/logs', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+app.get('/admin/surfaces/:surfaceId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { jobId, listingId, accountId, platform, level, message, details } = req.body;
-    if (!jobId || !message) { res.status(400).json({ error: 'jobId and message are required' }); return; }
-    const resolvedLevel = level && VALID_LOG_LEVELS.has(level) ? level : 'info';
-    const now = new Date().toISOString();
-    const data = {
-      jobId,
-      listingId: listingId || '',
-      accountId: accountId || '',
-      platform: platform && VALID_PLATFORMS.has(platform) ? platform : undefined,
-      level: resolvedLevel,
-      message,
-      details: details || undefined,
-      createdAt: now,
-    };
-    const docRef = await db.collection(MARKETPLACE_SYNC_LOGS_COLLECTION).add(data);
-    res.json({ id: docRef.id, ...data });
+    const { surfaceId } = req.params;
+    const doc = await db.collection(SURFACES_COLLECTION).doc(surfaceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Surface not found' }); return; }
+    const variantsSnap = await db.collection(SURFACE_VARIANTS_COLLECTION).where('surfaceId', '==', surfaceId).get();
+    const variants = variantsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() }));
+    res.json({ ...doc.data(), id: doc.id, variants });
   } catch (error: any) {
-    console.error('[Surfaces] POST log error:', error);
+    console.error('[Surfaces] GET surface error:', error);
     res.status(500).json({ error: error.message });
   }
 });

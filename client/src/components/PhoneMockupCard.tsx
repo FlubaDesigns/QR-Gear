@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playMediaPreview } from "@/lib/playMediaPreview";
+import ProductGalleryMedia from "./ProductGalleryMedia";
 
 interface PhoneMockupCardProps {
   qrCodeUrl: string | null;
   landingPageSnapshotUrl?: string | null;
   playMediaUrl?: string | null;
+  playPosterUrl?: string | null;
   composeImages?: string[] | null;
   qrProductType: string;
   productName?: string;
@@ -77,7 +80,7 @@ function PhoneFrame({
       </div>
 
       {/* Screen */}
-      <div className="flex-1 overflow-hidden bg-black mx-[2px] mb-[2px] rounded-b-[inherit]">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-black mx-[2px] mb-[2px] rounded-b-[inherit]">
         {children}
       </div>
 
@@ -94,6 +97,7 @@ export default function PhoneMockupCard({
   qrCodeUrl,
   landingPageSnapshotUrl,
   playMediaUrl,
+  playPosterUrl,
   composeImages,
   qrProductType,
   productName,
@@ -101,7 +105,21 @@ export default function PhoneMockupCard({
 }: PhoneMockupCardProps) {
   const [entered, setEntered] = useState(false);
   const [composeIndex, setComposeIndex] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [autoplay, setAutoplay] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setAutoplay(!reducedMotion.matches);
+    // Start on first view, then keep the player mounted so scrolling never resets a full video.
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisible(true); }, { threshold: 0.5 });
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => setVideoError(false), [playMediaUrl]);
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 80);
@@ -117,11 +135,13 @@ export default function PhoneMockupCard({
   }, [composeImages]);
 
   const isPlay = qrProductType === "qr-play";
+  const preview = isPlay && playMediaUrl ? playMediaPreview(playMediaUrl, autoplay) : null;
   const isCompose = qrProductType === "qr-compose";
   const glowColor = TYPE_GLOW[qrProductType] || TYPE_GLOW["qr-basics"];
   const scanColor = TYPE_SCAN_COLOR[qrProductType] || TYPE_SCAN_COLOR["qr-basics"];
 
   const hasDestination =
+    isPlay ||
     landingPageSnapshotUrl ||
     playMediaUrl ||
     (composeImages && composeImages.length > 0);
@@ -130,6 +150,8 @@ export default function PhoneMockupCard({
 
   return (
     <div
+      ref={cardRef}
+      data-testid="card-phone-mockup"
       className={cn("relative overflow-hidden rounded-md", className)}
       style={{
         background: "linear-gradient(135deg, #0d1117 0%, #161b22 50%, #0d1117 100%)",
@@ -170,14 +192,14 @@ export default function PhoneMockupCard({
           <div
             className="absolute"
             style={{
-              right: "10%",
+              right: isPlay ? "calc(50% - 110px)" : "10%",
               top: "50%",
               transform: `translateY(-50%) ${entered ? "translateX(0)" : "translateX(20px)"}`,
               opacity: entered ? 1 : 0,
               transition: "opacity 0.65s ease-out, transform 0.65s ease-out",
             }}
           >
-            <PhoneFrame size="lg" glowColor={glowColor}>
+            <PhoneFrame size="lg" glowColor={glowColor} className={isPlay ? "w-[220px]" : undefined}>
               {/* Status bar */}
               <div className="flex items-center justify-between px-3 pt-1.5 pb-0.5 flex-shrink-0">
                 <span className="text-[8px] font-semibold text-white/50">9:41</span>
@@ -196,18 +218,31 @@ export default function PhoneMockupCard({
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-hidden">
-                {isPlay && playMediaUrl ? (
+              <div className="flex-1 min-h-0 overflow-hidden">
+                {isPlay ? (!preview || videoError ? (
+                  <p role="status" className="h-full flex items-center justify-center p-3 text-center text-xs text-white/70">Video preview unavailable{playMediaUrl ? ". Use Watch full video below." : ". No video is attached."}</p>
+                ) : !visible ? (
+                  <p className="h-full flex items-center justify-center text-xs text-white/70">Video preview</p>
+                ) : preview.kind === "embed" ? (
+                  <ProductGalleryMedia key={playMediaUrl} item={{
+                    type: 'video', url: playMediaUrl!, posterUrl: playPosterUrl || undefined,
+                    alt: `${productName || 'QR Play'} — video preview`,
+                  }} autoPlay={autoplay} className="w-full h-full" testId="phone-video-embed" />
+                ) : (
                   <video
-                    ref={videoRef}
-                    src={playMediaUrl}
-                    autoPlay
+                    key={preview.url}
+                    src={preview.url}
+                    autoPlay={autoplay}
                     muted
-                    loop
+                    controls
+                    preload="metadata"
                     playsInline
-                    className="w-full h-full object-cover"
+                    onError={() => setVideoError(true)}
+                    className="w-full h-full object-contain"
+                    aria-label={`${productName || "QR Play"} — video preview`}
+                    data-testid="phone-video-file"
                   />
-                ) : isCompose && composeImages && composeImages.length > 0 ? (
+                )) : isCompose && composeImages && composeImages.length > 0 ? (
                   <div className="relative w-full h-full">
                     {composeImages.map((src, i) => (
                       <img
@@ -242,7 +277,7 @@ export default function PhoneMockupCard({
         )}
 
         {/* Small phone — QR code (left, front) */}
-        {qrCodeUrl && (
+        {qrCodeUrl && !isPlay && (
           <div
             className="absolute z-10"
             style={{ left: "8%", top: "50%", transform: "translateY(-50%)" }}
@@ -314,7 +349,7 @@ export default function PhoneMockupCard({
         )}
 
         {/* Arrow badge — floats between phones */}
-        {qrCodeUrl && hasDestination && (
+        {qrCodeUrl && hasDestination && !isPlay && (
           <div
             className="absolute z-20 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
             style={{
@@ -339,6 +374,12 @@ export default function PhoneMockupCard({
 
       {/* Footer */}
       <div className="relative px-5 pb-4 text-center">
+        {isPlay && (
+          <div className="flex items-center justify-center gap-3 mb-3">
+            {qrCodeUrl && <img src={qrCodeUrl} alt="Scannable QR code" className="w-14 h-14 rounded bg-white p-1" />}
+            {preview && <a href={playMediaUrl!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center min-h-12 rounded border border-white/30 px-4 text-sm text-white hover:bg-white/10">Watch full video</a>}
+          </div>
+        )}
         <p className="text-[10px] text-white/25 tracking-wide">
           No app needed — any phone camera works
         </p>

@@ -1,5 +1,7 @@
+import { QR_GEAR_BRANDED_TAG_URL } from '../../functions/src/core';
+import { priceNewPacket } from '../../functions/src/services/pricing';
+import { updatePacketWithComposition } from '../../functions/src/services/composition-links';
 import { validatePacketComposition, packetPrintifyArtwork } from '../../functions/src/services/assembly-store';
-import { deleteBuildPacket } from '../../functions/src/services/build-session-state';
 import { packetBuildFields } from '../../shared/builderSnapshot';
 import type { Express } from "express";
 import { isAdmin } from "../firebaseAuth";
@@ -175,7 +177,7 @@ export function registerPacketRoutes(app: Express): void {
 
       res.json({
         success: true,
-        packetId,
+        packetId, pricing: packetData.pricing, builderSnapshot: (packetData as any).builderSnapshot, placementGraphicUrls: (packetData as any).placementGraphicUrls,
         mockupJobsQueued,
         message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
       });
@@ -373,7 +375,10 @@ export function registerPacketRoutes(app: Express): void {
       };
       
       if (req.body.builderSnapshot) {
-        try { Object.assign(packetData, packetBuildFields(req.body.builderSnapshot)); }
+        try {
+          const priced = await priceNewPacket(firestoreDb, req.body.builderSnapshot, QR_GEAR_BRANDED_TAG_URL);
+          Object.assign(packetData, packetBuildFields(priced.builderSnapshot), { pricing: priced.pricing, customerPrice: priced.pricing.customerPrice, placementGraphicUrls: priced.placementGraphicUrls });
+        }
         catch (error: any) { res.status(400).json({ error: error.message }); return; }
       }
       const packetRef = await firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).add(packetData);
@@ -421,7 +426,7 @@ export function registerPacketRoutes(app: Express): void {
 
       res.json({
         success: true,
-        packetId,
+        packetId, pricing: packetData.pricing, builderSnapshot: (packetData as any).builderSnapshot, placementGraphicUrls: (packetData as any).placementGraphicUrls,
         mockupJobsQueued,
         message: `Product packet created${mockupJobsQueued > 0 ? ` with ${mockupJobsQueued} mockup jobs queued` : ''}`,
       });
@@ -553,13 +558,6 @@ export function registerPacketRoutes(app: Express): void {
         return res.status(404).json({ error: "Packet not found" });
       }
       
-      // ── Publish guard (parity with functions pp-pricing-packets Fix 15) ──────
-      if (updates.status === 'published' || doc.data()?.status === 'published') {
-        try { await validatePacketComposition(firestoreDb, packetId, { ...doc.data(), ...updates }); }
-        catch (e: any) { return res.status(400).json({ error: e.message }); }
-      }
-      // ── end publish guard ─────────────────────────────────────────────────────
-
       // ── Data-URI guard: never let a raw base64 image reach Firestore ──────────
       // A base64 PNG is ~11 MB — far above Firestore's 1 MB document limit.
       // Strip any field whose value is a data: URI so the write always succeeds.
@@ -574,10 +572,7 @@ export function registerPacketRoutes(app: Express): void {
       }
       // ── end data-URI guard ────────────────────────────────────────────────────
 
-      await docRef.update({
-        ...safeUpdates,
-        updatedAt: FieldValue.serverTimestamp(),
-      });
+      await updatePacketWithComposition(firestoreDb, packetId, safeUpdates, FieldValue.serverTimestamp());
 
       // ── GRF registration for mockup URLs (dev parity) ───────────────────
       const incomingLifestyle     = safeUpdates.lifestyleMockupUrl  || null;
@@ -605,31 +600,6 @@ export function registerPacketRoutes(app: Express): void {
     }
   });
 
-  app.delete("/api/admin/packets/:packetId", isAdmin, async (req: any, res) => {
-    try {
-      const { packetId } = req.params;
-
-      if (!packetId) {
-        return res.status(400).json({ error: "packetId is required" });
-      }
-
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const firestoreDb = getFirestoreDb();
-      
-      const docRef = firestoreDb.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId);
-      const doc = await docRef.get();
-      
-      if (!doc.exists) {
-        return res.status(404).json({ error: "Packet not found" });
-      }
-      
-      await deleteBuildPacket(firestoreDb, packetId, (await import('firebase-admin/firestore')).FieldValue.serverTimestamp());
-      res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
-    } catch (error: any) {
-      console.error("[Packets DELETE] Error:", error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ── Publish Packet to Printify ─────────────────────────────────────────────
   // Creates (or re-creates) a Printify product from the packet's composite images.

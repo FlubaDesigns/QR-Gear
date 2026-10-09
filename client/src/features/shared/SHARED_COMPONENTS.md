@@ -33,7 +33,7 @@ The shared component system follows a **three-layer architecture**:
 │  How individual items look + their usability (buttons, actions) │
 │  Location: /features/shared/components/skins/                   │
 │                                                                  │
-│  - GraphicsSkin      (edit, archive buttons)                    │
+│  - AdminGraphicSkins      (edit, archive buttons)                    │
 │  - TemplateSkin      (edit, delete buttons)                     │
 │  - BackgroundSkin    (delete button)                            │
 │  - SourceImageSkin   (crop, delete buttons)                     │
@@ -108,7 +108,7 @@ interface SkinActions {
 
 | Skin | Card | Detail | Actions | Used By |
 |------|------|--------|---------|---------|
-| GraphicsSkin | GraphicsCardSkin | GraphicsDetailSkin | edit, archive | GraphicsTab |
+| AdminGraphicSkins | AdminGraphicCardSkin | AdminGraphicDetailSkin | archive | GraphicsTab |
 | TemplateSkin | TemplateCardSkin | TemplateDetailSkin | edit, delete | TemplatesTab |
 | BackgroundSkin | BackgroundCardSkin | BackgroundDetailSkin | delete | BackgroundsTab |
 | SourceImageSkin | SourceImageCardSkin | SourceImageDetailSkin | crop, delete | SourceImagesTab |
@@ -317,12 +317,12 @@ Location: `/features/shared/components/SkinGridViewer.tsx`
 
 ```tsx
 import { SkinGridViewer } from "@/features/shared/components/SkinGridViewer";
-import { GraphicsCardSkin, GraphicsDetailSkin } from "@/features/shared/components/skins";
+import { AdminGraphicCardSkin, AdminGraphicDetailSkin } from "@/features/shared/components/skins/AdminGraphicSkins";
 
 <SkinGridViewer
   items={skinItems}                    // Array of SkinItem
-  CardSkin={GraphicsCardSkin}          // Card component
-  DetailSkin={GraphicsDetailSkin}      // Detail/gallery component
+  CardSkin={AdminGraphicCardSkin}          // Card component
+  DetailSkin={AdminGraphicDetailSkin}      // Detail/gallery component
   actions={{
     onEdit: handleEdit,
     onArchive: handleArchive,
@@ -451,7 +451,7 @@ This pattern keeps users on the page (modal overlay) while they pick, then loads
 │   │   └── ContentView.tsx       # URL preview
 │   ├── skins/
 │   │   ├── types.ts              # SkinItem, SkinActions
-│   │   ├── GraphicsSkin.tsx
+│   │   ├── AdminGraphicSkins.tsx
 │   │   ├── TemplateSkin.tsx
 │   │   ├── BackgroundSkin.tsx
 │   │   ├── SourceImageSkin.tsx

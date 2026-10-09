@@ -16,7 +16,7 @@ import type { HealthDashboard } from "./orchestration-types";
 export function HealthTabContent() {
   const { toast } = useToast();
 
-  const { data: healthData, isLoading: healthLoading } = useQuery<HealthDashboard>({
+  const { data: healthData, error: healthError, isLoading: healthLoading } = useQuery<HealthDashboard>({
     queryKey: ["/api/admin/orchestration/provider-health"],
     refetchInterval: 60000,
   });
@@ -27,7 +27,7 @@ export function HealthTabContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/orchestration/provider-health"] });
-      toast({ title: "Health Check Complete", description: "All providers have been checked" });
+      toast({ title: "Health Check Complete", description: "Check results have been recorded; see each provider for its status." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -81,7 +81,7 @@ export function HealthTabContent() {
         </Card>
       )}
 
-      {healthLoading ? (
+      {healthError ? <p role="alert">Health could not load: {healthError.message}</p> : healthLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -118,7 +118,7 @@ export function HealthTabContent() {
                   ) : (
                     <Badge variant="destructive" className="min-h-8 px-3">
                       <XCircle className="w-4 h-4 mr-1" />
-                      Down
+                      {provider.status === "not_configured" ? "Not Configured" : provider.status === "not_checked" ? "Not Checked" : "Down"}
                     </Badge>
                   )}
                 </div>
@@ -127,14 +127,14 @@ export function HealthTabContent() {
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Response Time</span>
                     <span className={provider.responseTimeMs > 1000 ? "text-yellow-600" : "text-foreground"}>
-                      {provider.responseTimeMs}ms
+                      {provider.responseTimeMs == null ? "Not measured" : `${provider.responseTimeMs}ms`}
                     </span>
                   </div>
                   
                   {provider.stats24h.totalChecks > 0 && (
                     <>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">24h Uptime</span>
+                        <span className="text-muted-foreground">24h Check Success</span>
                         <span className={provider.stats24h.uptimePercent < 95 ? "text-yellow-600" : "text-green-600"}>
                           {provider.stats24h.uptimePercent}%
                         </span>

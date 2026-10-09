@@ -78,29 +78,22 @@ export function mimeToGrfFormat(mimeType: string): GrfFormat {
 }
 
 // ── MIME normalization — browser → GRF-compatible MIME ───────────────────────
-// Some browsers (especially mobile/iOS) report MIME types that are not in
-// GRF_FORMATS. Map them to the nearest supported type before calling
-// mimeToGrfFormat. All callers must go through here — never define this map
-// locally in a component or route file.
+// Validate against GRF_FORMATS. Only true MIME aliases are normalized; unsupported
+// image encodings must be converted by an image processor before upload.
 
-const _MIME_NORMALIZE: Record<string, string> = {
-  'image/jpg':  'image/jpeg',
-  'image/heic': 'image/jpeg',
-  'image/heif': 'image/jpeg',
-  'image/avif': 'image/jpeg',
-  'image/gif':  'image/png',
-  'image/bmp':  'image/png',
-  'image/tiff': 'image/png',
-};
+// Source uploads preserve bytes; MIME aliases must not pretend to convert files.
+export const GRF_IMAGE_ACCEPT_TYPES = Object.values(GRF_FORMATS['1']).map(f => f.mime).join(',');
+export const GRF_IMAGE_MAX_MB = 20;
+export const GRF_IMAGE_MAX_BYTES = GRF_IMAGE_MAX_MB * 1024 * 1024;
+export const GRF_CROP_MIME_TYPE = 'image/png';
 
 export function normalizeMimeType(raw: string): string {
   const lower = (raw || '').toLowerCase();
-  const mapped = _MIME_NORMALIZE[lower];
-  if (mapped) {
-    console.warn(`GRF_engine: normalizeMimeType mapped "${raw}" → "${mapped}"`);
-    return mapped;
+  const normalized = lower === 'image/jpg' ? 'image/jpeg' : lower;
+  if (!Object.values(GRF_FORMATS['1']).some(f => f.mime === normalized)) {
+    throw new Error('Unsupported image format. Use PNG, JPEG, WebP, or SVG.');
   }
-  return lower || 'image/jpeg';
+  return normalized;
 }
 
 // ── GRF param shape ───────────────────────────────────────────────────────────
@@ -111,6 +104,25 @@ export interface LibraryGrfParams {
   channel:    GrfChannel;
   purpose:    string;
   format:     string;
+}
+
+// Video upload policy is shared by the browser and the permanent-file registrar.
+export const GRF_VIDEO_MEDIA_TYPE: GrfMediaType = '2';
+export const GRF_VIDEO_ACCEPT_TYPES = Object.values(GRF_FORMATS[GRF_VIDEO_MEDIA_TYPE]).map(f => f.mime).join(',');
+export const GRF_VIDEO_FORMAT_LABELS = Object.values(GRF_FORMATS[GRF_VIDEO_MEDIA_TYPE]).map(f => f.label.toUpperCase()).join(', ');
+// Base64 plus JSON must fit the deployed HTTP request limit.
+export const GRF_VIDEO_MAX_MB = 20;
+export const GRF_VIDEO_MAX_BYTES = GRF_VIDEO_MAX_MB * 1024 * 1024;
+export function videoGrfParams(mimeType: string): LibraryGrfParams {
+  const format = Object.entries(GRF_FORMATS[GRF_VIDEO_MEDIA_TYPE]).find(([, value]) => value.mime === mimeType.toLowerCase());
+  if (!format) throw new Error(`Unsupported video format. Use ${GRF_VIDEO_FORMAT_LABELS}.`);
+  return { assetClass: LIBRARY_ASSET_CLASS, mediaType: GRF_VIDEO_MEDIA_TYPE, channel: '3', purpose: '2', format: format[0] };
+}
+export function validateVideoUpload(mimeType: string, size: number): LibraryGrfParams {
+  const params = videoGrfParams(mimeType);
+  if (!Number.isFinite(size) || size <= 0) throw new Error('The video file is empty');
+  if (size > GRF_VIDEO_MAX_BYTES) throw new Error(`Videos must be ${GRF_VIDEO_MAX_MB} MB or smaller`);
+  return params;
 }
 
 // ── Param builders — one per asset purpose ────────────────────────────────────
@@ -155,26 +167,6 @@ export function templateGrfParams(mimeType: string): LibraryGrfParams {
   };
 }
 
-// ── Crop transition ───────────────────────────────────────────────────────────
-// When a source image is cropped, two GRF records are produced:
-//   1. The crop result       → purpose=2 (cropped),    always JPEG
-//   2. The promoted original → purpose=3 (background), inherits source MIME
-
-export interface CropTransition {
-  cropped:    LibraryGrfParams;
-  background: LibraryGrfParams;
-}
-
-export function buildCropTransition(
-  originalMimeType: string,
-  croppedMimeType = 'image/jpeg',
-): CropTransition {
-  return {
-    cropped:    croppedGrfParams(croppedMimeType),
-    background: backgroundGrfParams(originalMimeType),
-  };
-}
-
 // ── Purpose label lookup ──────────────────────────────────────────────────────
 
 export function purposeLabel(purpose: string): string {
@@ -191,3 +183,16 @@ export const GRF_FILTER_TEMPLATES   = { channel: LIBRARY_CHANNEL, purpose: PURPO
 // ── Re-exports — graphicCodes is an implementation detail; import from here ──
 
 export * from './graphicCodes';
+
+/** Check record metadata against the identity encoded by the canonical GRF schema. */
+export function inspectGrfAsset(asset: Record<string, any>): string[] {
+  if (!isValidGrfId(asset.grfId)) return ['Invalid GRF identity.'];
+  const parsed = parseGrfId(asset.grfId);
+  const issues: string[] = [];
+  for (const key of ['assetClass', 'mediaType', 'channel', 'purpose', 'format'] as const) {
+    if (asset[key] !== parsed[key]) issues.push(`${key} does not match the GRF ID.`);
+  }
+  const mime = String(asset.mimeType || '').toLowerCase().replace(/^image\/jpg$/, 'image/jpeg');
+  if (mime !== parsed.mimeType) issues.push('MIME type does not match the GRF format.');
+  return issues;
+}

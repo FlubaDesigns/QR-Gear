@@ -30,7 +30,7 @@
     ],
     "headers": [
       {
-        "source": "index.html",
+        "source": "**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -51,7 +51,7 @@
   },
   "functions": {
     "source": "functions",
-    "runtime": "nodejs20",
+    "runtime": "nodejs22",
     "ignore": [
       "node_modules",
       ".git",

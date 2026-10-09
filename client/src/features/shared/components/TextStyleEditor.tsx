@@ -1,3 +1,4 @@
+import { DEFAULT_FONTS } from '@shared/fonts';
 import { useState, useEffect, useRef } from "react";
 import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
@@ -27,18 +28,7 @@ export interface TextStyleConfig {
   imageScale?: number;
 }
 
-export const FONT_FAMILIES = [
-  "Arial",
-  "Helvetica", 
-  "Times New Roman",
-  "Georgia",
-  "Verdana",
-  "Courier New",
-  "Impact",
-  "Comic Sans MS",
-  "Trebuchet MS",
-  "Palatino Linotype",
-];
+export const FONT_FAMILIES = DEFAULT_FONTS;
 
 export const FONT_SIZES = ["12", "16", "20", "24", "28", "32", "36", "42", "48", "56", "64", "72"];
 export const DEFAULT_FONT_SIZE = "36";
@@ -245,12 +235,21 @@ export function TextStyleEditor({
     recognition.start();
     setIsListening(true);
   };
-  const { fonts: dynamicFonts } = useFonts();
+  const { fonts: dynamicFonts, error: fontSettingsError, refetch: reloadFonts } = useFonts();
+  const [fontLoadError, setFontLoadError] = useState<string | null>(null);
+  const [fontAttempt, setFontAttempt] = useState(0);
   const activeFonts = fontsProp || dynamicFonts;
 
   useEffect(() => {
-    loadGoogleFonts(activeFonts);
-  }, [activeFonts]);
+    let active = true;
+    setFontLoadError(null);
+    loadGoogleFonts([...activeFonts, style.fontFamily]).catch(error => { if (active) setFontLoadError(error.message); });
+    return () => { active = false; };
+  }, [activeFonts, style.fontFamily, fontAttempt]);
+  const fontError = (!fontsProp && fontSettingsError?.message) || fontLoadError;
+  const fontNotice = fontError ? <div role="alert" className="p-3 text-sm text-destructive">
+    {fontError} <Button variant="outline" className="min-h-[44px]" onClick={() => { reloadFonts(); setFontAttempt(n => n + 1); }}>Retry fonts</Button>
+  </div> : null;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentMode = style.mode || "text";
@@ -271,6 +270,7 @@ export function TextStyleEditor({
   if (inline) {
     return (
       <div className="space-y-4">
+        {fontNotice}
         <input
           ref={fileInputRef}
           type="file"
@@ -685,6 +685,7 @@ export function TextStyleEditor({
 
   return (
     <div className="bg-background rounded-lg border overflow-hidden">
+      {fontNotice}
       <div
         className="flex items-center justify-between min-h-[48px] px-4 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={() => setIsCollapsed(!isCollapsed)}

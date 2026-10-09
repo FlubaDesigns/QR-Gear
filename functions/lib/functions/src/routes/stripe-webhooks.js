@@ -7,7 +7,7 @@ exports.register = register;
 const core_1 = require("../core");
 const order_service_1 = require("../services/order-service");
 const stripe_1 = __importDefault(require("stripe"));
-const nexusmail_1 = require("../nexusmail");
+const email_1 = require("../services/email");
 const printify_1 = require("../services/printify");
 function register(app) {
     app.post('/webhooks/stripe', async (req, res) => {
@@ -155,7 +155,7 @@ function register(app) {
                             const customerName = shippingAddress
                                 ? `${shippingAddress.firstName} ${shippingAddress.lastName}`.trim()
                                 : customerDetails?.name || 'Customer';
-                            await (0, nexusmail_1.sendOrderConfirmation)(core_1.db, orderId, customerEmail, customerName, emailItems, totalAmount.toFixed(2), shippingAddress ? {
+                            await (0, email_1.sendOrderConfirmation)(core_1.db, orderId, customerEmail, customerName, emailItems, totalAmount.toFixed(2), shippingAddress ? {
                                 address1: shippingAddress.address1,
                                 address2: shippingAddress.address2,
                                 city: shippingAddress.city,

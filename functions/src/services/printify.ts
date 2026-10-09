@@ -1,3 +1,4 @@
+import { isSandboxRuntime, requireLiveCommerce } from '../runtime-config';
 import { admin, db } from '../core';
 
   // ============ PRINTIFY CLIENT (Order Fulfillment) ============
@@ -6,12 +7,13 @@ const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
 // Get Printify API key - fallback for Cloud Functions environment
 function getPrintifyApiKey(): string {
-  return process.env.PRINTIFY_API_KEY || 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiIzN2Q0YmQzMDM1ZmUxMWU5YTgwM2FiN2VlYjNjY2M5NyIsImp0aSI6ImFiM2JkYjFlZTk2ZmFkYWI0ZTg5NzBlYjM3YjZlYjI0ZWUwZDM5YTkwMDk0ZjE1ZGIwNzZjZWRhY2Y5ZjU1MjQ5M2RhNzMyYzI1ZTNiNGNkIiwiaWF0IjoxNzY3ODExMzQ5LjA2MjgzOSwibmJmIjoxNzY3ODExMzQ5LjA2Mjg0MSwiZXhwIjoxNzk5MzQ3MzQ5LjA1NjU0LCJzdWIiOiIyMTA3MDg5MiIsInNjb3BlcyI6WyJzaG9wcy5tYW5hZ2UiLCJzaG9wcy5yZWFkIiwiY2F0YWxvZy5yZWFkIiwib3JkZXJzLnJlYWQiLCJvcmRlcnMud3JpdGUiLCJwcm9kdWN0cy5yZWFkIiwicHJvZHVjdHMud3JpdGUiLCJ3ZWJob29rcy5yZWFkIiwid2ViaG9va3Mud3JpdGUiLCJ1cGxvYWRzLnJlYWQiLCJ1cGxvYWRzLndyaXRlIiwicHJpbnRfcHJvdmlkZXJzLnJlYWQiLCJ1c2VyLmluZm8iXX0.GR2_7kqoGmuJTw_0bGOfsFuanPEOpwy7M4iGgQ7x25a7Bh4-5vJ8E5xX46CLV3IRs8j24roKrB9p47cmfX1FSv-oIyv-Zlzc5WjIQDq-Y3US8fCedLqNgP3-mokMCaRi9LVdMtH8c9PQ_WkHsHCK6W21iVpebz5NEYkf0Pf4aUekwZBoQvrF1VloYdF6EqEp92AJZ-rO_o3h--_kV_lifjoS5eAzD5lkwJjYp5Q9j6Io-WwM1B32GOhPiNJv-Dp7FJb05nsoSiXBW9i8UuejYhSvcuI487_gbz4tKvyjreFNAUtP9JhuAYvrwDrTwV01qicKl18qP_bbaQSMqfagBMqNE9cl7-eOhX48yCp9CEKoSrhUSsdSvKChYuLinQ89g7RBbrra-q7RzjcE7bpv_7Mn7HUHO8rX6Wg8ZxWI4rxEixCUqt1YEBJ9kfFMUL4IZUM-qcu-vXdZ8GPqfymD27GV7XzFYmrWkm7fKGjFvkbuOL5u9ZeVdzJlJtnk_yztg4AUwSHtZCiAMueWLNRmUrMVQWuYiQptfXdexujBK9aaBlOcdAAX8PEIaicqHSyLlROsuiK_ZRPRRLwGwU45Coe-e_GgaKBpq8lPTHvU0j9F_L45Y9HY4gXHQvTkNM5wcPfoMAvcz2rwPGzZyvi3ejuaEP4lSCfUi-Wiozkfdiw';
+  if (isSandboxRuntime()) return '';
+  return process.env.PRINTIFY_API_KEY || '';
 }
 
 // Get Printify Shop ID - fallback for Cloud Functions environment
 function getPrintifyShopId(): string {
-  return (process.env.PRINTIFY_SHOP_ID || '19642701').trim();
+  return (process.env.PRINTIFY_SHOP_ID || '').trim();
 }
 
 interface PrintifyOrderAddress {
@@ -58,6 +60,7 @@ class PrintifyClient {
   }
 
   private async request<T>(method: string, endpoint: string, body?: any, timeoutMs = 15000): Promise<T> {
+    requireLiveCommerce('Printify requests');
     const url = `${PRINTIFY_API_BASE}${endpoint}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -205,6 +208,9 @@ async function submitOrderToPrintify(
       return { success: false, error: 'Order not found' };
     }
     const order = orderDoc.data()!;
+    if (order.routedProvider !== 'printify' || !order.paymentVerifiedAt || order.paymentStatus !== 'paid') {
+      return { success: false, error: 'Printify requires a verified paid order explicitly routed to Printify.' };
+    }
 
     // Check if already submitted
     if (order.printifyOrderId) {
@@ -328,4 +334,3 @@ async function checkPrintifyOrderStatus(printifyOrderId: string): Promise<{
 
   export { printifyClient, PrintifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE };
   export type { PrintifyOrderAddress, PrintifyOrderLineItem, CreatePrintifyOrderRequest, ShippingAddress };
-  

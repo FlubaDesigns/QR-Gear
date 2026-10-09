@@ -34,6 +34,9 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.register = register;
+const composition_links_1 = require("../services/composition-links");
+const build_session_state_1 = require("../services/build-session-state");
+const builderSnapshot_1 = require("../../../shared/builderSnapshot");
 const core_1 = require("../core");
 const constants_1 = require("../constants");
 const middleware_1 = require("../middleware");
@@ -219,6 +222,15 @@ function register(app) {
                 playMediaUrl: playMediaUrl || null, playMediaType: playMediaType || null,
                 createdAt: now, updatedAt: now,
             };
+            if (req.body.builderSnapshot) {
+                try {
+                    Object.assign(packetData, (0, builderSnapshot_1.packetBuildFields)(req.body.builderSnapshot));
+                }
+                catch (error) {
+                    res.status(400).json({ error: error.message });
+                    return;
+                }
+            }
             const packetRef = await core_1.db.collection(constants_1.PRODUCT_PACKETS_COLLECTION).add(packetData);
             const packetId = packetRef.id;
             console.log(`[Packets CF] Created packet: ${packetId}`);
@@ -383,45 +395,7 @@ function register(app) {
                 }
             }
             // ── end data-URI guard ────────────────────────────────────────────────────
-            // ── Fix 15: Publish guard — packet must have assemblyId before going live ──
-            if (cleanUpdates.status === 'published') {
-                const existingAssemblyId = doc.data()?.assemblyId || null;
-                const incomingAssemblyId = cleanUpdates.assemblyId || null;
-                if (!existingAssemblyId && !incomingAssemblyId) {
-                    res.status(400).json({
-                        error: 'Cannot publish packet — assemblyId is missing. The three-schema chain (QRG → BLD → GRF) must be complete before a packet can be published.',
-                    });
-                    return;
-                }
-            }
-            // ── end publish guard ──────────────────────────────────────────────────
-            // ── Fix 13: assemblyId bi-directional sync (atomic transaction) ───────
-            // When assemblyId is being set or changed, keep assemblies.packetIds in sync
-            // inside a single Firestore transaction so both writes succeed or both fail.
-            if ('assemblyId' in cleanUpdates) {
-                const existingAssemblyId = doc.data()?.assemblyId || null;
-                const newAssemblyId = cleanUpdates.assemblyId || null;
-                if (newAssemblyId !== existingAssemblyId) {
-                    const oldRef = existingAssemblyId ? core_1.db.collection('assemblies').doc(existingAssemblyId) : null;
-                    const newRef = newAssemblyId ? core_1.db.collection('assemblies').doc(newAssemblyId) : null;
-                    await core_1.db.runTransaction(async (txn) => {
-                        const oldDoc = oldRef ? await txn.get(oldRef) : null;
-                        const newDoc = newRef ? await txn.get(newRef) : null;
-                        const now = core_1.admin.firestore.FieldValue.serverTimestamp();
-                        if (oldDoc?.exists && oldRef) {
-                            const filtered = (oldDoc.data().packetIds || []).filter((p) => p !== packetId);
-                            txn.update(oldRef, { packetIds: filtered, updatedAt: now });
-                        }
-                        if (newDoc?.exists && newRef) {
-                            const existing = newDoc.data().packetIds || [];
-                            const merged = [...new Set([...existing, packetId])];
-                            txn.update(newRef, { packetIds: merged, updatedAt: now });
-                        }
-                    });
-                }
-            }
-            // ── end assemblyId sync ────────────────────────────────────────────────
-            await docRef.update({ ...cleanUpdates, updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() });
+            await (0, composition_links_1.updatePacketWithComposition)(core_1.db, packetId, cleanUpdates, core_1.admin.firestore.FieldValue.serverTimestamp());
             // ── GRF registration for mockup URLs ────────────────────────────────────
             const incomingLifestyle = cleanUpdates.lifestyleMockupUrl || null;
             const incomingPlacementUrls = cleanUpdates.placementMockupUrls || null;
@@ -456,28 +430,8 @@ function register(app) {
                 res.status(404).json({ error: "Packet not found" });
                 return;
             }
-            const cascadeResults = { graphics: 0, templates: 0, storeProductLinks: 0 };
-            // Cascade: productGraphics
-            const graphicsSnap = await core_1.db.collection("productGraphics").where("packetId", "==", packetId).get();
-            for (const gDoc of graphicsSnap.docs) {
-                await gDoc.ref.delete();
-                cascadeResults.graphics++;
-            }
-            // Cascade: productTemplates
-            const templatesSnap = await core_1.db.collection("productTemplates").where("packetId", "==", packetId).get();
-            for (const templateDoc of templatesSnap.docs) {
-                await templateDoc.ref.delete();
-                cascadeResults.templates++;
-            }
-            // Cascade: storeProductLinks
-            const linksSnap = await core_1.db.collection(constants_1.STORE_PRODUCT_LINKS_COLLECTION).where("packetId", "==", packetId).get();
-            for (const linkDoc of linksSnap.docs) {
-                await linkDoc.ref.delete();
-                cascadeResults.storeProductLinks++;
-            }
-            await docRef.delete();
-            console.log(`[Packets DELETE] Deleted packet ${packetId} with cascade:`, cascadeResults);
-            res.json({ success: true, packetId, cascade: cascadeResults, message: "Packet and related data deleted" });
+            await (0, build_session_state_1.deleteBuildPacket)(core_1.db, packetId, core_1.admin.firestore.FieldValue.serverTimestamp());
+            res.json({ success: true, packetId, message: 'Packet deleted and references detached' });
         }
         catch (error) {
             console.error("[Packets DELETE] Error:", error);

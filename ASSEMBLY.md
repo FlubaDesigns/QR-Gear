@@ -1,6 +1,6 @@
 # ASSEMBLY — The Three-Schema Glue Layer
 
-> **Status: IMPLEMENTED** — `assemblies` collection, CRUD routes (`functions/src/routes/assemblies.ts`), admin UI tab (`AssembliesTab.tsx`), and shared utilities (`shared/assemblyCodes.ts`) are all live.
+> **Implementation:** `assemblies` collection, shared CRUD routes (`functions/src/services/admin-composition-routes.ts`), admin UI tab (`AssembliesTab.tsx`), and shared validation (`shared/assemblyCodes.ts`). Sandbox changes await the combined release.
 
 > **Iron Rule:** Assembly is the ONLY place where QRG, BLD, and GRF are linked together. No other layer may cross-reference these three schemas simultaneously. Assembly has no pricing, no checkout, no product metadata — those live in Packet.
 
@@ -10,6 +10,7 @@
 
 | Date | Update |
 |------|--------|
+| 2026-10-07 | Corrected blank document-key notation, aligned examples with BLD slot order, and reconciled deletion instructions with the shared reference protection and reviewed build deletion flow |
 | 2026-05-05 | Hardening pass — Mapping Enforcement Rules section added: slot count (required only), 1:1 assignment (required only), vehicle type matching, slot order, complete required mapping (required only, optional slots exempt), no fallback/auto-generation, no conditional logic, QRG anchor requirement; Pre-Build Validation Phase checklist (7 checks); Assembly Responsibility Boundary section added |
 
 ---
@@ -64,28 +65,30 @@ An Assembly is created when a build session resolves into a committed set of ass
 
 **Collection:** `assemblies/{assemblyId}`
 
+The following record shows a mappings excerpt; a saved Assembly must fill every required slot in its referenced BLD. The complete nine-slot example appears below.
+
 ```typescript
 {
   assemblyId:  "ASM-000001",
-  qrgId:       "11101",               // QRG blank number — master_catalog doc key
+  qrgId:       "11101",               // QRG blank number; master_catalog doc ID is qrg_11101
   bldId:       "BLD-SZ9-001",          // BLD definition — bld_definitions doc key
   name:        "Armed Forces Tee — Zone Build",   // optional, human label
   mappings: [
     {
       seq:   "01",                    // matches bld_definitions slot sequence
-      type:  "img",                   // matches BLD slot vehicle type
-      grfId: "GRF-03-3-000007"       // background image asset
+      type:  "txt",                   // matches BLD slot vehicle type
+      value: "UNITED STATES ARMED FORCES",
+      color: "#FFFFFF"
     },
     {
       seq:   "02",
-      type:  "txt",
-      value: "UNITED STATES ARMED FORCES",   // text content lives here, NOT in BLD
-      color: "#FFFFFF"                // per-instance color override (optional)
+      type:  "img",
+      grfId: "GRF-11431-000007"       // background image asset
     },
     {
       seq:   "03",
       type:  "qrc",
-      grfId: "GRF-04-3-000001"       // QR code graphic asset
+      grfId: "GRF-21121-000001"       // QR code graphic asset
     },
     {
       seq:   "04",
@@ -94,7 +97,7 @@ An Assembly is created when a build session resolves into a committed set of ass
       color: "#FFFFFF"
     },
     {
-      seq:   "05",
+      seq:   "06",
       type:  "txt",
       value: "EST. 1776",
       color: "#FFD700"
@@ -116,7 +119,7 @@ An Assembly is created when a build session resolves into a committed set of ass
 {
   seq:   "01",          // must match a slot seq in the referenced BLD
   type:  "img",         // must match the vehicle type defined for that slot in BLD
-  grfId: "GRF-03-3-000007"  // must be a valid GRF ID — format: GRF-TT-K-NNNNNN
+  grfId: "GRF-11431-000007"  // must be a valid GRF ID — format: GRF-[assetClass][mediaType][channel][purpose][format]-[sequence]
 }
 ```
 
@@ -124,13 +127,7 @@ An Assembly is created when a build session resolves into a committed set of ass
 - `value` is not present in asset slots
 - The GRF type code must be compatible with the slot vehicle:
 
-| BLD vehicle | Compatible GRF type codes |
-|-------------|--------------------------|
-| `img` (background) | `03` (Background) |
-| `img` (foreground/overlay) | `02` (Cropped Derivative), `05` (Canvas Design) |
-| `qrc` | `04` (QR Graphic) |
-| `vid` | *(GRF asset or external URL — external URL stored as `value`)* |
-| `doc` | *(GRF asset or external URL — external URL stored as `value`)* |
+GRF identity and vehicle compatibility are defined by `shared/graphicCodes.ts`, `shared/GRF_engine.ts`, and `validateAssemblyMappings()` in `shared/assemblyCodes.ts`. Image slots require an image GRF; QR slots specifically require a standalone print QR (`GRF_PACKET_SLOTS.qrStandalone`). Video and document slots use a compatible GRF or one HTTPS external URL, never both.
 
 ### Text slots (`txt`, `act`)
 
@@ -157,7 +154,7 @@ If a BLD defines a slot as optional (e.g. `act` / CTA), the mapping entry may be
 
 ### Slot Count (Fix 1)
 
-Assembly mapping count must equal the count of **required** BLD slots.
+Every required BLD slot must have one mapping. Optional slots may have zero or one mapping; total mappings cannot exceed total slots.
 
 - Fewer required slot mappings than BLD defines → INVALID
 - More mappings than BLD slots → INVALID
@@ -184,8 +181,8 @@ Violation:
 
 Each Assembly slot must match the vehicle type defined for that slot in BLD.
 
-If BLD slot defines `img` → Assembly must supply a GRF asset with a compatible typeCode.
-If BLD slot defines `qrc` → Assembly must supply a GRF asset with typeCode `04`.
+If BLD slot defines `img` → Assembly must supply a GRF asset with compatible canonical media, channel, and purpose codes.
+If BLD slot defines `qrc` → Assembly must supply a standalone print QR GRF, as defined by `GRF_PACKET_SLOTS.qrStandalone`.
 If BLD slot defines `txt` or `act` → Assembly must supply a `value` string, not a GRF ID.
 
 Mismatch:
@@ -283,7 +280,7 @@ Minted atomically from Firestore counter `asm_counters/global`.
 | Mockup image URLs | Packet |
 | Hosting term | Packet |
 | GRF file metadata (dimensions, mime type, storage path) | `grf_assets/{grfId}` |
-| BLD vehicle styling defaults (font, size, weight) | `bld_definitions/{bldId}/instances/{seq}` |
+| BLD vehicle styling defaults (font, size, weight) | `bld_definitions/{bldId}.instances[]` |
 | Product blank metadata (brand, model, provider) | `master_catalog/{qrg_STNNN}` |
 
 ---
@@ -310,9 +307,9 @@ assemblyId: "ASM-000001"
 qrgId:      "11101"           → QRG blank: Apparel / T-Shirt #101
 bldId:      "BLD-SZ9-001"     → Structure: Zone, 9 slots
 mappings:
-  01 · img   · GRF-03-3-000007   (background: flag image)
-  02 · txt   · "UNITED STATES ARMED FORCES"   color: #FFFFFF
-  03 · qrc   · GRF-04-3-000001   (QR code graphic)
+  01 · txt   · "UNITED STATES ARMED FORCES"   color: #FFFFFF
+  02 · img   · GRF-11431-000007   (background: flag image)
+  03 · qrc   · GRF-21121-000001   (QR code graphic)
   04 · txt   · "Honor. Duty. Country."         color: #FFFFFF
   05 · act   · "Visit QRGear.com"             color: #FFFFFF
   06 · txt   · "EST. 1776"                    color: #FFD700
@@ -350,7 +347,7 @@ status: "published"
 Before any build execution, all of the following must pass:
 
 1. BLD exists and is valid
-2. Assembly slot count matches required BLD slot count
+2. Every mapping matches a BLD slot and each required slot is filled
 3. All required slots are assigned
 4. All GRF references resolve to valid, active `grf_assets` records
 5. All vehicle types match BLD slot expectations
@@ -413,15 +410,16 @@ PATCH /api/admin/assemblies/:assemblyId
   mappings: [...]              ← optional — replaces full mappings array
 }
 ```
-- `qrgId` and `bldId` are **immutable** once the Assembly has linked Packets (`packetIds` non-empty). Attempting to change them returns `409`.
+- `qrgId`, `bldId`, and `mappings` are immutable while packet, catalog-item, or build-session references exist. Both directions are checked; a stale `packetIds` array cannot bypass this rule.
 - To change structure, create a new Assembly and update the Packet to point to it.
 
 **Delete an Assembly:**
 ```
 DELETE /api/admin/assemblies/:assemblyId
 ```
-- Returns `409` if the Assembly has any linked Packets (`packetIds` non-empty). Unlink all Packets first.
-- On success, clears `assemblyId` from all linked Packet documents atomically before deleting the Assembly record.
+- Returns `409` while `packetIds` is non-empty or any packet, catalog item, or saved build references the Assembly. Forward and reverse references are checked inside the transaction.
+- Deletes only an unreferenced Assembly. It does not clear links on surviving builds.
+- Removing an entire generated build uses the shared preview-and-confirm deletion flow in `GRF.md`, initiated from its graphic, packet, or catalog item. That flow removes affected build records together and preserves assets still used elsewhere.
 
 ---
 
@@ -436,3 +434,9 @@ Functions exported:
 - `parseAssemblyId(id)` — returns sequence number
 - `validateAssemblyMappings(mappings, bldSlots)` — validates mapping completeness against BLD
 - `ASM_COUNTER_KEY` — Firestore counter document key for atomic ID minting
+
+## Runtime authority
+
+`shared/bldCodes.ts` owns BLD structure and the ordered builder layer walk. `shared/assemblyCodes.ts` owns slot validation. `composition-validation.ts` uses those same validators for Library diagnostics and write-time enforcement. Both server adapters register `admin-composition-routes.ts`; they do not maintain separate CRUD rules. `composition-links.ts` changes packet, Assembly, catalog-item, and session references in one transaction after checking the saved render snapshot.
+
+The physical builder excludes URL destination backgrounds and landing text from shirt slots. Website data remains in the packet snapshot. New generation requires complete rendering inputs and cannot inherit a previous draft's BLD, Assembly, or GRF identities. Old beta builds are not migrated or treated as valid input.

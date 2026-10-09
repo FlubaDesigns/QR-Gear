@@ -1,7 +1,7 @@
-import { AlertTriangle, Tag, X, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { AlertTriangle, Tag, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL, isValidGrfId } from "@shared/GRF_engine";
+import { GRF_CHANNELS, GRF_PURPOSES_BY_CHANNEL, isValidGrfId, inspectGrfAsset } from "@shared/GRF_engine";
 import type { GrfChannel } from "@shared/GRF_engine";
 import type { CardSkinProps, DetailSkinProps } from "./types";
 
@@ -48,10 +48,6 @@ function resolvePurposeLabel(channel: string, purpose: string) {
   return entry ? { label: entry.label, valid: true } : { label: purpose || "—", valid: false };
 }
 
-function isValidMime(mimeType: string) {
-  return mimeType?.startsWith("image/") ?? false;
-}
-
 function MissingBadge({ text }: { text: string }) {
   return (
     <Badge variant="destructive" className="text-xs gap-1 font-mono">
@@ -63,7 +59,7 @@ function MissingBadge({ text }: { text: string }) {
 
 // ── AdminGraphicCardSkin ──────────────────────────────────────────────────────
 
-export function AdminGraphicCardSkin({ item, onClick, actions, isSelected }: CardSkinProps) {
+export function AdminGraphicCardSkin({ item, onClick, actions, isSelected, isActionPending }: CardSkinProps) {
   const raw             = (item.metadata as { raw?: GrfAsset })?.raw;
   const grfId           = raw?.grfId ?? item.id;
   const channel         = raw?.channel ?? "";
@@ -72,75 +68,69 @@ export function AdminGraphicCardSkin({ item, onClick, actions, isSelected }: Car
   const channelResult   = resolveChannelLabel(channel);
   const purposeResult   = resolvePurposeLabel(channel, purpose);
   const idValid         = isValidGrfId(grfId);
-  const mimeValid       = isValidMime(mimeType);
-  const hasWarning      = !channelResult.valid || !purposeResult.valid || !idValid || !mimeValid;
+  const mimeValid       = !inspectGrfAsset(raw || { grfId }).some(issue => issue.startsWith('MIME'));
+  const hasWarning = inspectGrfAsset(raw || { grfId }).length > 0;
 
   return (
     <div
-      className={`group relative cursor-pointer rounded-md overflow-hidden border bg-card hover-elevate transition-all ${isSelected ? "ring-2 ring-primary" : ""}`}
-      onClick={onClick}
+      className={`relative rounded-md overflow-hidden border bg-card hover-elevate transition-all ${isSelected ? "ring-2 ring-primary" : ""}`}
       data-testid={`card-graphic-${item.id}`}
     >
-      {/* Image */}
-      <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
-        {item.primaryImage ? (
-          <img
-            src={item.primaryImage}
-            alt={item.name}
-            className="w-full h-full object-contain"
-            loading="lazy"
-          />
-        ) : (
-          <Tag className="h-8 w-8 text-muted-foreground opacity-40" />
-        )}
-      </div>
+      <button type="button" onClick={onClick} className="block w-full text-left relative focus-visible:ring-2 focus-visible:ring-primary" aria-label={`View ${item.name}`}>
+        {/* Image */}
+        <div className="aspect-square bg-muted flex items-center justify-center overflow-hidden">
+          {item.primaryImage ? (
+            <img
+              src={item.primaryImage}
+              alt={item.name}
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
+          ) : (
+            <Tag className="h-8 w-8 text-muted-foreground opacity-40" />
+          )}
+        </div>
 
-      {/* Top-left badges */}
-      <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
-        {grfId && (
-          <Badge
-            className={`text-xs font-mono px-1.5 py-0.5 ${idValid ? "bg-background/90 text-foreground border" : "bg-destructive/90 text-destructive-foreground border-destructive"}`}
-          >
-            {grfId}
-          </Badge>
-        )}
-        {hasWarning && (
-          <Badge variant="destructive" className="text-xs px-1.5 py-0.5 gap-1">
-            <AlertTriangle className="h-3 w-3" />
-            Schema
-          </Badge>
-        )}
-      </div>
+        {/* Top-left badges */}
+        <div className="absolute top-1.5 left-1.5 flex flex-col gap-1">
+          {grfId && (
+            <Badge
+              className={`text-xs font-mono px-1.5 py-0.5 ${idValid ? "bg-background/90 text-foreground border" : "bg-destructive/90 text-destructive-foreground border-destructive"}`}
+            >
+              {grfId}
+            </Badge>
+          )}
+          {hasWarning && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0.5 gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              Schema
+            </Badge>
+          )}
+        </div>
 
-      {/* Archive button — visible on hover */}
-      {actions?.onArchive && (
-        <button
-          type="button"
-          className="absolute top-1.5 right-1.5 p-1 rounded-md bg-background/80 text-muted-foreground hover:text-destructive transition-colors invisible group-hover:visible"
-          onClick={(e) => { e.stopPropagation(); actions.onArchive!(item.id); }}
-          data-testid={`button-archive-graphic-${item.id}`}
-          title="Archive"
-          aria-label="Archive graphic"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        {/* Bottom label */}
+        <div className="p-2 space-y-0.5">
+          <p className="text-xs font-medium truncate" title={item.name} data-testid={`text-graphic-name-${item.id}`}>
+            {item.name}
+          </p>
+          <p className="text-xs text-muted-foreground truncate">
+            {channelResult.valid
+              ? channelResult.label
+              : <span className="text-destructive font-semibold">NO CHANNEL</span>}
+            {" · "}
+            {purposeResult.valid
+              ? purposeResult.label
+              : <span className="text-destructive font-semibold">NO PURPOSE</span>}
+          </p>
+        </div>
+      </button>
+      {actions?.onDelete && (
+        <Button variant="ghost" className="w-full min-h-[44px]" disabled={isActionPending}
+          onClick={() => actions.onDelete!(item.id)}
+          data-testid={`button-delete-graphic-${item.id}`}>
+          <Trash2 className="h-4 w-4" />Delete
+        </Button>
       )}
-
-      {/* Bottom label */}
-      <div className="p-2 space-y-0.5">
-        <p className="text-xs font-medium truncate" title={item.name} data-testid={`text-graphic-name-${item.id}`}>
-          {item.name}
-        </p>
-        <p className="text-xs text-muted-foreground truncate">
-          {channelResult.valid
-            ? channelResult.label
-            : <span className="text-destructive font-semibold">NO CHANNEL</span>}
-          {" · "}
-          {purposeResult.valid
-            ? purposeResult.label
-            : <span className="text-destructive font-semibold">NO PURPOSE</span>}
-        </p>
-      </div>
     </div>
   );
 }
@@ -165,10 +155,11 @@ export function AdminGraphicDetailSkin({
   const channelResult = resolveChannelLabel(channel);
   const purposeResult = resolvePurposeLabel(channel, purpose);
   const idValid       = isValidGrfId(grfId);
-  const mimeValid     = isValidMime(mimeType);
+  const mimeValid     = !inspectGrfAsset(raw || { grfId }).some(issue => issue.startsWith('MIME'));
 
   return (
     <div className="w-full min-w-0 space-y-3">
+      {inspectGrfAsset(raw || { grfId }).map(issue => <p role="alert" className="text-sm text-destructive" key={issue}>{issue}</p>)}
       {/* Name + schema badges */}
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div className="min-w-0">
@@ -234,8 +225,10 @@ export function AdminGraphicDetailSkin({
           <Button
             variant="ghost"
             size="icon"
+            className="h-11 w-11"
             onClick={onPrev}
             disabled={!hasPrev}
+            aria-label="Previous graphic"
             data-testid="button-detail-prev"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -243,27 +236,30 @@ export function AdminGraphicDetailSkin({
           <Button
             variant="ghost"
             size="icon"
+            className="h-11 w-11"
             onClick={onNext}
             disabled={!hasNext}
+            aria-label="Next graphic"
             data-testid="button-detail-next"
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
         <div className="flex items-center gap-2">
-          {actions?.onArchive && (
+          {actions?.onDelete && (
             <Button
               variant="destructive"
-              size="sm"
-              onClick={() => actions.onArchive!(item.id)}
+              size="default"
+              className="min-h-[44px]"
+              onClick={() => actions.onDelete!(item.id)}
               disabled={isActionPending}
-              data-testid="button-detail-archive"
+              data-testid="button-detail-delete"
             >
               {isActionPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-              Archive
+              Delete
             </Button>
           )}
-          <Button variant="outline" size="sm" onClick={onClose} data-testid="button-detail-close">
+          <Button variant="outline" size="default" className="min-h-[44px]" onClick={onClose} data-testid="button-detail-close">
             Close
           </Button>
         </div>

@@ -1,3 +1,6 @@
+import { BLD_VEHICLES, type BldInstance } from '@shared/bldCodes';
+import { isValidAssemblyId as isValidAsmId, validateAssemblyMappings, type AssemblyMapping } from '@shared/assemblyCodes';
+import { isValidQrgBlankId as isValidQrgId } from '@shared/qrgCodes';
 import { isValidBldId } from '@shared/bldCodes';
 import { useState, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
@@ -10,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { adminFetch } from "@/lib/adminFetch";
-import { isValidGraphicId } from "@shared/GRF_engine";
+import { isValidGrfId } from "@shared/GRF_engine";
 
 // ── Error boundary ────────────────────────────────────────────────────────────
 
@@ -54,28 +57,11 @@ class AssembliesBoundary extends Component<
 
 // ── Regex constants (from canonical schemas) ─────────────────────────────────
 
-const QRG_BLANK_REGEX   = /^[1-6][1-9][0-9]{3}$/;
-const GRF_ID_REGEX      = /^GRF-(01|02|03|04|05|06|07)-([12345])-(\d{6})$/;
-const ASM_ID_REGEX      = /^ASM-\d{6}$/;
-
-function isValidQrgId(id: string): boolean  { return QRG_BLANK_REGEX.test(id); }
-function isValidGrfId(id: string): boolean  { return isValidGraphicId(id); }
-function isValidAsmId(id: string): boolean  { return ASM_ID_REGEX.test(id); }
-
 // Asset slots that require a grfId (not a text value)
 function isAssetSlot(type: string): boolean { return type === "img" || type === "qrc"; }
 function isTextSlot(type: string): boolean  { return type === "txt" || type === "act"; }
 
 // ── Type colours ─────────────────────────────────────────────────────────────
-
-const TYPE_LABELS: Record<string, string> = {
-  txt: "txt — Text",
-  img: "img — Image",
-  qrc: "qrc — QR Code",
-  act: "act — Action / CTA",
-  vid: "vid — Video",
-  doc: "doc — Document",
-};
 
 const TYPE_COLORS: Record<string, string> = {
   txt: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300",
@@ -108,14 +94,6 @@ function FieldError({ text }: { text: string }) {
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
-interface AssemblyMapping {
-  seq:      string;
-  type:     string;
-  grfId?:   string;
-  value?:   string;
-  color?:   string;
-}
-
 interface Assembly {
   id:          string;
   assemblyId:  string;
@@ -123,6 +101,7 @@ interface Assembly {
   qrgId:       string;
   bldId:       string;
   name?:       string;
+  validationErrors?: string[];
   mappings:    AssemblyMapping[];
   packetIds?:  string[];
   source?:     string;
@@ -131,16 +110,12 @@ interface Assembly {
 }
 
 interface FormMapping {
+  seq: string;
+  required: boolean;
   type:  string;
   grfId: string;
   value: string;
   color: string;
-}
-
-const DEFAULT_MAPPING: FormMapping = { type: "txt", grfId: "", value: "", color: "" };
-
-function padSeq(i: number): string {
-  return String(i + 1).padStart(2, "0");
 }
 
 // ── Mapping form row ──────────────────────────────────────────────────────────
@@ -149,12 +124,10 @@ function MappingFormRow({
   mapping,
   index,
   onChange,
-  onRemove,
 }: {
   mapping:  FormMapping;
   index:    number;
   onChange: (i: number, field: keyof FormMapping, v: string) => void;
-  onRemove: (i: number) => void;
 }) {
   const needsValue    = isTextSlot(mapping.type);
   const needsGrf      = isAssetSlot(mapping.type);
@@ -166,25 +139,8 @@ function MappingFormRow({
   return (
     <div className="rounded-md border bg-muted/30 p-2 space-y-2" data-testid={`row-mapping-${index}`}>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{padSeq(index)}</span>
-        <Select value={mapping.type} onValueChange={(v) => onChange(index, "type", v)}>
-          <SelectTrigger className="h-7 text-xs flex-1" data-testid={`select-mapping-type-${index}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(TYPE_LABELS).map(([v, label]) => (
-              <SelectItem key={v} value={v} className="text-xs">{label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <button
-          type="button"
-          onClick={() => onRemove(index)}
-          className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
-          data-testid={`button-remove-mapping-${index}`}
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
+        <span className="text-xs font-mono text-muted-foreground w-5 shrink-0">{mapping.seq}</span>
+        <span className="text-sm">{BLD_VEHICLES[mapping.type as keyof typeof BLD_VEHICLES]} · {mapping.required ? 'Required' : 'Optional'}</span>
       </div>
 
       {(needsValue || eitherOrGrf) && (
@@ -192,7 +148,7 @@ function MappingFormRow({
           value={mapping.value}
           onChange={(e) => onChange(index, "value", e.target.value)}
           placeholder={needsValue ? "Text value (e.g. UNITED STATES NAVY)" : "External URL (vid/doc)"}
-          className="h-7 text-xs"
+          className="min-h-[44px] text-sm"
           data-testid={`input-mapping-value-${index}`}
         />
       )}
@@ -202,12 +158,12 @@ function MappingFormRow({
           <Input
             value={mapping.grfId}
             onChange={(e) => onChange(index, "grfId", e.target.value)}
-            placeholder="GRF ID (e.g. GRF-03-3-000007)"
-            className={`h-7 text-xs font-mono ${grfInvalid ? "border-red-500 dark:border-red-600" : ""}`}
+            placeholder="Registered GRF ID"
+            className={`min-h-[44px] text-sm font-mono ${grfInvalid ? "border-red-500 dark:border-red-600" : ""}`}
             data-testid={`input-mapping-grfid-${index}`}
           />
           {grfInvalid && (
-            <FieldError text="Invalid GRF ID — must match GRF-TT-K-NNNNNN (e.g. GRF-03-3-000007)" />
+            <FieldError text="Choose a GRF ID from the current asset library." />
           )}
         </div>
       )}
@@ -217,7 +173,7 @@ function MappingFormRow({
           value={mapping.color}
           onChange={(e) => onChange(index, "color", e.target.value)}
           placeholder="Color override (optional, e.g. #FFFFFF)"
-          className="h-7 text-xs font-mono"
+          className="min-h-[44px] text-sm font-mono"
           data-testid={`input-mapping-color-${index}`}
         />
       )}
@@ -234,11 +190,14 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
   const [qrgId,    setQrgId]    = useState("");
   const [bldId,    setBldId]    = useState("");
   const [name,     setName]     = useState("");
-  const [mappings, setMappings] = useState<FormMapping[]>([
-    { type: "img", grfId: "", value: "", color: "" },
-    { type: "txt", grfId: "", value: "", color: "" },
-    { type: "qrc", grfId: "", value: "", color: "" },
-  ]);
+  const [mappings, setMappings] = useState<FormMapping[]>([]);
+  const definitions = useQuery<{ definitions: Array<{ bldId: string; name: string; validationError?: string; isActive?: boolean; instances: BldInstance[] }> }>({ queryKey: ['/api/admin/bld'], queryFn: () => adminFetch('/bld') });
+  const selectedBld = definitions.data?.definitions.find(d => d.bldId === bldId);
+  function selectBld(id: string) {
+    setBldId(id);
+    const definition = definitions.data?.definitions.find(d => d.bldId === id);
+    setMappings((definition?.instances || []).map(slot => ({ seq: slot.seq, type: slot.type, required: slot.required !== false, grfId: '', value: '', color: '' })));
+  }
 
   // Inline validation states
   const qrgFilled    = qrgId.trim().length > 0;
@@ -291,19 +250,17 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
       toast({ title: "Invalid GRF ID in mappings", description: "Fix all GRF ID errors before submitting.", variant: "destructive" });
       return;
     }
-    if (mappings.length === 0) {
-      toast({ title: "No mappings", description: "Add at least one mapping slot.", variant: "destructive" });
-      return;
-    }
 
-    const built = mappings.map((m, i) => {
-      const entry: Record<string, string> = { seq: padSeq(i), type: m.type };
+    const built = mappings.filter(m => m.required || m.grfId.trim() || m.value.trim()).map(m => {
+      const entry: AssemblyMapping = { seq: m.seq, type: m.type as AssemblyMapping["type"] };
       if (m.grfId.trim()) entry.grfId = m.grfId.trim();
       if (m.value.trim()) entry.value = m.value.trim();
       if (m.color.trim()) entry.color = m.color.trim();
       return entry;
     });
 
+    const error = validateAssemblyMappings(built as AssemblyMapping[], selectedBld?.instances);
+    if (!selectedBld || selectedBld.validationError || error) { toast({ title: 'Invalid Assembly', description: error || 'Choose a valid BLD definition.', variant: 'destructive' }); return; }
     mutation.mutate({
       qrgId:    qrgId.trim(),
       bldId:    bldId.trim(),
@@ -312,11 +269,11 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
     });
   }
 
-  const submitBlocked = mutation.isPending || mappings.length === 0 || qrgInvalid || bldInvalid || anyGrfInvalid;
+  const submitBlocked = mutation.isPending || !selectedBld || !!selectedBld.validationError || qrgInvalid || bldInvalid || anyGrfInvalid;
 
   return (
     <div className="space-y-4" data-testid="form-create-assembly">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">QRG Blank ID</label>
           <Input
@@ -332,16 +289,11 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">BLD ID</label>
-          <Input
-            value={bldId}
-            onChange={(e) => setBldId(e.target.value)}
-            placeholder="e.g. BLD-SZ9-001"
-            className={`font-mono ${bldInvalid ? "border-red-500 dark:border-red-600" : ""}`}
-            data-testid="input-asm-bldid"
-          />
-          {bldInvalid && (
-            <FieldError text="Invalid — must match BLD-[SU][A-Z][0-9]-[0-9]{3} (e.g. BLD-SZ9-001)" />
-          )}
+          <Select value={bldId} onValueChange={selectBld}>
+            <SelectTrigger className="min-h-[44px]" data-testid="input-asm-bldid"><SelectValue placeholder="Choose a definition" /></SelectTrigger>
+            <SelectContent>{definitions.data?.definitions.filter(d => !d.validationError && d.isActive !== false).map(d => <SelectItem key={d.bldId} value={d.bldId}>{d.name || d.bldId}</SelectItem>)}</SelectContent>
+          </Select>
+          {definitions.error && <FieldError text={definitions.error.message} />}
         </div>
       </div>
 
@@ -360,20 +312,12 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
           <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Mappings ({mappings.length})
           </label>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setMappings(p => [...p, { ...DEFAULT_MAPPING }])}
-            data-testid="button-add-mapping"
-          >
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add slot
-          </Button>
+
         </div>
 
         {mappings.length === 0 ? (
           <p className="text-xs text-muted-foreground py-2 text-center">
-            No mappings — add at least one slot.
+            Choose a BLD to load its exact slots.
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -383,7 +327,6 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
                 mapping={m}
                 index={i}
                 onChange={handleMappingChange}
-                onRemove={(idx) => setMappings(p => p.filter((_, j) => j !== idx))}
               />
             ))}
           </div>
@@ -393,7 +336,7 @@ function CreateForm({ onSuccess }: { onSuccess: () => void }) {
       <Button
         onClick={handleSubmit}
         disabled={submitBlocked}
-        className="w-full"
+        className="w-full min-h-[44px]"
         data-testid="button-submit-assembly"
       >
         {mutation.isPending
@@ -420,7 +363,7 @@ function LinkedPackets({ asm, onReload }: { asm: Assembly; onReload: () => void 
     if (!pid) return;
     setLinking(true);
     try {
-      await adminFetch(`/packets/${pid}`, { method: "PATCH", json: { assemblyId: asm.assemblyId } });
+      await adminFetch(`/packets/${encodeURIComponent(pid)}`, { method: "PATCH", json: { assemblyId: asm.assemblyId } });
       toast({ title: "Packet linked", description: pid });
       setLinkInput("");
       onReload();
@@ -434,7 +377,7 @@ function LinkedPackets({ asm, onReload }: { asm: Assembly; onReload: () => void 
   async function handleUnlink(packetId: string) {
     setUnlinking(packetId);
     try {
-      await adminFetch(`/packets/${packetId}`, { method: "PATCH", json: { assemblyId: null } });
+      await adminFetch(`/packets/${encodeURIComponent(packetId)}`, { method: "PATCH", json: { assemblyId: null } });
       toast({ title: "Packet unlinked", description: packetId });
       onReload();
     } catch (e: any) {
@@ -461,7 +404,7 @@ function LinkedPackets({ asm, onReload }: { asm: Assembly; onReload: () => void 
                 type="button"
                 onClick={() => handleUnlink(pid)}
                 disabled={unlinking === pid}
-                className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors disabled:opacity-40"
                 data-testid={`button-unlink-packet-${pid}`}
                 title="Unlink this packet"
               >
@@ -481,11 +424,11 @@ function LinkedPackets({ asm, onReload }: { asm: Assembly; onReload: () => void 
           onChange={(e) => setLinkInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleLink()}
           placeholder="Packet ID to link…"
-          className="h-7 text-xs font-mono flex-1"
+          className="min-h-[44px] text-sm font-mono flex-1"
           data-testid={`input-link-packet-${asm.id}`}
         />
         <Button
-          size="sm"
+          size="default"
           variant="outline"
           onClick={handleLink}
           disabled={linking || !linkInput.trim()}
@@ -515,7 +458,7 @@ function AssemblyCard({
   const [expanded,        setExpanded]        = useState(false);
   const [showPacketPanel, setShowPacketPanel] = useState(false);
 
-  const mappings  = asm.mappings  ?? [];
+  const mappings = Array.isArray(asm.mappings) ? asm.mappings.filter(Boolean) : [];
   const packetIds = asm.packetIds ?? [];
 
   // Fix 4 — ASM ID format check
@@ -576,7 +519,7 @@ function AssemblyCard({
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            className="p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 rounded-md text-muted-foreground hover:text-primary transition-colors"
             onClick={(e) => { e.stopPropagation(); setShowPacketPanel(v => !v); setExpanded(true); }}
             data-testid={`button-packets-${asm.id}`}
             title="Manage linked packets"
@@ -585,7 +528,7 @@ function AssemblyCard({
           </button>
           <button
             type="button"
-            className="p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center p-1 rounded-md text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors"
             onClick={(e) => { e.stopPropagation(); onDelete(asm.assemblyId); }}
             data-testid={`button-delete-asm-${asm.id}`}
             title="Delete assembly"
@@ -598,6 +541,12 @@ function AssemblyCard({
           }
         </div>
       </div>
+
+      {!!asm.validationErrors?.length && <div className="border-t p-3 space-y-2">
+        <p className="font-medium text-destructive">This Assembly does not follow the schema</p>
+        <ul className="text-sm list-disc pl-5 space-y-1">{asm.validationErrors.map(error => <li key={error} className="break-words">{error}</li>)}</ul>
+        <p className="text-sm text-muted-foreground">Create a new build using the current schema.</p>
+      </div>}
 
       {/* Expanded body */}
       {expanded && (
@@ -711,14 +660,13 @@ function AssembliesTabInner() {
     },
     onError: (err: Error) => {
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
-      setDeleteTarget(null);
     },
   });
 
   const assemblies = data?.assemblies ?? [];
 
   return (
-    <div className="space-y-4" data-testid="tab-assemblies">
+    <div className="space-y-4 [&_button]:min-h-[44px] [&_input]:min-h-[44px]" data-testid="tab-assemblies">
 
       {/* Header */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -730,7 +678,7 @@ function AssembliesTabInner() {
           )}
         </div>
         <Button
-          size="sm"
+          size="default"
           variant={showCreate ? "secondary" : "default"}
           onClick={() => setShowCreate(v => !v)}
           data-testid="button-toggle-create-asm"
@@ -802,7 +750,7 @@ function AssembliesTabInner() {
       )}
 
       {/* Delete confirmation */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open && !deleteMutation.isPending) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Assembly</AlertDialogTitle>
@@ -813,11 +761,11 @@ function AssembliesTabInner() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-delete-asm">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="min-h-[44px]" disabled={deleteMutation.isPending} data-testid="button-cancel-delete-asm">Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
+              onClick={event => { event.preventDefault(); if (deleteTarget) deleteMutation.mutate(deleteTarget); }}
               disabled={deleteMutation.isPending}
-              className="bg-red-600 hover:bg-red-700 text-white"
+              className="min-h-[44px] bg-red-600 hover:bg-red-700 text-white"
               data-testid="button-confirm-delete-asm"
             >
               {deleteMutation.isPending

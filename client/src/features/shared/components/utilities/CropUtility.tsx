@@ -29,6 +29,7 @@ export interface CropUtilityProps {
   title?: string;
   allowUpload?: boolean;
   allowCropToggle?: boolean;
+  outputMimeType?: "image/jpeg" | "image/png";
 }
 
 function centerAspectCrop(mediaWidth: number, mediaHeight: number, aspect: number): Crop {
@@ -70,6 +71,7 @@ export function CropUtility({
   title = "Crop Image",
   allowUpload = false,
   allowCropToggle = false,
+  outputMimeType = "image/jpeg",
 }: CropUtilityProps) {
   const { toast } = useToast();
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -206,21 +208,14 @@ export function CropUtility({
     if (!imgRef.current) return null;
     const image = imgRef.current;
 
-    if (!useCrop || !crop) {
-      return {
-        dataUrl: imageSrc || "",
-        blob: Promise.resolve(null),
-      };
-    }
-
     try {
       const canvas = document.createElement("canvas");
       const scaleX = image.naturalWidth / image.width;
       const scaleY = image.naturalHeight / image.height;
-      const cropX = (crop.x / 100) * image.width * scaleX;
-      const cropY = (crop.y / 100) * image.height * scaleY;
-      const cropWidth = (crop.width / 100) * image.width * scaleX;
-      const cropHeight = (crop.height / 100) * image.height * scaleY;
+      const cropX = useCrop && crop ? (crop.x / 100) * image.width * scaleX : 0;
+      const cropY = useCrop && crop ? (crop.y / 100) * image.height * scaleY : 0;
+      const cropWidth = useCrop && crop ? (crop.width / 100) * image.width * scaleX : image.naturalWidth;
+      const cropHeight = useCrop && crop ? (crop.height / 100) * image.height * scaleY : image.naturalHeight;
 
       console.log("[CropUtility] Crop dimensions:", { cropX, cropY, cropWidth, cropHeight, scaleX, scaleY });
 
@@ -238,7 +233,7 @@ export function CropUtility({
 
       let dataUrl: string;
       try {
-        dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+        dataUrl = canvas.toDataURL(outputMimeType, 0.92);
         console.log("[CropUtility] toDataURL succeeded, length:", dataUrl.length);
       } catch (securityErr) {
         console.error("[CropUtility] Security error - canvas tainted:", securityErr);
@@ -246,7 +241,7 @@ export function CropUtility({
       }
 
       const blob = new Promise<Blob | null>((resolve) => 
-        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.92)
+        canvas.toBlob((b) => resolve(b), outputMimeType, 0.92)
       );
 
       return { dataUrl, blob };
@@ -254,7 +249,7 @@ export function CropUtility({
       console.error("[CropUtility] Canvas error:", err);
       return null;
     }
-  }, [crop, imageSrc, useCrop]);
+  }, [crop, imageSrc, useCrop, outputMimeType]);
 
   const handleConfirm = async () => {
     console.log("[CropUtility] Crop button clicked, useCrop:", useCrop, "crop:", crop);

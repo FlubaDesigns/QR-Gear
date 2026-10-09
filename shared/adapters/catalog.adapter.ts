@@ -1,3 +1,5 @@
+import { masterBlankImages, resolveCatalogImages } from "../productImages";
+import { resolveDisplayText } from "../descriptionLayers";
 /**
  * CANONICAL FIELD AUTHORITY — catalog.adapter.ts
  *
@@ -114,4 +116,34 @@ export function normalizeProductSizes(raw: Record<string, any>): string[] {
   return (existing as any[]).map((s: any) =>
     typeof s === 'string' ? s : (s.sizeLabel || s.label || '')
   );
+}
+
+/** One presentation boundary for Blanks, Add Blank, and Products. */
+export function catalogToSelectItem(
+  raw: Record<string, any>,
+  adminCatalogDescription?: string | null,
+  adminCatalogTitle?: string | null,
+  adminCatalogImages?: string[] | null,
+  adminCatalogColors?: ProductColor[] | null,
+): CanonicalProductSelectItem {
+  const parsedCost = raw.minPrice == null || raw.minPrice === '' ? NaN : Number(raw.minPrice);
+  const images = resolveCatalogImages(masterBlankImages(raw), adminCatalogImages);
+  const providerTitle = raw.canonicalTitle || raw.title || raw.name || '';
+  const providerDescription = raw.canonicalDescription || raw.description || null;
+  const catalogTitle = typeof adminCatalogTitle === 'string' && adminCatalogTitle.trim() ? adminCatalogTitle : null;
+  const catalogDescription = typeof adminCatalogDescription === 'string' && adminCatalogDescription.trim() ? adminCatalogDescription : null;
+  const availableColors = adminCatalogColors ?? normalizeProductColors(raw);
+  return {
+    id: raw.docId || String(raw.id),
+    qrgBlankId: raw.qrgBlankId ?? null,
+    name: resolveDisplayText({ catalogValue: catalogTitle, providerValue: providerTitle }).value || '',
+    providerTitle, adminCatalogTitle: catalogTitle,
+    description: resolveDisplayText({ catalogValue: catalogDescription, providerValue: providerDescription }).value,
+    providerDescription, providerDescriptionRaw: providerDescription, adminCatalogDescription: catalogDescription,
+    price: Number.isFinite(parsedCost) ? parsedCost : null, cost: null,
+    manufacturer: raw.brand || raw.maker || raw.manufacturer || null, model: raw.model || null,
+    madeInUSA: raw.madeInUSA ?? false,
+    primaryImageUrl: images[0] ?? null, images,
+    availableColors, availableSizes: normalizeProductSizes(raw), defaultColor: availableColors[0]?.name ?? null,
+  };
 }

@@ -1,3 +1,5 @@
+import { resolveDisplayText } from "@shared/descriptionLayers";
+import { masterBlankImages, resolveCatalogImages } from "@shared/productImages";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -29,18 +31,12 @@ import { useProductsContext } from "../../ProductsContext";
 import type { CatalogProduct, GenderFilter, CatalogCategory } from "../types";
 import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { getLookupBlankKey, getProductSnapshotKey, isQRGBlankId } from "@shared/blankKeys";
-import { normalizeProductColors, normalizeProductSizes } from "@shared/adapters/catalog.adapter";
+import { catalogToSelectItem } from "@shared/adapters/catalog.adapter";
+import type { AdminCatalog } from "@shared/catalogs";
 import { BlankPickerModal } from "./BlankPickerModal";
 
-interface AdminCatalog {
-  id: string;
-  name: string;
-  blankIds: string[];
-  blankDescriptions?: Record<string, string>;
-  blankTitles?: Record<string, string>;
-  blankImages?: Record<string, string[]>;
-  blankTiers?: Record<string, string>;
-}
+// Shelf creation is dormant until the owner chooses to enable it.
+const SHELF_CREATION_ENABLED = false;
 
 type LocationFilter = "all" | "usa" | "other";
 type DataMode = "all" | "catalog" | "joint";
@@ -75,63 +71,6 @@ function detectGender(title: string): "mens" | "womens" | "unisex" {
   }
   return "unisex";
 }
-
-function catalogToSelectItem(
-  p: CatalogProduct,
-  adminCatalogDescription?: string | null,
-  adminCatalogTitle?: string | null,
-  adminCatalogImages?: string[] | null,
-): ProductSelectItem {
-  const minPrice = p.minPrice ? parseFloat(p.minPrice) : null;
-  const raw = p as any;
-  const imageUrl = p.imageUrl || raw.image_url || raw.thumbnailUrl || raw.thumbnail || raw.image || null;
-  // Combine per-provider image arrays — same logic as useAdminBlanksController normalizeSourceBlank
-  const allProviderImages = Array.from(new Set([
-    ...(p.printifyImages || raw.printifyImages || []),
-    ...(p.printfulImages || raw.printfulImages || []),
-  ])).filter(Boolean) as string[];
-  const masterImages: string[] = allProviderImages.length > 0
-    ? allProviderImages
-    : (p.images?.length ? p.images : (imageUrl ? [imageUrl] : []));
-  const effectiveImages = (adminCatalogImages && adminCatalogImages.length > 0) ? adminCatalogImages : masterImages;
-  const providerDescription = p.description || null;
-  const normalizedAdminDesc = typeof adminCatalogDescription === "string" && adminCatalogDescription.trim().length > 0
-    ? adminCatalogDescription
-    : null;
-  const effectiveDescription = normalizedAdminDesc ?? providerDescription;
-  const providerTitle = p.title || raw.name || "";
-  const normalizedAdminTitle = typeof adminCatalogTitle === "string" && adminCatalogTitle.trim().length > 0
-    ? adminCatalogTitle
-    : null;
-  const effectiveTitle = normalizedAdminTitle ?? providerTitle;
-  return {
-    id: (p as any).docId || String(p.id),
-    name: effectiveTitle,
-    providerTitle,
-    adminCatalogTitle: normalizedAdminTitle,
-    price: minPrice,
-    cost: null,
-    manufacturer: p.brand || raw.manufacturer || null,
-    madeInUSA: p.madeInUSA ?? false,
-    primaryImageUrl: effectiveImages[0] ?? imageUrl,
-    images: effectiveImages,
-    description: effectiveDescription,
-    providerDescription,
-    adminCatalogDescription: normalizedAdminDesc,
-    availableColors: normalizeProductColors(raw),
-    availableSizes: normalizeProductSizes(raw),
-    defaultColor: (() => {
-      const colorMap = raw.colorMap;
-      if (Array.isArray(colorMap) && colorMap.length > 0) {
-        return (colorMap[0] as any).colorName || colorMap[0].name || null;
-      }
-      const first = (p.availableColors || raw.colors || [])[0];
-      if (!first) return null;
-      return typeof first === 'string' ? first : (first.name || (first as any).colorName || null);
-    })(),
-  };
-}
-
 
 interface CatalogCategoryResponse {
   name: string;
@@ -173,17 +112,16 @@ export function ProductsModule() {
   const queryClient = useQueryClient();
   const isMobile = useIsMobile();
 
-  const provider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+  const provider = selectedProviders[0] || "";
   const selectedCatalogId = state.selectedCatalogId;
 
   const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState<LocationFilter>("all");
-  const [dataMode, setDataMode] = useState<DataMode>(() => {
-    const id = state.selectedCatalogId;
-    if (!id || id === "all") return "all";
-    if (id === "joint") return "joint";
-    return "catalog";
-  });
+  // Display selections are projections of the same state used by filtering and saves.
+  const locationFilter = state.originFilter.showUSA
+    ? (state.originFilter.showOther ? "all" : "usa")
+    : (state.originFilter.showOther ? "other" : "none");
+  const dataMode: DataMode = !selectedCatalogId || selectedCatalogId === "all"
+    ? "all" : selectedCatalogId === "joint" ? "joint" : "catalog";
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [openShelfIds, setOpenShelfIds] = useState<Set<string>>(new Set());
@@ -201,26 +139,20 @@ export function ProductsModule() {
   const [qrgSubCategory, setQrgSubCategory] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!selectedCatalogId || selectedCatalogId === "all") {
-      setDataMode("all");
-    } else if (selectedCatalogId === "joint") {
-      setDataMode("joint");
-      setQrgSuperCategory(null);
-      setQrgSubCategory(null);
-    } else {
-      setDataMode("catalog");
+    if (selectedCatalogId && selectedCatalogId !== "all") {
       setQrgSuperCategory(null);
       setQrgSubCategory(null);
     }
   }, [selectedCatalogId]);
 
-  const { data: adminCatalogsData } = useQuery<{ catalogs: AdminCatalog[] }>({
+  const { data: adminCatalogsData, error: catalogsError, refetch: reloadCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
   });
   const adminCatalogs = adminCatalogsData?.catalogs || [];
 
   const { data: shelfGroups = [] } = useQuery<Array<{ id: string; name: string; sortOrder: number }>>({
     queryKey: ["/api/admin/shelf-groups"],
+    enabled: SHELF_CREATION_ENABLED,
   });
 
   // Derived early so it is available inside the buildShelfItems queryFn closure below.
@@ -284,12 +216,13 @@ export function ProductsModule() {
   // Same approach as useAdminBlanksController (which works in production): read catalog.blankIds
   // then look up each blank in master_catalog. This avoids depending on admin_build_shelf
   // (which blanks added via BlankPickerModal never write to).
-  const { data: masterCatalogFull = [], isLoading: loadingCatalogProducts } = useQuery<Array<{ name: string; items: CatalogProduct[]; count: number }>>({
+  const { data: masterCatalogFull = [], isLoading: loadingCatalogProducts, error: masterError, refetch: reloadMaster } = useQuery<Array<{ name: string; items: CatalogProduct[]; count: number }>>({
     queryKey: ["/api/master-catalog"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/master-catalog");
       const d = await res.json();
-      return Array.isArray(d) ? d : [];
+      if (!Array.isArray(d)) throw new Error("Master catalog response is invalid.");
+      return d;
     },
     enabled: dataMode === "catalog" || dataMode === "all",
     staleTime: 60000,
@@ -331,16 +264,8 @@ export function ProductsModule() {
 
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
-    if (catalogId === "all") {
-      setDataMode("all");
-    } else if (catalogId === "joint") {
-      setDataMode("joint");
-      selectProduct(null);
-    } else {
-      setDataMode("catalog");
-      selectProduct(null);
-    }
-  }, [selectProduct]);
+    if (catalogId !== "all") selectProduct(null);
+  }, [selectProduct, setSelectedCatalogId]);
 
   // catalogModeProducts — derived from master_catalog filtered by catalog.blankIds.
   // Mirrors the approach used by useAdminBlanksController (the working "add blanks" path):
@@ -381,7 +306,7 @@ export function ProductsModule() {
     setOpenShelfIds(new Set(categoryKeys.map(key => `qrg-shelf-${key}`)));
   }, [dataMode, selectedCatalogId, catalogModeProducts]);
 
-  const { data: jointCatalogProducts = [], isLoading: loadingJointProducts } = useQuery<CatalogProduct[]>({
+  const { data: jointCatalogProducts = [], isLoading: loadingJointProducts, error: jointError, refetch: reloadJoint } = useQuery<CatalogProduct[]>({
     queryKey: ["joint-catalog-products"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/master-catalog/joint");
@@ -404,7 +329,6 @@ export function ProductsModule() {
   });
 
   const applyLocationFilter = useCallback((loc: LocationFilter) => {
-    setLocationFilter(loc);
     if (loc === "all") setOriginFilter({ showUSA: true, showOther: true });
     else if (loc === "usa") setOriginFilter({ showUSA: true, showOther: false });
     else setOriginFilter({ showUSA: false, showOther: true });
@@ -421,17 +345,10 @@ export function ProductsModule() {
     }
   }, [provider]);
 
-  const { data: categories = [], isLoading: loadingCategories } = useQuery<CatalogCategory[]>({
-    queryKey: ["catalog-categories", "master"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/master-catalog");
-      const data = await res.json();
-      return (data as Array<{ name: string; items: any[]; count: number }>).map((cat) => ({
-        name: cat.name,
-        itemCount: cat.count || cat.items?.length || 0,
-      }));
-    },
-  });
+  const loadingCategories = loadingCatalogProducts;
+  const categories: CatalogCategory[] = masterCatalogFull.map(cat => ({
+    name: cat.name, itemCount: cat.count || cat.items?.length || 0,
+  }));
 
   // QRG super-category / subcategory navigator data — derived from masterCatalogFull filtered by provider.
   // superCategoryCode (S-digit) → Map of subCategoryCode (ST-digits) → { categoryName, count }
@@ -502,22 +419,9 @@ export function ProductsModule() {
     icon: <Layers className="h-4 w-4 flex-shrink-0" />,
   }));
 
-  const { data: categoryData, isLoading, error } = useQuery<CatalogCategoryResponse | null>({
-    queryKey: ["catalog-products", "master", state.category],
-    queryFn: async () => {
-      if (!state.category) return null;
-      try {
-        const res = await apiRequest("GET", "/api/master-catalog");
-        if (!res.ok) return null;
-        const data = (await res.json()) as CatalogCategoryResponse[];
-        return data.find((cat) => cat.name === state.category) || null;
-      } catch (e) {
-        console.error("[ProductsModule] Catalog load failed:", e);
-        return null;
-      }
-    },
-    enabled: !!state.category,
-  });
+  const categoryData = masterCatalogFull.find(cat => cat.name === state.category) || null;
+  const isLoading = loadingCatalogProducts;
+  const error = masterError;
 
   const products = categoryData?.items || [];
 
@@ -556,7 +460,6 @@ export function ProductsModule() {
   }), [originFilteredProducts]);
 
   const selectedProductId = state.selectedProduct ? getProductSnapshotKey(state.selectedProduct) : null;
-  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
 
@@ -587,7 +490,7 @@ export function ProductsModule() {
       const adminDesc = activeCatalog?.blankDescriptions?.[blankKey] ?? null;
       const adminTitle = activeCatalog?.blankTitles?.[blankKey] ?? null;
       const adminImages = activeCatalog?.blankImages?.[blankKey] ?? null;
-      map.set(canonicalId, { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages), catalog: withGender, blankKey });
+      map.set(canonicalId, { selectItem: catalogToSelectItem(p, adminDesc, adminTitle, adminImages, activeCatalog?.blankColors?.[blankKey]), catalog: withGender, blankKey });
     });
     return map;
   }, [activeProducts, activeCatalog, catalogKeyMap, activeCatalogBlankIdSet]);
@@ -595,80 +498,40 @@ export function ProductsModule() {
   const handleDescriptionSave = useCallback(async (id: string, description: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    if (selectedProductId === id) {
-      setProductDescription(description || null, 'manual');
-    }
 
     if (activeCatalog) {
       try {
-        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description || "" });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description.trim() });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Description saved to catalog" });
-      } catch {
-        toast({ title: "Description set for this session only", description: "Could not save to catalog", variant: "destructive" });
+      } catch (error) {
+        toast({ title: "Could not save description", variant: "destructive" });
+        throw error;
       }
-    } else {
-      toast({ title: "Description set for this session" });
+    } else if (selectedProductId === id) {
+      setProductDescription(description.trim() || null, 'manual');
+      toast({ title: "Product description saved" });
     }
   }, [selectItemMap, selectedProductId, setProductDescription, activeCatalog, queryClient, toast]);
 
   const handleTitleSave = useCallback(async (id: string, title: string) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
-    if (selectedProductId === id) {
-      setProductTitle(title || null, 'manual');
-    }
 
     if (activeCatalog) {
       try {
-        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-title`, { blankId: entry.blankKey, title: title || "" });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-title`, { blankId: entry.blankKey, title: title.trim() });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Title saved to catalog" });
-      } catch {
-        toast({ title: "Title set for this session only", description: "Could not save to catalog", variant: "destructive" });
+      } catch (error) {
+        toast({ title: "Could not save title", variant: "destructive" });
+        throw error;
       }
-    } else {
-      toast({ title: "Title set for this session" });
+    } else if (selectedProductId === id) {
+      setProductTitle(title.trim() || null, 'manual');
+      toast({ title: "Product title saved" });
     }
   }, [selectItemMap, selectedProductId, setProductTitle, activeCatalog, queryClient, toast]);
-
-  const handleDelete = useCallback(async (id: string) => {
-    if (!activeCatalog) return;
-    const entry = selectItemMap.get(id);
-    if (!entry) return;
-    setDeletingId(id);
-
-    // Optimistic update — immediately remove from local cache so UI responds instantly
-    const catalogId = activeCatalog.id;
-    const removedKey = entry.blankKey;
-    queryClient.setQueryData(["/api/admin/catalogs"], (old: any) => {
-      if (!old?.catalogs) return old;
-      return {
-        ...old,
-        catalogs: old.catalogs.map((cat: any) => {
-          if (cat.id !== catalogId) return cat;
-          return { ...cat, blankIds: (cat.blankIds || []).filter((k: string) => k !== removedKey) };
-        }),
-      };
-    });
-
-    try {
-      const res = await apiRequest("DELETE", `/api/admin/catalogs/${catalogId}/blanks`, { blankIds: [removedKey] });
-      const data = await res.json().catch(() => null);
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-      if (data?.removed === 0) {
-        toast({ title: "Nothing removed", description: `Key "${removedKey}" did not match any entry in this catalog`, variant: "destructive" });
-      } else {
-        toast({ title: "Removed from catalog" });
-      }
-    } catch (err: any) {
-      // Roll back optimistic update on failure
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
-      toast({ title: "Could not remove item", description: err?.message || "Unknown error", variant: "destructive" });
-    } finally {
-      setDeletingId(null);
-    }
-  }, [activeCatalog, selectItemMap, queryClient, toast]);
 
   const handleImageDelete = useCallback(async (id: string, imageUrl: string) => {
     if (!activeCatalog) return;
@@ -695,6 +558,7 @@ export function ProductsModule() {
     } catch (err: any) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not save image change", description: err?.message || "Unknown error", variant: "destructive" });
+      throw err;
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
@@ -720,6 +584,7 @@ export function ProductsModule() {
     } catch (err: any) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not save images", description: err?.message || "Unknown error", variant: "destructive" });
+      throw err;
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
@@ -751,6 +616,7 @@ export function ProductsModule() {
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
   const handleAddShelf = useCallback(async () => {
+    if (!SHELF_CREATION_ENABLED) return;
     const name = newShelfName.trim();
     if (!name) return;
     setSavingShelf(true);
@@ -786,12 +652,13 @@ export function ProductsModule() {
       };
     });
     try {
-      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images: [] });
+      await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-images`, { blankId: blankKey, images: [], restore: true });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Images restored from master catalog" });
     } catch (err: any) {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
       toast({ title: "Could not restore images", description: err?.message || "Unknown error", variant: "destructive" });
+      throw err;
     }
   }, [activeCatalog, selectItemMap, queryClient, toast]);
 
@@ -831,9 +698,10 @@ export function ProductsModule() {
     // fields below; card display overrides are not provider truth.
     const curatedProduct = {
       ...entry.catalog,
+      catalogId: activeCatalog?.id ?? null,
       fulfillmentProvider: selectedProvider,
-      images: entry.selectItem.images?.length ? entry.selectItem.images : (catalogProduct.images || []),
-      imageUrl: entry.selectItem.primaryImageUrl || catalogProduct.imageUrl,
+      images: entry.selectItem.images ?? [],
+      imageUrl: entry.selectItem.primaryImageUrl,
       availableColors: entry.selectItem.availableColors,
       availableSizes: entry.selectItem.availableSizes,
     } as typeof entry.catalog;
@@ -854,6 +722,7 @@ export function ProductsModule() {
     const shelfItem = shelfItemByCanonicalId.get(id) ?? shelfItemByCanonicalId.get(entry.blankKey) ?? null;
     apiRequest("POST", "/api/admin/build-sessions/from-master", {
       sourceMasterId,
+      forceNew: state.forceNewSession,
       catalogId: activeCatalog?.id || null,
       blankKey: entry.blankKey || null,
       shelfItemId: shelfItem?.id || null,
@@ -868,7 +737,7 @@ export function ProductsModule() {
           return;
         }
         const status = (data.session?.status || 'working') as 'working' | 'artifact_ready' | 'committed';
-        setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null);
+        setActiveSession(data.sessionId, status, data.session?.committedInstanceId || null, data.session?.draftName || null);
 
         if (data.isExisting && data.session?.working && Object.keys(data.session.working).length > 0) {
           loadFromWorkingState(data.session.working, curatedProduct);
@@ -893,7 +762,7 @@ export function ProductsModule() {
         selectProduct(null);
         toast({ title: "Could not start build session", description: "Please try selecting the product again.", variant: "destructive" });
       });
-  }, [selectItemMap, selectProduct, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast, shelfItemByCanonicalId]);
+  }, [selectItemMap, selectProduct, state.forceNewSession, provider, setSelectedProviders, activeCatalog, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, loadFromWorkingState, toast, shelfItemByCanonicalId]);
 
   const renderProductCard = useCallback(
     (scrollItem: ScrollViewItem) => {
@@ -901,25 +770,27 @@ export function ProductsModule() {
       if (!entry) return null;
       const cardId = String(scrollItem.id);
       const rawProduct = entry.catalog as any;
-      const rawImages: string[] = Array.from(new Set([
-        ...(Array.isArray(rawProduct.printifyImages) ? rawProduct.printifyImages : []),
-        ...(Array.isArray(rawProduct.printfulImages) ? rawProduct.printfulImages : []),
-        ...(Array.isArray(rawProduct.images) ? rawProduct.images : []),
-        ...(rawProduct.imageUrl ? [rawProduct.imageUrl] : []),
-      ])).filter(Boolean) as string[];
+      const rawImages = masterBlankImages(rawProduct);
       const blankKey = entry.blankKey;
       const itemTier = (activeCatalog?.blankTiers?.[blankKey] ?? null) as "good" | "better" | "best" | null;
       return (
         <ProductSelectCardSkin
-          item={entry.selectItem}
+          item={!activeCatalog && selectedProductId === cardId ? {
+            ...entry.selectItem,
+            name: resolveDisplayText({ packetValue: state.adminCatalogTitle, providerValue: entry.selectItem.providerTitle }).value,
+            description: resolveDisplayText({ packetValue: state.productDescription, providerValue: entry.selectItem.providerDescription }).value,
+          } : entry.selectItem}
+          textEditScope={activeCatalog ? `Catalog: ${activeCatalog.name}` : "Product"}
           isSelected={selectedProductId === cardId}
           onSelect={handleCardSelect}
+          priceLabel="Our cost"
+          selectLabel="Use this blank"
+          selectedLabel="Selected"
+          disableWhenSelected
           editableDescription={!!activeCatalog || selectedProductId === cardId}
           onDescriptionSave={handleDescriptionSave}
           editableTitle={!!activeCatalog || selectedProductId === cardId}
           onTitleSave={handleTitleSave}
-          onDelete={activeCatalog ? handleDelete : undefined}
-          deleting={deletingId === cardId}
           onImageDelete={activeCatalog ? handleImageDelete : undefined}
           onImageRestore={activeCatalog ? handleImageRestore : undefined}
           onImagesBulkSave={activeCatalog ? handleImagesBulkSave : undefined}
@@ -932,7 +803,21 @@ export function ProductsModule() {
         />
       );
     },
-    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleDelete, deletingId, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, handleImagesBulkSave]
+    [selectItemMap, selectedProductId, handleCardSelect, handleDescriptionSave, handleTitleSave, activeCatalog, handleImageDelete, handleImageRestore, handleTierChange, state.loadedGraphic, state.adminCatalogTitle, state.productDescription, handleImagesBulkSave]
+  );
+
+  if (!provider) return (
+    <p className="text-sm text-muted-foreground" data-testid="choose-product-provider">
+      Choose a fulfillment provider above to browse products.
+    </p>
+  );
+
+  const catalogLoadError = catalogsError || (dataMode === "joint" ? jointError : masterError);
+  if (catalogLoadError) return (
+    <div role="alert" className="space-y-3 rounded-md border border-destructive p-4">
+      <p>Could not load products. Your saved catalog has not been cleared.</p>
+      <Button className="h-12" onClick={() => { void reloadCatalogs(); void reloadMaster(); if (dataMode === "joint") void reloadJoint(); }}>Retry</Button>
+    </div>
   );
 
   return (
@@ -953,6 +838,8 @@ export function ProductsModule() {
             size="sm"
             variant="outline"
             onClick={() => setPickerOpen(true)}
+            disabled={!activeCatalog}
+            title={activeCatalog ? undefined : "Choose a catalog to add blanks"}
             data-testid="button-open-blank-picker"
           >
             <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1110,6 +997,8 @@ export function ProductsModule() {
                   variant="outline"
                   className="w-full"
                   onClick={() => setAddingShelf(true)}
+                  disabled={!SHELF_CREATION_ENABLED}
+                  title={SHELF_CREATION_ENABLED ? undefined : "Shelf creation is dormant"}
                   data-testid="button-add-shelf"
                 >
                   <Plus className="h-3.5 w-3.5 mr-1" />
@@ -1384,8 +1273,8 @@ export function ProductsModule() {
       )}
     </div>
 
-    {pickerOpen && (
-      <BlankPickerModal open={pickerOpen} onOpenChange={setPickerOpen} />
+    {pickerOpen && activeCatalog && (
+      <BlankPickerModal key={activeCatalog.id} targetCatalogId={activeCatalog.id} open={pickerOpen} onOpenChange={setPickerOpen} />
     )}
     </>
   );

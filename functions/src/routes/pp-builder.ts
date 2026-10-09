@@ -1,7 +1,8 @@
+import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF, normalizePrintfulCategory } from '../core';
-import { PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
+import { PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION, MASTER_CATALOG_COLLECTION } from '../constants';
 import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
@@ -134,31 +135,22 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
 
 app.post('/admin/mockup/priority', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify" } = req.body;
-    if (!blueprintId || !colorName || !artworkUrl) {
-      res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" });
-      return;
+    const { packetId, placement } = req.body;
+    if (typeof packetId !== 'string' || !packetId || typeof placement !== 'string' || !placement) {
+      res.status(400).json({ error: 'packetId and placement are required' }); return;
     }
-    console.log(`[Priority Mockup CF] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
-    const result = await generateMockupFromPrintful({
-      blueprintId: parseInt(blueprintId),
-      printProviderId: printProviderId ? parseInt(printProviderId) : 0,
-      colorName,
-      colorHex,
-      artworkUrl,
-      artworkVariant: "black",
-      fulfillmentProvider: fulfillmentProvider as 'printify' | 'printful',
-      hasCompositeGraphic: true,
-    });
-    console.log(`[Priority Mockup CF] Generated: ${(result as any).mockupUrl}`);
-    res.json({
-      success: true, mockupUrl: (result as any).mockupUrl,
-      lifestyleMockupUrl: (result as any).lifestyleUrl || null,
-      fromCache: false, generatedAt: new Date().toISOString(),
-    });
+    const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
+    if (!packetDoc.exists) { res.status(404).json({ error: 'Generated packet not found' }); return; }
+    const packet = packetDoc.data()!;
+    const sourceMasterId = packetMockupSourceId(packet);
+    const masterDoc = await db.collection(MASTER_CATALOG_COLLECTION).doc(sourceMasterId).get();
+    if (!masterDoc.exists) throw new Error('QRG blank not found');
+    const result = await generateMockupFromPrintful(buildPacketMockupRequest(packet, masterDoc.data()!, placement));
+    res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl,
+      fromCache: result.fromCache, generatedAt: new Date().toISOString() });
   } catch (error: any) {
-    console.error("[Priority Mockup CF] Error:", error);
-    res.json({ success: false, error: error.message, mockupUrl: null, message: "Mockup generation in progress - check back shortly" });
+    console.error('[Priority Mockup CF] Failed:', error.message);
+    res.status(502).json({ success: false, error: error.message, mockupUrl: null });
   }
 });
 
@@ -464,28 +456,5 @@ app.delete('/admin/build-shelf/:id', requireAdmin, async (req: Request, res: Res
   }
 });
 
-// ============ PRODUCTS PAGE: PRICING SETTINGS SYNC ============
 
-app.post('/admin/pricing-settings/sync', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const pricingDoc = await db.collection("testSettings").doc("pricing").get();
-    const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
-    const markupPercent = pricingSettings?.markupPercent ?? 25;
-    const markupFixed = pricingSettings?.markupFixed ?? 0;
-    const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
-    const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
-    console.log(`[Pricing Sync CF] Settings: markup=${markupPercent}%, fixed=${markupFixed}, memberShare=${memberProfitShare}`);
-    res.json({
-      success: true,
-      message: "Pricing sync completed",
-      settings: { markupPercent, markupFixed, memberProfitShare, additionalPlacementCost },
-    });
-  } catch (error: any) {
-    console.error("[Pricing Sync CF] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-
-  }
+}

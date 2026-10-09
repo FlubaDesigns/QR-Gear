@@ -12,6 +12,7 @@ import Widget from "@/pages/widget";
 import Account from "@/pages/account";
 import ViewImage from "@/pages/view-image";
 import ViewDynamic from "@/pages/view-dynamic";
+import AdminAiBuilder from "@/pages/admin-ai-builder";
 import AdminProducts from "@/pages/admin-products";
 import AdminPricing from "@/pages/admin-pricing";
 import LibraryPage from "@/features/adminLibrary/LibraryPage";
@@ -36,7 +37,6 @@ import AdminCoupons from "@/pages/admin-coupons";
 import AdminHealth from "@/pages/admin-health";
 import AdminCustomers from "@/pages/admin-customers";
 import AdminEmailTemplates from "@/pages/admin-email-templates";
-import AdminEmailHealth from "@/pages/admin-email-health";
 import AdminManual from "@/pages/admin-manual";
 import AdminSettings from "@/pages/admin-settings";
 import ShopSegment from "@/pages/shop-segment";
@@ -120,7 +120,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/build" component={BuildPage} />
-      <Route path="/store">{() => <AdminRoute><Store /></AdminRoute>}</Route>
+      <Route path="/store" component={Store} />
       <Route path="/gallery" component={Gallery} />
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
@@ -131,6 +131,7 @@ function Router() {
       <Route path="/admin">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
       <Route path="/admin/run">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/dashboard">{() => <Redirect to="/admin" />}</Route>
+      <Route path="/admin/ai-builder">{() => <AdminRoute><AdminAiBuilder /></AdminRoute>}</Route>
       <Route path="/admin/products">{() => <AdminRoute><AdminProducts /></AdminRoute>}</Route>
       <Route path="/admin/pricing">{() => <AdminRoute><AdminPricing /></AdminRoute>}</Route>
       <Route path="/admin/library">{() => <AdminRoute><LibraryPage /></AdminRoute>}</Route>
@@ -145,7 +146,6 @@ function Router() {
       <Route path="/admin/health">{() => <AdminRoute><AdminHealth /></AdminRoute>}</Route>
       <Route path="/admin/customers">{() => <AdminRoute><AdminCustomers /></AdminRoute>}</Route>
       <Route path="/admin/email-templates">{() => <AdminRoute><AdminEmailTemplates /></AdminRoute>}</Route>
-      <Route path="/admin/email-health">{() => <AdminRoute><AdminEmailHealth /></AdminRoute>}</Route>
       <Route path="/admin/manual">{() => <AdminRoute><AdminManual /></AdminRoute>}</Route>
       <Route path="/admin/settings">{() => <AdminRoute><AdminSettings /></AdminRoute>}</Route>
       <Route path="/admin/sales/build">{() => <AdminRoute><StoreBuild /></AdminRoute>}</Route>

@@ -1,7 +1,8 @@
+import { SinglePaneViewer } from "@/features/shared/components/viewers/SinglePaneViewer";
+import { DeleteBuildDialog } from "@/features/shared/components/DeleteBuildDialog";
 import { useState, useMemo, Component } from "react";
 import type { ReactNode, ErrorInfo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { Image as ImageIcon } from "lucide-react";
 import { adminFetch } from "@/lib/adminFetch";
 import { queryClient } from "@/lib/queryClient";
@@ -9,7 +10,7 @@ import { CropUtility, type CropAsset } from "@/features/shared/components/utilit
 import { ScrollGridView } from "@/features/shared/components/views/ScrollGridView";
 import { BackgroundCardSkin } from "@/features/shared/components/skins/BackgroundSkin";
 import type { SkinItem } from "@/features/shared/components/skins/types";
-import { GRF_FILTER_BACKGROUNDS, buildCropTransition } from "@shared/GRF_engine";
+import { GRF_FILTER_BACKGROUNDS, GRF_CROP_MIME_TYPE } from "@shared/GRF_engine";
 import { BACKGROUNDS_QK, CROPPED_QK } from "../shared/grfQueryKeys";
 
 // ── GRF asset shape ───────────────────────────────────────────────────────────
@@ -89,7 +90,7 @@ class BackgroundsBoundary extends Component<
 // VVSS: 1·1·1·0 — SinglePaneViewer · ScrollGridView · BackgroundCardSkin · flat (no popup)
 
 function BackgroundsTabInner() {
-  const { toast } = useToast();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [cropDialogOpen, setCropDialogOpen] = useState(false);
   const [assetToCrop,    setAssetToCrop]    = useState<CropAsset | null>(null);
 
@@ -101,22 +102,6 @@ function BackgroundsTabInner() {
       ),
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (skinId: string) => {
-      const raw = assets.find(a => (a.grfId || a.id) === skinId);
-      const grfId = raw?.grfId || raw?.id || skinId;
-      return adminFetch(`/graphics/${grfId}`, { method: "DELETE" });
-    },
-    onSuccess: () => {
-      toast({ title: "Image deleted" });
-      queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
-    },
-    onError: (error: Error) => {
-      console.error("[BackgroundsTab] Delete error:", error.message);
-      toast({ title: "Delete failed", description: error.message, variant: "destructive" });
-    },
-  });
-
   const skinItems = useMemo(() => assets.map(assetToSkinItem), [assets]);
 
   const handleStartCrop = (skinId: string) => {
@@ -125,60 +110,34 @@ function BackgroundsTabInner() {
       console.error("[BackgroundsTab] Asset not found for crop:", skinId);
       return;
     }
-    setAssetToCrop({ id: raw.id, name: raw.name, imageUrl: raw.publicUrl || "" });
+    setAssetToCrop({ id: raw.grfId, name: raw.name, imageUrl: raw.publicUrl || "" });
     setCropDialogOpen(true);
   };
 
-  const handleArchive = (skinId: string) => deleteMutation.mutate(skinId);
+  const handleArchive = (grfId: string) => setDeleteId(grfId);
 
   const handleSaveCrop = async (croppedDataUrl: string, sourceAsset?: CropAsset) => {
-    if (!sourceAsset) {
-      console.error("[BackgroundsTab] handleSaveCrop called without sourceAsset");
-      return;
-    }
-    const originalAsset = assets.find(a => a.id === sourceAsset.id);
-    if (!originalAsset) {
-      console.error("[BackgroundsTab] Original asset not found:", sourceAsset.id);
-      toast({ title: "Crop failed", description: "Original asset not found.", variant: "destructive" });
-      return;
-    }
-    try {
-      const originalMimeType = originalAsset.mimeType || "image/jpeg";
-      const croppedMimeType  = "image/jpeg";
-      const { cropped: croppedGrfParams, background: backgroundGrfParams } =
-        buildCropTransition(originalMimeType, croppedMimeType);
+    if (!sourceAsset?.id) throw new Error("Choose a background image before cropping.");
+    const croppedImageData = croppedDataUrl.startsWith("data:")
+      ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
+      : croppedDataUrl;
 
-      const croppedImageData = croppedDataUrl.startsWith("data:")
-        ? croppedDataUrl.replace(/^data:[^;]+;base64,/, "")
-        : croppedDataUrl;
-
-      await adminFetch("/library/crop-mint", {
-        method: "POST",
-        json: {
-          croppedImageData,
-          croppedMimeType,
-          croppedGrfParams,
-          backgroundGrfParams,
-          originalPublicUrl: originalAsset.publicUrl,
-          name:              originalAsset.originalFilename || originalAsset.name,
-          sourceGrfId:       originalAsset.sourceGrfId || originalAsset.grfId || originalAsset.id,
-        },
-      });
-
-      toast({ title: "Crop saved", description: "Cropped derivative and background asset created." });
-      queryClient.invalidateQueries({ queryKey: CROPPED_QK });
-      queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
-      setCropDialogOpen(false);
-      setAssetToCrop(null);
-    } catch (err: unknown) {
-      const error = err as Error;
-      console.error("[BackgroundsTab] Crop save error:", error.message);
-      toast({ title: "Crop save failed", description: error.message, variant: "destructive" });
-    }
+    // The shared service resolves the selected background's original and identity.
+    // Rejecting lets CropUtility show the error and keep the editor open.
+    await adminFetch("/library/crop-mint", {
+      method: "POST",
+      json: {
+        croppedImageData,
+        croppedMimeType: GRF_CROP_MIME_TYPE,
+        sourceGrfId: sourceAsset.id,
+      },
+    });
+    queryClient.invalidateQueries({ queryKey: CROPPED_QK });
+    queryClient.invalidateQueries({ queryKey: BACKGROUNDS_QK });
   };
 
   return (
-    <>
+    <SinglePaneViewer>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide" data-testid="text-backgrounds-count">
           {assets.length} Background Images
@@ -216,13 +175,14 @@ function BackgroundsTabInner() {
                 onCrop:   handleStartCrop,
                 onDelete: handleArchive,
               }}
-              isActionPending={deleteMutation.isPending}
+              isActionPending={!!deleteId}
             />
           )}
         />
       )}
 
       <CropUtility
+        outputMimeType={GRF_CROP_MIME_TYPE}
         asset={assetToCrop}
         open={cropDialogOpen}
         onOpenChange={(open) => {
@@ -234,7 +194,8 @@ function BackgroundsTabInner() {
         aspectRatio={9 / 16}
         title="Crop Background"
       />
-    </>
+      <DeleteBuildDialog target={deleteId ? { kind: 'graphics', id: deleteId } : null} onClose={() => setDeleteId(null)} />
+    </SinglePaneViewer>
   );
 }
 

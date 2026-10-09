@@ -1,3 +1,5 @@
+import {validateCoupon} from '../services/coupons';
+import {HealthMonitorService} from '../services/health-monitor';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -56,7 +58,7 @@ app.get('/admin/dashboard/metrics', requireAdmin, async (_req: Request, res: Res
       orders: { total: ordersSnap.size, pending: pendingCount, inProduction: productionCount, shipped: shippedCount, trend: 0 },
       customers: { total: customersSnap.size, newThisWeek: newCustomersThisWeek, returning: 0 },
       products: { active: productsSnap.size, lowStock: 0, syncErrors: 0 },
-      health: { printify: 'healthy', stripe: 'healthy', lastCheck: now.toISOString() },
+      health: Object.fromEntries((await new HealthMonitorService(db).getOverview()).providers.map(p=>[p.provider,p.status])),
     });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -180,79 +182,25 @@ app.post('/admin/collections', requireAdmin, async (req: Request, res: Response)
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/admin/collections/:collectionId/items', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('collection_items').where('collectionId', '==', req.params.collectionId).get();
-    const items = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ items });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.post('/admin/collections/:collectionId/items', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('collection_items').add({ ...req.body, collectionId: req.params.collectionId, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.delete('/admin/collections/:collectionId/items/:itemId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('collection_items').doc(req.params.itemId).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.put('/admin/collections/:collectionId/items/reorder', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { items } = req.body;
-    const batch = db.batch();
-    items.forEach((item: any, index: number) => {
-      batch.update(db.collection('collection_items').doc(item.id), { sortOrder: index });
-    });
-    await batch.commit();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.get('/admin/coupons', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const snapshot = await db.collection('coupons').get();
-    const coupons = snapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
-    res.json({ coupons });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.post('/admin/coupons', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('coupons').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.put('/admin/coupons/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('coupons').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
 
-app.delete('/admin/coupons/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('coupons').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+
+
+
+
+
+
+
+
 
 app.post('/coupons/validate', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { code } = req.body;
-    if (!code) { res.status(400).json({ valid: false, error: "Code is required" }); return; }
-    const snapshot = await db.collection('coupons').where('code', '==', code.toUpperCase()).limit(1).get();
-    if (snapshot.empty) { res.json({ valid: false, error: "Invalid coupon code" }); return; }
-    const coupon = snapshot.docs[0].data();
-    if (!coupon.isActive) { res.json({ valid: false, error: "Coupon is expired" }); return; }
-    res.json({ valid: true, coupon: { id: snapshot.docs[0].id, ...coupon } });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+ try { res.json(await validateCoupon(db,req.body.code,req.body.orderTotal)); }
+ catch(error:any){res.status(error.status||400).json({valid:false,error:error.message});}
 });
 
 app.get('/admin/custom-designs', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
@@ -370,27 +318,9 @@ app.patch('/admin/orchestration/channel-configs/:channelType', requireAdmin, asy
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/admin/orchestration/routing/route', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('routing_decisions').add({ ...req.body, createdAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+app.post('/admin/orchestration/routing/route',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Automatic routing is not connected to verified QRG variants. Select the provider in Products; no routing decision was recorded.'});});
 
-app.post('/admin/orchestration/routing/batch', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { routes } = req.body;
-    const batch = db.batch();
-    const ids: string[] = [];
-    for (const route of routes) {
-      const ref = db.collection('routing_decisions').doc();
-      batch.set(ref, { ...route, createdAt: new Date().toISOString() });
-      ids.push(ref.id);
-    }
-    await batch.commit();
-    res.json({ ids, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
-});
+app.post('/admin/orchestration/routing/batch',requireAdmin,(_req:Request,res:Response)=>{res.status(501).json({error:'Automatic routing is not connected to verified QRG variants. Select the provider in Products; no routing decision was recorded.'});});
 
 
 

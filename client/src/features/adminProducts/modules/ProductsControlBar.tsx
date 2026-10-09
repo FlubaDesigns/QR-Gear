@@ -9,7 +9,9 @@ import { useProductsContext } from "../ProductsContext";
 import { adminFetch } from "@/lib/adminFetch";
 
 export function ProductsControlBar() {
-  const { api, providers, selectedProviders, setSelectedProviders } = useProductsContext();
+  const { api, providers, providersLoading, providersError, selectedProviders, setSelectedProviders,
+    preferredProvider, providerPreferenceLoading, providerPreferenceSaving, providerPreferenceError,
+    saveProviderPreference, reloadProviderPreference } = useProductsContext();
   const { toast } = useToast();
 
   const [syncing, setSyncing] = useState(false);
@@ -20,104 +22,115 @@ export function ProductsControlBar() {
     completedAt?: string;
     errorMessage?: string;
   } | null>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activeSyncRef = useRef<string | null>(null);
+  const startingRef = useRef(false);
+  const mountedRef = useRef(false);
 
   const fulfillmentProviders = useMemo(
-    () => providers.filter((p) => p.role === "fulfillment"),
+    () => providers.filter((p) => p.role === "fulfillment" && ["printify", "printful"].includes(p.id)),
     [providers]
   );
 
-  const currentProvider = selectedProviders.length > 0 ? selectedProviders[0] : "printify";
+  const currentProvider = selectedProviders[0] || "";
   const currentProviderObj = fulfillmentProviders.find((p) => p.id === currentProvider);
   const isConfigured = currentProviderObj?.configured ?? false;
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
-      clearInterval(pollRef.current);
+      clearTimeout(pollRef.current);
       pollRef.current = null;
     }
   }, []);
 
-  const rebuildMasterProducts = useCallback(async () => {
-    try {
-      await adminFetch("/sync-master-products", { method: "POST" });
-    } catch (e) {
-      console.error("[rebuildMasterProducts] Failed:", e);
-    }
-  }, []);
-
-  const pollSyncStatus = useCallback(
-    async (syncId?: string) => {
-      try {
-        const url = syncId ? `/catalog/sync-status?syncId=${syncId}` : `/catalog/sync-status`;
-        const data = await adminFetch<any>(url);
-        setSyncStatus(data);
-
-        if (data.status === "completed" || data.status === "failed") {
-          stopPolling();
-          setSyncing(false);
-          if (data.status === "completed") {
-            api.invalidateProducts();
-            const s = data.summary;
-            const desc = s
-              ? `Blueprints: ${s.blueprints?.added || 0} new, ${s.blueprints?.updated || 0} updated, ${s.blueprints?.skipped || 0} unchanged`
-              : "Sync completed successfully";
-            toast({ title: "Smart Sync Complete", description: desc });
-            rebuildMasterProducts();
-          } else {
-            toast({
-              title: "Sync Failed",
-              description: data.errorMessage || "Unknown error",
-              variant: "destructive",
-            });
-          }
-        }
-      } catch {}
-    },
-    [toast, stopPolling, rebuildMasterProducts]
-  );
-
+  // History reads must never rebuild QRG products or announce a new completion.
   useEffect(() => {
-    pollSyncStatus();
-    return stopPolling;
-  }, []);
+    mountedRef.current = true;
+    let cancelled = false;
+    setSyncStatus(null);
+    if (currentProvider) adminFetch<any>(`/catalog/sync-status?provider=${currentProvider}`)
+      .then(data => { if (!cancelled && !startingRef.current) setSyncStatus(data); })
+      .catch((error: Error) => {
+        if (!cancelled && !startingRef.current) {
+          setSyncStatus({ status: "failed", errorMessage: `Could not load sync status: ${error.message}` });
+        }
+      });
+    return () => {
+      cancelled = true;
+      mountedRef.current = false;
+      activeSyncRef.current = null;
+      stopPolling();
+    };
+  }, [currentProvider, stopPolling]);
+
+  const pollSyncStatus = useCallback(async (syncId: string) => {
+    if (activeSyncRef.current !== syncId || !mountedRef.current) return;
+    try {
+      const data = await adminFetch<any>(`/catalog/sync-status?syncId=${encodeURIComponent(syncId)}`);
+      if (activeSyncRef.current !== syncId || !mountedRef.current) return;
+      if (data.status === "failed") throw new Error(data.errorMessage || "Supplier sync failed");
+      if (data.status !== "completed") {
+        setSyncStatus(data);
+        // Schedule after the request completes; slow responses cannot overlap.
+        pollRef.current = setTimeout(() => { void pollSyncStatus(syncId); }, 3000);
+        return;
+      }
+      setSyncStatus({ ...data, status: "rebuilding" });
+      await adminFetch("/sync-master-products", { method: "POST" });
+      await api.invalidateProducts();
+      if (!mountedRef.current) return;
+      setSyncStatus(data);
+      const counts = data.summary?.products || data.summary?.blueprints;
+      toast({
+        title: "Smart Sync Complete",
+        description: counts
+          ? `${counts.added} new, ${counts.updated} updated, ${counts.skipped} unchanged. QRG catalog refreshed.`
+          : "QRG catalog refreshed.",
+      });
+      activeSyncRef.current = null;
+      startingRef.current = false;
+      setSyncing(false);
+    } catch (error: any) {
+      if (!mountedRef.current) return;
+      stopPolling();
+      activeSyncRef.current = null;
+      startingRef.current = false;
+      setSyncing(false);
+      setSyncStatus({ status: "failed", syncId, errorMessage: error.message });
+      toast({ title: "Sync incomplete", description: error.message, variant: "destructive" });
+    }
+  }, [api, toast, stopPolling]);
 
   const handleSync = async () => {
-    if (syncing) return;
+    if (startingRef.current || !isConfigured || providersLoading || providersError) return;
+    startingRef.current = true;
     setSyncing(true);
     setSyncStatus(null);
-
     try {
-      const endpoint = currentProvider === "printful" ? `/catalog/sync-printful` : `/catalog/sync`;
-      const data = await adminFetch<any>(endpoint, {
-        method: "POST",
-        json: { provider: currentProvider },
-      });
-      const syncId = data.syncId;
-
-      if (syncId) {
-        pollRef.current = setInterval(() => pollSyncStatus(syncId), 3000);
-      } else {
-        setSyncing(false);
-        toast({
-          title: "Sync Started",
-          description: data.message || "Sync is running in the background",
-        });
-        rebuildMasterProducts();
-      }
-    } catch (e: any) {
-      toast({ title: "Sync Error", description: e.message, variant: "destructive" });
+      const endpoint = currentProvider === "printful" ? "/catalog/sync-printful" : "/catalog/sync";
+      const data = await adminFetch<any>(endpoint, { method: "POST", json: { provider: currentProvider } });
+      if (!data.syncId) throw new Error("Sync did not return a tracking ID. QRG catalog was not rebuilt.");
+      if (!mountedRef.current) return;
+      activeSyncRef.current = data.syncId;
+      setSyncStatus({ status: "running", syncId: data.syncId });
+      await pollSyncStatus(data.syncId);
+    } catch (error: any) {
+      startingRef.current = false;
+      if (!mountedRef.current) return;
       setSyncing(false);
+      setSyncStatus({ status: "failed", errorMessage: error.message });
+      toast({ title: "Sync Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleProviderChange = (providerId: string) => {
-    setSelectedProviders([providerId]);
+    if (!startingRef.current) setSelectedProviders([providerId]);
   };
 
   const formatTime = (dateStr?: string) => {
     if (!dateStr) return null;
     const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return "time unavailable";
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -137,6 +150,7 @@ export function ProductsControlBar() {
         </div>
 
         <RadioGroup
+          disabled={syncing}
           value={currentProvider}
           onValueChange={handleProviderChange}
           className="flex flex-wrap items-center gap-4"
@@ -162,22 +176,28 @@ export function ProductsControlBar() {
                   variant="outline"
                   className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-700 border-green-300"
                 >
-                  Active
+                  Configured
                 </Badge>
               ) : (
                 <Badge variant="secondary" className="text-[10px] px-1.5 py-0 opacity-50">
-                  Not configured
+                  {providersLoading ? "Checking..." : providersError ? "Unknown" : "Not configured"}
                 </Badge>
               )}
             </div>
           ))}
         </RadioGroup>
 
+        <Button variant="outline" className="min-h-12" data-testid="button-save-provider-preference"
+          disabled={!currentProvider || providerPreferenceSaving || providerPreferenceLoading || currentProvider === preferredProvider}
+          onClick={() => { void saveProviderPreference(currentProvider).then(() => toast({ title: "Provider preference saved" })).catch(() => {}); }}>
+          {providerPreferenceSaving ? "Saving…" : "Use for new builds"}
+        </Button>
+
         <div className="ml-auto">
           <Button
             size="sm"
             onClick={handleSync}
-            disabled={syncing || !isConfigured}
+            disabled={syncing || !isConfigured || providersLoading || !!providersError}
             data-testid="button-sync-catalog"
           >
             <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? "animate-spin" : ""}`} />
@@ -187,18 +207,21 @@ export function ProductsControlBar() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        {!isConfigured && (
-          <span>Provider not configured</span>
-        )}
+        {providerPreferenceLoading && <span>Loading saved provider…</span>}
+        {!providerPreferenceLoading && !currentProvider && <span>Choose a fulfillment provider.</span>}
+        {preferredProvider && <span>New builds: {fulfillmentProviders.find(provider => provider.id === preferredProvider)?.name || preferredProvider}. Saved products keep their own provider.</span>}
+        {providerPreferenceError && <span role="alert" className="text-destructive">Provider preference: {providerPreferenceError} <Button variant="ghost" className="min-h-12" onClick={() => { void reloadProviderPreference(); }}>Reload</Button></span>}
+        {providersError && <span role="alert" className="text-destructive">Could not check providers: {providersError}</span>}
+        {!providersLoading && !providersError && !isConfigured && <span>Provider not configured</span>}
 
         {syncStatus?.status === "completed" && (
           <div className="flex items-center gap-1.5">
             <CheckCircle className="h-3 w-3 text-green-600" />
-            <span>Last sync: {formatTime(syncStatus.completedAt)}</span>
-            {syncStatus.summary?.blueprints && (
+            <span>Last supplier sync: {formatTime(syncStatus.completedAt)}</span>
+            {(syncStatus.summary?.products || syncStatus.summary?.blueprints) && (
               <span className="text-muted-foreground/70">
-                ({syncStatus.summary.blueprints.total} items,{" "}
-                {syncStatus.summary.blueprints.skipped} unchanged)
+                ({(syncStatus.summary.products || syncStatus.summary.blueprints).total} items,{" "}
+                {(syncStatus.summary.products || syncStatus.summary.blueprints).skipped} unchanged)
               </span>
             )}
           </div>
@@ -207,10 +230,12 @@ export function ProductsControlBar() {
         {syncStatus?.status === "failed" && !syncing && (
           <div className="flex items-center gap-1.5 text-destructive">
             <AlertCircle className="h-3 w-3" />
-            <span>Last sync failed</span>
+            <span role="alert">{syncStatus.errorMessage || "Last sync failed"}</span>
           </div>
         )}
 
+        {syncStatus?.status === "rebuilding" && <span>Updating QRG catalog...</span>}
+        {syncStatus?.status === "running" && !syncing && <span>A supplier sync is running.</span>}
         {syncStatus?.status === "running" && syncing && (
           <span>Comparing with Firestore — only writing changes...</span>
         )}

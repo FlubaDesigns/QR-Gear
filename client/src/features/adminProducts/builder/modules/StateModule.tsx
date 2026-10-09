@@ -17,24 +17,13 @@ const STATE_ICONS: Record<string, typeof QrCode> = {
 };
 
 export function StateModule() {
-  const { state, setQRProductState } = useBuilderContext();
+  const { state, setQRProductState, qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference } = useBuilderContext();
   const isMobile = useIsMobile();
 
-  const selectedQrLabel = QR_PRODUCT_STATES.find(s => s.id === state.qrProductState)?.label;
-
-  const badge = (state.selectedProduct || state.qrProductState) ? (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {state.selectedProduct && (
-        <Badge variant="secondary" className="text-xs max-w-[140px] truncate">
-          {state.selectedProduct.title}
-        </Badge>
-      )}
-      {selectedQrLabel && (
-        <Badge variant="outline" className="text-xs">
-          {selectedQrLabel}
-        </Badge>
-      )}
-    </div>
+  const badge = state.selectedProduct ? (
+    <Badge variant="secondary" className="text-xs max-w-[140px] truncate">
+      {state.selectedProduct.title}
+    </Badge>
   ) : undefined;
 
   return (
@@ -58,7 +47,7 @@ export function StateModule() {
               Choose how your QR code will work and look.
             </p>
 
-            <div className="grid grid-cols-1 gap-2">
+            <fieldset aria-label="QR Product Type" className="grid grid-cols-1 gap-2">
               {QR_PRODUCT_STATES.map((qrState) => {
                 const Icon = STATE_ICONS[qrState.id] || QrCode;
                 const isSelected = state.qrProductState === qrState.id;
@@ -69,29 +58,38 @@ export function StateModule() {
                     className={`cursor-pointer hover-elevate transition-all ${
                       isSelected ? "ring-2 ring-primary bg-primary/5" : ""
                     }`}
-                    onClick={() => setQRProductState(qrState.id as QRProductState)}
                     data-testid={`state-${qrState.id}`}
                   >
-                    <div className="flex items-center gap-3 p-3">
+                    <label className="flex min-h-16 cursor-pointer items-center gap-3 p-3">
                       <div className={`p-2 rounded-md flex-shrink-0 ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                         <Icon className="h-5 w-5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-semibold text-sm">{qrState.label}</p>
-                        {!isMobile && (
-                          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{qrState.description}</p>
-                        )}
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{qrState.description}</p>
                       </div>
-                      {isSelected && (
-                        <Badge variant="default" className="flex-shrink-0 text-xs">
-                          Selected
-                        </Badge>
-                      )}
-                    </div>
+                      <input
+                        type="radio"
+                        name="qr-product-type"
+                        value={qrState.id}
+                        checked={isSelected}
+                        onChange={() => setQRProductState(qrState.id as QRProductState)}
+                        aria-label={qrState.label}
+                        className="ml-auto h-6 w-6 flex-shrink-0 cursor-pointer accent-primary"
+                        data-testid={`radio-${qrState.id}`}
+                      />
+                    </label>
                   </Card>
                 );
               })}
-            </div>
+            </fieldset>
+            {qrTypePreferenceSaving && <p role="status" className="text-sm text-muted-foreground">Saving…</p>}
+            {qrTypePreferenceError && (
+              <div role="alert" className="flex items-center gap-2 text-sm text-destructive">
+                <span>{qrTypePreferenceError}</span>
+                <button type="button" className="min-h-12 px-3 underline" onClick={retryQRTypePreference}>Retry</button>
+              </div>
+            )}
 
             {state.qrProductState === "qr_compose" && (
               <p className="text-sm text-muted-foreground mt-2" data-testid="text-compose-hint">

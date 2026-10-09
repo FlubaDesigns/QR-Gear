@@ -2,6 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.processQueueInBackground = processQueueInBackground;
 exports.register = register;
+const admin_image_library_1 = require("../services/admin-image-library");
+const admin_image_routes_1 = require("../services/admin-image-routes");
+const productImages_1 = require("../../../shared/productImages");
 const core_1 = require("../core");
 const middleware_1 = require("../middleware");
 const mockup_generator_1 = require("../services/mockup-generator");
@@ -127,7 +130,10 @@ async function processQueueInBackground() {
                         const isUpgrade = bestUrl &&
                             (!existingUrl || (mockupResult.lifestyleMockupUrl && existingUrl !== mockupResult.lifestyleMockupUrl));
                         if (isUpgrade) {
-                            await packetRef.update({ priorityMockupUrl: bestUrl });
+                            await packetRef.update({
+                                priorityMockupUrl: bestUrl,
+                                ...(mockupResult.lifestyleMockupUrl ? { lifestyleMockupUrl: mockupResult.lifestyleMockupUrl } : {}),
+                            });
                             console.log(`[Queue Background] Updated packet ${packetId} priorityMockupUrl with ${mockupResult.lifestyleMockupUrl ? 'lifestyle' : 'flat'} mockup`);
                             // Also prepend the mockup into the committed admin_catalog_instance, if one exists.
                             // Chain: packet.ownerInstanceId → admin_catalog_instances doc → resolved.images
@@ -138,17 +144,15 @@ async function processQueueInBackground() {
                                     const instanceSnap = await instanceRef.get();
                                     if (instanceSnap.exists) {
                                         const instanceData = instanceSnap.data() || {};
-                                        const existingImages = instanceData.resolved?.images || [];
-                                        if (!existingImages[0] || existingImages[0] !== bestUrl) {
-                                            const filtered = existingImages.filter((img) => img !== bestUrl);
-                                            const newImages = [bestUrl, ...filtered];
-                                            await instanceRef.update({
-                                                'resolved.images': newImages,
-                                                'baseSnapshot.images': newImages,
-                                                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-                                            });
-                                            console.log(`[Queue Background] Updated instance ${ownerInstanceId} resolved.images with mockup`);
-                                        }
+                                        const newImages = (0, productImages_1.buildPacketImageOrder)({
+                                            ...packetData,
+                                            priorityMockupUrl: bestUrl,
+                                            lifestyleMockupUrl: mockupResult.lifestyleMockupUrl || packetData.lifestyleMockupUrl,
+                                        }, (0, productImages_1.instanceCatalogImages)(instanceData));
+                                        await instanceRef.update({
+                                            'resolved.images': newImages,
+                                            updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
+                                        });
                                     }
                                 }
                                 catch (instanceErr) {
@@ -242,7 +246,7 @@ function register(app) {
     app.post('/admin/templates/full-save', middleware_1.requireAdmin, async (req, res) => {
         try {
             const { colors = [], placements = ['front', 'back'], placementMethods = {}, ...templateFields } = req.body;
-            const templateKeys = ['name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
+            const templateKeys = ['builderSnapshot', 'name', 'description', 'category', 'productId', 'blueprintId', 'printProviderId',
                 'fulfillmentProvider', 'artworkUrl', 'artworkVariant', 'thumbnailUrl', 'qrContent', 'pricing', 'packetId',
                 'graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY',
                 'productName', 'headerText', 'footerText', 'headerStyle', 'footerStyle',
@@ -314,254 +318,6 @@ function register(app) {
             res.status(500).json({ error: error.message });
         }
     });
-    // ============ ADMIN IMAGE LIBRARY (with folders) ============
-    app.get('/admin/images', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const folder = req.query.folder || '';
-            console.log('[AdminImages] GET request - folder filter:', folder || '(all)');
-            const snap = await core_1.db.collection('admin_images').get();
-            console.log('[AdminImages] Raw docs:', snap.size);
-            const bucketName = core_1.storage.bucket().name;
-            const images = snap.docs
-                .map(doc => {
-                const data = doc.data();
-                // Use direct GCS public URL so subdirectory paths (library/images/{folder}/) resolve correctly.
-                // Files are made public on upload, so the GCS URL always works.
-                const gcsUrl = data.storageUrl
-                    ? `https://storage.googleapis.com/${bucketName}/${data.storageUrl}`
-                    : (data.publicUrl || '');
-                return {
-                    id: doc.id,
-                    ...data,
-                    proxyUrl: `/api/admin/images/${doc.id}/file`,
-                    publicUrl: gcsUrl,
-                };
-            })
-                .filter((img) => img.isActive !== false)
-                .filter((img) => !folder || img.folder === folder)
-                .sort((a, b) => {
-                const getTime = (val) => {
-                    if (!val)
-                        return 0;
-                    if (val._seconds)
-                        return val._seconds * 1000;
-                    if (val.toDate)
-                        return val.toDate().getTime();
-                    if (typeof val === 'string')
-                        return new Date(val).getTime() || 0;
-                    return 0;
-                };
-                return getTime(b.createdAt) - getTime(a.createdAt);
-            });
-            console.log('[AdminImages] Filtered images:', images.length);
-            res.json(images);
-        }
-        catch (error) {
-            console.error('[AdminImages] List error:', error.message, error.stack);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.get('/admin/images/folders', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const [imgSnap, folderSnap] = await Promise.all([
-                core_1.db.collection('admin_images').get(),
-                core_1.db.collection('admin_image_folders').get(),
-            ]);
-            const folderSet = new Set();
-            folderSnap.docs.forEach(doc => {
-                const name = doc.data().name;
-                if (name)
-                    folderSet.add(name);
-            });
-            imgSnap.docs.forEach(doc => {
-                const data = doc.data();
-                if (data.isActive === false)
-                    return;
-                const f = data.folder;
-                if (f)
-                    folderSet.add(f);
-            });
-            const folders = Array.from(folderSet).sort();
-            res.json(folders);
-        }
-        catch (error) {
-            console.error('[AdminImages] Folders error:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.post('/admin/images/folders', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { name } = req.body;
-            if (!name || typeof name !== 'string' || !name.trim()) {
-                res.status(400).json({ error: 'Folder name is required' });
-                return;
-            }
-            const trimmed = name.trim().replace(/\s{2,}/g, ' ');
-            if (trimmed.length > 80) {
-                res.status(400).json({ error: 'Folder name must be 80 characters or less' });
-                return;
-            }
-            const normalizedName = trimmed.toLowerCase();
-            const allFolders = await core_1.db.collection('admin_image_folders').get();
-            const match = allFolders.docs.find(doc => (doc.data().name || '').trim().toLowerCase() === normalizedName);
-            if (match) {
-                const existingName = match.data().name;
-                res.json({ ok: true, folder: existingName, created: false });
-                return;
-            }
-            await core_1.db.collection('admin_image_folders').add({ name: trimmed, normalizedName, createdAt: new Date().toISOString() });
-            console.log('[AdminImages] Folder created:', trimmed);
-            res.json({ ok: true, folder: trimmed, created: true });
-        }
-        catch (error) {
-            console.error('[AdminImages] Create folder error:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.post('/admin/images', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const contentType = req.headers['content-type'] || '';
-            const boundaryMatch = contentType.match(/boundary=(.+)/);
-            if (!boundaryMatch) {
-                res.status(400).json({ error: 'Expected multipart/form-data' });
-                return;
-            }
-            const boundary = boundaryMatch[1];
-            const rawBody = req.rawBody || Buffer.from(req.body || '');
-            if (!rawBody || rawBody.length === 0) {
-                res.status(400).json({ error: 'No request body' });
-                return;
-            }
-            const boundaryBuffer = Buffer.from(`--${boundary}`);
-            const parts = [];
-            let start = 0;
-            while (true) {
-                const idx = rawBody.indexOf(boundaryBuffer, start);
-                if (idx === -1)
-                    break;
-                if (start > 0)
-                    parts.push(rawBody.slice(start, idx - 2));
-                start = idx + boundaryBuffer.length + 2;
-            }
-            let fileBuffer = null;
-            let fileMimeType = 'image/png';
-            let fieldName = '';
-            let fieldFolder = 'general';
-            for (const part of parts) {
-                const headerEnd = part.indexOf('\r\n\r\n');
-                if (headerEnd === -1)
-                    continue;
-                const hdrs = part.slice(0, headerEnd).toString();
-                const body = part.slice(headerEnd + 4);
-                const filenameMatch = hdrs.match(/filename="([^"]+)"/);
-                const ctMatch = hdrs.match(/Content-Type:\s*([^\r\n]+)/i);
-                const nameMatch = hdrs.match(/name="([^"]+)"/);
-                if (filenameMatch) {
-                    fileBuffer = body;
-                    if (ctMatch)
-                        fileMimeType = ctMatch[1].trim();
-                }
-                else if (nameMatch) {
-                    const val = body.toString().trim();
-                    if (nameMatch[1] === 'name')
-                        fieldName = val;
-                    if (nameMatch[1] === 'folder')
-                        fieldFolder = val;
-                }
-            }
-            if (!fileBuffer || fileBuffer.length === 0) {
-                res.status(400).json({ error: 'No file in upload' });
-                return;
-            }
-            const name = fieldName || `image-${Date.now()}`;
-            const folder = fieldFolder || 'general';
-            const bucket = core_1.storage.bucket();
-            const ext = fileMimeType.split('/')[1] || 'png';
-            const safeName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const fullPath = `library/images/${folder}/${Date.now()}-${safeName}.${ext}`;
-            console.log(`[AdminImages] Upload native file: ${name} -> ${fullPath} (${fileBuffer.length} bytes)`);
-            const file = bucket.file(fullPath);
-            await file.save(fileBuffer, { metadata: { contentType: fileMimeType } });
-            await file.makePublic();
-            // Use direct GCS public URL — the proxy alias only matches the filename, not the folder subdirectory.
-            const publicGcsUrl = `https://storage.googleapis.com/${bucket.name}/${fullPath}`;
-            const docRef = await core_1.db.collection('admin_images').add({
-                name, folder, mimeType: fileMimeType, sizeBytes: fileBuffer.length,
-                storageUrl: fullPath, publicUrl: publicGcsUrl, isActive: true,
-                createdAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            });
-            const doc = await docRef.get();
-            res.json({ id: doc.id, ...doc.data(), proxyUrl: `/api/admin/images/${docRef.id}/file`, publicUrl: publicGcsUrl });
-        }
-        catch (error) {
-            console.error('[AdminImages] Native upload error:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.patch('/admin/images/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { folder, name } = req.body;
-            const updates = { updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp() };
-            if (folder !== undefined)
-                updates.folder = folder;
-            if (name !== undefined)
-                updates.name = name;
-            await core_1.db.collection('admin_images').doc(req.params.id).update(updates);
-            res.json({ success: true });
-        }
-        catch (error) {
-            console.error('[AdminImages] Update error:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    // ── Serve admin image by Firestore doc ID (stable, auth-bypassing proxy) ──
-    app.get('/admin/images/:id/file', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            const { id } = req.params;
-            const doc = await core_1.db.collection('admin_images').doc(id).get();
-            if (!doc.exists) {
-                res.status(404).json({ error: 'Image not found' });
-                return;
-            }
-            const data = doc.data();
-            if (data.isActive === false) {
-                res.status(404).json({ error: 'Image not active' });
-                return;
-            }
-            const storageUrl = data.storageUrl;
-            if (!storageUrl) {
-                res.status(404).json({ error: 'No storage path on record' });
-                return;
-            }
-            const file = core_1.storage.bucket().file(storageUrl);
-            const [exists] = await file.exists();
-            if (!exists) {
-                res.status(404).json({ error: 'File not found in storage' });
-                return;
-            }
-            const contentType = data.mimeType || 'image/png';
-            res.set('Content-Type', contentType);
-            res.set('Cache-Control', 'public, max-age=86400');
-            res.set('Access-Control-Allow-Origin', '*');
-            file.createReadStream().pipe(res);
-        }
-        catch (error) {
-            console.error('[AdminImages] File serve error:', error.message);
-            res.status(500).json({ error: error.message });
-        }
-    });
-    app.delete('/admin/images/:id', middleware_1.requireAdmin, async (req, res) => {
-        try {
-            await core_1.db.collection('admin_images').doc(req.params.id).update({
-                isActive: false,
-                updatedAt: core_1.admin.firestore.FieldValue.serverTimestamp(),
-            });
-            res.json({ success: true });
-        }
-        catch (error) {
-            console.error('[AdminImages] Delete error:', error);
-            res.status(500).json({ error: error.message });
-        }
-    });
+    (0, admin_image_routes_1.registerAdminImageRoutes)(app, '/admin', middleware_1.requireAdmin, (0, admin_image_library_1.createAdminImageLibrary)({ db: core_1.db, bucket: () => core_1.storage.bucket(), now: () => core_1.admin.firestore.FieldValue.serverTimestamp() }));
 }
 //# sourceMappingURL=file-routes.js.map

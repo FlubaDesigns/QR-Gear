@@ -458,7 +458,7 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
   // On a clean sweep both maps are empty so every product gets a fresh 4-digit ID.
   const blueprintToQrgDoc = new Map<number, string>();
   const printfulToQrgDoc = new Map<number, string>();
-  for (const [docId, data] of existingMaster.entries()) {
+  for (const [docId, data] of Array.from(existingMaster.entries())) {
     // New schema: providerMappings is an object { printify: {...}, printful: {...} }
     const pm = data.providerMappings;
     if (pm && typeof pm === 'object' && !Array.isArray(pm)) {
@@ -474,7 +474,7 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
   for (const cat of QRG_BLANK_CATEGORIES) {
     nextBBB[cat.name] = cat.rangeStart;
   }
-  for (const [, data] of existingMaster.entries()) {
+  for (const [, data] of Array.from(existingMaster.entries())) {
     const blankNum = Number(data.qrgBlankId);
     if (data.qrgBlankId && data.qrgCategory && !isNaN(blankNum)) {
       if (nextBBB[data.qrgCategory] !== undefined && blankNum >= nextBBB[data.qrgCategory]) {
@@ -616,8 +616,8 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     if (matchedPrintful && pfId !== null) {
       pfImagesRaw = extractImageUrls(matchedPrintful.images);
       if (pfImagesRaw.length === 0 && matchedPrintful.image) pfImagesRaw = [matchedPrintful.image];
-      pfMinPrice = matchedPrintful.minPrice ? parseFloat(String(matchedPrintful.minPrice)) : null;
-      pfMaxPrice = matchedPrintful.maxPrice ? parseFloat(String(matchedPrintful.maxPrice)) : null;
+      pfMinPrice = matchedPrintful.minPrice != null ? parseFloat(String(matchedPrintful.minPrice)) : null;
+      pfMaxPrice = matchedPrintful.maxPrice != null ? parseFloat(String(matchedPrintful.maxPrice)) : null;
       pfOriginCountry = matchedPrintful.originCountry || matchedPrintful.origin_country || null;
     }
 
@@ -711,11 +711,13 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
         printify: {
           blueprintId: String(blueprintId),
           printProviderId: String(provider?.providerId ?? ''),
+          minPrice: pyMin, maxPrice: pyMax,
           rawTitle: bp.title || null,
           rawDescription: bp.description || null,
         },
         printful: (matchedPrintful && pfId !== null) ? {
           productId: String(pfId),
+          minPrice: pfMinPrice, maxPrice: pfMaxPrice,
           rawTitle: matchedPrintful.title || matchedPrintful.typeName || null,
           rawDescription: matchedPrintful.description || null,
         } : null,
@@ -796,8 +798,8 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
     if (pfImagesRaw.length === 0 && pf.image) pfImagesRaw = [pf.image];
 
     const pfOriginCountry = pf.originCountry || pf.origin_country || null;
-    const pfMin: number | null = pf.minPrice ? parseFloat(String(pf.minPrice)) : null;
-    const pfMax: number | null = pf.maxPrice ? parseFloat(String(pf.maxPrice)) : null;
+    const pfMin: number | null = pf.minPrice != null ? parseFloat(String(pf.minPrice)) : null;
+    const pfMax: number | null = pf.maxPrice != null ? parseFloat(String(pf.maxPrice)) : null;
 
     const _pfBlankStr = docId.slice(4);
     const _pfParentCat = _pfBlankStr[0];
@@ -822,6 +824,7 @@ export async function syncMasterCatalog(_options: { forceRefresh?: boolean; clea
         printify: null,
         printful: {
           productId: String(pfId),
+          minPrice: pfMin, maxPrice: pfMax,
           rawTitle: pf.title || pf.typeName || null,
           rawDescription: pf.description || null,
         },
@@ -1279,4 +1282,60 @@ export async function enrichMasterCatalog(
 
   console.log('[MasterCatalog] Enrich complete:', stats);
   return stats;
+}
+
+
+/** Targeted lookup import into the existing QRG record. Never changes its identity,
+ * variants, images, catalog overlays, or provider selection. Missing Printful costs
+ * can be read from the catalog; no order or production API is called.
+ */
+export async function refreshQrgProviderPricing(database: any, docId: string, provider: 'printify' | 'printful') {
+  if (!['printify', 'printful'].includes(provider)) throw new Error('Select a fulfillment provider before pricing.');
+  if (!/^qrg_[1-6][1-9]\d{3}$/.test(docId)) throw new Error('Pricing requires a canonical QRG blank.');
+  const validRange = (value: any) => value?.minPrice != null && value?.maxPrice != null && value.minPrice !== '' && value.maxPrice !== '' &&
+    Number.isFinite(Number(value.minPrice)) && Number.isFinite(Number(value.maxPrice)) && Number(value.minPrice) >= 0 && Number(value.maxPrice) >= Number(value.minPrice);
+  let fetched: {productId:string;minPrice:number;maxPrice:number} | undefined;
+  if (provider === 'printful') {
+    const current = (await database.collection(MASTER_CATALOG_COLLECTION).doc(docId).get()).data();
+    const pm = current?.providerMappings;
+    const mapping = Array.isArray(pm) ? pm.find((m: any) => m.provider === provider) : pm?.[provider];
+    if (!/^\d+$/.test(String(mapping?.productId))) throw new Error('QRG Printful mapping is invalid.');
+    const lookup = (await database.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(String(mapping.productId)).get()).data();
+    if (!validRange(lookup) && !validRange(mapping)) {
+      const detail = await printfulClient.getProduct(Number(mapping.productId));
+      const prices = (detail?.variants || []).map(v => v.price == null || v.price === '' ? NaN : Number(v.price));
+      if (!prices.length || prices.some(p => !Number.isFinite(p) || p < 0)) throw new Error('Printful did not return valid variant costs for this product.');
+      fetched = {productId:String(mapping.productId),minPrice:Math.min(...prices),maxPrice:Math.max(...prices)};
+    }
+  }
+  return database.runTransaction(async (tx: any) => {
+    const ref = database.collection(MASTER_CATALOG_COLLECTION).doc(docId);
+    const doc = await tx.get(ref), master = doc.data();
+    if (!doc.exists || master.isActive === false) throw new Error('QRG blank is unavailable.');
+    const pm = master.providerMappings;
+    const mapping = Array.isArray(pm) ? pm.find((m: any) => m.provider === provider) : pm?.[provider];
+    if (!mapping) throw new Error(`QRG has no ${provider} mapping.`);
+    let source: any;
+    if (provider === 'printful') {
+      if (!/^\d+$/.test(String(mapping.productId))) throw new Error('QRG Printful mapping is invalid.');
+      source = (await tx.get(database.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(String(mapping.productId)))).data();
+      if (!validRange(source)) {
+        if (validRange(mapping)) source = mapping;
+        else if (fetched?.productId === String(mapping.productId)) source = fetched;
+      }
+    } else {
+      const rows = await tx.get(database.collection(PRINTIFY_PROVIDERS_COLLECTION));
+      const matches = rows.docs.map((d: any) => d.data()).filter((p: any) => String(p.blueprintId) === String(mapping.blueprintId) && String(p.providerId) === String(mapping.printProviderId));
+      if (matches.length !== 1) throw new Error('QRG needs one matching Printify supplier cost record.');
+      source = matches[0];
+    }
+    const amount = (value: any) => value == null || value === '' ? NaN : Number(value);
+    const minPrice = amount(provider === 'printful' ? source?.minPrice : source?.minCost) / (provider === 'printify' ? 100 : 1);
+    const maxPrice = amount(provider === 'printful' ? source?.maxPrice : source?.maxCost) / (provider === 'printify' ? 100 : 1);
+    if (![minPrice, maxPrice].every(n => Number.isFinite(n) && n >= 0) || maxPrice < minPrice) throw new Error(`The ${provider} lookup costs are missing or invalid. Refresh the provider catalog before pricing.`);
+    const next = { ...mapping, minPrice, maxPrice };
+    const mappings = Array.isArray(pm) ? pm.map(m => m.provider === provider ? next : m) : { ...pm, [provider]: next };
+    if (mapping.minPrice !== minPrice || mapping.maxPrice !== maxPrice) tx.update(ref, { providerMappings: mappings });
+    return { ...master, providerMappings: mappings };
+  });
 }

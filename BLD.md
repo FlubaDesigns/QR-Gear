@@ -157,7 +157,7 @@ S + P + Q  (Palette QR — floating):
   positionUD  — % REQUIRED
 ```
 
-> The actual QR code file (GRF-04) is assigned in Assembly.
+> The actual QR file is assigned in Assembly using the standalone print QR classification from `GRF_PACKET_SLOTS.qrStandalone` (see `GRF.md`).
 
 ### TYPE: act (Action / CTA)
 

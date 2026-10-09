@@ -87,75 +87,15 @@ const sections: ManualSection[] = [
   },
   {
     id: "products",
-    title: "Printify Integration",
+    title: "Fulfillment Providers",
     icon: Package,
-    content: (
-      <div className="space-y-6">
-        <p>QR Gear is connected to Printify for print-on-demand fulfillment.</p>
-        
-        <div className="space-y-3">
-          <h4 className="font-semibold">Connected Shop</h4>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong>Shop Name:</strong> QRGear</li>
-            <li><strong>Shop ID:</strong> 19642701</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-semibold">Available Products</h4>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 pr-4">Product</th>
-                  <th className="text-left py-2 pr-4">Category</th>
-                  <th className="text-left py-2">Made in USA</th>
-                </tr>
-              </thead>
-              <tbody className="text-muted-foreground">
-                <tr className="border-b"><td className="py-2 pr-4">Unisex Jersey T-Shirt (Bella+Canvas)</td><td className="pr-4">Apparel</td><td>Yes</td></tr>
-                <tr className="border-b"><td className="py-2 pr-4">Heavy Cotton T-Shirt (Gildan)</td><td className="pr-4">Apparel</td><td>Yes</td></tr>
-                <tr className="border-b"><td className="py-2 pr-4">Trucker Cap (OTTO Cap)</td><td className="pr-4">Headwear</td><td>Yes</td></tr>
-                <tr className="border-b"><td className="py-2 pr-4">Ceramic Mug 11oz / 15oz</td><td className="pr-4">Drinkware</td><td>Yes</td></tr>
-                <tr className="border-b"><td className="py-2 pr-4">Canvas Tote Bag</td><td className="pr-4">Bags</td><td>Yes</td></tr>
-                <tr><td className="py-2 pr-4">Drawstring Bag</td><td className="pr-4">Bags</td><td>Yes</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    ),
+    content: <div className="space-y-4"><p>Choose the default provider in Admin Products → Tools. Each product can retain its own provider choice in the product builder.</p><p>Use System → Settings to inspect configured credentials and run a connection check. A saved key or a connected catalog does not prove a paid order can be printed.</p><p>Every product requires its inside label. Prices use the saved Admin Pricing settings and the selected provider's saved costs.</p></div>,
   },
   {
     id: "orchestration",
     title: "Multi-Provider Orchestration",
     icon: Layers,
-    content: (
-      <div className="space-y-6">
-        <p>The orchestration system lets you manage products across multiple print providers and marketplaces from one place.</p>
-        
-        <div className="space-y-3">
-          <h4 className="font-semibold">Dashboard Overview</h4>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong>Provider Health</strong> - Real-time status of all print providers (Printify, Printful, Apliiq)</li>
-            <li><strong>Channel Status</strong> - Connection status for each marketplace (Etsy, eBay, Amazon)</li>
-            <li><strong>Recent Orders</strong> - Unified view of orders from all channels</li>
-            <li><strong>Publishing Queue</strong> - Products waiting to be published</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-semibold">Auto-Routing</h4>
-          <p className="text-muted-foreground">Orders are automatically routed to the best provider based on:</p>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li>Provider availability</li>
-            <li>Shipping speed</li>
-            <li>Production cost</li>
-            <li>Customer location</li>
-          </ul>
-        </div>
-      </div>
-    ),
+    content: <div className="space-y-4"><p>Analytics reads recorded QR scans. Health shows recorded connection checks, including when a provider has never been checked or has no credential configured.</p><p>Automatic provider selection, bulk marketplace publishing, rule-based repricing and profit forecasting are not connected to a verified execution service. These actions report their unavailable status.</p><p>Use Admin Pricing to preview and apply saved product pricing, Products to select fulfillment, and Marketplaces for the existing account and listing workflow. Sandbox blocks real purchases and printing.</p></div>,
   },
   {
     id: "gifts",
@@ -223,39 +163,13 @@ const sections: ManualSection[] = [
   },
   {
     id: "email",
-    title: "NexusMail System",
+    title: "Transactional Email",
     icon: Mail,
     content: (
       <div className="space-y-6">
-        <p>NexusMail is the self-healing email system powering QR Gear's transactional emails.</p>
-        
-        <div className="space-y-3">
-          <h4 className="font-semibold">Email Types</h4>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong>Order Confirmation</strong> - Sent automatically when checkout completes</li>
-            <li><strong>Shipping Notification</strong> - Sent when tracking info is available</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-semibold">Email Status Types</h4>
-          <ul className="list-disc list-inside space-y-1 text-muted-foreground">
-            <li><strong>QUEUED</strong> - Email is waiting to be sent</li>
-            <li><strong>SENDING</strong> - Currently being sent</li>
-            <li><strong>SENT</strong> - Delivered successfully</li>
-            <li><strong>FAILED</strong> - Failed but will be retried</li>
-            <li><strong>DEAD</strong> - Failed permanently (max retries exceeded)</li>
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <h4 className="font-semibold">First-Time Setup</h4>
-          <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-            <li>Make an API call to <code className="px-1 bg-muted rounded">POST /admin/nexusmail/seed-templates</code></li>
-            <li>This creates the default email templates in Firestore</li>
-            <li>Emails will now use the NexusMail system</li>
-          </ol>
-        </div>
+        <p>QR Gear sends order confirmations, shipping notices, and activation emails through Resend.</p>
+        <p>Use System → Email for order and shipping templates and send logs. If no template is saved, the built-in email is used. A disabled template stops that email.</p>
+        <p>Sent means Resend accepted the email; it does not confirm inbox delivery. Failed sends show their error in the log. Use the order page to resend a confirmation or shipping notice.</p>
       </div>
     ),
   },
@@ -265,7 +179,7 @@ const sections: ManualSection[] = [
     icon: BarChart3,
     content: (
       <div className="space-y-6">
-        <p>Track how your QR codes are being scanned at <code className="px-2 py-1 bg-muted rounded">/admin/analytics</code>.</p>
+        <p>Open the Analytics tab to inspect recorded QR scans at <code className="px-2 py-1 bg-muted rounded">/admin/orchestration</code>.</p>
         
         <div className="space-y-3">
           <h4 className="font-semibold">Available Metrics</h4>

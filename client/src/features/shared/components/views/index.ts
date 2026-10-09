@@ -3,7 +3,6 @@ export * from "./ScrollGridView";
 export * from "./ScrollVerticalView";
 export * from "./ScrollHorizontalView";
 export * from "./SkinHorizontalView";
-export * from "./ModalView";
 export * from "./QRDynamicsScanLightbox";
 
 export interface ScrollViewItem {

@@ -1,3 +1,4 @@
+import { BLD_VEHICLES, type BldInstanceType } from './bldCodes';
 import { isValidGrfId, parseGrfId } from './GRF_engine';
 /**
  * Assembly ID utilities — shared between frontend and backend.
@@ -23,7 +24,7 @@ export function parseAssemblyId(id: string): { sequence: number } | null {
   return { sequence: parseInt(id.slice(4), 10) };
 }
 
-export type MappingType = 'txt' | 'img' | 'qrc' | 'act' | 'vid' | 'doc';
+export type MappingType = BldInstanceType;
 
 export interface AssemblyMapping {
   seq:    string;          // two-digit zero-padded: "01"–"99"
@@ -39,7 +40,7 @@ export interface BldSlot {
   required?: boolean;
 }
 
-const VALID_TYPES = new Set<MappingType>(['txt', 'img', 'qrc', 'act', 'vid', 'doc']);
+const VALID_TYPES = new Set<string>(Object.keys(BLD_VEHICLES));
 
 /**
  * Validate an assembly mappings array.
@@ -51,13 +52,12 @@ export function validateAssemblyMappings(
   bldSlots?: BldSlot[],
 ): string | null {
   if (!Array.isArray(mappings)) return 'mappings must be an array';
-  if (mappings.length === 0)    return 'mappings must contain at least one entry';
 
   for (const m of mappings) {
     if (!m || typeof m !== 'object') return 'mapping must be an object';
     for (const key of Object.keys(m)) if (!['seq', 'type', 'value', 'color', 'grfId'].includes(key)) return `mapping field ${key} is not allowed`;
-    if (!m.seq || !/^\d{2}$/.test(m.seq)) {
-      return `seq must be a 2-digit string (e.g. "01") — got: ${JSON.stringify(m.seq)}`;
+    if (!m.seq || !/^0[1-9]$/.test(m.seq)) {
+      return `seq must match a BLD slot from "01" to "09" — got: ${JSON.stringify(m.seq)}`;
     }
     if (!m.type || !VALID_TYPES.has(m.type)) {
       return `type must be one of: txt, img, qrc, act, vid, doc — got: ${JSON.stringify(m.type)}`;
@@ -84,6 +84,8 @@ export function validateAssemblyMappings(
       if (m.type === 'doc' && p.mediaType !== '3') return `slot ${m.seq} requires a document GRF`;
       if (['txt','act'].includes(m.type)) return `slot ${m.seq}: text cannot bind a GRF`;
     }
+    if (m.color !== undefined && (typeof m.color !== 'string' || !/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(m.color))) return `slot ${m.seq}: color must be a hex color`;
+    if (['vid','doc'].includes(m.type) && m.grfId && m.value) return `slot ${m.seq}: choose a GRF or an external URL, not both`;
     if (m.value !== undefined && (typeof m.value !== 'string' || !m.value.trim())) return `slot ${m.seq}: value must be nonempty text`;
     if (['img','qrc'].includes(m.type) && m.value !== undefined) return `slot ${m.seq}: image content belongs in GRF`;
     if (['vid','doc'].includes(m.type) && m.value && !/^https:\/\//.test(m.value)) return `slot ${m.seq}: external media requires an HTTPS URL`;

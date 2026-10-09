@@ -1,8 +1,13 @@
+import { registerStoreAdminRoutes } from "../../functions/src/services/store-admin";
+import { registerStoreProductRoutes } from "../../functions/src/services/store-products";
+import { getFirestoreDb, getFirebaseAdmin } from "../lib/firebase-admin";
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
 
 export function registerStoreRoutes(app: Express): void {
+  registerStoreAdminRoutes(app, "/api", isAdmin, getFirestoreDb, () => getFirebaseAdmin().firestore.FieldValue.serverTimestamp());
+  registerStoreProductRoutes(app, "/api", isAdmin, getFirestoreDb);
   app.get("/api/admin/stores", isAdmin, async (req: any, res) => {
     try {
       const roleType = req.query.roleType as string;
@@ -20,171 +25,14 @@ export function registerStoreRoutes(app: Express): void {
     }
   });
 
-  app.post("/api/admin/stores", isAdmin, async (req: any, res) => {
-    try {
-      const { name, roleType } = req.body;
-      if (!name || !name.trim()) return res.status(400).json({ error: 'Store name is required' });
-      if (!roleType || !['internal', 'external', 'member'].includes(roleType)) return res.status(400).json({ error: 'Valid roleType is required' });
-      const storeId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const storeData = { name: name.trim(), roleType, isActive: true, channelCount: 0, createdAt: new Date().toISOString() };
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      await fsDb.collection('stores').doc(storeId).set(storeData);
-      res.json({ id: storeId, ...storeData });
-    } catch (error: any) {
-      console.error('[Stores] POST error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
-  app.delete("/api/admin/stores/:storeId", isAdmin, async (req: any, res) => {
-    try {
-      const { storeId } = req.params;
-      const { getFirestoreDb, getFirebaseAdmin } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      const adminSdk = getFirebaseAdmin();
-      const now = adminSdk.firestore.FieldValue.serverTimestamp();
 
-      const [instancesSnap, channelsSnapshot] = await Promise.all([
-        fsDb.collection('admin_catalog_instances').where('storeId', '==', storeId).get(),
-        fsDb.collection('storeChannels').where('storeId', '==', storeId).get(),
-      ]);
 
-      type WriteOp = { type: 'update'; ref: any; data: Record<string, any> }
-                   | { type: 'delete'; ref: any };
 
-      const ops: WriteOp[] = [
-        ...instancesSnap.docs.map((doc: any) => ({ type: 'update' as const, ref: doc.ref, data: { isVisible: false, status: 'deleted', deletedAt: now } })),
-        ...channelsSnapshot.docs.map((doc: any) => ({ type: 'delete' as const, ref: doc.ref })),
-        { type: 'delete', ref: fsDb.collection('stores').doc(storeId) },
-      ];
-
-      const CHUNK = 500;
-      for (let i = 0; i < ops.length; i += CHUNK) {
-        const batch = fsDb.batch();
-        ops.slice(i, i + CHUNK).forEach((op: WriteOp) => {
-          if (op.type === 'update') batch.update(op.ref, op.data);
-          else batch.delete(op.ref);
-        });
-        await batch.commit();
-      }
-
-      console.log(`[Stores] Deleted store ${storeId}: ${instancesSnap.size} instances archived, ${channelsSnapshot.size} channels removed`);
-      res.json({ success: true, deletedStoreId: storeId, deletedChannels: channelsSnapshot.size, archivedInstances: instancesSnap.size });
-    } catch (error: any) {
-      console.error('[Stores] DELETE error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.get("/api/admin/stores/:storeId/channels", isAdmin, async (req: any, res) => {
-    try {
-      const { storeId } = req.params;
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      const snapshot = await fsDb.collection('storeChannels').where('storeId', '==', storeId).get();
-      const channels = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
-      channels.sort((a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-      res.json(channels);
-    } catch (error: any) {
-      console.error('[Channels] GET error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/admin/stores/:storeId/channels", isAdmin, async (req: any, res) => {
-    try {
-      const { storeId } = req.params;
-      const { name } = req.body;
-      if (!name || !name.trim()) return res.status(400).json({ error: 'Channel name is required' });
-      const channelId = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const channelData = { name: name.trim(), storeId, isActive: true, productCount: 0, createdAt: new Date().toISOString() };
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      await fsDb.collection('storeChannels').doc(channelId).set(channelData);
-      res.json({ id: channelId, ...channelData });
-    } catch (error: any) {
-      console.error('[Channels] POST error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.delete("/api/admin/stores/:storeId/channels/:channelId", isAdmin, async (req: any, res) => {
-    try {
-      const { storeId, channelId } = req.params;
-      const { getFirestoreDb, getFirebaseAdmin } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      const adminSdk = getFirebaseAdmin();
-      const now = adminSdk.firestore.FieldValue.serverTimestamp();
-
-      // Soft-delete every catalog instance in this channel (matches CF behaviour)
-      const instancesSnap = await fsDb.collection('admin_catalog_instances')
-        .where('storeId', '==', storeId)
-        .where('channelId', '==', channelId)
-        .get();
-
-      const batch = fsDb.batch();
-      instancesSnap.docs.forEach((doc: any) => {
-        batch.update(doc.ref, { isVisible: false, status: 'deleted', deletedAt: now });
-      });
-      batch.delete(fsDb.collection('storeChannels').doc(channelId));
-      await batch.commit();
-
-      res.json({ success: true, archivedInstances: instancesSnap.size });
-    } catch (error: any) {
-      console.error('[Channels] DELETE error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ── All-channels list (Channels tab — lists every channel with store name + orphan flag) ──
-  app.get("/api/admin/channels", isAdmin, async (req: any, res) => {
-    try {
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      const snapshot = await fsDb.collection('storeChannels').get();
-      const storeIds = Array.from(new Set(
-        snapshot.docs.map((d: any) => d.data().storeId).filter(Boolean)
-      )) as string[];
-      const storeMap: Record<string, string> = {};
-      for (const id of storeIds) {
-        const doc = await fsDb.collection('stores').doc(id).get();
-        storeMap[id] = doc.exists ? (doc.data() as any)?.name || id : '(orphaned)';
-      }
-      const channels = snapshot.docs.map((doc: any) => {
-        const d = doc.data();
-        const name = storeMap[d.storeId] || '(orphaned)';
-        return {
-          id: doc.id,
-          ...d,
-          storeName: name,
-          storeExists: !!storeMap[d.storeId] && !name.includes('orphaned'),
-        };
-      });
-      channels.sort((a: any, b: any) =>
-        (a.storeName || '').localeCompare(b.storeName || '') ||
-        (a.name || '').localeCompare(b.name || '')
-      );
-      res.json(channels);
-    } catch (error: any) {
-      console.error('[AllChannels] GET error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ── Delete channel directly by ID (no storeId required) ──────────────────
-  app.delete("/api/admin/channels/:channelId", isAdmin, async (req: any, res) => {
-    try {
-      const { channelId } = req.params;
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      await fsDb.collection('storeChannels').doc(channelId).delete();
-      res.json({ success: true });
-    } catch (error: any) {
-      console.error('[AllChannels] DELETE error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ── Store Library: products assigned to a channel (reads storeProductLinks) ─
   app.get("/api/admin/stores/:storeId/channels/:channelName/products", isAdmin, async (req: any, res) => {
@@ -196,7 +44,7 @@ export function registerStoreRoutes(app: Express): void {
         .where('storeId', '==', storeId)
         .where('channel', '==', channelName)
         .get();
-      const products = snapshot.docs.map((doc: any) => {
+      const products = snapshot.docs.filter((doc: any) => doc.data().isVisible !== false && !['deleted', 'archived'].includes(doc.data().status)).map((doc: any) => {
         const d = doc.data();
         return {
           id: doc.id,
@@ -361,92 +209,7 @@ export function registerStoreRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/stores/:storeId/allowed-products", async (req: any, res) => {
-    try {
-      const { storeId } = req.params;
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      const doc = await fsDb.collection('storeAllowedProducts').doc(storeId).get();
-      if (!doc.exists) return res.json({ storeId, products: [] });
-      const data = doc.data();
-      res.json({ storeId, products: data?.products || [], updatedAt: data?.updatedAt });
-    } catch (error: any) {
-      console.error('[AllowedProducts] GET error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
-  app.post("/api/stores/:storeId/allowed-products", async (req: any, res) => {
-    try {
-      const { storeId } = req.params;
-      const { products } = req.body;
-      if (!Array.isArray(products)) return res.status(400).json({ error: 'products must be an array' });
-      const { getFirestoreDb } = await import("../lib/firebase-admin");
-      const fsDb = getFirestoreDb();
-      const pricingDoc = await fsDb.collection("testSettings").doc("pricing").get();
-      const pricingSettings = pricingDoc.exists ? pricingDoc.data() : null;
-      const markupPercent = pricingSettings?.markupPercent ?? 25;
-      const markupFixed = pricingSettings?.markupFixed ?? 0;
-      const additionalPlacementCost = pricingSettings?.additionalPlacementCost ?? 4;
-      const textLineUpcharge = pricingSettings?.textLineUpcharge ?? 2;
-      const memberProfitShare = pricingSettings?.memberProfitShare ?? 0.25;
-      const { downloadAndStoreFromUrl } = await import("../lib/firebase-storage-service");
-      const { syncProductVariants } = await import("../lib/printify");
-      const enrichedProducts = await Promise.all(
-        products.map(async (p: { blueprintId: number; title: string; addedAt?: string }) => {
-          try {
-            const blueprint = await storage.getPrintifyBlueprint(p.blueprintId);
-            const providers = await storage.getPrintifyPrintProviders(p.blueprintId);
-            const usaProviders = providers.filter((prov: any) => prov.isUSA);
-            const selectedProvider = usaProviders[0] || providers[0];
-            let availableColors: Array<{name: string; hex: string}> = [];
-            let availableSizes: string[] = [];
-            if (selectedProvider?.availableColors && Array.isArray(selectedProvider.availableColors)) {
-              availableColors = selectedProvider.availableColors as Array<{name: string; hex: string}>;
-              availableSizes = (selectedProvider.availableSizes as string[]) || [];
-            } else if (selectedProvider?.id) {
-              try {
-                const variantData = await syncProductVariants(p.blueprintId, Number(selectedProvider.id));
-                availableColors = variantData.colors;
-                availableSizes = variantData.sizes;
-              } catch (syncErr) {
-                console.error(`[AllowedProducts] Failed to sync variants for ${p.blueprintId}:`, syncErr);
-              }
-            }
-            const baseCostCents = selectedProvider?.minCost || 0;
-            const baseCost = baseCostCents / 100;
-            const retailPrice = Math.ceil((baseCost * (1 + markupPercent / 100) + markupFixed) * 100) / 100;
-            const profit = retailPrice - baseCost;
-            const memberEarnings = Math.round(profit * memberProfitShare * 100) / 100;
-            let imageUrl: string | null = null;
-            if (blueprint?.primaryImageUrl) {
-              imageUrl = await downloadAndStoreFromUrl(blueprint.primaryImageUrl, `product-blueprint-${p.blueprintId}`);
-            }
-            const mockupsByColor: Record<string, { front: string | null }> = {};
-            if (availableColors.length > 0 && imageUrl) {
-              mockupsByColor[availableColors[0].name] = { front: imageUrl };
-            }
-            return {
-              blueprintId: p.blueprintId, title: p.title, addedAt: p.addedAt || new Date().toISOString(),
-              imageUrl, brand: blueprint?.brand || null, availableColors, availableSizes, mockupsByColor,
-              printProviderId: selectedProvider?.id || null, baseCost, retailPrice, profit, memberEarnings,
-              hasUSAProvider: usaProviders.length > 0,
-              pricingUsed: { markupPercent, markupFixed, additionalPlacementCost, textLineUpcharge, memberProfitShare },
-              packetCreatedAt: new Date().toISOString(),
-            };
-          } catch (err) {
-            console.error(`[AllowedProducts] Error enriching blueprint ${p.blueprintId}:`, err);
-            return { ...p, addedAt: p.addedAt || new Date().toISOString(), imageUrl: null, brand: null, baseCost: 0, retailPrice: 0, profit: 0, memberEarnings: 0, hasUSAProvider: false, pricingUsed: null, packetCreatedAt: new Date().toISOString() };
-          }
-        })
-      );
-      await fsDb.collection('storeAllowedProducts').doc(storeId).set({ storeId, products: enrichedProducts, updatedAt: new Date().toISOString() });
-      res.json({ success: true, storeId, productCount: enrichedProducts.length, message: `Created ${enrichedProducts.length} common packets with pricing` });
-    } catch (error: any) {
-      console.error('[AllowedProducts] POST error:', error);
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   app.get("/api/partner-stores", async (req: any, res) => {
     try {
@@ -493,7 +256,7 @@ export function registerStoreRoutes(app: Express): void {
       const { getFirestoreDb } = await import("../lib/firebase-admin");
       const fsDb = getFirestoreDb();
       const snapshot = await fsDb.collection('storeChannelProducts').where('storeId', '==', storeId).where('channelId', '==', channelId).get();
-      const products = snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() }));
+      const products = snapshot.docs.filter((doc: any) => doc.data().isVisible !== false && !['deleted', 'archived'].includes(doc.data().status)).map((doc: any) => ({ id: doc.id, ...doc.data() }));
       res.json(products);
     } catch (error: any) {
       console.error('[ChannelProducts] GET error:', error);
