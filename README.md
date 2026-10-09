@@ -577,3 +577,9 @@ Hosting now sends `no-cache, no-store, must-revalidate` for page URLs, including
 ## Embedded video phone posters — sandbox, October 8, 2026
 
 YouTube/Vimeo phone previews now share the gallery media renderer: show a thumbnail (or the same packet's clearly labeled artwork if the thumbnail fails), then load the embedded player only after Play. This avoids an empty or failed third-party player on arrival. Rushmore-style hosted files retain muted 15-second autoplay. The existing full-video link remains available. Both monument gallery and phone previews are verified separately.
+
+### Full QR Play playback — sandbox, October 8, 2026
+
+The selected gallery video slide and the phone preview now open the actual saved video player automatically, muted, with playback controls. Removed the YouTube `end=15` parameter and the uploaded-video pause/reset handlers; viewers can watch the full source video in place. Phone playback stays mounted after first entering view so scrolling does not restart it. Navigation thumbnails retain still-image fallbacks. The shared AI Build Rules require real video playback rather than an artwork overlay and verification beyond 15 seconds.
+
+Regression coverage checks immediate embeds, no excerpt end parameter, full uploaded-file playback, persistent phone playback, reduced-motion manual controls, and inactive thumbnails.

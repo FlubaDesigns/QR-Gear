@@ -5,35 +5,39 @@ import ProductGalleryMedia from '@/components/ProductGalleryMedia';
 import { publicProductText } from '@shared/descriptionLayers';
 let tree: ReturnType<typeof create>;
 afterEach(() => { if (tree) act(() => tree.unmount()); });
-it('shows a real paused file frame with controls and a non-playing thumbnail', () => {
-  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item: { type: 'video', url: 'https://example.com/movie.mp4' } })); });
+it('autoplays the full file from its beginning with controls, while thumbnails stay paused', () => {
+  const item = { type: 'video' as const, url: 'https://example.com/movie.mp4' };
+  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item })); });
   const video = tree.root.findByType('video');
-  expect(video.props).toMatchObject({ src: 'https://example.com/movie.mp4#t=1', controls: true, muted: true, playsInline: true });
-  expect(video.props.autoPlay).toBeUndefined();
-  const target = { currentTime: 0, duration: 145 };
-  video.props.onLoadedMetadata({ currentTarget: target });
-  expect(target.currentTime).toBe(1);
-  act(() => { tree.update(React.createElement(ProductGalleryMedia, { item: { type: 'video', url: 'https://example.com/movie.mp4' }, thumbnail: true })); });
-  expect(tree.root.findByType('video').props.controls).toBe(false);
+  expect(video.props).toMatchObject({ src: item.url, controls: true, muted: true, playsInline: true, autoPlay: true });
+  expect(video.props.onLoadedMetadata).toBeUndefined();
+  expect(video.props.onTimeUpdate).toBeUndefined();
+  act(() => { tree.update(React.createElement(ProductGalleryMedia, { item, thumbnail: true })); });
+  expect(tree.root.findByType('video').props).toMatchObject({ autoPlay: false, controls: false });
 });
-it('shows a YouTube still until Play is selected, then uses the saved video embed', () => {
-  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item: { type: 'video', url: 'https://www.youtube.com/watch?v=DVUbzOk8mCc' } })); });
-  expect(tree.root.findByType('img').props.src).toBe('https://i.ytimg.com/vi/DVUbzOk8mCc/hqdefault.jpg');
+it('opens the real YouTube player immediately on the video slide and removes it for thumbnails', () => {
+  const item = { type: 'video' as const, url: 'https://www.youtube.com/watch?v=rgomsxUVa2U' };
+  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item })); });
+  const url = new URL(tree.root.findByType('iframe').props.src);
+  expect(url.pathname).toBe('/embed/rgomsxUVa2U');
+  expect(url.searchParams.get('autoplay')).toBe('1');
+  expect(url.searchParams.has('end')).toBe(false);
+  expect(tree.root.findAllByType('button')).toHaveLength(0);
+  act(() => { tree.update(React.createElement(ProductGalleryMedia, { item, thumbnail: true })); });
   expect(tree.root.findAllByType('iframe')).toHaveLength(0);
-  act(() => tree.root.findByType('button').props.onClick());
-  expect(tree.root.findByType('iframe').props.src).toContain('/embed/DVUbzOk8mCc?autoplay=1');
+  expect(tree.root.findByType('img').props.src).toContain('/vi/rgomsxUVa2U/');
 });
 it('exposes a source link instead of a blank player when direct media fails', () => {
   act(() => { tree = create(React.createElement(ProductGalleryMedia, { item: { type: 'video', url: 'https://example.com/movie.mp4' } })); });
   act(() => tree.root.findByType('video').props.onError());
   expect(tree.root.findByType('a').props.href).toBe('https://example.com/movie.mp4');
 });
-it('keeps artwork and Play visible when the external video thumbnail fails', () => {
-  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item: { type: 'video', url: 'https://www.youtube.com/watch?v=DVUbzOk8mCc', posterUrl: 'https://example.com/art.png' } })); });
+it('retains a visible thumbnail if the external thumbnail fails without replacing the player', () => {
+  const item = { type: 'video' as const, url: 'https://www.youtube.com/watch?v=DVUbzOk8mCc', posterUrl: 'https://example.com/art.png' };
+  act(() => { tree = create(React.createElement(ProductGalleryMedia, { item, thumbnail: true })); });
   act(() => tree.root.findByType('img').props.onError());
-  expect(tree.root.findByType('img').props.src).toBe('https://example.com/art.png');
-  expect(tree.root.findByType('img').props.alt).toContain('Product artwork');
-  act(() => tree.root.findByType('button').props.onClick());
+  expect(tree.root.findByType('img').props.src).toBe(item.posterUrl);
+  act(() => { tree.update(React.createElement(ProductGalleryMedia, { item })); });
   expect(tree.root.findByType('iframe').props.src).toContain('/embed/DVUbzOk8mCc?autoplay=1');
 });
 it('uses public QR Gear branding without changing other descriptive facts', () => {

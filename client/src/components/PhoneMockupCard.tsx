@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ArrowRight, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { playMediaPreview, VIDEO_PREVIEW_SECONDS } from "@/lib/playMediaPreview";
+import { playMediaPreview } from "@/lib/playMediaPreview";
 import ProductGalleryMedia from "./ProductGalleryMedia";
 
 interface PhoneMockupCardProps {
@@ -105,7 +105,6 @@ export default function PhoneMockupCard({
 }: PhoneMockupCardProps) {
   const [entered, setEntered] = useState(false);
   const [composeIndex, setComposeIndex] = useState(0);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
@@ -114,7 +113,8 @@ export default function PhoneMockupCard({
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
     setAutoplay(!reducedMotion.matches);
-    const observer = new IntersectionObserver(([entry]) => setVisible(entry.isIntersecting), { threshold: 0.5 });
+    // Start on first view, then keep the player mounted so scrolling never resets a full video.
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) setVisible(true); }, { threshold: 0.5 });
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
   }, []);
@@ -227,11 +227,10 @@ export default function PhoneMockupCard({
                   <ProductGalleryMedia key={playMediaUrl} item={{
                     type: 'video', url: playMediaUrl!, posterUrl: playPosterUrl || undefined,
                     alt: `${productName || 'QR Play'} — video preview`,
-                  }} className="w-full h-full" testId="phone-video-embed" />
+                  }} autoPlay={autoplay} className="w-full h-full" testId="phone-video-embed" />
                 ) : (
                   <video
                     key={preview.url}
-                    ref={videoRef}
                     src={preview.url}
                     autoPlay={autoplay}
                     muted
@@ -239,12 +238,6 @@ export default function PhoneMockupCard({
                     preload="metadata"
                     playsInline
                     onError={() => setVideoError(true)}
-                    onTimeUpdate={(event) => {
-                      if (event.currentTarget.currentTime >= VIDEO_PREVIEW_SECONDS && !event.currentTarget.paused) event.currentTarget.pause();
-                    }}
-                    onPlay={(event) => {
-                      if (event.currentTarget.currentTime >= VIDEO_PREVIEW_SECONDS) event.currentTarget.currentTime = 0;
-                    }}
                     className="w-full h-full object-contain"
                     aria-label={`${productName || "QR Play"} — video preview`}
                     data-testid="phone-video-file"
