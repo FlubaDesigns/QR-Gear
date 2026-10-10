@@ -1,0 +1,109 @@
+/* Canonical fonts master. Edit the three device blocks here.
+   rem respects the browser root font preference. Theme CSS supplies font families. */
+:root{
+ --font-h1:2rem;--font-h2:1.625rem;--font-h3:1.375rem;
+ --font-h4:1.25rem;--font-h5:1.125rem;--font-h6:1rem;
+ --font-body:1rem;--font-small:.875rem;--font-lead:1.125rem;
+ --font-body-line-height:1.6;--font-heading-line-height:1.15;
+}
+/* Tablet: 640–1023 CSS pixels. */
+@media(min-width:640px){:root{
+ --font-h1:2.75rem;--font-h2:2rem;--font-h3:1.5625rem;
+ --font-h4:1.375rem;--font-h5:1.1875rem;--font-h6:1.0625rem;
+ --font-body:1.0625rem;--font-small:.9375rem;--font-lead:1.25rem;
+}}
+/* Desktop: 1024 CSS pixels and wider. */
+@media(min-width:1024px){:root{
+ --font-h1:3.5rem;--font-h2:2.5rem;--font-h3:1.75rem;
+ --font-h4:1.5rem;--font-h5:1.25rem;--font-h6:1.125rem;
+ --font-body:1.125rem;--font-small:1rem;--font-lead:1.375rem;
+}}
+html{font-size:100%}
+body{font-family:var(--theme-font-body,system-ui,sans-serif);font-size:var(--font-body);line-height:var(--font-body-line-height)}
+h1,h2,h3,h4,h5,h6{font-family:var(--theme-font-heading,system-ui,sans-serif);line-height:var(--font-heading-line-height);overflow-wrap:anywhere;margin-top:0}
+h1{font-size:var(--font-h1)}h2{font-size:var(--font-h2)}h3{font-size:var(--font-h3)}
+h4{font-size:var(--font-h4)}h5{font-size:var(--font-h5)}h6{font-size:var(--font-h6)}
+small{font-size:var(--font-small)}
+
+/* Segment typography uses this same master. */
+.hero__sub{font-size:var(--font-lead)}
+.intro__since{font-weight:700}
+.overview__points li{font-weight:700}
+.factoids>h2{font-size:var(--font-h2)}
+.factoids [data-factoids-list]>li{font-size:var(--font-lead)}
+.factoids .item-source{font-size:.875rem}
+.founder__quote{font-style:italic}
+.founder__quote cite{font-style:normal;font-weight:700}
+.founder__quote--lead{font-size:clamp(1.3rem,3.5vw,2rem)}
+.services__name{font-size:var(--font-h3)}
+.services__price{font-weight:700}
+.services__more{font-weight:700}
+.contact__label{font-size:.875rem;font-weight:700;letter-spacing:.04em}
+.contact__preferred{font-size:.75rem;font-weight:700}
+.contact__value{font-size:1.125rem;font-weight:700;font-style:normal}
+.contact__sms{font-weight:700}
+.cta--strip h2{font-size:var(--font-h2)}
+.call__number{font-weight:400}
+.call-bar .call__number{font-size:.8rem}
+.hours__table th{font-weight:700}
+.hours__status{font-size:.875rem;font-weight:700}
+.map__place{font-style:normal}
+.map__view-link{font-weight:700}
+.brand--logo{font-weight:700}
+.brand--logo picture{line-height:0}
+.why__reason{font-weight:700}
+.why__proof,.why__overall{font-size:.95rem}
+.tst__item blockquote{font-size:1.1rem;line-height:1.55}
+.tst__name{font-weight:700}
+.tst__context{font-size:.9rem}
+.tst__link{font-weight:700}
+.faq__q{font-weight:700}
+.timeline__item time{font-weight:800;font-size:1.1rem}
+.mvv__detail{font-size:.95rem}
+.team__bio{font-size:.95rem}
+.team__initials{font-weight:800;font-size:2rem;letter-spacing:.02em}
+.team__photo--lg.team__initials{font-size:2.75rem}
+.process__step::before{font-weight:800}
+.process__duration{font-weight:700}
+.catalog__price{font-weight:700}
+.detail__trail ol{font-size:.9rem}
+.detail__price{font-size:1.25rem;font-weight:800}
+.rv__average{font-size:1.25rem}
+.rv__count{font-size:.9rem}
+.rv__who{font-size:.9rem}
+.rv__name{font-weight:700}
+.rv__reply-label{font-weight:700;font-size:.9rem}
+.rv__write summary{font-weight:700}
+.rv__rating legend{font-weight:700}
+.pricing__table thead th{font-size:.85rem}
+.pricing__price{font-weight:800}
+.pricing__row .pricing__item{font-weight:700}
+.pricing__note{font-size:.9rem}
+.pricing__minimum{font-weight:700}
+.pricing__disclaimer{font-size:.9rem}
+@container(max-width:30rem){
+  .pricing__table [data-label]::before{font-size:.85rem;font-weight:400}
+}
+.cmp__badge{font-size:.8rem;font-weight:800}
+.cmp__price{font-size:1.4rem;font-weight:800}
+.cmp__basis{font-size:.9rem}
+.cmp__table tbody th{font-weight:400}
+.cmp__yes{font-weight:800}
+.award__name-tile{font-weight:800}
+.award__org,.award__year{font-size:.9rem}
+.qual__verify{font-weight:700}
+.stat__value{font-size:2.25rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat__label{font-weight:700}
+.rv__source{font-size:.85rem}
+.qp__points li::before{font-weight:800}
+.offer__headline{font-size:var(--font-h3)}
+.offer__ends{font-size:.9rem}
+.offer__box--coupon .offer__code{font-size:1.1rem}
+.offer__box--coupon .offer__code strong{font-size:1.5rem;letter-spacing:.08em}
+.social__link--labeled{font-weight:700}
+.ba__label{font-size:.8rem;font-weight:800}
+.ba figcaption{font-size:.9rem}
+.dl__link{font-weight:700}
+.dl__meta{font-weight:400;font-size:.85rem}
+.project__location{font-size:.9rem}
+.video__link{font-size:.85rem}

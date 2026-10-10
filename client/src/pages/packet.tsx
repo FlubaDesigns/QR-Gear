@@ -2,12 +2,8 @@ import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Loader2, QrCode, ArrowLeft, ShoppingCart, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface PublicPacketData {
   availableSizes?: string[];
@@ -109,182 +105,109 @@ export default function PacketPage() {
     },
   });
 
-  if (!match || !packetId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-gray-900 to-black">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center">
-            <QrCode className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h1 className="text-xl font-bold mb-2" data-testid="text-not-found">Content Not Found</h1>
-            <p className="text-muted-foreground mb-4">
-              The content you're looking for doesn't exist or the link is invalid.
-            </p>
-            <Link href="/">
-              <Button variant="outline" data-testid="button-go-home">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Go Home
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
-        <Loader2 className="h-8 w-8 animate-spin text-white" data-testid="loader-packet" />
-      </div>
+      <PageSkeleton>
+        <section className="hero" aria-label="Loading product" aria-busy="true">
+          <div className="row">
+            <div className="layout__split-3-2 card product-detail">
+              <Skeleton className="product-detail__loading-media" />
+              <div className="detail__body">
+                <Skeleton className="product-detail__loading-line" />
+                <Skeleton className="product-detail__loading-controls" />
+              </div>
+            </div>
+          </div>
+        </section>
+      </PageSkeleton>
     );
   }
 
-  if (error || !packet) {
+  if (!match || !packetId || error || !packet) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-b from-gray-900 to-black">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center">
-            <QrCode className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h1 className="text-xl font-bold mb-2" data-testid="text-load-error">Content Not Found</h1>
-            <p className="text-muted-foreground mb-4">
-              This content could not be loaded.
-            </p>
-            <Link href="/">
-              <Button variant="outline" data-testid="button-go-home-error">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Go Home
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
+      <PageSkeleton>
+        <section className="hero">
+          <div className="row">
+            <div className="layout__center card detail__body">
+              <QrCode className="product-detail__icon" aria-hidden="true" />
+              <h1 data-testid="text-not-found">Content Not Found</h1>
+              <p>The product could not be loaded.</p>
+              <Link href="/" className="btn btn-secondary" data-testid="button-go-home">
+                <ArrowLeft className="product-detail__icon" aria-hidden="true" /> Go Home
+              </Link>
+            </div>
+          </div>
+        </section>
+      </PageSkeleton>
     );
   }
 
-  const createYourOwnUrl = referrerId 
-    ? `/build?ref=${referrerId}`
-    : '/build';
+  const createYourOwnUrl = referrerId ? `/build?ref=${referrerId}` : '/build';
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black">
-      <Navbar />
-      <main className="flex-1 w-full p-4 sm:p-6 lg:p-8">
-        <div className="w-full space-y-6">
-          <Card className="overflow-hidden border-slate-700 bg-slate-900/80">
-            <CardContent className={`p-0 ${packet.itemImage ? 'lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''}`}>
-              {packet.itemImage && (
-                <div className="relative min-w-0 bg-black flex items-center justify-center p-4 sm:p-6 lg:h-[calc(100svh-11rem)] lg:min-h-[28rem]">
-                  <img
-                    src={packet.itemImage}
-                    alt={packet.title}
-                    className="w-full h-auto max-h-[65svh] object-contain rounded lg:h-full lg:max-h-full"
-                    data-testid="img-packet-product"
-                  />
-                  {packet.qrType && (
-                    <Badge className="absolute top-3 right-3" data-testid="badge-qr-type">
-                      {getQrTypeLabel(packet.qrType)}
-                    </Badge>
-                  )}
+    <PageSkeleton>
+      <section className="hero" aria-labelledby="packet-title">
+        <div className="row">
+          <div className={`${packet.itemImage ? 'layout__split-3-2' : 'col-full'} card product-detail`}>
+            {packet.itemImage && (
+              <div className="product-detail__media">
+                <img src={packet.itemImage} alt={packet.title} data-testid="img-packet-product" />
+              </div>
+            )}
+            <div className="detail__body product-detail__body">
+              {packet.qrType && (
+                <span className="badge product-detail__badge" data-testid="badge-qr-type">
+                  {getQrTypeLabel(packet.qrType)}
+                </span>
+              )}
+              <h1 id="packet-title" data-testid="text-packet-title">{packet.title}</h1>
+              {packet.description && <p data-testid="text-packet-description">{packet.description}</p>}
+              {totalPrice > 0 && (
+                <div className="flex-row wrap">
+                  <strong className="product-detail__price" data-testid="text-packet-price">${totalPrice.toFixed(2)}</strong>
+                  {sizeUpcharge > 0 && <small>(includes ${sizeUpcharge.toFixed(2)} size upcharge)</small>}
                 </div>
               )}
-
-              <div className="min-w-0 p-6 space-y-6 lg:self-center lg:p-8 xl:p-12">
-                <div>
-                  <h1 className="text-2xl lg:text-3xl xl:text-4xl break-words font-bold text-white mb-3" data-testid="text-packet-title">
-                    {packet.title}
-                  </h1>
-                  {packet.description && (
-                    <p className="text-slate-400 text-sm lg:text-base break-words" data-testid="text-packet-description">
-                      {packet.description}
-                    </p>
-                  )}
-                </div>
-
-                {totalPrice > 0 && (
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-bold text-green-400" data-testid="text-packet-price">
-                      ${totalPrice.toFixed(2)}
-                    </p>
-                    {sizeUpcharge > 0 && (
-                      <span className="text-sm text-slate-500">
-                        (includes ${sizeUpcharge.toFixed(2)} size upcharge)
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-sm text-slate-400 mb-1 block">Size</label>
-                    <Select value={selectedSize} onValueChange={setSelectedSize}>
-                      <SelectTrigger data-testid="select-size">
-                        <SelectValue placeholder="Select size" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(packet.availableSizes || AVAILABLE_SIZES).map((size) => (
-                          <SelectItem key={size} value={size} data-testid={`select-size-${size}`}>
-                            {size}
-                            {(sizeUpcharges[size] || 0) > 0 ? ` (+$${(sizeUpcharges[size] || 0).toFixed(2)})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {packet.selectedColor && (
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="secondary" data-testid="badge-color">
-                        {packet.selectedColor}
-                      </Badge>
-                    </div>
-                  )}
-                </div>
-
-                {checkoutError && (
-                  <p className="text-red-400 text-sm" data-testid="text-checkout-error">
-                    {checkoutError}
-                  </p>
-                )}
-
-                <div className="space-y-3 pt-2">
-                  <Button
-                    className="w-full bg-green-600 hover:bg-green-700 text-lg py-6"
-                    onClick={() => checkoutMutation.mutate()}
-                    disabled={checkoutMutation.isPending || !selectedSize}
-                    data-testid="button-buy-now"
-                  >
-                    {checkoutMutation.isPending ? (
-                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                    ) : (
-                      <ShoppingCart className="h-5 w-5 mr-2" />
-                    )}
-                    {checkoutMutation.isPending ? 'Creating checkout...' : `Buy Now — $${totalPrice.toFixed(2)}`}
-                  </Button>
-                </div>
+              <div className="form-grid">
+                <label htmlFor="packet-size">Size
+                  <select id="packet-size" value={selectedSize} onChange={event => setSelectedSize(event.target.value)} data-testid="select-size">
+                    <option value="" disabled>Select size</option>
+                    {(packet.availableSizes || AVAILABLE_SIZES).map(size => (
+                      <option key={size} value={size} data-testid={`select-size-${size}`}>
+                        {size}{(sizeUpcharges[size] || 0) > 0 ? ` (+$${(sizeUpcharges[size] || 0).toFixed(2)})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {packet.selectedColor && <span data-testid="badge-color">{packet.selectedColor}</span>}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-700 bg-gradient-to-r from-amber-900/20 to-green-900/20">
-            <CardContent className="p-6 text-center space-y-3">
-              <Sparkles className="h-8 w-8 mx-auto text-amber-400" />
-              <h2 className="text-lg font-bold text-white" data-testid="text-create-own-heading">
-                Want to create your own?
-              </h2>
-              <p className="text-slate-400 text-sm">
-                Design custom QR merchandise and earn 25% on every sale. Forever.
-              </p>
-              <Link href={createYourOwnUrl}>
-                <Button variant="outline" className="mt-2 border-amber-500/30 text-amber-400" data-testid="button-create-your-own">
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Create Your Own
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+              {checkoutError && <div className="alert alert-error" role="alert" data-testid="text-checkout-error">{checkoutError}</div>}
+              <button type="button" className="btn btn-primary product-detail__buy"
+                onClick={() => checkoutMutation.mutate()} disabled={checkoutMutation.isPending || !selectedSize}
+                data-testid="button-buy-now">
+                {checkoutMutation.isPending ? <Loader2 className="product-detail__icon animate-spin" aria-hidden="true" />
+                  : <ShoppingCart className="product-detail__icon" aria-hidden="true" />}
+                {checkoutMutation.isPending ? 'Creating checkout...' : `Buy Now — $${totalPrice.toFixed(2)}`}
+              </button>
+            </div>
+          </div>
         </div>
-      </main>
-      <Footer />
-    </div>
+      </section>
+      <section className="section" aria-labelledby="create-own-heading">
+        <div className="row">
+          <div className="layout__split-2-1 card">
+            <div className="cta__text">
+              <h2 id="create-own-heading" data-testid="text-create-own-heading">Want to create your own?</h2>
+              <p className="cta__message">Design custom QR merchandise and earn 25% on every sale. Forever.</p>
+            </div>
+            <div className="btn-row">
+              <Link href={createYourOwnUrl} className="btn btn-secondary" data-testid="button-create-your-own">
+                <Sparkles className="product-detail__icon" aria-hidden="true" /> Create Your Own
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+    </PageSkeleton>
   );
 }

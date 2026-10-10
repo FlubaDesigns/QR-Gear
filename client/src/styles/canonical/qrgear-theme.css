@@ -1,0 +1,24 @@
+/* QR Gear appearance adapter. Structure belongs to the unchanged masters. */
+:root {
+  --theme-background: hsl(var(--background));
+  --theme-surface: hsl(var(--card));
+  --theme-text: hsl(var(--foreground));
+  --theme-muted: hsl(var(--muted-foreground));
+  --theme-border: hsl(var(--border));
+  --theme-input: hsl(var(--background));
+  --theme-primary: hsl(var(--primary));
+  --theme-on-primary: hsl(var(--primary-foreground));
+  --theme-accent: hsl(var(--accent));
+  --theme-on-accent: hsl(var(--accent-foreground));
+  --theme-danger: hsl(var(--destructive));
+  --theme-font-heading: Orbitron, system-ui, sans-serif;
+  --theme-font-body: Inter, system-ui, sans-serif;
+  --theme-radius: var(--radius);
+  --theme-shadow: var(--shadow-1);
+  --stage-width: 96%;
+  --layout-max: 100%;
+  --card-padding: clamp(1rem, 2vw, 2rem);
+  --section-space: var(--sv);
+  --button-min-height: 3rem;
+  --control-min-height: 3rem;
+}

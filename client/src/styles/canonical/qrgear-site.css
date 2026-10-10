@@ -1,0 +1,14 @@
+/* Approved product media extension; rows and responsive columns use Master. */
+:scope { font-family: var(--theme-font-body); font-size: var(--font-body); line-height: var(--font-body-line-height); }
+.product-detail { align-items: center; }
+.product-detail__media img { width: 100%; max-height: calc(100svh - 13rem); object-fit: contain; border-radius: var(--theme-radius); }
+.product-detail__body { padding-block: var(--space-4); }
+.product-detail__body h1 { margin-bottom: 0; }
+.product-detail__body p { color: var(--theme-muted); }
+.product-detail__price { color: var(--theme-primary); font-size: var(--font-h2); font-weight: 700; }
+.product-detail__badge { justify-self: start; }
+.product-detail__buy { width: 100%; gap: var(--space-2); }
+.product-detail__icon { width: 1.25em; height: 1.25em; flex-shrink: 0; }
+.product-detail__loading-media { min-height: 50svh; }
+.product-detail__loading-line { height: 2rem; }
+.product-detail__loading-controls { height: 8rem; }
