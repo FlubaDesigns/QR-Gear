@@ -414,6 +414,8 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ### October 10, 2026 — Private member uploads and shared starter backgrounds
 
+Publication exports update asset references only, preserving saved member titles, descriptions, pricing and store/channel metadata. My Library uses Master `layout__split-2`.
+
 My Library now contains private member uploads plus shared starter backgrounds, with upload/download controls and the canonical responsive skeleton/row helpers. Admin Source GRF originals/crops/backgrounds supply the shared collection; personal memberLibrary records never enter it. Removed the production admin product-push route and obsolete assigned-product library registration without deleting records or products.
 
 Both member file proxies check ownership and prevent shared caching. A read-only file session established during sign-in preserves native previews and downloads; mutation authentication is unchanged. Storage rules close the public member-media path, and the release workflow deploys those rules. Publishing verifies that selected private files belong to the member and exports only those selected files for the public product.

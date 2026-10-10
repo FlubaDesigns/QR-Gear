@@ -169,7 +169,15 @@ export async function commitMemberBuild(memberId: string, id: string) {
   for (const placement of snapshot.layoutConfig.selectedPlacements) if (!packet.placementGraphicUrls?.[placement]) fail(`Generate the ${placement} artwork before publishing.`);
   const selectedFiles = await publishMemberFileUrls(memberId, id, { builderSnapshot: snapshot, playMediaUrl: packet.playMediaUrl });
   snapshot = requireBuilderSnapshot(selectedFiles.builderSnapshot);
-  const publishedFields = { ...packetBuildFields(snapshot), playMediaUrl: selectedFiles.playMediaUrl || null };
+  const projected = packetBuildFields(snapshot);
+  // Only asset references change; preserve the member's saved title, copy,
+  // pricing and store/channel fields instead of re-projecting unrelated fields.
+  const publishedFields = {
+    builderSnapshot: snapshot, headerStyle: projected.headerStyle, footerStyle: projected.footerStyle,
+    areaImageUrl: projected.areaImageUrl, backgroundUrl: projected.backgroundUrl,
+    landingPageBackgroundUrl: projected.landingPageBackgroundUrl,
+    playMediaUrl: selectedFiles.playMediaUrl || null,
+  };
   await ref.update(publishedFields);
   packet = { ...packet, ...publishedFields };
   const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => p !== 'label_inside');

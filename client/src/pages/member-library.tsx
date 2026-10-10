@@ -93,7 +93,7 @@ export default function MemberLibrary() {
       <h1 className="text-2xl font-bold">My Library</h1>
       <p className="text-muted-foreground">Upload your own files or download a shared background to get started. You choose what goes into your products.</p>
     </div>
-    <div className="layout__split2">
+    <div className="layout__split-2">
       <Card className="min-w-0">
         <CardHeader><CardTitle>My private uploads</CardTitle><p className="text-sm text-muted-foreground">Only you can access these originals. When you publish a product, its chosen artwork and media become visible with that product.</p></CardHeader>
         <CardContent className="row">

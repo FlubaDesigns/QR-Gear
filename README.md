@@ -772,3 +772,5 @@ Both personal file proxies require the matching Firebase identity before looking
 At a member's explicit Publish action, selected personal asset references are validated against that member and copied to product output storage. Shared inputs are reused. Personal originals stay private, while the resulting published product can show its selected background/media. The existing QRG/BLD/GRF/Assembly commit uses that publication snapshot. This is not automatic sharing of the personal library. Previously downloaded copies cannot be recalled by changing server access rules.
 
 Validation: frontend and Functions type checks/builds, existing authentication and schema checks, then live owner/anonymous/cross-member file access, shared-source loading and upload/download UI verification. Deployment remains through the existing Authorization Engine; its release step now includes Storage rules.
+
+Publication preserves member titles/descriptions, pricing and store/channel metadata; only selected asset references change. The library uses the exact Master `layout__split-2` helper.
