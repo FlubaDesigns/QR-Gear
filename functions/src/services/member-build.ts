@@ -1,6 +1,7 @@
 import { db, storage, QR_GEAR_BRANDED_TAG_URL } from '../core';
 import { createHash } from 'crypto';
-import { MEMBER_PACKETS_COLLECTION } from '../constants';
+import { MEMBER_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
+import { memberDynamicsSlots, dynamicsMode, dynamicsHostingExpiry } from './qr-dynamics';
 import { memberCatalogProducts } from './catalog-tier-products';
 import { catalogSaleVariants, selectCatalogSaleVariant } from './catalog-sale-variants';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
@@ -87,7 +88,10 @@ export async function prepareMemberBuild(memberId: string, input: any) {
   if (!channel?.exists || channel.data()?.ownerId !== memberId) fail('Choose one of your channels.');
   const mode = modes[input.packetType];
   if (!mode) fail('Choose a QR product type.');
-  if (input.packetType === 'qr-compose') fail('QR Compose needs its saved content sequence connected before member publishing.');
+  const compose = input.packetType === 'qr-compose';
+  const composeSlots = compose ? await memberDynamicsSlots(memberId, input.composeItems) : null;
+  const composeMode = compose ? dynamicsMode(input.composeMode) : 'auto-rotate';
+  if (compose && !['1-year', '3-year', '5-year'].includes(input.composeHostingTerm)) fail('Choose a hosting term.');
   const selected = input.selectedPlacements;
   if (!Array.isArray(selected) || !selected.length || selected.some((p: any) => typeof p !== 'string')) fail('Choose a print placement.');
   const locations = master.qrgPrintSpecs?.[provider]?.locations || [];
@@ -113,7 +117,7 @@ export async function prepareMemberBuild(memberId: string, input: any) {
       headerStyle: input.headerStyle, footerStyle: input.footerStyle, areaImageUrl: input.areaImageUrl || '',
       graphicLayoutMode: input.graphicLayoutMode || 'zone', qrPositionX: input.qrPositionX ?? 50,
       qrPositionY: input.qrPositionY ?? 50, qrSizePercent: input.qrSizePercent ?? 75,
-      hostingTierCode: input.hostingTierCode || '1_year', playMediaUrl: input.videoUrl || '', qrBasicInputType: input.qrBasicInputType || 'url', areaImageMode: input.areaImageMode || 'cover',
+      hostingTierCode: compose ? input.composeHostingTerm.replace('-', '_') : (input.hostingTierCode || '1_year'), playMediaUrl: input.videoUrl || '', qrBasicInputType: input.qrBasicInputType || 'url', areaImageMode: input.areaImageMode || 'cover',
     } },
     qrConfig: { qrProductState: mode, selectedColor: product.availableColors.find((c: any) => c.name === variant.color) },
     layoutConfig: { selectedPlacements: selected, providerLayouts, placementSizes },
@@ -127,11 +131,14 @@ export async function prepareMemberBuild(memberId: string, input: any) {
   const ref = db.collection('productPackets').doc();
   const origin = resolveRuntimeConfig().origin;
   const hosted = ['qr-canvas', 'qr-play', 'qr-compose'].includes(input.packetType);
+  const dynamicsRef = hosted ? db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc() : null;
   const landingPageSlug = `member-${ref.id}`;
-  const qrContent = hosted ? `${origin}/m/${landingPageSlug}` : String(input.qrBasicContent || input.qrDestination || '').trim();
+  const qrContent = dynamicsRef ? `${origin}/qr/d/${dynamicsRef.id}` : String(input.qrBasicContent || input.qrDestination || '').trim();
   if (!qrContent) fail('Enter the content for your QR code.');
+  const identity = await allocateQrgInstance({ qrgBlankId: master.qrgBlankId, context: 'M' });
   const now = new Date().toISOString();
-  const packet = { ...packetBuildFields(priced.builderSnapshot), ownerType: 'member', memberId, memberPacketId,
+  const packet = { ...packetBuildFields(priced.builderSnapshot), ...identity, ownerType: 'member', memberId, memberPacketId,
+    composeInstanceId: dynamicsRef?.id || null, composeMode, composeItems: composeSlots,
     sourceMasterId, qrgBlankId: master.qrgBlankId, fulfillmentProvider: provider,
     storeId: null, channelId: null, memberChannelId: input.channelId,
     title, description: String(input.description || ''), packetType: input.packetType, qrContent,
@@ -142,7 +149,15 @@ export async function prepareMemberBuild(memberId: string, input: any) {
     landingPageBackgroundUrl: input.background || null, playMediaUrl: input.videoUrl || null,
     pricing: priced.pricing, placementGraphicUrls: priced.placementGraphicUrls,
     status: 'building', createdAt: now, updatedAt: now };
-  await ref.create(packet);
+  const batch = db.batch();
+  batch.create(ref, packet);
+  if (dynamicsRef) batch.create(dynamicsRef, { instanceId: dynamicsRef.id, ownerId: memberId, ownerType: 'member',
+    title, hostingTierCode: priced.builderSnapshot.graphics.content.hostingTierCode,
+    packetId: ref.id, qrgBaseCode: identity.qrgBaseCode, qrgBlankId: identity.qrgBlankId,
+    status: 'draft', mode: 'loop', composeMode, createdAt: Math.floor(Date.now() / 1000),
+    startTimestamp: Math.floor(Date.now() / 1000),
+    slots: composeSlots || [{ packetId: ref.id, durationSeconds: 86400, order: 1 }] });
+  await batch.commit();
   return { packetId: ref.id, memberPacketId, builderSnapshot: priced.builderSnapshot, qrContent, pricing: priced.pricing };
 }
 
@@ -204,7 +219,12 @@ export async function commitMemberBuild(memberId: string, id: string) {
   await db.runTransaction(async tx => {
     const old = await tx.get(memberRef);
     if (old.exists && old.data()?.memberId !== memberId) fail('This product belongs to another member.', 403);
+    const dynamicsRef = packet.composeInstanceId ? db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(packet.composeInstanceId) : null;
+    const dynamic = dynamicsRef ? (await tx.get(dynamicsRef)).data() : null;
+    if (dynamicsRef && (!dynamic || dynamic.ownerId !== memberId || dynamic.packetId !== id || dynamic.qrgBaseCode !== built.qrgBaseCode)) fail('QR experience and item identity do not match.', 409);
     tx.update(ref, { ...identity, status: 'published', updatedAt: now });
+    if (dynamicsRef) tx.update(dynamicsRef, { status: 'active', startTimestamp: Math.floor(Date.now() / 1000),
+      hostingExpiresAt: dynamic!.hostingExpiresAt || dynamicsHostingExpiry(dynamic!.hostingTierCode), updatedAt: now });
     // The member record is an ownership/listing reference; production data is read from its packet.
     tx.set(memberRef, { memberId, id: memberRef.id, packetId: memberRef.id, productionPacketId: id,
       channelId: packet.memberChannelId, packetType: packet.packetType, status: 'published',

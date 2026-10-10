@@ -1,10 +1,11 @@
+import { sendActivationEmail } from './email';
 import { getSizeUpcharges } from './pricing';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
 import { quoteCartBundle } from './product-bundles';
 import { createHash } from 'crypto';
 import type Stripe from 'stripe';
-import { resolveSaleItem, verifyProviderItems } from './order-fulfillment';
+import { resolveSaleItem, verifyProviderItems, fulfillOrder } from './order-fulfillment';
 import { db, admin } from '../core';
 import {
   EMBEDDED_ORDER_ATTRIBUTIONS_COLLECTION,
@@ -205,12 +206,12 @@ export async function prepareCartOrder(userId: string, referrerId = '', selectio
 /** Caller must verify the webhook signature (or retrieve this session from Stripe). */
 export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
   const orderId = session.metadata?.orderId;
-  if (!orderId || session.metadata?.source !== 'direct_cart') throw new Error('Checkout has no frozen order. Manual reconciliation required.');
+  if (!orderId || !['direct_cart', 'packet_share'].includes(session.metadata?.source || '')) throw new Error('Checkout has no frozen order. Manual reconciliation required.');
   if (session.payment_status !== 'paid') throw new Error('Payment is not complete.');
   const ref = db.collection('orders').doc(orderId);
   await db.runTransaction(async tx => {
     const order = (await tx.get(ref)).data();
-    if (!order || order.checkoutVersion !== 1 || order.userId !== session.metadata?.userId ||
+    if (!order || order.checkoutVersion !== 1 || order.source !== session.metadata?.source || (order.source === 'direct_cart' && order.userId !== session.metadata?.userId) ||
         (order.stripeSessionId && order.stripeSessionId !== session.id) || order.currency !== session.currency ||
         order.amountTotalCents !== session.amount_total) throw new Error('Stripe payment does not match the frozen order.');
     if (order.paymentStatus === 'paid') return;
@@ -226,13 +227,58 @@ export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
   });
   // Remove only unchanged purchased cart rows. New items/edits remain in the cart.
   const items = (await db.collection('orderItems').where('orderId', '==', orderId).get()).docs.map(d => d.data());
-  await db.runTransaction(async tx => {
+  if (session.metadata?.source === 'direct_cart') await db.runTransaction(async tx => {
     const carts = await Promise.all(items.map(item => tx.get(db.collection('cartItems').doc(item.cartItemId))));
     carts.forEach((cart, i) => {
       if (cart.exists && cart.data()?.userId === session.metadata?.userId && cartFingerprint(cart.data()) === items[i].cartFingerprint) tx.delete(cart.ref);
     });
   });
   return { orderId, order: (await ref.get()).data()!, items };
+}
+
+/** Member sales use the same frozen production contract as catalog sales. */
+export async function prepareMemberOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string) {
+  const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: packetId, productSize: size, productColor: packet.selectedColor } });
+  await verifyProviderItems([item]);
+  const ref = db.collection('orders').doc(), now = new Date().toISOString();
+  const batch = db.batch();
+  batch.create(ref, { userId: null, source: 'packet_share', sourceChannel: 'member', checkoutVersion: 1,
+    packetId, productTitle: item.productTitle, qrType: packet.packetType, selectedSize: size, selectedColor: packet.selectedColor,
+    mockupUrl: packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost,
+    status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
+    amountTotalCents: item.unitAmount, currency: 'usd', totalAmount: (item.unitAmount / 100).toFixed(2),
+    referrerId, routedProvider: item.fulfillment.provider, createdAt: now, updatedAt: now });
+  batch.create(db.collection('orderItems').doc(`${ref.id}_0`), { ...item, orderId: ref.id, createdAt: now });
+  await batch.commit();
+  return { orderId: ref.id, amount: item.unitAmount };
+}
+
+/** The signed webhook and Stripe-retrieved return page converge on one durable order. */
+export async function finalizeMemberPayment(session: Stripe.Checkout.Session) {
+  if (session.metadata?.source !== 'packet_share') throw new Error('This is not a member checkout.');
+  const { orderId, order } = await finalizeCartPayment(session);
+  await fulfillOrder(orderId);
+  const line = (await db.collection('orderItems').doc(`${orderId}_0`).get()).data();
+  const instanceId = line?.dynamicsInstanceIds?.[0];
+  const instance = instanceId ? (await db.collection('qr_dynamics_instances').doc(instanceId).get()).data() : null;
+  if (!instance?.claimCode) throw new Error('Purchased item claim is not ready. Retry order verification.');
+  await writePayoutAttribution({ source: 'packet_share', orderId, orderTotal: order.amountTotalCents / 100,
+    productCost: order.productCost, creatorMemberId: order.creatorMemberId, referrerId: order.referrerId,
+    buyerEmail: order.customerEmail, packetId: order.packetId,
+    connectTransferApplied: session.metadata?.connectTransferApplied === 'true', connectAccountId: session.metadata?.connectAccountId });
+  const updated = (await db.collection('orders').doc(orderId).get()).data()!;
+  const publicOrder = { packetId: order.packetId, stripeSessionId: session.id, productTitle: order.productTitle,
+    qrType: order.qrType, selectedColor: order.selectedColor, selectedSize: order.selectedSize, totalAmount: order.amountTotalCents / 100,
+    buyerEmail: order.customerEmail, buyerName: order.customerName, mockupUrl: order.mockupUrl,
+    status: updated.status, claimCode: instance.claimCode, instanceId, qrgBaseCode: instance.qrgBaseCode,
+    createdAt: order.createdAt, source: 'packet_share' };
+  await db.collection('orders_public').doc(orderId).set(publicOrder, { merge: true });
+  if (order.customerEmail && !updated.activationEmailSentAt) {
+    const sent = await sendActivationEmail({ customerEmail: order.customerEmail, customerName: order.customerName || 'Customer',
+      activationCode: instance.claimCode, productName: order.productTitle, previewImageUrl: order.mockupUrl, orderId });
+    await db.collection('orders').doc(orderId).update(sent ? { activationEmailSentAt: new Date().toISOString(), activationEmailError: null } : { activationEmailError: 'Activation email was not sent; claim code is available on the order confirmation.' });
+  }
+  return { success: true, order: { id: orderId, ...publicOrder }, claimCode: instance.claimCode };
 }
 
 async function createPacketOrder(input: CreateOrderInput, nowISO: string): Promise<CreateOrderResult> {
@@ -438,6 +484,13 @@ export async function writePayoutAttribution(input: PayoutAttributionInput): Pro
   }
 }
 
+async function recordEarningOnce(collection: string, id: string, value: Record<string, any>) {
+  const ref = db.collection(collection).doc(id);
+  await db.runTransaction(async tx => {
+    if (!(await tx.get(ref)).exists) tx.create(ref, value);
+  });
+}
+
 async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, nowISO: string): Promise<void> {
   const profit = input.orderTotal - input.productCost;
 
@@ -446,7 +499,7 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
       const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
       const connectTransferApplied = !!input.connectTransferApplied;
       const connectAccountId = input.connectAccountId || '';
-      await db.collection('member_earnings').add({
+      await recordEarningOnce('member_earnings', `${input.orderId}_${input.creatorMemberId}`, {
         memberId: input.creatorMemberId,
         orderId: input.orderId,
         packetId: input.packetId || '',
@@ -486,7 +539,7 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
 
       if (profit > 0 && input.referrerId !== input.creatorMemberId) {
         const referralEarnings = Math.round((profit * 0.25) * 100) / 100;
-        await db.collection('referral_earnings').add({
+        await recordEarningOnce('referral_earnings', `${input.orderId}_${input.referrerId}`, {
           memberId: input.referrerId,
           orderId: input.orderId,
           buyerKey,

@@ -81,7 +81,7 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
         <div style="background:#1e293b;border-radius:12px;padding:32px;margin-bottom:24px;">
           <p style="color:#94a3b8;margin:0 0 8px;">Hello ${customerName},</p>
           <p style="color:#e2e8f0;margin:0 0 24px;line-height:1.6;">
-            Your <strong>${productName}</strong> is on its way. When it arrives, scan the QR code on your item and enter your activation code below to start your hosting.
+            Your <strong>${productName}</strong> order is in production. Use the link below to attach this individual item to your account.
           </p>
           ${previewImageUrl ? `<div style="text-align:center;margin-bottom:24px;"><img src="${previewImageUrl}" alt="${productName}" style="max-width:200px;border-radius:8px;" /></div>` : ''}
           <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
@@ -91,10 +91,10 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
           <div style="background:#164e63;border-radius:8px;padding:16px;margin-bottom:24px;">
             <p style="color:#7dd3fc;font-size:13px;margin:0 0 8px;font-weight:600;">How to activate:</p>
             <ol style="color:#bae6fd;font-size:13px;margin:0;padding-left:20px;line-height:1.8;">
-              <li>Scan the QR code on your ${productName}</li>
-              <li>Tap <strong>"Activate My Item"</strong> on the page that opens</li>
-              <li>Enter your activation code above</li>
-              <li>Your 1 year of free hosting starts the moment you activate</li>
+              <li>Open the activation link below</li>
+              <li>Sign in or create your account</li>
+              <li>Claim your item with this code</li>
+              <li>Manage supported QR experiences in your member area</li>
             </ol>
           </div>
           <div style="text-align:center;">
@@ -117,7 +117,7 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
       to: customerEmail,
       subject: `Your QR Activation Code — ${productName}`,
       html,
-    });
+    }, { idempotencyKey: `activation-${orderId}-${activationCode}` });
     if (error || !sent?.id) return false;
     console.log('[Email] Activation email accepted', { orderId });
     return true;

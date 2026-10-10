@@ -4,6 +4,28 @@ Firestore schema reference. Sections explicitly marked **planned** document appr
 
 ---
 
+## QR Dynamics — individual item contract (October 10, 2026)
+
+QR Dynamics uses the existing QRG allocator, productPackets, BLD, GRF and Assembly chain. It does not redefine their authority.
+
+| Record | Contract |
+|---|---|
+| `qr_dynamics_instances/{instanceId}` | Opaque resolver identity; `qrgBaseCode`, `qrgBlankId`, `ownerId`, `ownerType`, `packetId`, `status`, `composeMode`, `startTimestamp`, `slots`, `hostingExpiresAt`. Purchased copies additionally reference `orderId`, `orderItemId`, `unitIndex`, `sourcePacketId`, `sourcePacketIds` and an optional guest `claimCode`. |
+| `productPackets` | Member builds get an M identity before rendering. Each purchased physical copy gets a new O identity and its own packet/Assembly. `composeInstanceId` binds the packet to its stable resolver. |
+| `orderItems` | `qrExperience` freezes the source hash and Compose sequence at checkout. `dynamicsInstanceIds[index]` permanently binds each quantity position to one item. Retries reuse these references. |
+| `claimCodes` | Cryptographically random guest code references the existing purchased instance. Claiming is a transaction that binds the authenticated account to that same Dynamics record and packet. |
+| `claimedInstances` | Account display projection of the same instance/QRG; it is not a second identity allocator. |
+
+Every purchased physical copy receives a distinct server-allocated QRG O-context number, even when the artwork is reused. Canvas, Play and Compose print `/qr/d/{instanceId}`; the QRG number never appears in that URL. Basic/Plus retain their direct payload semantics and still get individual purchased identities.
+
+Slots reference published Canvas/Play production packets. Editing requires exact authenticated ownership, and content must be the owner's own published content or the purchased item's explicit source entitlement. Admin authoring inputs and another member's uploads are not selectable. Public resolution exposes only the published landing-page URL (`/m/{slug}`). Full production packets require Admin access.
+
+Member checkout and catalog checkout freeze server-owned pricing, selected QRG/provider variant and print files before Stripe payment. Verified payment precedes item allocation/production. Provider lines have quantity one, with separate print files for each hosted copy. The original QR is decoded and matched to the saved payload before replacement; the new QR is decoded before submission. Required inside labels remain unchanged. New files use permanent GRF identities and existing BLD/Assembly services.
+
+Automatic rotation uses `shared/qrDynamicsResolver.ts`; scan to reveal uses a browser-local position. Sequence edits restart the schedule without changing the printed URL. Draft, invalid, unavailable and expired experiences fail explicitly. 1/3/5-year hosting follows the saved term and starts on member publication or verified purchase.
+
+The October 10 audit covers 22 catalog products (10 Founding Fathers, 5 Monuments, 7 Armed Forces). All passed identity/reference checks and original/new print QR decoding. No existing source identities or artwork were replaced. Paid Stripe/Printful fulfillment was not exercised by the audit. See `docs/QR_DYNAMICS_AUDIT.md` for the exact item list.
+
 ## Marketplace fee and authorization contract — October 7, 2026
 
 - `marketplaceListings.fees` is the sole marketplace fee snapshot: `status` (`estimated`, `partial`, `unavailable`; `stale` is derived on read), `source`, `scope` (`per_sale` or `listing`), nullable `amount`, `currency`, input `price`/`sku`/`accountId`, `contextKey`, `retrievedAt`, `components` and explanatory `reason`. Product/QRG identity stays on the existing listing references. `externalOfferId` retains eBay's offer identity. No fee is stored on lookup tables or duplicated into account percentages.

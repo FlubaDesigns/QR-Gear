@@ -1,3 +1,4 @@
+import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -70,7 +71,7 @@ app.get('/claim/validate/:claimCode', async (req: Request, res: Response): Promi
       return;
     }
     
-    res.json({ valid: true, claimData });
+    res.json({ valid: true, claimData: { claimCode, productName: claimData.productName, productDescription: claimData.productDescription || null, previewImageUrl: claimData.previewImageUrl || null, packetType: claimData.packetType, status: claimData.status } });
   } catch (error: any) {
     console.error('[Claim] Validation error:', error);
     res.status(500).json({ error: error.message });
@@ -98,6 +99,33 @@ app.post('/claim/:claimCode', requireAuth, async (req: Request, res: Response): 
       return;
     }
     
+    // A purchased item already has its permanent QRG and printed resolver URL.
+    // Claim transfers that record; it must never allocate another item identity.
+    if (claimData.instanceId) {
+      const instanceId = claimData.instanceId;
+      await db.runTransaction(async tx => {
+        const claimRef = db.collection('claimCodes').doc(claimCode);
+        const current = (await tx.get(claimRef)).data();
+        const instanceRef = db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId);
+        const item = (await tx.get(instanceRef)).data();
+        if (!current || current.status !== 'unclaimed' || (current.expiresAt && new Date(current.expiresAt) <= new Date())) throw new Error('This claim code is no longer available.');
+        if (!item || item.ownerId || !['active', 'static'].includes(item.status) || item.claimCode !== claimCode) throw new Error('This purchased item is not available to claim.');
+        const packetRef = db.collection('productPackets').doc(item.packetId);
+        const packet = (await tx.get(packetRef)).data();
+        if (!packet || packet.qrgBaseCode !== item.qrgBaseCode || packet.composeInstanceId !== instanceId) throw new Error('Purchased item identity does not match.');
+        const now = new Date().toISOString();
+        tx.update(instanceRef, { ownerId: userId, claimedAt: now });
+        tx.update(packetRef, { ownerId: userId, updatedAt: now });
+        tx.update(claimRef, { status: 'claimed', claimedByUserId: userId, claimedAt: now });
+        tx.set(db.collection('claimedInstances').doc(instanceId), { instanceId, qrgBaseCode: item.qrgBaseCode,
+          ownerUserId: userId, productName: item.title, packetType: claimData.packetType,
+          instanceUrl: item.status === 'active' ? `/qr/d/${instanceId}` : null,
+          dynamicsInstanceId: instanceId, hostingExpiresAt: item.hostingExpiresAt, status: item.status,
+          claimedAt: now, createdAt: now, updatedAt: now });
+      });
+      res.json({ success: true, instanceId }); return;
+    }
+
     const instanceId = generateNanoId(16);
     const now = new Date();
     const oneYearFromNow = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
@@ -161,7 +189,7 @@ app.get('/claimed-instances', requireAuth, async (req: Request, res: Response): 
 });
 
 // Get single claimed instance
-app.get('/claimed-instances/:instanceId', async (req: Request, res: Response): Promise<void> => {
+app.get('/claimed-instances/:instanceId', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { instanceId } = req.params;
     const doc = await db.collection('claimedInstances').doc(instanceId).get();
@@ -172,9 +200,10 @@ app.get('/claimed-instances/:instanceId', async (req: Request, res: Response): P
     }
     
     const instance = doc.data();
-    const isActive = instance?.status === 'active' && new Date(instance?.hostingExpiresAt) > new Date();
+    if (instance?.ownerUserId !== (req as any).user.uid) { res.status(403).json({ error: 'This item belongs to another account.' }); return; }
+    const isActive = instance?.status === 'static' || (instance?.status === 'active' && new Date(instance?.hostingExpiresAt) > new Date());
     
-    res.json({ ...instance, isActive });
+    res.json({ instance: { ...instance, id: instanceId }, isActive });
   } catch (error: any) {
     console.error('[Claim] Get instance error:', error);
     res.status(500).json({ error: error.message });
@@ -201,6 +230,7 @@ app.patch('/claimed-instances/:instanceId', requireAuth, async (req: Request, re
       return;
     }
     
+    if (instance?.dynamicsInstanceId) { res.status(409).json({ error: 'Manage this item through QR Dynamics in your member area.' }); return; }
     await db.collection('claimedInstances').doc(instanceId).update({
       destinationUrl,
       updatedAt: new Date().toISOString(),

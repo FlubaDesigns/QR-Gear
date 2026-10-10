@@ -22,6 +22,12 @@ export function resolveActiveSlot(
   if (slots.length === 0) {
     return { error: 'No slots configured' };
   }
+  if (!Number.isFinite(startTimestamp) || !Number.isFinite(nowEpoch) || slots.some(slot =>
+    !Number.isSafeInteger(slot.durationSeconds) || slot.durationSeconds <= 0 ||
+    !Number.isSafeInteger(slot.order) || slot.order < 1 || !slot.packetId) ||
+    new Set(slots.map(slot => slot.order)).size !== slots.length) {
+    return { error: 'Invalid QR Dynamics sequence' };
+  }
 
   const sortedSlots = [...slots].sort((a, b) => a.order - b.order);
 

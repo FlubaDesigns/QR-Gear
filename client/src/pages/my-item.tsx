@@ -19,6 +19,7 @@ interface ClaimedInstance {
   claimedAt: string;
   instanceUrl?: string;
   qrgBaseCode?: string;
+  dynamicsInstanceId?: string;
 }
 
 export default function MyItemPage() {
@@ -141,14 +142,14 @@ export default function MyItemPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Days Remaining</span>
                 <span className="text-sm font-semibold text-foreground" data-testid="text-days-remaining">
-                  {daysRemaining} days
+                  {instance.hostingExpiresAt ? `${daysRemaining} days` : 'Static QR — no hosting term'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Expires</span>
                 <span className="text-sm text-foreground" data-testid="text-expires">
-                  {expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {instance.hostingExpiresAt ? expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not applicable'}
                 </span>
               </div>
 
@@ -168,7 +169,7 @@ export default function MyItemPage() {
                 </div>
               )}
 
-              {!isActive && (
+              {!isActive && instance.hostingExpiresAt && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
                   <p className="text-xs text-destructive">
                     Your hosting has expired. Renew to restore your QR content.
@@ -179,6 +180,7 @@ export default function MyItemPage() {
           </Card>
 
           <div className="space-y-2">
+            {instance.dynamicsInstanceId && <Button className="w-full" onClick={() => setLocation('/members')}>Open member area</Button>}
             {instance.instanceUrl && (
               <Button
                 className="w-full"
@@ -190,7 +192,7 @@ export default function MyItemPage() {
               </Button>
             )}
 
-            <Button
+            {!instance.dynamicsInstanceId && <Button
               variant="outline"
               className="w-full"
               onClick={() => setLocation(`/renew/${instanceId}`)}
@@ -198,7 +200,7 @@ export default function MyItemPage() {
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Renew Hosting
-            </Button>
+            </Button>}
 
             <Button
               variant="ghost"

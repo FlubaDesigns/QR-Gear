@@ -1,3 +1,4 @@
+import { apiRequest } from '@/lib/queryClient';
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -32,15 +33,7 @@ export default function ClaimPage() {
 
   const claimMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch(`/api/claim/${claimCode}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to claim item');
-      }
+      const response = await apiRequest('POST', `/api/claim/${claimCode}`, {});
       return response.json();
     },
     onSuccess: (data) => {

@@ -789,3 +789,10 @@ Library simplicity correction: neither personal nor shared cards provide Downloa
 The owner clarified that the two shared videos were accidental. The shared starter API now returns only image GRFs for every query, including `all`; the 18 uploaded photos remain available. Existing video originals and registry references are preserved but excluded from member shared selections. Shared uploads now accept images only, with server validation and matching page labels. Personal media uploads remain separate. Both library sections retain preview-only cards without Download controls.
 
 Validation: TypeScript and production builds, manifest and source ZIP verification, then live release markers and shared background counts. Member post-creation review remains a separate read-only follow-up.
+
+
+## QR Dynamics and individual purchased copies — October 10, 2026
+
+The existing QR Dynamics resolver now binds hosted member builds and purchased copies to canonical QRG identities. Members manage only their own sequences. Each purchased physical copy receives its own O identity, QR URL, registered graphics and Assembly; fulfillment retries reuse that identity. Member share checkout now joins the frozen-order/provider path, and guest claims preserve the already-printed item identity. Basic/Plus retain direct QR payload semantics.
+
+Admin → Schema Keys has a dedicated QR Dynamics section. See `docs/QR_DYNAMICS_SPEC.md`, `FIREBASE_SCHEMA.md` and `docs/QR_DYNAMICS_AUDIT.md`. The audit identifies all 22 approved products and verifies their original and regenerated QR images. No paid order or physical print was performed during validation.

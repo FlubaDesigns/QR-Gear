@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 11, 2026
+Last updated: October 10, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -411,6 +411,24 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### October 10, 2026 — QR Dynamics and individual copies
+
+Admin Schema Keys now has its own QR Dynamics section covering QRG identity, owner access, content slots, print copies, claims and hosting. Members share the engine without access to Admin inputs. Each physical purchase has a distinct O number and QR URL; claiming retains that same number. Catalog and member checkouts use frozen server production data. The 22-item audit passed record links and both original/regenerated QR decoding; no paid provider order was placed.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `client/src/pages/admin-schema-keys.tsx` | Dedicated QR Dynamics reference section |
+| `functions/src/services/qr-dynamics.ts` | Ownership, content validation and resolver binding |
+| `functions/src/services/dynamics-order.ts` | Individual purchased identities and print files |
+| `functions/src/services/qr-artwork.ts` | Decode and replace the actual printed QR |
+| `functions/src/services/member-build.ts` | Bind member hosted builds before rendering |
+| `functions/src/services/order-service.ts` | Frozen member checkout and shared verified-payment handoff |
+| `client/src/features/members/MemberDynamics.tsx` | Owner sequence controls |
+| `docs/QR_DYNAMICS_AUDIT.md` | Exact 22-item audit |
+
+
 
 ### October 10, 2026 — Shared files are for use in QR Gear
 

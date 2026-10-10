@@ -2,7 +2,7 @@ import { memberBuildProjection } from '../services/member-build';
 import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
-  import { freezePacketPricing, createCanonicalOrder, writePayoutAttribution } from '../services/order-service';
+  import { freezePacketPricing, createCanonicalOrder, writePayoutAttribution, prepareMemberOrder, finalizeMemberPayment } from '../services/order-service';
 import { sendActivationEmail } from '../services/email';
 import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import Stripe from 'stripe';
@@ -29,7 +29,8 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     }
 
     const size = selectedShirtSize || packet.selectedShirtSize || 'M';
-    const { totalPrice: serverTotal } = await freezePacketPricing({ packet, selectedSize: size });
+    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId);
+    const serverTotal = prepared.amount / 100;
 
     const stripeKey = process.env.STRIPE_SECRET_KEY;
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
@@ -81,6 +82,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
       cancel_url: `${packetBaseUrl}/p/${packetId}`,
       metadata: {
         packetId,
+        orderId: prepared.orderId,
         selectedShirtSize: size,
         referrerId: referrerId || '',
         source: 'packet_share',
@@ -103,7 +105,8 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
       console.log(`[PacketCheckout] Connect transfer: ${entityShareCents}¢ → ${connectAccountId}`);
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `checkout-${prepared.orderId}` });
+    await db.collection('orders').doc(prepared.orderId).update({ stripeSessionId: session.id });
 
     console.log(`[PacketCheckout] Created session ${session.id} for packet ${packetId}, total: $${serverTotal}`);
     res.json({ url: session.url, sessionId: session.id, total: serverTotal });
@@ -124,6 +127,9 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
     if (session.payment_status !== 'paid') {
       res.status(400).json({ error: "Payment not completed", status: session.payment_status }); return;
     }
+
+    if (session.metadata?.source !== 'packet_share') { res.status(400).json({ error: 'This is not a member checkout.' }); return; }
+    if (session.metadata?.orderId) { res.json(await finalizeMemberPayment(session)); return; }
 
     const packetId = session.metadata?.packetId;
     const referrerId = session.metadata?.referrerId;

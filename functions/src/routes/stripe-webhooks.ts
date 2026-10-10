@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
-  import { finalizeCartPayment, confirmEmbedOrderPayout } from '../services/order-service';
+  import { finalizeCartPayment, confirmEmbedOrderPayout, finalizeMemberPayment } from '../services/order-service';
 import Stripe from 'stripe';
 import { sendOrderConfirmation } from '../services/email';
 import { fulfillOrder } from '../services/order-fulfillment';
@@ -47,8 +47,11 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         console.log(`Checkout session completed: ${session.id}, source=${source || 'direct_cart'}`);
         
         if (session.payment_status !== 'paid') break;
-        // Member packet orders retain their existing verification flow; separate from admin catalog checkout.
-        if (source === 'packet_share') break;
+        // Both callbacks resolve the same frozen order; a closed browser cannot strand a paid item.
+        if (source === 'packet_share') {
+          if (session.metadata?.orderId) await finalizeMemberPayment(session);
+          break;
+        }
         if (source === 'external_embed') {
           try {
             await confirmEmbedOrderPayout(session.id);

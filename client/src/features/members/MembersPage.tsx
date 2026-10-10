@@ -1,3 +1,4 @@
+import { MemberDynamics } from './MemberDynamics';
 import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { useMemberRuntimeState } from './useMemberRuntimeState';
 import { useLocation } from "wouter";
@@ -42,84 +43,6 @@ interface EarningsSummary {
   pending: number;
   paid: number;
   profitShare: number;
-}
-
-function CollectionsView({ memberId }: { memberId: string }) {
-  const { data: dynamicsItems, isLoading, isError } = useQuery<any[]>({
-    queryKey: ['/api/members', memberId, 'dynamics'],
-    queryFn: async () => {
-      if (!memberId) return [];
-      const data = await memberFetch<any>(`/${memberId}/published-items?types=qr-compose`);
-      return data.items || [];
-    },
-    enabled: !!memberId,
-    retry: 1,
-  });
-
-  const itemList = dynamicsItems || [];
-
-  return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle className="text-white flex items-center gap-2">
-          <QrCode className="w-5 h-5" />
-          QR Dynamics
-        </CardTitle>
-        <Badge variant="outline" className="text-slate-400 border-slate-600">
-          Built with QR Compose
-        </Badge>
-      </CardHeader>
-      <CardContent className="row">
-        {isLoading ? (
-          <div className="flex justify-center py-12">
-            <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
-          </div>
-        ) : isError ? (
-          <div className="text-center py-12 text-slate-400">
-            <AlertCircle className="w-10 h-10 mx-auto mb-3 text-red-400/70 opacity-70" />
-            <p className="mb-1">Couldn't load your QR Dynamics.</p>
-            <p className="text-sm text-slate-500">Check your connection and try refreshing the page.</p>
-          </div>
-        ) : itemList.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <QrCode className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <p className="mb-2">No QR Dynamics yet</p>
-            <p className="text-sm">Use QR Compose in any wizard to stitch your Canvas and Play items into a rotating QR experience</p>
-          </div>
-        ) : (
-          <div className="layout__split-2">
-            {itemList.map((item: any) => (
-              <div 
-                key={item.id} 
-                className="p-4 bg-slate-700/50 rounded-lg border border-slate-600 hover:border-blue-500 transition-colors cursor-pointer"
-                data-testid={`dynamics-item-${item.id}`}
-              >
-                <div className="flex items-start gap-3">
-                  {item.itemImage && (
-                    <img src={item.itemImage} alt={item.title} className="w-16 h-16 rounded-md object-cover flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-medium truncate">{item.title || 'Untitled'}</h3>
-                    <p className="text-sm text-slate-400">
-                      {item.composeItems?.length || 0} items · {item.composeMode || 'auto-rotate'}
-                    </p>
-                    {item.composeInstanceId && (
-                      <p className="text-xs text-blue-400 mt-1 truncate">
-                        Instance: {item.composeInstanceId}
-                      </p>
-                    )}
-                  </div>
-                  <Badge variant="outline" className="text-green-400 border-green-400 flex-shrink-0">
-                    Live
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
 }
 
 function EarningsView({ memberId }: { memberId: string }) {
@@ -577,7 +500,7 @@ function MembersController() {
         )}
 
         {viewMode === 'collections' && (
-          <CollectionsView memberId={user?.id || ''} />
+          <MemberDynamics memberId={user?.id || ''} />
         )}
 
         {viewMode === 'earnings' && (

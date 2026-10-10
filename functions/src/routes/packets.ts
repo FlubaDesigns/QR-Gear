@@ -47,7 +47,7 @@ app.get('/packets', requireAdmin, async (req: Request, res: Response): Promise<v
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/packets/:packetId', async (req: Request, res: Response): Promise<void> => {
+app.get('/packets/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('productPackets').doc(req.params.packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
@@ -65,10 +65,10 @@ app.get('/public/landing/:slug', async (req: Request, res: Response): Promise<vo
     if (snap.empty) { res.status(404).json({ error: "Landing page not found" }); return; }
     const doc = snap.docs[0];
     const d = doc.data() as any;
+    if (d.status !== 'published') { res.status(404).json({ error: 'Landing page is not published' }); return; }
     res.json({ success: true, landingPage: { packetId: doc.id, title: d.landingPageTitle || d.productName || 'QR Product', description: d.landingPageDescription || d.productDescription || '', backgroundUrl: d.landingPageBackgroundUrl || d.compositeUrl || null, compositeUrl: d.compositeUrl || null, qrOnlyUrl: d.qrOnlyUrl || null, qrContent: d.qrContent || null, productName: d.productName || null, productImageUrl: d.productImageUrl || null, headerStyle: d.headerStyle || null, footerStyle: d.footerStyle || null, pricing: d.pricing || null, createdAt: d.createdAt?.toDate?.() || null, landingPageSnapshotUrl: d.landingPageSnapshotUrl || d.compositeUrl || null, qrProductState: d.qrProductState || d.mode || 'qr_canvas', playMediaUrl: d.playMediaUrl || d.videoUrl || null, playMediaType: d.playMediaType || d.mediaType || null, landingPageTitle: d.landingPageTitle || d.productName || null, landingPageDescription: d.landingPageDescription || null, landingPageBackgroundUrl: d.landingPageBackgroundUrl || null } });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 
   }
-  

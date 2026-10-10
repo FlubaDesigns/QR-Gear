@@ -8,20 +8,25 @@ import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { detectPrintMethod } from '../../../shared/placements';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
-import { getCatalogInstancePrice } from './pricing';
+import { getCatalogInstancePrice, getSizeUpcharges } from './pricing';
+import { dynamicsPrintSource, prepareDynamicsOrderItems } from './dynamics-order';
+import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 
 /** Freeze server-owned catalog data, never cart-supplied prices or provider IDs. */
 export async function resolveSaleItem(cart: any) {
   const c = cart.customization || {};
-  const instanceId = c.instanceId || c.linkId || c.productId;
+  const memberPacketId = c.memberPacketId;
+  const instanceId = memberPacketId || c.instanceId || c.linkId || c.productId;
   if (typeof instanceId !== 'string' || !instanceId || instanceId.includes('/')) throw new Error('The cart item needs a saved catalog product.');
   if (!Number.isSafeInteger(cart.quantity) || cart.quantity <= 0) throw new Error('Choose a positive whole-number quantity.');
-  const instance = (await db.collection('admin_catalog_instances').doc(instanceId).get()).data();
+  const instance = (await db.collection(memberPacketId ? 'member_packets' : 'admin_catalog_instances').doc(instanceId).get()).data();
   if (!instance || instance.isVisible === false || instance.isActive === false || ['archived', 'deleted'].includes(instance.status)) throw new Error('This catalog product is unavailable.');
-  const packetId = instance.currentPacketId;
+  if (memberPacketId && instance.status !== 'published') throw new Error('This member product is not published.');
+  const packetId = memberPacketId ? instance.productionPacketId : instance.currentPacketId;
   if (!packetId) throw new Error('Product has no saved production packet.');
   const packet = (await db.collection('productPackets').doc(packetId).get()).data();
   if (!packet) throw new Error('Production packet is missing.');
+  if (memberPacketId && (packet.status !== 'published' || packet.memberId !== instance.memberId || packet.memberPacketId !== memberPacketId)) throw new Error('Member production ownership does not match.');
   await validatePacketComposition(db, packetId, packet);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   if (!snapshot.layoutConfig.selectedPlacements.includes('label_inside')) throw new Error('Restore the required inside brand label in Admin Pricing before selling this product.');
@@ -34,7 +39,7 @@ export async function resolveSaleItem(cart: any) {
   if (!master || master.isActive === false) throw new Error('Product blank is unavailable.');
   const size = c.productSize, color = c.productColor;
   if (typeof size !== 'string' || !size || typeof color !== 'string' || !color) throw new Error('Choose a size and color.');
-  const { key: variantKey, mapping } = selectCatalogSaleVariant(instance, master, provider, size, color);
+  const { key: variantKey, mapping } = selectCatalogSaleVariant(memberPacketId ? { enabledColors: [packet.selectedColor], enabledSizes: [size] } : instance, master, provider, size, color);
   const files: PrintfulOrderFile[] = [];
   for (const placement of snapshot.layoutConfig.selectedPlacements) {
     const layout = snapshot.layoutConfig.providerLayouts?.[placement];
@@ -50,12 +55,16 @@ export async function resolveSaleItem(cart: any) {
     files.push({ type: spec.providerPlacementId, url, position: { area_width: target.widthPx, area_height: target.heightPx, width: target.widthPx, height: target.heightPx, top: 0, left: 0 } });
   }
   if (!files.length) throw new Error('Product has no production artwork.');
-  const price = await getCatalogInstancePrice(instanceId, size);
+  const price = memberPacketId ? Number(packet.pricing?.customerPrice) + ((await getSizeUpcharges())[size] ?? 0) : await getCatalogInstancePrice(instanceId, size);
   if (price === null || !Number.isFinite(price) || price <= 0) throw new Error('Product has no saved sale price.');
   const unitAmount = Math.round(price * 100);
   const productTitle = instance.resolved?.title || packet.adminCatalogTitle || packet.title;
   if (!productTitle) throw new Error('Product needs a saved title.');
+  const dynamics = packet.composeInstanceId ? (await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(packet.composeInstanceId).get()).data() : null;
+  if (snapshot.qrConfig.qrProductState === 'qr_compose' && (!dynamics || dynamics.status !== 'active')) throw new Error('The QR Compose sequence is unavailable.');
   return { cartItemId: cart.id, productId: instanceId, packetId, masterId, assemblyId: packet.assemblyId,
+    qrExperience: { version: 1, sourceHash: dynamicsPrintSource(packet), composeMode: dynamics?.composeMode || 'auto-rotate', slots: dynamics?.slots || [] },
+    productCost: Number(packet.pricing?.subtotal || 0), creatorMemberId: memberPacketId ? instance.memberId : '',
     productTitle, quantity: cart.quantity, unitAmount, price: (unitAmount / 100).toFixed(2),
     customization: { productSize: size, productColor: color, instanceId, packetId },
     fulfillment: { provider, variantKey, productId: Number(mapping.productId), variantId: Number(mapping.variantId), files } };
@@ -111,10 +120,19 @@ export async function fulfillOrder(orderId: string) {
     let remote: PrintfulOrder | null = null;
     try { remote = await printfulClient.getOrder(`@${orderId}`); }
     catch (error) { if (!(error instanceof PrintfulApiError) || error.status !== 404) throw error; }
-    if (!remote) remote = await printfulClient.createOrder({ external_id: orderId,
+    if (!remote) {
+      const individualItems = await prepareDynamicsOrderItems(orderId, order.userId, async () => {
+        await db.runTransaction(async tx => {
+          const current = (await tx.get(ref)).data();
+          if (current?.fulfillmentLease !== token) throw new Error('Fulfillment lease changed; retry this order.');
+          tx.update(ref, { fulfillmentLeaseUntil: Date.now() + 120000 });
+        });
+      });
+      remote = await printfulClient.createOrder({ external_id: orderId,
       recipient: { name: address.name, address1: address.address1, address2: address.address2 || '', city: address.city,
         state_code: address.region || '', country_code: address.country, zip: address.zip, email: order.customerEmail || '', phone: address.phone || '' },
-      items: items.map(item => ({ variant_id: item.fulfillment.variantId, quantity: item.quantity, files: item.fulfillment.files })) });
+      items: individualItems });
+    }
     if (remote.external_id !== orderId) throw new Error('Printful returned an order with a different external ID.');
     await ref.update({ providerOrderId: String(remote.id), routedProvider: 'printful', providerStatus: remote.status });
     if (remote.status === 'draft') remote = await printfulClient.confirmOrder(String(remote.id));

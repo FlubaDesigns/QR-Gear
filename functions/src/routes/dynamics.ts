@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { ownedDynamicsInstance, updateDynamicsSlots, resolveDynamicsInstance } from '../services/qr-dynamics';
   import express from 'express';
   import Stripe from 'stripe';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -260,7 +261,7 @@ app.get('/admin/stores/:storeId/channels/:channelId/collections/:collectionName/
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/dynamics/packets', async (req: Request, res: Response): Promise<void> => {
+app.get('/dynamics/packets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const storeId = req.query.storeId as string;
     const channelId = req.query.channelId as string;
@@ -273,97 +274,54 @@ app.get('/dynamics/packets', async (req: Request, res: Response): Promise<void> 
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/dynamics/instances', async (req: Request, res: Response): Promise<void> => {
+// Creation is part of the canonical build/sale commit so an instance cannot be orphaned.
+app.get('/dynamics/instances', requireAuth, async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'private, no-store');
   try {
-    const { orderId, collectionId, slots, fallbackUrl } = req.body;
-    if (!slots || !Array.isArray(slots) || slots.length === 0) { res.status(400).json({ error: "slots array is required" }); return; }
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const instanceData = { orderId: orderId || null, collectionId: collectionId || null, createdAt: nowEpoch, startTimestamp: nowEpoch, mode: 'loop', fallbackUrl: fallbackUrl || null, slots: slots.map((slot: any, index: number) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })) };
-    const docRef = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
-    res.json({ success: true, instanceId: docRef.id, resolverUrl: `/qr/d/${docRef.id}` });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const docs = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).where('ownerId', '==', (req as any).user.uid).get();
+    const instances = docs.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter((item: any) => item.status === 'active');
+    res.json({ success: true, instances });
+  } catch (error: any) { console.error('[QR Dynamics] List failed:', error.message); res.status(500).json({ error: error.message }); }
 });
 
-app.get('/dynamics/instances/:instanceId', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { instanceId } = req.params;
-    const doc = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
-    res.json({ success: true, instance: { id: doc.id, ...doc.data() } });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+app.post('/dynamics/instances', requireAuth, (_req: Request, res: Response) => {
+  res.status(409).json({ error: 'Create the QR experience through the item builder so its ownership and QRG identity are connected.' });
 });
 
-app.get('/dynamics/instances/:instanceId/preview', async (req: Request, res: Response): Promise<void> => {
+app.get('/dynamics/instances/:instanceId', requireAuth, async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'private, no-store');
   try {
-    const { instanceId } = req.params;
-    const doc = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
-    const instance = doc.data() as any;
-    const slots = instance.slots || [];
-    if (slots.length === 0) { res.json({ success: true, activeSlot: null, message: "No slots configured" }); return; }
-    const sortedSlots = [...slots].sort((a: any, b: any) => a.order - b.order);
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const elapsed = nowEpoch - instance.startTimestamp;
-    let cycleLength = 0;
-    for (const slot of sortedSlots) cycleLength += slot.durationSeconds;
-    if (cycleLength <= 0) { res.status(500).json({ error: "Invalid cycle length" }); return; }
-    const position = elapsed % cycleLength;
-    let running = 0; let activeSlot = null; let activeIndex = 0;
-    for (let i = 0; i < sortedSlots.length; i++) { running += sortedSlots[i].durationSeconds; if (position < running) { activeSlot = sortedSlots[i]; activeIndex = i; break; } }
-    let packetDetails = null;
-    if (activeSlot) { const packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get(); if (packetDoc.exists) { const pd = packetDoc.data() as any; packetDetails = { name: pd.productName || pd.landingPageTitle || 'Untitled', thumbnailUrl: pd.landingPageSnapshotUrl, landingPageSlug: pd.landingPageSlug, qrProductType: pd.qrProductType }; } }
-    let timeRemainingSeconds = 0;
-    if (activeSlot) { const slotStart = running - activeSlot.durationSeconds; timeRemainingSeconds = activeSlot.durationSeconds - (position - slotStart); }
-    res.json({ success: true, nowEpoch, elapsed, cycleLength, position, activeIndex, totalSlots: sortedSlots.length, activeSlot: activeSlot ? { ...activeSlot, packet: packetDetails } : null, timeRemainingSeconds, nextSlotIndex: (activeIndex + 1) % sortedSlots.length });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const { instance } = await ownedDynamicsInstance((req as any).user.uid, req.params.instanceId);
+    res.json({ success: true, instance: { ...instance, id: req.params.instanceId } });
+  } catch (error: any) { console.error('[QR Dynamics] Read failed:', error.message); res.status(error.status || 500).json({ error: error.message }); }
 });
 
-app.put('/dynamics/instances/:instanceId/slots', async (req: Request, res: Response): Promise<void> => {
+app.get('/dynamics/instances/:instanceId/preview', requireAuth, async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'private, no-store');
   try {
-    const { instanceId } = req.params;
-    const { slots } = req.body;
-    if (!slots || !Array.isArray(slots)) { res.status(400).json({ error: "slots array is required" }); return; }
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).update({ slots: slots.map((slot: any, index: number) => ({ slotId: slot.slotId || `slot-${Date.now()}-${index}`, packetId: slot.packetId, durationSeconds: slot.durationSeconds || 86400, order: slot.order ?? index + 1 })), startTimestamp: nowEpoch });
-    res.json({ success: true, instanceId, newStartTimestamp: nowEpoch });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    await ownedDynamicsInstance((req as any).user.uid, req.params.instanceId);
+    const { result, targets, instance } = await resolveDynamicsInstance(req.params.instanceId);
+    res.json({ success: true, ...result, composeMode: instance.composeMode, destinationUrl: targets[result.activeIndex] });
+  } catch (error: any) { console.error('[QR Dynamics] Preview failed:', error.message); res.status(error.status || 500).json({ error: error.message }); }
 });
 
-app.get('/qr/d/:instanceId', async (req: Request, res: Response): Promise<void> => {
+app.put('/dynamics/instances/:instanceId/slots', requireAuth, async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'private, no-store');
   try {
-    const { instanceId } = req.params;
-    const doc = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId).get();
-    if (!doc.exists) { res.status(404).send("QR Dynamics instance not found"); return; }
-    const instance = doc.data() as any;
-    const slots = instance.slots || [];
-    if (slots.length === 0) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("No content configured"); return; }
-    const sortedSlots = [...slots].sort((a: any, b: any) => a.order - b.order);
+    res.json(await updateDynamicsSlots((req as any).user.uid, req.params.instanceId, req.body.slots, req.body.composeMode));
+  } catch (error: any) { console.error('[QR Dynamics] Update failed:', error.message); res.status(error.status || 500).json({ error: error.message }); }
+});
+
+app.get('/qr/d/:instanceId', async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const { instance, result, targets } = await resolveDynamicsInstance(req.params.instanceId);
     if (instance.composeMode === 'scan-to-reveal') {
-      const slotPacketIds = sortedSlots.map((s: any) => s.packetId);
-      const packetSlugs: string[] = [];
-      for (const pid of slotPacketIds) { let pDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(pid).get(); if (!pDoc.exists) pDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(pid).get(); const pData = pDoc.exists ? pDoc.data() : null; packetSlugs.push((pData as any)?.landingPageSlug || ''); }
-      const validSlugs = packetSlugs.filter(s => s !== '');
-      if (validSlugs.length === 0) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("No content configured"); return; }
-      const slugsJson = JSON.stringify(validSlugs);
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Loading...</title></head><body><script>(function(){var k='qr_str_'+${JSON.stringify(instanceId)};var slugs=${slugsJson};var idx=parseInt(localStorage.getItem(k)||'0',10);if(isNaN(idx)||idx<0)idx=0;var current=idx%slugs.length;localStorage.setItem(k,String(idx+1));window.location.replace('/p/'+slugs[current]);})();</script><noscript><p>JavaScript is required.</p></noscript></body></html>`;
-      res.status(200).type('html').send(html); return;
-    }
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const elapsed = nowEpoch - instance.startTimestamp;
-    let cycleLength = 0;
-    for (const slot of sortedSlots) cycleLength += slot.durationSeconds;
-    if (cycleLength <= 0) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(500).send("Invalid config"); return; }
-    const position = elapsed % cycleLength;
-    let running = 0; let activeSlot = null;
-    for (const slot of sortedSlots) { running += slot.durationSeconds; if (position < running) { activeSlot = slot; break; } }
-    if (!activeSlot) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(500).send("Unable to resolve slot"); return; }
-    let packetDoc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
-    if (!packetDoc.exists) packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(activeSlot.packetId).get();
-    if (!packetDoc.exists) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("Content not available"); return; }
-    const packetData = packetDoc.data() as any;
-    if (!packetData.landingPageSlug) { if (instance.fallbackUrl) { res.redirect(302, instance.fallbackUrl); return; } res.status(404).send("Landing page not configured"); return; }
-    res.redirect(302, `/p/${packetData.landingPageSlug}`);
-  } catch (error: any) { res.status(500).send("QR Dynamics error"); }
+      const urls = JSON.stringify(targets).replace(/</g, '\\u003c');
+      const key = JSON.stringify(`qr_str_${req.params.instanceId}`).replace(/</g, '\\u003c');
+      res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR Gear</title></head><body><p id="message">Opening your QR experience…</p><script>(function(){var urls=${urls};var key=${key};try{var i=Number(localStorage.getItem(key)||0);if(!Number.isSafeInteger(i)||i<0)i=0;localStorage.setItem(key,String((i+1)%urls.length));location.replace(urls[i%urls.length]);}catch(e){document.getElementById('message').textContent='Allow browser storage to use scan to reveal.';}})();</script><noscript>Enable JavaScript to use scan to reveal.</noscript></body></html>`);
+    } else res.redirect(302, targets[result.activeIndex]);
+  } catch (error: any) { console.error('[QR Dynamics] Scan failed:', error.message); res.status(error.status || 500).type('text').send(error.message); }
 });
 
 // ============ TEMP PACKETS & PUBLIC WIZARD (Batch 5) ============
@@ -488,4 +446,3 @@ app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response
 
 
   }
-  

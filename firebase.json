@@ -16,6 +16,10 @@
     ],
     "rewrites": [
       {
+        "source": "/qr/d/**",
+        "function": "api"
+      },
+      {
         "source": "/api/**",
         "function": "api"
       },

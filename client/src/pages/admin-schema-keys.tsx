@@ -679,6 +679,25 @@ export default function AdminSchemaKeys() {
           </div>
         </Section>
 
+        <div id="qr-dynamics">
+          <Section title="QR Dynamics — Individual Item Experiences" subtitle="One physical copy, one permanent QRG identity, one stable QR URL.">
+            <p className="text-sm text-muted-foreground">A design can be reused. Each purchased shirt, cup or hat gets its own server-allocated O-context number. Members use the shared engine with access limited to their own items and published content.</p>
+            <KeyTable cols={["Reference", "Rule"]} rows={[
+              ["QRG", "Allocated atomically by the existing server counter. I identifies the catalog source; M identifies the member build; every purchased copy gets a distinct O identity."],
+              ["QR URL", "/qr/d/{instanceId} uses an opaque ID. The QRG number is never placed in the URL."],
+              ["qr_dynamics_instances", "Binds ownerId, qrgBaseCode, packetId, orderId, orderItemId and unitIndex. Repeated fulfillment attempts reuse the saved item IDs."],
+              ["Content", "Slots reference published productPackets. Canvas/Play supply content; Compose selects a sequence. Basic/Plus preserve their direct QR payloads."],
+              ["Playback", "Automatic rotation uses the shared epoch resolver. Scan to reveal advances once per browser visit using browser storage."],
+              ["Ownership", "Authenticated owners may edit their own sequence. Purchased content is retained as an explicit entitlement. Other members’ uploads and Admin inputs are unavailable."],
+              ["Print output", "Quantity N produces N individual files and provider lines. Each hosted QR is decoded before and after replacement. Required inside labels remain included."],
+              ["Assembly", "Reuse the existing BLD structure; register new QR/composite GRFs; bind the resulting files through Assembly. No second identity or layout system."],
+              ["Claim", "A guest claim attaches the account to the existing purchased item, preserving its number and printed QR URL."],
+              ["Hosting", "Use the saved 1-, 3- or 5-year term. Expired hosting returns an explicit unavailable response."],
+            ]} />
+            <p className="text-sm text-muted-foreground">October 10 audit: all 22 USA 250 catalog sources have distinct QRG identities and valid Packet → Assembly → BLD/GRF links. All 22 original QR payloads and 22 individually regenerated copies decoded successfully. This is an artwork and record audit; a paid provider order was not placed during verification.</p>
+          </Section>
+        </div>
+
         {/* ── Blank key formats ─────────────────────────────────────────────── */}
         <Section
           title="Blank Key Formats"
