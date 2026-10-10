@@ -61,7 +61,7 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
     }
   }, [memberId, queryClient]);
 
-  const { data: status, isLoading: statusLoading, refetch: refetchStatus } = useQuery<ConnectStatus>({
+  const { data: status, isLoading: statusLoading, error: statusError, refetch: refetchStatus } = useQuery<ConnectStatus>({
     queryKey: ['/api/connect/status', memberId],
     queryFn: async () => {
       const headers = await getAuthHeaders();
@@ -73,11 +73,10 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
     staleTime: 30_000,
   });
 
-  const { data: earnings } = useQuery<EarningsSummary>({
+  const { data: earningsData, isLoading: earningsLoading, error: earningsError } = useQuery<{ summary: EarningsSummary }>({
     queryKey: ['/api/members', memberId, 'earnings'],
     queryFn: async () => {
-      if (!memberId) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
-      return memberFetch<EarningsSummary>(`/${memberId}/earnings`).catch(() => ({ total: 0, pending: 0, paid: 0, profitShare: 25 }));
+      return memberFetch<{ summary: EarningsSummary }>(`/${memberId}/earnings`);
     },
     enabled: !!memberId,
   });
@@ -133,7 +132,9 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
     );
   }
 
-  const profitPercent = status?.profitSharePercent ? Math.round(status.profitSharePercent * 100) : 25;
+  if (statusError) return <div role="alert" className="space-y-3 text-red-300"><p>Could not load your payout status.</p><Button onClick={() => refetchStatus()}>Try Again</Button></div>;
+  const earnings = earningsData?.summary;
+  const profitPercent = Math.round((status?.profitSharePercent ?? 0) * 100);
 
   return (
     <div className="space-y-6">
@@ -291,18 +292,19 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
             Earnings Summary
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+        <CardContent className="row">
+          {earningsError && <p role="alert" className="text-red-300">Could not load your earnings. Refresh to try again.</p>}
+          <div className="layout__split-3">
             <div className="text-center">
-              <p className="text-2xl font-bold text-white">${(earnings?.total || 0).toFixed(2)}</p>
+              <p className="text-2xl font-bold text-white">{earningsLoading ? '…' : earningsError ? '—' : `$${(earnings?.total ?? 0).toFixed(2)}`}</p>
               <p className="text-slate-400 text-xs mt-1">Total Earned</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-amber-400">${(earnings?.pending || 0).toFixed(2)}</p>
+              <p className="text-2xl font-bold text-amber-400">{earningsLoading ? '…' : earningsError ? '—' : `$${(earnings?.pending ?? 0).toFixed(2)}`}</p>
               <p className="text-slate-400 text-xs mt-1">Pending</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-emerald-400">${(earnings?.paid || 0).toFixed(2)}</p>
+              <p className="text-2xl font-bold text-emerald-400">{earningsLoading ? '…' : earningsError ? '—' : `$${(earnings?.paid ?? 0).toFixed(2)}`}</p>
               <p className="text-slate-400 text-xs mt-1">Paid Out</p>
             </div>
           </div>

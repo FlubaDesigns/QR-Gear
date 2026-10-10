@@ -736,3 +736,5 @@ The Members workspace now uses PageSkeleton, Master rows and responsive split he
 Validation before release: root TypeScript and production build passed. Authenticated Main walkthroughs of all three experiences are the release acceptance step; no payment or supplier order is authorized by that check. QR Compose's previously documented shared-sequence limitation remains open.
 
 Super Simple records tutorial completion when the shared build actually returns a published packet. The old completion handler was behind a Next button hidden on confirmation screens, so returning creators repeatedly saw the first-time guide. Progress read/write failures are now visible.
+
+Payouts consumes the same earnings summary envelope as the dashboard. A failed Connect status read now shows a retry instead of incorrectly reporting an unconnected bank account. No bank connection, payment or payout was performed during this repair.

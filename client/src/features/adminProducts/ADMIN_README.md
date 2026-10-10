@@ -412,6 +412,11 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Payout summary read consistency
+
+`members/PayoutsView.tsx` now reads the same earnings summary response as the dashboard and distinguishes request failures from zero earnings or an unconnected account. Its summary uses the shared row/split helper. No financial transaction or bank-account mutation is part of this change.
+
+
 ### October 11, 2026 — Super Simple completion
 
 Tutorial completion follows the successful saved packet instead of an unreachable confirmation-screen Next action. Returning creators skip the teaching cards after their first successful publish, and progress failures display a message.
