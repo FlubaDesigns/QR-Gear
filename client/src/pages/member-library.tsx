@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { memberFetch } from '@/lib/memberFetch';
+import { adminFetch } from '@/lib/adminFetch';
+import { GRF_IMAGE_ACCEPT_TYPES, GRF_VIDEO_ACCEPT_TYPES, GRF_IMAGE_MAX_MB, GRF_VIDEO_MAX_MB } from '@shared/GRF_engine';
 import SEO from '@/components/SEO';
 
 interface LibraryAsset {
@@ -51,9 +53,11 @@ function AssetCard({ asset }: { asset: LibraryAsset }) {
 }
 
 export default function MemberLibrary() {
-  const { firebaseUser } = useAuth();
+  const { firebaseUser, isAdmin } = useAuth();
   const memberId = firebaseUser?.uid;
   const input = useRef<HTMLInputElement>(null);
+  const sharedInput = useRef<HTMLInputElement>(null);
+  const [sharedProgress, setSharedProgress] = useState('');
   const client = useQueryClient();
   const { toast } = useToast();
   const personal = useQuery({
@@ -62,9 +66,34 @@ export default function MemberLibrary() {
     enabled: !!memberId,
   });
   const shared = useQuery({
-    queryKey: ['/api/members/common-library', 'background'],
-    queryFn: () => memberFetch<{ assets: LibraryAsset[] }>('/common-library?assetType=background'),
+    queryKey: ['/api/members/common-library', 'all'],
+    queryFn: () => memberFetch<{ assets: LibraryAsset[] }>('/common-library?assetType=all'),
     enabled: !!memberId,
+  });
+  const sharedUpload = useMutation({
+    mutationFn: async (files: File[]) => {
+      let saved = 0;
+      const failures: string[] = [];
+      for (const [index, file] of Array.from(files.entries())) {
+        setSharedProgress(`Uploading ${index + 1} of ${files.length}: ${file.name}`);
+        try {
+          const maxMB = file.type.startsWith('video/') ? GRF_VIDEO_MAX_MB : GRF_IMAGE_MAX_MB;
+          if (file.size > maxMB * 1024 * 1024) throw new Error(`Choose a file of ${maxMB} MB or smaller.`);
+          const imageData = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result));
+            reader.onerror = () => reject(new Error('Could not read the file.'));
+            reader.readAsDataURL(file);
+          });
+          await adminFetch('/common-library/upload', { method: 'POST', json: { imageData, mimeType: file.type, originalFilename: file.name } });
+          saved++;
+        } catch (error) { failures.push(`${file.name}: ${(error as Error).message}`); }
+      }
+      setSharedProgress(`${saved} of ${files.length} files saved to the shared library.${failures.length ? ` Failed: ${failures.join('; ')}` : ''}`);
+      await client.invalidateQueries({ queryKey: ['/api/members/common-library'] });
+      if (failures.length) throw new Error(`${failures.length} files could not be added. See the upload details.`);
+    },
+    onError: error => toast({ title: 'Some shared uploads failed', description: error.message, variant: 'destructive' }),
   });
   const upload = useMutation({
     mutationFn: async (file: File) => {
@@ -87,11 +116,11 @@ export default function MemberLibrary() {
     onError: error => toast({ title: 'Upload failed', description: error.message, variant: 'destructive' }),
   });
   return <div className="row w-full min-w-0" data-testid="member-library">
-    <SEO title="My Library | QR Gear" description="Your private uploads and shared starter backgrounds." />
+    <SEO title="My Library | QR Gear" description="Your private uploads and shared starter images and videos." />
     <div className="row">
       <Link href="/members"><Button variant="ghost" className="min-h-12"><ArrowLeft className="mr-2 h-4 w-4" />Back to dashboard</Button></Link>
       <h1 className="text-2xl font-bold">My Library</h1>
-      <p className="text-muted-foreground">Upload your own files or download a shared background to get started. You choose what goes into your products.</p>
+      <p className="text-muted-foreground">Upload your own files or download a shared image or video to get started. You choose what goes into your products.</p>
     </div>
     <div className="layout__split-2">
       <Card className="min-w-0">
@@ -110,11 +139,21 @@ export default function MemberLibrary() {
         </CardContent>
       </Card>
       <Card className="min-w-0">
-        <CardHeader><CardTitle>Shared starter backgrounds</CardTitle><p className="text-sm text-muted-foreground">Backgrounds added by QR Gear for every member to use as a starting point. These do not populate your store automatically.</p></CardHeader>
+        <CardHeader><CardTitle>Shared starter library</CardTitle><p className="text-sm text-muted-foreground">Images and videos specifically shared by QR Gear for every member to use. You choose which ones to use in your products.</p></CardHeader>
         <CardContent className="row">
-          {shared.isPending ? <p role="status">Loading shared backgrounds…</p> : shared.error ? <div role="alert" className="row"><p>Could not load the starter backgrounds.</p><Button variant="outline" onClick={() => void shared.refetch()}>Retry backgrounds</Button></div>
-            : shared.data?.assets.length ? <div className="layout__auto">{shared.data.assets.map(asset => <AssetCard key={asset.id} asset={asset} />)}</div>
-              : <p className="text-muted-foreground">No starter backgrounds have been added yet.</p>}
+          {isAdmin && <div className="row">
+            <input ref={sharedInput} type="file" multiple accept={`${GRF_IMAGE_ACCEPT_TYPES},${GRF_VIDEO_ACCEPT_TYPES}`} className="hidden" aria-label="Add files to the shared starter library" onChange={event => {
+              const files = Array.from(event.target.files || []); if (files.length) sharedUpload.mutate(files); event.target.value = '';
+            }} />
+            <Button variant="outline" className="min-h-12" disabled={sharedUpload.isPending} onClick={() => sharedInput.current?.click()}>
+              {sharedUpload.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Add shared images or videos
+            </Button>
+            <p className="text-sm text-muted-foreground">Admin: files added here are available to every member.</p>
+            {sharedProgress && <p role={sharedUpload.isError ? 'alert' : 'status'} className="text-sm break-words">{sharedProgress}</p>}
+          </div>}
+          {shared.isPending ? <p role="status">Loading shared files…</p> : shared.error ? <div role="alert" className="row"><p>Could not load the shared starter library.</p><Button variant="outline" onClick={() => void shared.refetch()}>Retry shared files</Button></div>
+            : shared.data?.assets.length ? <><p className="text-sm text-muted-foreground">{shared.data.assets.filter(asset => asset.mediaType === 'image').length} images · {shared.data.assets.filter(asset => asset.mediaType === 'video').length} videos</p><div className="layout__auto">{shared.data.assets.map(asset => <AssetCard key={asset.id} asset={asset} />)}</div></>
+              : <p className="text-muted-foreground">No shared starter files have been added yet.</p>}
         </CardContent>
       </Card>
     </div>

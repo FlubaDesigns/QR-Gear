@@ -1,6 +1,9 @@
 import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { memberBuildProjection } from '../services/member-build';
-import { LIBRARY_ASSET_CLASS, LIBRARY_MEDIA_TYPE, LIBRARY_CHANNEL, PURPOSE_ORIGINAL, PURPOSE_CROPPED, PURPOSE_BACKGROUND } from '../../../shared/GRF_engine';
+import { LIBRARY_CHANNEL, PURPOSE_ORIGINAL, originalGrfParams, videoGrfParams } from '../../../shared/GRF_engine';
+import { registerGrfAsset } from '../services/grf-registrar';
+import { decodeLibraryImage, LibraryImageError } from '../services/image-validation';
+import { decodeVideoUpload, VideoUploadError } from '../services/video-validation';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -406,30 +409,56 @@ app.post('/public/generate-mockup', async (req: Request, res: Response): Promise
 app.get('/members/common-library', async (req: Request, res: Response): Promise<void> => {
   try {
     const assetType = (req.query.assetType as string) || 'background';
-    let commonQuery: any = db.collection('commonLibrary').where('isActive', '==', true);
-    if (assetType) commonQuery = commonQuery.where('assetType', '==', assetType);
-    let adminQuery: any = db.collection('libraryAssets').where('ownerType', '==', 'admin');
-    const [commonSnapshot, adminSnapshot, sourceSnapshot] = await Promise.all([
-      commonQuery.orderBy('createdAt', 'desc').get(),
-      adminQuery.get(),
-      db.collection('grf_assets').where('channel', '==', LIBRARY_CHANNEL).get(),
-    ]);
-    const mapAsset = (doc: any) => { const d = doc.data(); return { id: doc.id, name: d.name, assetType: d.assetType, mediaType: d.mediaType || 'image', thumbnailUrl: d.thumbnailUrl || d.publicUrl || d.storageUrl, publicUrl: d.publicUrl || d.storageUrl, width: d.width, height: d.height, category: d.category, createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt || '' }; };
-    const commonAssets = commonSnapshot.docs.map(mapAsset);
-    const adminAssets = adminSnapshot.docs.filter((doc: any) => doc.data().isActive !== false).map(mapAsset).filter((a: any) => a.assetType === assetType);
-    // Admin Source uploads/crops are the canonical shared starter collection.
-    // Member uploads are in memberLibrary and are never queried here.
-    const sourceAssets = assetType === 'background' ? sourceSnapshot.docs.filter((doc: any) => {
-      const d = doc.data();
-      return d.isActive !== false && d.assetClass === LIBRARY_ASSET_CLASS && d.mediaType === LIBRARY_MEDIA_TYPE
-        && [PURPOSE_ORIGINAL, PURPOSE_CROPPED, PURPOSE_BACKGROUND].includes(d.purpose)
-        && d.createdBy === 'admin' && !d.packetId && !!d.publicUrl;
-    }).map((doc: any) => ({ ...mapAsset(doc), assetType: 'background', mediaType: 'image', isCropped: doc.data().purpose === PURPOSE_CROPPED })) : [];
-    const seenIds = new Set<string>();
-    const assets = [...sourceAssets, ...commonAssets, ...adminAssets].filter((a: any) => { const key = a.publicUrl || a.id; if (seenIds.has(key)) return false; seenIds.add(key); return true; }).sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)));
-    console.log(`[CF Common Library] Found ${assets.length} ${assetType} assets (${commonAssets.length} common + ${adminAssets.length} admin)`);
+    // This collection is an explicit sharing list, not a query of all admin assets.
+    // GRF remains the sole owner of file identity, metadata and storage location.
+    const commonSnapshot = await db.collection('commonLibrary').where('isActive', '==', true).get();
+    const assets = (await Promise.all(commonSnapshot.docs.map(async entry => {
+      const shared = entry.data();
+      if (typeof shared.grfId !== 'string' || shared.grfId.includes('/')) throw new Error('Shared library entry has no valid GRF reference.');
+      const source = await db.collection('grf_assets').doc(shared.grfId).get();
+      const d = source.data();
+      if (!d) throw new Error('A shared library file is missing.');
+      if (d.isActive === false) return null;
+      if (!d.publicUrl || d.registrationState === 'pending') throw new Error('A shared library file is not ready.');
+      const mediaType = d.mediaTypeName;
+      const type = mediaType === 'video' ? 'video' : 'background';
+      if (assetType !== 'all' && assetType !== type) return null;
+      return { id: entry.id, grfId: d.grfId, name: d.name, assetType: type, mediaType,
+        publicUrl: d.publicUrl, thumbnailUrl: mediaType === 'image' ? d.publicUrl : undefined,
+        width: d.width, height: d.height,
+        createdAt: shared.createdAt?.toDate?.()?.toISOString() || shared.createdAt || '' };
+    }))).filter((asset): asset is NonNullable<typeof asset> => asset !== null)
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    console.log(`[CF Common Library] Found ${assets.length} explicitly shared ${assetType} assets`);
     res.json({ assets });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) {
+    console.error('[CF Common Library] Read failed:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/admin/common-library/upload', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { imageData, mimeType, originalFilename } = req.body;
+    if (typeof imageData !== 'string' || typeof mimeType !== 'string' || typeof originalFilename !== 'string' || !originalFilename.trim()) {
+      res.status(400).json({ error: 'File data, type and original filename are required.' }); return;
+    }
+    const video = mimeType.startsWith('video/');
+    const decoded = video ? decodeVideoUpload(imageData, mimeType) : decodeLibraryImage(imageData, mimeType);
+    const params = video ? { ...videoGrfParams(decoded.mimeType), channel: LIBRARY_CHANNEL, purpose: PURPOSE_ORIGINAL } : originalGrfParams(decoded.mimeType);
+    const filename = originalFilename.split(/[\\/]/).pop()!;
+    const asset = await registerGrfAsset({ ...params, ...decoded, originalFilename: filename, name: filename });
+    const ref = db.collection('commonLibrary').doc(asset.grfId);
+    await db.runTransaction(async tx => {
+      const existing = await tx.get(ref);
+      tx.set(ref, { grfId: asset.grfId, isActive: true, sharedBy: (req as any).user.uid,
+        createdAt: existing.data()?.createdAt || new Date().toISOString() }, { merge: true });
+    });
+    res.json({ success: true, grfId: asset.grfId });
+  } catch (error: any) {
+    console.error('[CF Common Library] Upload failed:', error.message);
+    res.status(error instanceof LibraryImageError || error instanceof VideoUploadError ? error.status : 500).json({ error: error.message });
+  }
 });
 
 app.get('/members/:memberId/library', async (req: Request, res: Response): Promise<void> => {
