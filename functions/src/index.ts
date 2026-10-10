@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261011-main-member-catalog-binding';
+const _BUILD_ID = '20261011-main-member-fresh-reads';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
@@ -73,6 +73,7 @@ app.use(apiPrefixMiddleware);
 app.use(sandboxCommerceMiddleware);
 // Enforce authorization for every admin endpoint, including future route registrations.
 app.use('/admin', requireAdmin);
+app.use(['/members', '/member'], (_req, res, next) => { res.set('Cache-Control', 'private, no-store'); next(); });
 
 registerWidget(app);
 registerPartner(app);

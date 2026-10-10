@@ -69,7 +69,7 @@ export async function memberFetch<T = unknown>(
   const body: BodyInit | null | undefined =
     json !== undefined ? JSON.stringify(json) : rest.body;
 
-  const res = await fetch(url, { ...rest, headers, body });
+  const res = await fetch(url, { ...rest, cache: "no-store", headers, body });
 
   if (!res.ok) {
     let detail = "";

@@ -723,3 +723,5 @@ Acceptance for this batch: select a verified Printful blank in Members, publish 
 Scope: the member product creation/listing path. QR Compose sequence publishing remains unavailable until its content sequence is connected to the shared build; legacy member products are not silently migrated. This batch does not claim payout, paid member fulfillment or every Members tab verified.
 
 Live catalog alignment: the member picker is populated from the assigned tier catalog while the older `member-products` allowlist is explicitly empty. Build preparation, QRG options and mockup resolution now consume that same assigned tier catalog, falling back to the allowed-products list only when the picker has no tier catalog. This avoids showing a selectable blank and then rejecting it as unassigned.
+
+Member read freshness: authenticated member fetches explicitly bypass the browser cache, and member routes emit private/no-store responses. A cached retired 410 product-list response and a stale empty channel response must not survive a source release or a successful member write.
