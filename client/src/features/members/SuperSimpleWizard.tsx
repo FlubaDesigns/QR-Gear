@@ -102,6 +102,7 @@ export function SuperSimpleWizard() {
 
   const tutorial = useSuperSimpleTutorial({
     userId: user?.id,
+    publishedPacketId,
     simpleStep,
     selectedChannel,
     selectedProductType,

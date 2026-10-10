@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import type { QRType, SimpleWizardStep } from "@/features/shared/components/wizardSteps/wizardTypes";
@@ -11,6 +12,7 @@ import { calculateSizeEarningsBonuses } from "@/features/shared/components/wizar
 
 interface TutorialDeps {
   userId: string | undefined;
+  publishedPacketId: string | null;
   simpleStep: SimpleWizardStep;
   selectedChannel: { id: string; name: string } | null;
   selectedProductType: { title?: string; memberEarnings?: number } | null;
@@ -24,11 +26,12 @@ interface TutorialDeps {
 
 export function useSuperSimpleTutorial(deps: TutorialDeps) {
   const {
-    userId, simpleStep, selectedChannel, selectedProductType,
+    userId, publishedPacketId, simpleStep, selectedChannel, selectedProductType,
     selectedColor, selectedShirtSize, qrType, pricingSettings,
     handleSimpleNext, setQrType,
   } = deps;
 
+  const { toast } = useToast();
   const [blackboardQueue, setBlackboardQueue] = useState<string[]>(['bb-welcome', 'bb-channels']);
   const [qrTypeExploreStep, setQrTypeExploreStep] = useState<string>('bb-qr-basic');
   const [showQrTypeCards, setShowQrTypeCards] = useState(false);
@@ -51,7 +54,9 @@ export function useSuperSimpleTutorial(deps: TutorialDeps) {
         if (snap.exists() && snap.data()?.tutorial_complete === true) {
           setTutorialAlreadyDone(true);
         }
-      } catch { }
+      } catch {
+        toast({ title: "Tutorial progress unavailable", description: "The guide will remain available while your saved progress cannot be read.", variant: "destructive" });
+      }
       setCheckingTutorial(false);
     };
     check();
@@ -86,19 +91,15 @@ export function useSuperSimpleTutorial(deps: TutorialDeps) {
     }
   }, [simpleStep]);
 
-  const completeTutorial = async () => {
-    try {
-      if (userId) {
-        await setDoc(
-          doc(db, "member_profiles", userId),
-          { tutorial_complete: true, tutorial_completed_at: new Date().toISOString() },
-          { merge: true }
-        );
-      }
-    } catch (e) {
-      console.error('Failed to save tutorial completion:', e);
-    }
-  };
+  // Completion follows a saved product; confirmation screens intentionally have no Next button.
+  useEffect(() => {
+    if (!userId || !publishedPacketId || tutorialAlreadyDone) return;
+    setDoc(doc(db, "member_profiles", userId), {
+      tutorial_complete: true, tutorial_completed_at: new Date().toISOString(),
+    }, { merge: true }).then(() => setTutorialAlreadyDone(true)).catch(() => {
+      toast({ title: "Product saved", description: "Tutorial progress could not be saved. The guide may appear again.", variant: "destructive" });
+    });
+  }, [userId, publishedPacketId, tutorialAlreadyDone]);
 
   const handleBlackboardContinue = () => {
     if (blackboardQueue.length <= 1) {
@@ -125,13 +126,6 @@ export function useSuperSimpleTutorial(deps: TutorialDeps) {
   };
 
   const handleSuperNext = async () => {
-    if (FINAL_CONFIRM_STEPS.includes(simpleStep) && !seenSteps.has(`finish-${simpleStep}`)) {
-      setSeenSteps(prev => new Set(prev).add(`finish-${simpleStep}`));
-      await completeTutorial();
-      setShowFinishBlackboard(true);
-      return;
-    }
-
     const postCards = POST_STEP_BLACKBOARDS[simpleStep];
     if (postCards && !seenSteps.has(`post-${simpleStep}`)) {
       setBlackboardQueue([...postCards]);

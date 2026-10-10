@@ -412,6 +412,17 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Super Simple completion
+
+Tutorial completion follows the successful saved packet instead of an unreachable confirmation-screen Next action. Returning creators skip the teaching cards after their first successful publish, and progress failures display a message.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `members/useSuperSimpleTutorial.ts` | Persist completion after publish and expose progress errors |
+| `members/SuperSimpleWizard.tsx` | Pass the saved packet identity to tutorial progress |
+
+
 ### October 11, 2026 — Shared member dashboard and fresh builds
 
 The dashboard, channels, and published count read the same member packet projection. New builds clear all draft state through a shared session boundary. Authentication no longer opens the first-product wizard while the returning member profile loads. Members uses the master page skeleton and row/split helpers. Earnings reads the API summary envelope; request failures are visible. All three builder experiences retain their distinct controls over the existing shared QRG/BLD/GRF/Assembly publication path.

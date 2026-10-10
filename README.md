@@ -734,3 +734,5 @@ Dashboard totals, channel items, and publish progress now use the same authentic
 The Members workspace now uses PageSkeleton, Master rows and responsive split helpers. Progress bars retain labels without step counts; a QR badge appears only after a type is selected. Channels offer a direct saved-product link. Earnings reads use the server summary envelope, and member requests reject non-JSON responses instead of treating them as empty data.
 
 Validation before release: root TypeScript and production build passed. Authenticated Main walkthroughs of all three experiences are the release acceptance step; no payment or supplier order is authorized by that check. QR Compose's previously documented shared-sequence limitation remains open.
+
+Super Simple records tutorial completion when the shared build actually returns a published packet. The old completion handler was behind a Next button hidden on confirmation screens, so returning creators repeatedly saw the first-time guide. Progress read/write failures are now visible.
