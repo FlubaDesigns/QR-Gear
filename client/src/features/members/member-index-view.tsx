@@ -287,7 +287,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
           </div>
           <div>
             <p className="font-semibold text-white text-sm">My Library</p>
-            <p className="text-slate-400 text-xs">View and personalize items added to your library by the QR Gear team</p>
+            <p className="text-slate-400 text-xs">Your private uploads and shared starter backgrounds</p>
           </div>
         </div>
         <ArrowRight className="w-5 h-5 text-indigo-400 shrink-0" />

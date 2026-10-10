@@ -412,6 +412,27 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 10, 2026 — Private member uploads and shared starter backgrounds
+
+My Library now contains private member uploads plus shared starter backgrounds, with upload/download controls and the canonical responsive skeleton/row helpers. Admin Source GRF originals/crops/backgrounds supply the shared collection; personal memberLibrary records never enter it. Removed the production admin product-push route and obsolete assigned-product library registration without deleting records or products.
+
+Both member file proxies check ownership and prevent shared caching. A read-only file session established during sign-in preserves native previews and downloads; mutation authentication is unchanged. Storage rules close the public member-media path, and the release workflow deploys those rules. Publishing verifies that selected private files belong to the member and exports only those selected files for the public product.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/member-library.tsx` | Private uploads and shared starter assets with upload/download. |
+| `client/src/features/members/member-index-view.tsx` | Correct library description. |
+| `client/src/hooks/useAuth.ts`, `client/src/lib/firebase.ts`, `client/src/lib/firebase.test.ts`, `client/src/components/ProtectedRoute.tsx` | Native file session, refresh/sign-out, visible retry and existing test fixture. |
+| `functions/src/middleware.ts`, `functions/src/routes/auth.ts` | Owner-only file authentication and safe filename routing. |
+| `functions/src/routes/member-files.ts`, `functions/src/routes/am-sync.ts` | Private image/video reads. |
+| `functions/src/routes/members-library.ts` | Shared GRF sources and owner-scoped personal listing. |
+| `functions/src/services/member-build.ts` | Publish selected copies while retaining private originals. |
+| `functions/src/routes/admin-catalog-instances.ts`, `functions/src/index.ts` | Remove product assignments and register privacy guard/build marker. |
+| `storage.rules` | Owner-only member storage. |
+| `README.md`, `MANIFEST.json`, source ZIP | Document and package changes. |
+
+
 ### October 11, 2026 — Payout summary read consistency
 
 `members/PayoutsView.tsx` now reads the same earnings summary response as the dashboard and distinguishes request failures from zero earnings or an unconnected account. Its summary uses the shared row/split helper. No financial transaction or bank-account mutation is part of this change.

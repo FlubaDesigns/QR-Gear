@@ -761,3 +761,14 @@ arrange cards/options into responsive rows; Social Hub has a split upper row
 and a full-width calendar below. Wizard navigation margins match its content
 padding, and close buttons sit on the left. Product, schema, pricing, auth,
 and publication behavior are unchanged.
+
+
+## Member uploads and shared starter assets — October 10, 2026
+
+My Library now presents members' own private uploads separately from the shared starting collection. Members upload/download their own images or videos, download shared backgrounds, and populate their own stores. The shared background endpoint includes active canonical admin Source originals/crops/backgrounds from GRF as well as existing shared assets; it never queries personal uploads. The obsolete admin push-to-member route and assigned-product library registration are removed. Existing records and member products are retained.
+
+Both personal file proxies require the matching Firebase identity before looking up storage. Private responses use no-store, and Storage rules exclude member files from the public library rule. Encoded path segments cannot escape through public filename proxies. Native image/video/canvas/download requests use an HttpOnly, Secure, SameSite=Strict __session cookie established with a verified Bearer token before protected pages render; it expires with that token, refreshes with the profile check, and is cleared on sign-out. Only private file reads accept this cookie; mutations still require Bearer authentication. Firebase Hosting's documented cookie forwarding requires that name: https://firebase.google.com/docs/hosting/manage-cache#using_cookies.
+
+At a member's explicit Publish action, selected personal asset references are validated against that member and copied to product output storage. Shared inputs are reused. Personal originals stay private, while the resulting published product can show its selected background/media. The existing QRG/BLD/GRF/Assembly commit uses that publication snapshot. This is not automatic sharing of the personal library. Previously downloaded copies cannot be recalled by changing server access rules.
+
+Validation: frontend and Functions type checks/builds, existing authentication and schema checks, then live owner/anonymous/cross-member file access, shared-source loading and upload/download UI verification. Deployment remains through the existing Authorization Engine; its release step now includes Storage rules.

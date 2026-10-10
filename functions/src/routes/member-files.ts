@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
+import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS, requireMemberFileOwner } from '../middleware';
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
@@ -19,7 +19,8 @@ import { printfulClient } from '../services/printful';
 app.get('/member-files/:memberId/:filename', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, filename } = req.params;
-    const decodedFilename = decodeURIComponent(filename);
+    if (!await requireMemberFileOwner(req, res, memberId)) return;
+    const decodedFilename = filename; // Express has already decoded this segment.
     const bucket = storage.bucket();
     const snapshot = await db.collection('memberLibrary')
       .where('memberId', '==', memberId)
@@ -30,12 +31,15 @@ app.get('/member-files/:memberId/:filename', async (req: Request, res: Response)
       if (data.storageUrl) {
         let storagePath = data.storageUrl;
         if (storagePath.startsWith('gs://')) storagePath = storagePath.replace(/^gs:\/\/[^\/]+\//, '');
+        if ((!storagePath.startsWith(`members/${memberId}/`) && !storagePath.startsWith(`library/member/${memberId}/`)) || storagePath.split('/').some((part: string) => part === '..' || part === '.')) {
+          res.status(403).json({ error: 'This file is outside your personal library.' }); return;
+        }
         const file = bucket.file(storagePath);
         const [exists] = await file.exists();
         if (exists) {
           const [metadata] = await file.getMetadata();
           res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
-          res.setHeader('Cache-Control', 'public, max-age=86400');
+          res.setHeader('Cache-Control', 'private, no-store');
           const stream = file.createReadStream();
           stream.pipe(res);
           return;
@@ -56,7 +60,7 @@ app.get('/member-files/:memberId/:filename', async (req: Request, res: Response)
       if (exists) {
         const [metadata] = await file.getMetadata();
         res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
-        res.setHeader('Cache-Control', 'public, max-age=86400');
+        res.setHeader('Cache-Control', 'private, no-store');
         const stream = file.createReadStream();
         stream.pipe(res);
         return;
@@ -126,4 +130,3 @@ app.post('/members/:memberId/media', requireAuth, async (req: Request, res: Resp
 
 
   }
-  

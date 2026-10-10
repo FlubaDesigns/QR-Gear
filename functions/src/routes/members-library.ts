@@ -1,5 +1,6 @@
 import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { memberBuildProjection } from '../services/member-build';
+import { LIBRARY_ASSET_CLASS, LIBRARY_MEDIA_TYPE, LIBRARY_CHANNEL, PURPOSE_ORIGINAL, PURPOSE_CROPPED, PURPOSE_BACKGROUND } from '../../../shared/GRF_engine';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -408,15 +409,24 @@ app.get('/members/common-library', async (req: Request, res: Response): Promise<
     let commonQuery: any = db.collection('commonLibrary').where('isActive', '==', true);
     if (assetType) commonQuery = commonQuery.where('assetType', '==', assetType);
     let adminQuery: any = db.collection('libraryAssets').where('ownerType', '==', 'admin');
-    const [commonSnapshot, adminSnapshot] = await Promise.all([
+    const [commonSnapshot, adminSnapshot, sourceSnapshot] = await Promise.all([
       commonQuery.orderBy('createdAt', 'desc').get(),
       adminQuery.get(),
+      db.collection('grf_assets').where('channel', '==', LIBRARY_CHANNEL).get(),
     ]);
-    const mapAsset = (doc: any) => { const d = doc.data(); return { id: doc.id, name: d.name, assetType: d.assetType, mediaType: d.mediaType || 'image', thumbnailUrl: d.thumbnailUrl || d.publicUrl || d.storageUrl, publicUrl: d.publicUrl || d.storageUrl, width: d.width, height: d.height, category: d.category }; };
+    const mapAsset = (doc: any) => { const d = doc.data(); return { id: doc.id, name: d.name, assetType: d.assetType, mediaType: d.mediaType || 'image', thumbnailUrl: d.thumbnailUrl || d.publicUrl || d.storageUrl, publicUrl: d.publicUrl || d.storageUrl, width: d.width, height: d.height, category: d.category, createdAt: d.createdAt?.toDate?.()?.toISOString() || d.createdAt || '' }; };
     const commonAssets = commonSnapshot.docs.map(mapAsset);
-    const adminAssets = adminSnapshot.docs.map(mapAsset).filter((a: any) => a.assetType === assetType);
+    const adminAssets = adminSnapshot.docs.filter((doc: any) => doc.data().isActive !== false).map(mapAsset).filter((a: any) => a.assetType === assetType);
+    // Admin Source uploads/crops are the canonical shared starter collection.
+    // Member uploads are in memberLibrary and are never queried here.
+    const sourceAssets = assetType === 'background' ? sourceSnapshot.docs.filter((doc: any) => {
+      const d = doc.data();
+      return d.isActive !== false && d.assetClass === LIBRARY_ASSET_CLASS && d.mediaType === LIBRARY_MEDIA_TYPE
+        && [PURPOSE_ORIGINAL, PURPOSE_CROPPED, PURPOSE_BACKGROUND].includes(d.purpose)
+        && d.createdBy === 'admin' && !d.packetId && !!d.publicUrl;
+    }).map((doc: any) => ({ ...mapAsset(doc), assetType: 'background', mediaType: 'image', isCropped: doc.data().purpose === PURPOSE_CROPPED })) : [];
     const seenIds = new Set<string>();
-    const assets = [...commonAssets, ...adminAssets].filter((a: any) => { if (seenIds.has(a.id)) return false; seenIds.add(a.id); return true; }).sort((a: any, b: any) => (b.createdAt || '') > (a.createdAt || '') ? 1 : -1);
+    const assets = [...sourceAssets, ...commonAssets, ...adminAssets].filter((a: any) => { const key = a.publicUrl || a.id; if (seenIds.has(key)) return false; seenIds.add(key); return true; }).sort((a: any, b: any) => String(b.createdAt).localeCompare(String(a.createdAt)));
     console.log(`[CF Common Library] Found ${assets.length} ${assetType} assets (${commonAssets.length} common + ${adminAssets.length} admin)`);
     res.json({ assets });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -428,10 +438,13 @@ app.get('/members/:memberId/library', async (req: Request, res: Response): Promi
     const auth = await verifyMemberAuthCF(req, memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const assetType = req.query.assetType as string;
-    let query: any = db.collection('memberLibrary').where('memberId', '==', memberId).where('isActive', '==', true);
-    if (assetType) query = query.where('assetType', '==', assetType);
-    const snapshot = await query.orderBy('createdAt', 'desc').get();
-    const assets = snapshot.docs.map((doc: any) => {
+    // Read only this owner, then filter/sort without a separate composite index
+    // for every optional assetType combination.
+    const snapshot = await db.collection('memberLibrary').where('memberId', '==', memberId).get();
+    const docs = snapshot.docs.filter(doc => doc.data().isActive === true && (!assetType || doc.data().assetType === assetType));
+    const time = (value: any) => value?.toMillis?.() ?? (Date.parse(value) || 0);
+    docs.sort((a, b) => time(b.data().createdAt) - time(a.data().createdAt));
+    const assets = docs.map((doc: any) => {
       const data = doc.data();
       return { id: doc.id, name: data.name, assetType: data.assetType, mediaType: data.mediaType || 'image', thumbnailUrl: data.thumbnailUrl || data.publicUrl, publicUrl: data.publicUrl, width: data.width, height: data.height, sourceAssetId: data.sourceAssetId, isCropped: data.isCropped || false, originalAssetId: data.originalAssetId };
     });

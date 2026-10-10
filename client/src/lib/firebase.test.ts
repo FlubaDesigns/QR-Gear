@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const sdk = vi.hoisted(() => ({
   auth: {}, local: { type: 'LOCAL' },
@@ -18,11 +18,13 @@ vi.mock('firebase/auth', () => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true })));
   vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'fixture');
   vi.stubEnv('VITE_FIREBASE_API_KEY', 'fixture');
   vi.stubEnv('VITE_FIREBASE_APP_ID', 'fixture');
   sdk.setPersistence.mockResolvedValue(undefined);
 });
+afterEach(() => vi.unstubAllGlobals());
 
 describe('persistent browser sign-in', () => {
   it.each([
@@ -54,6 +56,7 @@ describe('persistent browser sign-in', () => {
   it('explicit sign-out still uses Firebase to clear the persisted session', async () => {
     const { signOut } = await import('./firebase');
     await signOut();
+    expect(fetch).toHaveBeenCalledWith('/api/auth/member-file-session', expect.objectContaining({ method: 'DELETE' }));
     expect(sdk.signOut).toHaveBeenCalledWith(sdk.auth);
   });
 });

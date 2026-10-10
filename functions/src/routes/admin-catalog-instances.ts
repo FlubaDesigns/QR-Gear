@@ -7,7 +7,6 @@ import { buildPacketImageOrder } from "../../../shared/productImages";
  * Architecture:
  *   provider sync → master_catalog (canonical, read-only from here)
  *   master_catalog → admin_catalog_instances (admin-editable derived copy)
- *   admin_catalog_instances → member_library_instances (per-member derived copy)
  *   instances → productPackets / templates / graphics (attached artifacts, not the product)
  *
  * NON-NEGOTIABLE:
@@ -25,7 +24,6 @@ import { allocateQrgInstance } from '../services/qrg-instance-allocator';
 
 const ADMIN_INSTANCES  = 'admin_catalog_instances';
 const MASTER_CATALOG   = 'master_catalog';
-const MEMBER_INSTANCES = 'member_library_instances';
 const PACKETS          = 'productPackets';
 
 function toSerializable(doc: FirebaseFirestore.DocumentSnapshot): Record<string, any> {
@@ -290,72 +288,6 @@ export function register(app: express.Express): void {
         jobsQueued,
         colors: colorsToQueue.map(c => c.name),
         message: `Queued ${jobsQueued} mockup jobs for ${colorsToQueue.length} color(s). Jobs will process in the background.`,
-      });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
-  });
-
-  // ── POST /admin/catalog-instances/:id/push-to-member ────────────────────────
-  // Derive a member_library_instance from an admin instance.
-  // Admin instance is NEVER mutated here.
-  app.post('/admin/catalog-instances/:id/push-to-member', requireAdmin, async (req: any, res: any): Promise<void> => {
-    try {
-      const { id }                 = req.params;
-      const { memberId, libraryId } = req.body;
-      if (!memberId) { res.status(400).json({ error: 'memberId is required' }); return; }
-
-      const instanceDoc = await db.collection(ADMIN_INSTANCES).doc(id).get();
-      if (!instanceDoc.exists) { res.status(404).json({ error: 'Admin instance not found' }); return; }
-
-      const instance   = instanceDoc.data() as any;
-      const now        = admin.firestore.FieldValue.serverTimestamp();
-      const baseSnapshot = { ...instance.resolved };
-      const overrides    = {};
-      const resolved     = resolveInstance(baseSnapshot, overrides);
-
-      // ── Allocate QRG identity (context = 'M' for Member instance) ────────────
-      const adminQrgBlankId: string | null = instance.qrgBlankId || null;
-      if (!adminQrgBlankId || !/^[1-6][1-9][0-9]{3}$/.test(adminQrgBlankId)) {
-        res.status(400).json({ error: `Admin instance ${id} has no valid qrgBlankId — cannot create member instance without QRG identity` });
-        return;
-      }
-
-      const memberQrgIdentity = await allocateQrgInstance({ qrgBlankId: adminQrgBlankId, context: 'M' });
-
-      const memberData = {
-        instanceType:          'member' as const,
-        sourceMasterId:        instance.sourceMasterId,
-        sourceAdminInstanceId: id,
-        ownerMemberId:         memberId,
-        libraryId:             libraryId ?? null,
-        baseSnapshot,
-        overrides,
-        resolved,
-        // QRG identity — canonical schema: QRG-[STNNN]-[C]-[NNNNNN]
-        qrgBlankId:            memberQrgIdentity.qrgBlankId,
-        qrgContext:            memberQrgIdentity.qrgContext,
-        instanceNumber:        memberQrgIdentity.instanceNumber,
-        qrgBaseCode:           memberQrgIdentity.qrgBaseCode,
-        variantCode:           memberQrgIdentity.variantCode,
-        qrgFullCode:           memberQrgIdentity.qrgFullCode,
-        currentPacketId:       null,
-        currentTemplateId:     null,
-        currentGraphicSetId:   null,
-        status:                'draft' as const,
-        version:               1,
-        createdAt:             now,
-        updatedAt:             now,
-        createdBy:             req.user?.uid ?? 'system',
-        updatedBy:             req.user?.uid ?? 'system',
-      };
-
-      const memberRef = await db.collection(MEMBER_INSTANCES).add(memberData);
-      console.log(`[AdminInstances] Pushed ${id} → member instance ${memberRef.id} (${memberQrgIdentity.qrgBaseCode}) for ${memberId}`);
-      res.json({
-        success:          true,
-        memberInstanceId: memberRef.id,
-        adminInstanceId:  id,
-        sourceMasterId:   instance.sourceMasterId,
-        qrgBaseCode:      memberQrgIdentity.qrgBaseCode,
       });
     } catch (e: any) { res.status(500).json({ error: e.message }); }
   });

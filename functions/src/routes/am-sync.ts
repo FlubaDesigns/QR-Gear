@@ -6,7 +6,7 @@ import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
 import { PLATFORM_STORE_ID } from '../constants';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
+import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS, requireMemberFileOwner } from '../middleware';
 import { printfulClient, updatePrintfulKeyCache } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
@@ -255,7 +255,8 @@ app.delete('/admin/template-categories/:id', requireAdmin, async (req: Request, 
 app.get('/library-files/member/:userId/:mediaType/:filename', async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId, mediaType, filename } = req.params;
-    const decodedFilename = decodeURIComponent(filename);
+    if (!await requireMemberFileOwner(req, res, userId)) return;
+    const decodedFilename = filename; // Express has already decoded this segment.
     const storagePath = `library/member/${userId}/${mediaType}/${decodedFilename}`;
     const bucket = storage.bucket();
     const file = bucket.file(storagePath);
@@ -263,7 +264,7 @@ app.get('/library-files/member/:userId/:mediaType/:filename', async (req: Reques
     if (!exists) { res.status(404).json({ error: "File not found" }); return; }
     const [metadata] = await file.getMetadata();
     res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('Cache-Control', 'private, no-store');
     const stream = file.createReadStream();
     stream.pipe(res);
   } catch (error: any) { res.status(500).json({ error: error.message }); }

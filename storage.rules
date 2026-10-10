@@ -28,10 +28,21 @@ service firebase.storage {
       allow write: if isAdmin();
     }
 
-    // Library assets - public read, admin write
-    match /library/{allPaths=**} {
-      allow read: if true;
-      allow write: if isAdmin();
+    // Shared starter assets remain public. Never let this broad rule grant
+    // access to library/member: overlapping Storage rules are OR-ed together.
+    match /library/{scope}/{allPaths=**} {
+      allow read: if scope != 'member';
+      allow write: if scope != 'member' && isAdmin();
+    }
+
+    // Personal uploads belong only to their owner; validated uploads use the API.
+    match /library/member/{memberId}/{allPaths=**} {
+      allow read: if signedIn() && request.auth.uid == memberId;
+      allow write: if false;
+    }
+    match /members/{memberId}/{allPaths=**} {
+      allow read: if signedIn() && request.auth.uid == memberId;
+      allow write: if false;
     }
 
     // User uploads - users can only access their own folder

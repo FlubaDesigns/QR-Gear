@@ -1,10 +1,10 @@
-const _BUILD_ID = '20261011-main-member-admin-addons';
+const _BUILD_ID = '20261010-main-private-member-files';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
 import { onRequest } from 'firebase-functions/v2/https';
 import express, { Request, Response, NextFunction } from 'express';
-import { corsMiddleware, apiPrefixMiddleware, sandboxCommerceMiddleware, requireAdmin } from './middleware';
+import { corsMiddleware, apiPrefixMiddleware, sandboxCommerceMiddleware, requireAdmin, fileProxyPathGuard } from './middleware';
 
 import { register as registerWidget } from './routes/widget';
 import { register as registerPartner } from './routes/partner';
@@ -43,7 +43,6 @@ import { register as registerExternalSites } from './routes/external-sites';
 import { register as registerCoreRoutes } from './routes/core-routes';
 import { register as registerMasterCatalog } from './routes/master-catalog';
 import { register as registerAdminCatalogInstances } from './routes/admin-catalog-instances';
-import { register as registerMemberCatalogInstances } from './routes/member-catalog-instances';
 import { register as registerPrintPlacements } from './routes/print-placements';
 import { register as registerAmCrud } from './routes/am-crud';
 import { register as registerAmSync } from './routes/am-sync';
@@ -70,6 +69,7 @@ app.use(corsMiddleware);
 app.use(express.json({ limit: '50mb', verify: (req, _res, body) => { (req as any).rawBody = body; } }));
 app.use(express.urlencoded({ extended: false }));
 app.use(apiPrefixMiddleware);
+app.use(fileProxyPathGuard);
 app.use(sandboxCommerceMiddleware);
 // Enforce authorization for every admin endpoint, including future route registrations.
 app.use('/admin', requireAdmin);
@@ -112,7 +112,6 @@ registerExternalSites(app);
 registerCoreRoutes(app);
 registerMasterCatalog(app);
 registerAdminCatalogInstances(app);
-registerMemberCatalogInstances(app);
 registerPrintPlacements(app);
 registerAmCrud(app);
 registerAmSync(app);

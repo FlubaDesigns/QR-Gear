@@ -41,6 +41,10 @@ export async function signInWithGoogle() {
 }
 
 export async function signOut() {
+  const response = await fetch('/api/auth/member-file-session', {
+    method: 'DELETE', headers: { 'X-Requested-With': 'QR-Gear' }, cache: 'no-store',
+  });
+  if (!response.ok) throw new Error('Could not finish signing out of your private uploads. Please try again.');
   return firebaseSignOut(auth);
 }
 

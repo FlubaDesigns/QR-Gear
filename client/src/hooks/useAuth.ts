@@ -21,11 +21,17 @@ export function useAuth() {
     return () => unsubscribe();
   }, [queryClient]);
 
-  const { data: user, isLoading: apiLoading, isError: profileError } = useQuery<UserWithAdmin | null>({
+  const { data: user, isLoading: apiLoading, isError: profileError, error, refetch } = useQuery<UserWithAdmin | null>({
     queryKey: ["/api/auth/user", firebaseUser?.uid],
     queryFn: async ({ signal }) => {
       if (!firebaseUser) return null;
       const token = await firebaseUser.getIdToken();
+      // Establish owner-only image/video access before protected pages render.
+      // Native <img>, canvas, video and download requests cannot set Bearer headers.
+      const fileSession = await fetch('/api/auth/member-file-session', {
+        method: 'POST', signal, headers: { Authorization: `Bearer ${token}` }, cache: 'no-store',
+      });
+      if (!fileSession.ok) throw new Error('Could not enable access to your private uploads. Refresh and try again.');
       const response = await fetch('/api/auth/user', { signal, headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' });
       if (!response.ok) throw new Error('Could not verify account access.');
       const profile = await response.json();
@@ -34,6 +40,8 @@ export function useAuth() {
     enabled: !!firebaseUser,
     staleTime: 0,
     refetchOnWindowFocus: true,
+    refetchInterval: 30 * 60 * 1000,
+    refetchIntervalInBackground: true,
     retry: false,
   });
 
@@ -50,5 +58,7 @@ export function useAuth() {
     isLoading,
     isAuthenticated: !!firebaseUser,
     isAdmin,
+    error: firebaseUser ? error : null,
+    retry: refetch,
   };
 }

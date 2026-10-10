@@ -8,7 +8,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = true }: ProtectedRouteProps) {
-  const { isLoading, isAuthenticated, isAdmin } = useAuth();
+  const { isLoading, isAuthenticated, isAdmin, error, retry } = useAuth();
 
   if (isLoading) {
     return (
@@ -29,6 +29,13 @@ export function ProtectedRoute({ children, requireAdmin = true }: ProtectedRoute
       localStorage.setItem('login_return_path', returnPath);
     }
     return <Redirect to="/login" />;
+  }
+
+  if (error) {
+    return <div className="row py-8" role="alert">
+      <p>{error.message}</p>
+      <button className="min-h-12 rounded border px-4" onClick={() => void retry()}>Retry sign-in check</button>
+    </div>;
   }
 
   if (requireAdmin && !isAdmin) {

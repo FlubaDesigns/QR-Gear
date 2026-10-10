@@ -1,4 +1,5 @@
-import { db, QR_GEAR_BRANDED_TAG_URL } from '../core';
+import { db, storage, QR_GEAR_BRANDED_TAG_URL } from '../core';
+import { createHash } from 'crypto';
 import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import { memberCatalogProducts } from './catalog-tier-products';
 import { catalogSaleVariants, selectCatalogSaleVariant } from './catalog-sale-variants';
@@ -17,6 +18,51 @@ import { resolveRuntimeConfig } from '../runtime-config';
 
 function fail(message: string, status = 400): never { throw Object.assign(new Error(message), { status }); }
 const modes: Record<string, string> = { 'qr-basic': 'qr_basics', 'qr-plus': 'qr_plus', 'qr-canvas': 'qr_canvas', 'qr-play': 'qr_play', 'qr-compose': 'qr_compose' };
+
+/** A member's Publish action exposes only selected copies, never their upload folder. */
+async function publishMemberFileUrls(memberId: string, packetId: string, value: any, copies = new Map<string, string>()): Promise<any> {
+  if (Array.isArray(value)) return Promise.all(value.map(item => publishMemberFileUrls(memberId, packetId, item, copies)));
+  if (value && typeof value === 'object') {
+    const result: Record<string, any> = {};
+    for (const [key, item] of Object.entries(value)) result[key] = await publishMemberFileUrls(memberId, packetId, item, copies);
+    return result;
+  }
+  if (typeof value !== 'string' || !/^(?:https?:\/\/|\/api\/)/.test(value)) return value;
+  const path = new URL(value, resolveRuntimeConfig().origin).pathname;
+  const match = /^\/api\/member-files\/([^/]+)\/([^/]+)$/.exec(path);
+  const media = /^\/api\/library-files\/member\/([^/]+)\/([^/]+)\/([^/]+)$/.exec(path);
+  if (!match && !media) return value;
+  if (copies.has(value)) return copies.get(value);
+  const parts = (match || media)!.slice(1).map(decodeURIComponent);
+  if (parts.some(part => /[\/\\\u0000-\u001f]/.test(part) || part === '.' || part === '..')) fail('Invalid personal upload path.');
+  if (parts[0] !== memberId) fail('You can only publish your own uploads.', 403);
+  const filename = parts[parts.length - 1];
+  const bucket = storage.bucket();
+  let paths: string[];
+  if (media) paths = [`library/member/${memberId}/${parts[1]}/${filename}`];
+  else {
+    const assets = await db.collection('memberLibrary').where('memberId', '==', memberId).where('fileName', '==', filename).limit(1).get();
+    const asset = assets.docs[0]?.data();
+    if (asset?.isActive === false) fail('This personal upload is no longer available.');
+    if (asset?.storageUrl) {
+      const source = String(asset.storageUrl).replace(/^gs:\/\/[^/]+\//, '');
+      if ((!source.startsWith(`members/${memberId}/`) && !source.startsWith(`library/member/${memberId}/`)) || source.split('/').some(part => part === '..' || part === '.')) fail('This upload belongs to another member.', 403);
+      paths = [source];
+    } else paths = ['library/backgrounds', 'library/cropped', 'library/videos', 'backgrounds', 'videos', 'cropped'].map(folder => `members/${memberId}/${folder}/${filename}`);
+  }
+  for (const source of paths) {
+    const file = bucket.file(source);
+    if (!(await file.exists())[0]) continue;
+    const destination = `products/${packetId}/member-assets/${createHash('sha256').update(source).digest('hex')}/${filename}`;
+    const target = bucket.file(destination);
+    await file.copy(target);
+    await target.makePublic();
+    const url = `https://storage.googleapis.com/${bucket.name}/${destination.split('/').map(encodeURIComponent).join('/')}`;
+    copies.set(value, url);
+    return url;
+  }
+  fail('Your selected personal upload could not be found. Choose it again before publishing.', 404);
+}
 
 export async function ownedMemberBuild(memberId: string, id: string) {
   if (!id || id.includes('/')) fail('Choose a saved member build.');
@@ -114,11 +160,18 @@ export async function saveMemberArtwork(memberId: string, id: string, placement:
 }
 
 export async function commitMemberBuild(memberId: string, id: string) {
-  const { ref, packet } = await ownedMemberBuild(memberId, id);
+  const owned = await ownedMemberBuild(memberId, id);
+  const ref = owned.ref;
+  let packet = owned.packet;
   if (packet.status === 'published') return { id: packet.memberPacketId, ...await memberBuildProjection(packet.memberPacketId) };
   if (packet.status !== 'building') fail('This build is not ready to publish.');
-  const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
+  let snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   for (const placement of snapshot.layoutConfig.selectedPlacements) if (!packet.placementGraphicUrls?.[placement]) fail(`Generate the ${placement} artwork before publishing.`);
+  const selectedFiles = await publishMemberFileUrls(memberId, id, { builderSnapshot: snapshot, playMediaUrl: packet.playMediaUrl });
+  snapshot = requireBuilderSnapshot(selectedFiles.builderSnapshot);
+  const publishedFields = { ...packetBuildFields(snapshot), playMediaUrl: selectedFiles.playMediaUrl || null };
+  await ref.update(publishedFields);
+  packet = { ...packet, ...publishedFields };
   const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => p !== 'label_inside');
   const compositeUrl = packet.placementGraphicUrls[primary];
   await ref.update({ compositeUrl, productGraphicUrl: compositeUrl });

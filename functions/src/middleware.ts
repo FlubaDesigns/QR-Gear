@@ -97,6 +97,41 @@ export async function verifyMemberAuthCF(req: Request, memberId: string): Promis
   return { authorized: true, userId: user.uid };
 }
 
+// Firebase Hosting forwards only __session. This cookie is accepted solely by
+// private file GETs; all data mutations continue to require a Bearer token.
+export const MEMBER_FILE_COOKIE_OPTIONS = { httpOnly: true, secure: true, sameSite: 'strict' as const, path: '/api' };
+
+export async function requireMemberFileOwner(req: Request, res: Response, memberId: string): Promise<boolean> {
+  res.set('Cache-Control', 'private, no-store');
+  res.set('Cross-Origin-Resource-Policy', 'same-origin');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.vary('Cookie');
+  res.vary('Authorization');
+  // A supplied invalid Bearer token must never fall back to a different cookie identity.
+  let user = req.headers.authorization ? await verifyAuth(req) : null;
+  if (!req.headers.authorization) {
+    const value = req.headers.cookie?.split(';').map(part => part.trim()).find(part => part.startsWith('__session='))?.slice(10);
+    if (value) {
+      try { user = await admin.auth().verifyIdToken(decodeURIComponent(value), true); } catch { /* Invalid or expired session: deny below. */ }
+    }
+  }
+  if (!user) { res.status(401).json({ error: 'Sign in to access your personal uploads.' }); return false; }
+  if (user.uid !== memberId) { res.status(403).json({ error: 'This upload belongs to another member.' }); return false; }
+  return true;
+}
+
+// Public filename proxies must not accept encoded paths into a private folder.
+export function fileProxyPathGuard(req: Request, res: Response, next: NextFunction): void {
+  if (!/^\/(?:member-files|library-files|files|media-files)(?:\/|$)/i.test(req.path)) { next(); return; }
+  try {
+    const parts = req.path.split('/').slice(1).map(decodeURIComponent);
+    if (parts.some(part => /[\/\\\u0000-\u001f]/.test(part) || part === '..' || part === '.')) {
+      res.status(400).json({ error: 'Invalid file path.' }); return;
+    }
+  } catch { res.status(400).json({ error: 'Invalid file path.' }); return; }
+  next();
+}
+
 /** Keep product editing available while blocking live commerce entry points. */
 export function sandboxCommerceMiddleware(req: Request, res: Response, next: NextFunction): void {
   if (isSandboxRuntime() && /^(?:\/checkout(?:\/|$)|\/public\/packet-checkout(?:\/|$)|\/connect(?:\/|$)|\/webhooks(?:\/|$))/.test(req.path)) {
