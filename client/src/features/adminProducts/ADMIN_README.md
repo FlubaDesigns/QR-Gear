@@ -426,6 +426,20 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Member page breadcrumb and QRG print readiness — October 10, 2026
+
+Member-route breadcrumbs now render inside the existing PageSkeleton main content, below the site header. Other route placement is unchanged. The member tier catalog requests verified print specifications through the existing QRG resolver before projecting product options. The resolver persists the verified result on master_catalog and updates the same in-memory record; later reads reuse its matching cache. Supplier access remains inside QRG table logic. Failed imports keep the product blocked and log the affected QRG identity. Required inside labels, canonical size/color identities and shared pricing remain enforced.
+
+Validation: TypeScript and production builds, followed by the live member catalog and page checks. No payment or supplier order is part of this verification.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `client/src/App.tsx` | Place member breadcrumbs inside main content |
+| `functions/src/services/catalog-tier-products.ts` | Request missing verified print areas through QRG |
+| `functions/src/services/qrg-print-specs.ts` | Return and retain the persisted QRG specifications |
+
+
 ### October 10, 2026 — Shared QRG color picker
 
 Connected active product color controls to the existing shared component and QRG variant resolver; removed wizard fallback choices. Missing QRG references now give an explicit unavailable-options message.

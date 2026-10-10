@@ -80,7 +80,7 @@ export function projectQrgPrintfiles(product: any, data: any) {
   return locations;
 }
 
-export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles: (id: number) => Promise<any>, refresh = false) {
+export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles: (id: number) => Promise<any> = id => printfulClient.getPrintfiles(id), refresh = false) {
   const productId = qrgPrintfulProductId(product);
   if (!productId) throw new Error('QRG is missing its printer product mapping.');
   if (refresh) await refreshQrgVariants(product, productId);
@@ -89,6 +89,8 @@ export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles
   if (!refresh && cache?.productId === productId && cache?.locations?.length &&
       JSON.stringify(cache.variantIds) === JSON.stringify(variantIds)) return cache.locations;
   const locations = projectQrgPrintfiles(product, await getPrintfiles(productId));
-  await ref.update({ ...(refresh ? { qrgVariants: product.qrgVariants } : {}), 'qrgPrintSpecs.printful': { productId, variantIds, locations, checkedAt: new Date().toISOString() } });
+  const specs = { productId, variantIds, locations, checkedAt: new Date().toISOString() };
+  await ref.update({ ...(refresh ? { qrgVariants: product.qrgVariants } : {}), 'qrgPrintSpecs.printful': specs });
+  product.qrgPrintSpecs = { ...product.qrgPrintSpecs, printful: specs };
   return locations;
 }

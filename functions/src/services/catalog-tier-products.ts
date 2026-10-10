@@ -1,4 +1,5 @@
 import { memberProductOptions } from './member-product-options';
+import { resolveQrgPrintSpecs } from './qrg-print-specs';
 import { CATALOG_SECTIONS } from '../../../shared/catalogs';
 import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 import { masterCatalogProduct } from '../../../shared/masterCatalog';
@@ -31,9 +32,19 @@ export async function catalogTierProducts(db: any, section: string) {
     const doc = await db.collection('master_catalog').doc(id).get();
     const raw = doc.data();
     if (!doc.exists || raw.isActive === false || raw.status === 'archived') { unavailableBlankIds.push(id); continue; }
+    let printSpecsError: string | null = null;
+    if (providerSetting === 'printful') {
+      try {
+        await resolveQrgPrintSpecs(raw, doc.ref);
+      } catch (error: any) {
+        console.error(`[MemberCatalog] QRG print specifications unavailable for ${id}:`, error.message);
+        printSpecsError = 'Product print areas are unavailable. Please try again later.';
+      }
+    }
     const master = masterCatalogProduct(id, raw);
     const item = catalogToSelectItem(master, catalog.blankDescriptions?.[id], catalog.blankTitles?.[id], catalog.blankImages?.[id], catalog.blankColors?.[id]);
     const options = memberProductOptions(raw, item, providerSetting, pricing);
+    if (printSpecsError) options.pricingError = printSpecsError;
     const provider = options.provider;
     // Provider IDs are outbound lookup references; canonicalBlankKey is the identity.
     if (!provider) { unavailableBlankIds.push(id); continue; }

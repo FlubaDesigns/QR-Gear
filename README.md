@@ -816,3 +816,11 @@ The existing catalogSaleVariants resolver projects selectable options from maste
 
 Validation: frontend TypeScript, backend compilation and production build passed. Deployment and live UI checks are recorded in the release workflow and task report.
 
+
+
+## Member page breadcrumb and QRG print readiness — October 10, 2026
+
+Member-route breadcrumbs now render inside the existing PageSkeleton main content, below the site header. Other route placement is unchanged. The member tier catalog requests verified print specifications through the existing QRG resolver before projecting product options. The resolver persists the verified result on master_catalog and updates the same in-memory record; later reads reuse its matching cache. Supplier access remains inside QRG table logic. Failed imports keep the product blocked and log the affected QRG identity. Required inside labels, canonical size/color identities and shared pricing remain enforced.
+
+Validation: TypeScript and production builds, followed by the live member catalog and page checks. No payment or supplier order is part of this verification.
+
