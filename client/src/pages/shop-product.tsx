@@ -266,7 +266,7 @@ export default function ShopProductPage() {
         customization: {
           productId: resolved.productId,
           productName: resolved.name,
-          productImage: resolved.imageUrl || displayImage || product.imageUrl,
+          productImage: displayImage || resolved.imageUrl || product.imageUrl,
           productColor: resolved.selectedColor,
           productSize: resolved.selectedSize,
           qrType: product.qrProductType,

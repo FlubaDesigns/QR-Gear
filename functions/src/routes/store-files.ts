@@ -356,10 +356,12 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
       const d = instanceDoc.data()!;
       const images = d.resolved?.images || [];
       const image = images[0];
+      const packet = (await db.collection('productPackets').doc(item.packetId).get()).data();
+      const artworkUrl = packet?.compositeUrl || packet?.landingPageSnapshotUrl || packet?.productGraphicUrl || null;
       res.json({
         productId: linkId, linkId, price: Number(item.price),
         name: publicProductText(item.productTitle),
-        imageUrl: typeof image === 'string' ? image : image?.url || null,
+        imageUrl: artworkUrl || (typeof image === 'string' ? image : image?.url || null),
         selectedColor: item.customization.productColor,
         selectedSize: item.customization.productSize,
         quantity: item.quantity,
