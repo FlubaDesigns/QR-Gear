@@ -800,3 +800,10 @@ Admin → Schema Keys has a dedicated QR Dynamics section. See `docs/QR_DYNAMICS
 Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
 
 Purchased-copy allocation reads the blank identity from the validated Assembly/master relationship. It does not require a duplicate `qrgBlankId` field on the source packet; the approved Admin packets use that canonical relationship.
+
+## Storefront color-change crash — October 10, 2026
+
+The shared product image gallery now keys its selection and zoom state to the complete ordered media URL list. Changing shirt color resets to the new gallery's first image before rendering, including when the list shrinks or its lead image stays the same. This removes the stale-index `url` crash in Monuments and all other storefronts using this gallery. Pending mobile long-press timers are cleared when the gallery changes.
+
+Verification: reproduced the production crash on Statue of Liberty by selecting its last gallery image and changing Navy to White. Release validation includes TypeScript/build checks and repeating that interaction on the deployed storefront.
+

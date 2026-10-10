@@ -5,6 +5,12 @@ Last updated: October 10, 2026
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
 
+## Storefront color-change crash — October 10, 2026
+
+The shared product image gallery now keys its selection and zoom state to the complete ordered media URL list. Changing shirt color resets to the new gallery's first image before rendering, including when the list shrinks or its lead image stays the same. This removes the stale-index `url` crash in Monuments and all other storefronts using this gallery. Pending mobile long-press timers are cleared when the gallery changes.
+
+Verification: reproduced the production crash on Statue of Liberty by selecting its last gallery image and changing Navy to White. Release validation includes TypeScript/build checks and repeating that interaction on the deployed storefront.
+
 ## Main admin emergency repair — October 9, 2026
 
 Supplier sync history selects the newest matching provider job using an equality-only read and normalized timestamps, so it does not fail while a composite index is absent. Orchestration lists the same saved catalog instances as Store Builder; QRG supplier blanks are no longer presented as sellable products or deletable through that screen. Saved-build links and the existing Graphics/BLD/Assembly Library remain available.

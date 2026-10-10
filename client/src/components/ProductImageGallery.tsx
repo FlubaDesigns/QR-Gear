@@ -135,6 +135,13 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev, onIndexChange
 }
 
 export default function ProductImageGallery({ images, className }: ProductImageGalleryProps) {
+  // Color changes can shrink/reorder the gallery. Reset its selection and zoom
+  // before rendering the new list; an effect runs too late to protect indexing.
+  const galleryKey = JSON.stringify(images.map(image => image.url));
+  return <ProductImageGalleryView key={galleryKey} images={images} className={className} />;
+}
+
+function ProductImageGalleryView({ images, className }: ProductImageGalleryProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -145,10 +152,9 @@ export default function ProductImageGallery({ images, className }: ProductImageG
   const didLongPress = useRef(false);
   const minSwipeDistance = 50;
 
-  useEffect(() => {
-    setCurrentIndex(0);
-    setIsLightboxOpen(false);
-  }, [images[0]?.url]);
+  useEffect(() => () => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+  }, []);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
