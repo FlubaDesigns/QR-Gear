@@ -1,3 +1,5 @@
+import { catalogSaleVariants, CatalogSelectionError } from '../services/catalog-sale-variants';
+import { resolveSaleItem } from '../services/order-fulfillment';
 import { publicProductText } from '../../../shared/descriptionLayers';
 import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { buildPacketImageOrder, resolveProductImages, packetLeadColor } from "../../../shared/productImages";
@@ -141,12 +143,18 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let packetCompositeUrl: string | null = null;
       let packetQrOnlyUrl: string | null = null;
       let packetPlayMediaUrl: string | null = null;
+      let availableVariants: Array<{ color: string; size: string }> = [];
 
       if (d.currentPacketId) {
         try {
           const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
           if (pDoc.exists) {
             const pkt = pDoc.data()!;
+            const masterId = pkt.builderSnapshot?.metadata?.selectedProductDocId;
+            if (masterId) {
+              const master = (await db.collection('master_catalog').doc(masterId).get()).data();
+              if (master && master.isActive !== false) availableVariants = catalogSaleVariants(d, master, pkt.fulfillmentProvider).map(({ color, size }) => ({ color, size }));
+            }
             const extracted = extractPacketMockups(pkt);
             packetMockupsByColor = extracted.mockupsByColor;
             packetMockupImages = extracted.mockupImages;
@@ -171,7 +179,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         mockups: packetMockupImages,
       });
 
-      const bColors = toStrArr(d.enabledColors || resolved.colors || []);
+      const bColors = toStrArr(d.enabledColors || resolved.colors || []).filter(color => availableVariants.some(v => v.color === color));
       const bSizes = sortProductSizes(toStrArr(d.enabledSizes || resolved.sizes || []));
 
       res.json({
@@ -190,6 +198,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrProductType: packetQrProductType,
         price: price !== null ? Math.round(price * 100) / 100 : null,
         availableSizes: bSizes,
+        availableVariants,
         sizeUpcharges: await getSizeUpcharges(),
         availableColors: bColors,
         availablePlacements: [],
@@ -343,66 +352,18 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
     // ── Primary: admin_catalog_instances ──────────────────────────────────
     const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
     if (instanceDoc.exists) {
+      const item = await resolveSaleItem({ quantity, customization: { productId: linkId, productColor: selectedColor, productSize: selectedSize } });
       const d = instanceDoc.data()!;
-      const resolved = d.resolved || {};
-
-      let price: number | null = resolved.pricing?.customerPrice ?? null;
-      let heroImageUrl: string | null = null;
-      let printifyProductId: string | null = null;
-      let printifyVariantId: number | null = null;
-
-      if (d.currentPacketId) {
-        try {
-          const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
-          if (pDoc.exists) {
-            const pkt = pDoc.data()!;
-            heroImageUrl = pkt.compositeUrl || pkt.landingPageSnapshotUrl || pkt.productGraphicUrl || null;
-            if (price === null && pkt.pricing?.customerPrice) price = pkt.pricing.customerPrice;
-
-            if (pkt.printifyProductId) {
-              printifyProductId = pkt.printifyProductId;
-              if (pkt.printifyVariantMap && selectedColor && selectedSize) {
-                const exactKey = `${selectedColor}/${selectedSize}`;
-                const variantMap: Record<string, number> = pkt.printifyVariantMap;
-                if (variantMap[exactKey] !== undefined) {
-                  printifyVariantId = variantMap[exactKey];
-                } else {
-                  const caseInsensitiveKey = Object.keys(variantMap).find(
-                    (k) => k.toLowerCase() === exactKey.toLowerCase()
-                  );
-                  if (caseInsensitiveKey) printifyVariantId = variantMap[caseInsensitiveKey];
-                }
-              }
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (!heroImageUrl && resolved.images?.length) {
-        const img = resolved.images[0];
-        heroImageUrl = typeof img === 'string' ? img : (img?.url || null);
-      }
-
-      if (price === null || price <= 0) {
-        res.status(400).json({ error: "Price could not be determined for this product" });
-        return;
-      }
-
+      const images = d.resolved?.images || [];
+      const image = images[0];
       res.json({
-        productId: linkId,
-        linkId,
-        price: await getCatalogInstancePrice(linkId, selectedSize),
-        name: publicProductText(resolved.title || 'Untitled'),
-        imageUrl: heroImageUrl,
-        selectedColor: selectedColor || null,
-        selectedSize: selectedSize || null,
-        quantity,
-        customization: {
-          instanceId: linkId,
-          packetId: d.currentPacketId || null,
-          printifyProductId,
-          printifyVariantId,
-        },
+        productId: linkId, linkId, price: Number(item.price),
+        name: publicProductText(item.productTitle),
+        imageUrl: typeof image === 'string' ? image : image?.url || null,
+        selectedColor: item.customization.productColor,
+        selectedSize: item.customization.productSize,
+        quantity: item.quantity,
+        customization: item.customization,
       });
       return;
     }
@@ -452,7 +413,7 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
     }
 
     res.status(404).json({ error: "Product not found" });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) { res.status(e instanceof CatalogSelectionError ? 400 : 500).json({ error: e.message }); }
 });
 
 app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Promise<void> => {

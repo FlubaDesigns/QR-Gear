@@ -6,7 +6,7 @@ import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { detectPrintMethod } from '../../../shared/placements';
-import { normalizeSize } from '../../../shared/storefrontTypes';
+import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
 import { getCatalogInstancePrice } from './pricing';
 
@@ -34,15 +34,7 @@ export async function resolveSaleItem(cart: any) {
   if (!master || master.isActive === false) throw new Error('Product blank is unavailable.');
   const size = c.productSize, color = c.productColor;
   if (typeof size !== 'string' || !size || typeof color !== 'string' || !color) throw new Error('Choose a size and color.');
-  const labels = (rows: any[]) => rows.map(row => typeof row === 'string' ? row : row.name || row.label);
-  const sizes = labels(instance.enabledSizes || instance.resolved?.sizes || []);
-  const colors = labels(instance.enabledColors || instance.resolved?.colors || []);
-  if (!sizes.some((s: string) => normalizeSize(s) === normalizeSize(size)) || !colors.includes(color)) throw new Error('Selected size or color is not enabled for this product.');
-  const matches = Object.entries(master.qrgVariants || {}).filter(([, v]: any) => normalizeSize(v.sizeLabel) === normalizeSize(size) && v.colorLabel === color && v.isActive !== false && v.available !== false);
-  if (matches.length !== 1) throw new Error('Selected size/color needs one unambiguous QRG variant.');
-  const [variantKey, variant] = matches[0] as [string, any];
-  const mapping = variant.providerVariants?.[provider];
-  if (!Number.isSafeInteger(Number(mapping?.variantId)) || Number(mapping.variantId) <= 0 || !Number.isSafeInteger(Number(mapping?.productId)) || Number(mapping.productId) <= 0) throw new Error('Selected QRG variant is not mapped to Printful.');
+  const { key: variantKey, mapping } = selectCatalogSaleVariant(instance, master, provider, size, color);
   const files: PrintfulOrderFile[] = [];
   for (const placement of snapshot.layoutConfig.selectedPlacements) {
     const layout = snapshot.layoutConfig.providerLayouts?.[placement];

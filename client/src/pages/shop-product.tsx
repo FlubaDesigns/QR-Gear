@@ -1,4 +1,4 @@
-import { sortProductSizes, sizeUpcharge } from '@shared/storefrontTypes';
+import { normalizeSize, sortProductSizes, sizeUpcharge } from '@shared/storefrontTypes';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
@@ -78,6 +78,7 @@ interface StoreProduct {
   qrProductType: string;
   price: number | null;
   availableSizes: string[];
+  availableVariants?: Array<{ color: string; size: string }>;
   sizeUpcharges?: Record<string, number>;
   availableColors: string[];
   availablePlacements: string[];
@@ -125,6 +126,7 @@ export default function ShopProductPage() {
   // Inline validation error flags — set on add-to-cart attempt, cleared on selection
   const [colorError, setColorError] = useState(false);
   const [sizeError, setSizeError] = useState(false);
+  const [sizeNotice, setSizeNotice] = useState<string | null>(null);
   const colorSectionRef = useRef<HTMLDivElement>(null);
   const sizeSectionRef = useRef<HTMLDivElement>(null);
 
@@ -148,19 +150,15 @@ export default function ShopProductPage() {
     setLocalMockupsByColor(product.mockupsByColor ?? null);
 
     const colorOpt = product.options?.find(o => o.name === 'color');
-    const defaultColor =
-      colorOpt?.values.find(v => v.available && v.label.toLowerCase() === product.defaultColor?.toLowerCase())?.label ??
-      product.defaultColor ??
-      colorOpt?.values.find(v => v.available)?.label ??
-      null;
-    if (defaultColor) setSelectedColor(defaultColor);
-
-    const sizeOpt = product.options?.find(o => o.name === 'size');
-    const defaultSize =
-      sortProductSizes(sizeOpt?.values.filter(v => v.available).map(v => v.label) || [])[0] ??
-      sortProductSizes(product.availableSizes || [])[0] ??
-      null;
-    if (defaultSize) setSelectedSize(defaultSize);
+    const colors = colorOpt?.values.filter(v => v.available).map(v => v.label) || product.availableColors || [];
+    const defaultColor = colors.find(c => c.toLowerCase() === product.defaultColor?.toLowerCase()) || colors[0] || null;
+    setSelectedColor(defaultColor);
+    const sizes = product.availableVariants
+      ? product.availableVariants.filter(v => v.color === defaultColor).map(v => v.size)
+      : product.availableSizes || [];
+    setSelectedSize(sortProductSizes(sizes)[0] || null);
+    setSizeError(false);
+    setSizeNotice(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
@@ -181,6 +179,13 @@ export default function ShopProductPage() {
     const requestId = ++mockupRequestId.current;
     setSelectedColor(color);
     setColorError(false);
+    if (product?.availableVariants && selectedSize && !product.availableVariants.some(v => v.color === color && normalizeSize(v.size) === normalizeSize(selectedSize))) {
+      setSelectedSize(null);
+      setSizeError(true);
+      setSizeNotice(`${selectedSize} is not available in ${color}. Choose an available size.`);
+    } else {
+      setSizeNotice(null);
+    }
     setMockupError(null);
     setMockupFetching(false);
     if (!linkId || isMockupCached(color)) return;
@@ -231,7 +236,7 @@ export default function ShopProductPage() {
       colorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       blocked = true;
     }
-    if (needsSize && !selectedSize) {
+    if (needsSize && (!selectedSize || (product.availableVariants && !product.availableVariants.some(v => v.color === selectedColor && normalizeSize(v.size) === normalizeSize(selectedSize))))) {
       setSizeError(true);
       if (!blocked) sizeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       blocked = true;
@@ -359,7 +364,10 @@ export default function ShopProductPage() {
   const sizeOption = rawSizeOption ? { ...rawSizeOption } : null;
   if (sizeOption) {
     const labels = sortProductSizes(sizeOption.values.map(v => v.label));
-    sizeOption.values = labels.map(label => sizeOption.values.find(v => v.label === label)!);
+    sizeOption.values = labels.map(label => ({
+      ...sizeOption.values.find(v => v.label === label)!,
+      available: !!sizeOption.values.find(v => v.label === label)?.available && (!product.availableVariants || product.availableVariants.some(v => v.color === selectedColor && normalizeSize(v.size) === normalizeSize(label))),
+    }));
   }
   const selectedUpcharge = sizeUpcharge(selectedSize, product.sizeUpcharges || {});
   const selectedPrice = product.price === null ? null : Math.round((product.price + selectedUpcharge) * 100) / 100;
@@ -578,6 +586,7 @@ export default function ShopProductPage() {
               const onSizePick = (label: string) => {
                 setSelectedSize(label);
                 setSizeError(false);
+                setSizeNotice(null);
               };
               return (
                 <div ref={sizeSectionRef}>
@@ -590,6 +599,7 @@ export default function ShopProductPage() {
                       <span className="text-xs font-normal text-destructive">— please select a size</span>
                     )}
                   </label>
+                  {sizeNotice && <p role="status" className="text-sm text-muted-foreground mb-3">{sizeNotice}</p>}
                   {displayType === 'pills' && (
                     <div className={`flex flex-wrap gap-2 rounded-md p-1 -m-1 transition-colors${sizeError ? " ring-2 ring-destructive ring-offset-1" : ""}`}>
                       {sizeOption.values.map((sv) => (
@@ -685,7 +695,7 @@ export default function ShopProductPage() {
               <Button
                 className="w-full"
                 size="lg"
-                disabled={!product.price || addingToCart}
+                disabled={!product.price || addingToCart || !selectedColor || !selectedSize}
                 onClick={handleAddToCart}
                 data-testid="button-add-to-cart"
               >
@@ -703,7 +713,7 @@ export default function ShopProductPage() {
                 variant="outline"
                 className="w-full"
                 size="lg"
-                disabled={!product.price || addingToCart}
+                disabled={!product.price || addingToCart || !selectedColor || !selectedSize}
                 onClick={async () => {
                   const success = await handleAddToCart();
                   if (success) setLocation("/cart");

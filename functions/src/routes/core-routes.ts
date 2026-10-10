@@ -1,3 +1,4 @@
+import { CatalogSelectionError } from '../services/catalog-sale-variants';
 import { resolveSaleItem } from '../services/order-fulfillment';
 import { hasAdminAccess } from '../../../shared/adminAccess';
 import { registerStoreProductRoutes } from "../services/store-products";
@@ -133,7 +134,7 @@ app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void
     const doc = await docRef.get();
     res.json(docToObject(doc));
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(error instanceof CatalogSelectionError ? 400 : 500).json({ error: error.message });
   }
 });
 
