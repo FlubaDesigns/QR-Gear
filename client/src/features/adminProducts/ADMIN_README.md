@@ -1397,3 +1397,10 @@ arrange cards/options into responsive rows; Social Hub has a split upper row
 and a full-width calendar below. Wizard navigation margins match its content
 padding, and close buttons sit on the left. Product, schema, pricing, auth,
 and publication behavior are unchanged.
+
+
+## Shared starter backgrounds — October 10, 2026
+
+The owner clarified that the two shared videos were accidental. The shared starter API now returns only image GRFs for every query, including `all`; the 18 uploaded photos remain available. Existing video originals and registry references are preserved but excluded from member shared selections. Shared uploads now accept images only, with server validation and matching page labels. Personal media uploads remain separate. Both library sections retain preview-only cards without Download controls.
+
+Validation: TypeScript and production builds, manifest and source ZIP verification, then live release markers and shared background counts. Member post-creation review remains a separate read-only follow-up.

@@ -1,6 +1,6 @@
 import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { memberBuildProjection } from '../services/member-build';
-import { LIBRARY_CHANNEL, PURPOSE_ORIGINAL, originalGrfParams, videoGrfParams } from '../../../shared/GRF_engine';
+import { originalGrfParams, videoGrfParams } from '../../../shared/GRF_engine';
 import { registerGrfAsset } from '../services/grf-registrar';
 import { decodeLibraryImage, LibraryImageError } from '../services/image-validation';
 import { decodeVideoUpload, VideoUploadError } from '../services/video-validation';
@@ -421,7 +421,9 @@ app.get('/members/common-library', async (req: Request, res: Response): Promise<
       if (d.isActive === false) return null;
       if (!d.publicUrl || d.registrationState === 'pending') throw new Error('A shared library file is not ready.');
       const mediaType = d.mediaTypeName;
-      const type = mediaType === 'video' ? 'video' : 'background';
+      // Shared starters are background images only, including for assetType=all.
+      if (mediaType !== 'image') return null;
+      const type = 'background';
       if (assetType !== 'all' && assetType !== type) return null;
       return { id: entry.id, grfId: d.grfId, name: d.name, assetType: type, mediaType,
         publicUrl: d.publicUrl, thumbnailUrl: mediaType === 'image' ? d.publicUrl : undefined,
@@ -443,9 +445,11 @@ app.post('/admin/common-library/upload', requireAdmin, async (req: Request, res:
     if (typeof imageData !== 'string' || typeof mimeType !== 'string' || typeof originalFilename !== 'string' || !originalFilename.trim()) {
       res.status(400).json({ error: 'File data, type and original filename are required.' }); return;
     }
-    const video = mimeType.startsWith('video/');
-    const decoded = video ? decodeVideoUpload(imageData, mimeType) : decodeLibraryImage(imageData, mimeType);
-    const params = video ? { ...videoGrfParams(decoded.mimeType), channel: LIBRARY_CHANNEL, purpose: PURPOSE_ORIGINAL } : originalGrfParams(decoded.mimeType);
+    if (!mimeType.startsWith('image/')) {
+      res.status(400).json({ error: 'Shared backgrounds must be images.' }); return;
+    }
+    const decoded = decodeLibraryImage(imageData, mimeType);
+    const params = originalGrfParams(decoded.mimeType);
     const filename = originalFilename.split(/[\\/]/).pop()!;
     const asset = await registerGrfAsset({ ...params, ...decoded, originalFilename: filename, name: filename });
     const ref = db.collection('commonLibrary').doc(asset.grfId);
