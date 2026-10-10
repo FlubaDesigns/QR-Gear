@@ -88,7 +88,10 @@ export function calculatePacketPricing(master: any, value: any, rawSettings: unk
   const provider = requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider);
   const pm = master?.providerMappings;
   const mapping = Array.isArray(pm) ? pm.find((m: any) => m.provider === provider) : pm?.[provider];
-  const baseProductCost = mapping?.maxPrice;
+  // The saved sale price is for the base variant. Larger sizes receive the
+  // single Admin Pricing surcharge at selection/cart time, never the maximum
+  // supplier size cost here as well.
+  const baseProductCost = mapping?.minPrice;
   if (typeof baseProductCost !== 'number' || !Number.isFinite(baseProductCost) || baseProductCost < 0) {
     throw new Error(`QRG has no valid ${provider} production cost. Refresh that provider through the QRG catalog import.`);
   }
@@ -125,7 +128,7 @@ export function calculatePacketPricing(master: any, value: any, rawSettings: unk
   return { baseProductCost, placementCost, textUpcharge, centerGraphicUpcharge, hostingCost, brandLabelCost,
     brandLabelPosition, brandLabelCosts, shippingCost, subtotal, markupPercent: settings.markupPercent, markupFixed: settings.markupFixed,
     markupAmount: money(customerPrice - subtotal), customerPrice, hostingTierCode, fulfillmentProvider: provider,
-    pricingVersion: 2, sizeUpcharges: settings.sizeUpcharges };
+    pricingVersion: 3, sizeUpcharges: settings.sizeUpcharges };
 }
 
 /** New packets retain the mandatory inside brand label when QRG verifies that area.

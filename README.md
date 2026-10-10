@@ -700,3 +700,8 @@ Checkout now takes the actual provider placement and print-area coordinates from
 Release compatibility: QRG variant collections use Array.from so both the root compiler and Functions compiler accept the same canonical supplier selection.
 
 Live cart correction: memberProfitShare is creator earnings, not a purchase discount. The cart now totals the saved server-priced line items without deducting that share; checkout continues to use the shared server quote and any explicit bundle offer. Army M Black and 2XL Black add successfully in Main.
+
+
+## Actual Printful base pricing — October 9, 2026
+
+Emergency Main pricing repair: the canonical packet calculator uses the QRG provider minimum/base cost instead of the most expensive supplier size. Admin size surcharges remain in the shared pricing settings and are applied once by the product/cart resolver. The QRG pricing import now refreshes Printful costs from the existing live connection before saving its provider range, so a populated but stale lookup range cannot prevent refresh. Supplier data enters through QRG table logic; storefront and cart continue to read saved packet prices. The mandatory inside label and other saved pricing settings remain in force. Existing catalog items are repriced through Admin Pricing's preview/apply transaction; deployment alone does not change their saved prices. No automated test suite was added.

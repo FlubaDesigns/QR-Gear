@@ -1301,13 +1301,12 @@ export async function refreshQrgProviderPricing(database: any, docId: string, pr
     const pm = current?.providerMappings;
     const mapping = Array.isArray(pm) ? pm.find((m: any) => m.provider === provider) : pm?.[provider];
     if (!/^\d+$/.test(String(mapping?.productId))) throw new Error('QRG Printful mapping is invalid.');
-    const lookup = (await database.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(String(mapping.productId)).get()).data();
-    if (!validRange(lookup) && !validRange(mapping)) {
-      const detail = await printfulClient.getProduct(Number(mapping.productId));
-      const prices = (detail?.variants || []).map(v => v.price == null || v.price === '' ? NaN : Number(v.price));
-      if (!prices.length || prices.some(p => !Number.isFinite(p) || p < 0)) throw new Error('Printful did not return valid variant costs for this product.');
-      fetched = {productId:String(mapping.productId),minPrice:Math.min(...prices),maxPrice:Math.max(...prices)};
-    }
+    // This explicit build/pricing import reads fresh supplier costs into QRG.
+    // Customers and the shared calculator continue reading saved QRG/packet data.
+    const detail = await printfulClient.getProduct(Number(mapping.productId));
+    const prices = (detail?.variants || []).map(v => v.price == null || v.price === '' ? NaN : Number(v.price));
+    if (!prices.length || prices.some(p => !Number.isFinite(p) || p <= 0)) throw new Error('Printful did not return valid variant costs for this product.');
+    fetched = {productId:String(mapping.productId),minPrice:Math.min(...prices),maxPrice:Math.max(...prices)};
   }
   return database.runTransaction(async (tx: any) => {
     const ref = database.collection(MASTER_CATALOG_COLLECTION).doc(docId);
@@ -1319,11 +1318,8 @@ export async function refreshQrgProviderPricing(database: any, docId: string, pr
     let source: any;
     if (provider === 'printful') {
       if (!/^\d+$/.test(String(mapping.productId))) throw new Error('QRG Printful mapping is invalid.');
-      source = (await tx.get(database.collection(PRINTFUL_PRODUCTS_COLLECTION).doc(String(mapping.productId)))).data();
-      if (!validRange(source)) {
-        if (validRange(mapping)) source = mapping;
-        else if (fetched?.productId === String(mapping.productId)) source = fetched;
-      }
+      if (fetched?.productId !== String(mapping.productId)) throw new Error('QRG Printful mapping changed during the price import. Refresh again.');
+      source = fetched;
     } else {
       const rows = await tx.get(database.collection(PRINTIFY_PROVIDERS_COLLECTION));
       const matches = rows.docs.map((d: any) => d.data()).filter((p: any) => String(p.blueprintId) === String(mapping.blueprintId) && String(p.providerId) === String(mapping.printProviderId));
