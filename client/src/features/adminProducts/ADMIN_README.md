@@ -412,6 +412,13 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 10, 2026 — Shared files are for use in QR Gear
+
+Removed Download from shared starter cards and the native shared-video download control. Shared copy directs members to select assets in the builder. Download remains available for each member's own private uploads. No shared originals, memberships, or builder endpoints were changed. This is a UI correction, not a claim that browser-rendered media cannot be saved.
+
+Files: `client/src/pages/member-library.tsx`, READMEs, manifest and source ZIP.
+
+
 ### October 10, 2026 — Explicit shared starter collection
 
 My Library's **Shared starter library** shows only assets explicitly added there, including images and videos. Admins use **Add shared images or videos** to add files for every member. Files are validated and registered through GRF; commonLibrary holds sharing references only. Upload retries reuse GRF identities. The previous automatic inclusion of all admin Source assets is removed, preserving those originals and private member files.
