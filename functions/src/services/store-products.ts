@@ -1,4 +1,4 @@
-import { memberProductPricing } from '../../../shared/memberProductPricing';
+import { memberProductOptions } from './member-product-options';
 import { masterCatalogProduct } from '../../../shared/masterCatalog';
 import { catalogToSelectItem } from '../../../shared/adapters/catalog.adapter';
 import { CATALOG_SECTIONS } from '../../../shared/catalogs';
@@ -29,6 +29,7 @@ export async function readStoreProducts(db: any, storeId: string, section?: stri
   const masters = await db.collection('master_catalog').get();
   const projected = masters.docs.filter((d: any) => d.data().isActive !== false && d.data().status !== 'archived').map((d: any) => masterCatalogProduct(d.id, d.data()));
   const pricing = (await db.collection('testSettings').doc('pricing').get()).data() || {};
+  const providerSetting = (await db.collection('settings').doc('admin').get()).data()?.defaultFulfillmentProvider;
   const products = [];
   for (const reference of raw) {
     let id = reference.canonicalBlankKey;
@@ -46,15 +47,16 @@ export async function readStoreProducts(db: any, storeId: string, section?: stri
     const item = catalogToSelectItem(master, catalog?.blankDescriptions?.[id], catalog?.blankTitles?.[id], catalog?.blankImages?.[id], catalog?.blankColors?.[id]);
     const colors = reference.colors === undefined ? item.availableColors : item.availableColors.filter(c => reference.colors.includes(c.name));
     const sizes = reference.sizes === undefined ? item.availableSizes : item.availableSizes.filter(s => reference.sizes.includes(s));
-    const provider = master.printfulId != null ? 'printful' : 'printify';
-    const cost = item.price;
-    const { retailPrice, memberEarnings } = memberProductPricing(cost, pricing);
+    const source = masters.docs.find((d: any) => d.id === id).data();
+    const options = memberProductOptions(source, { ...item, availableColors: colors, availableSizes: sizes }, providerSetting, pricing);
+    const provider = options.provider;
+    const { cost, retailPrice, memberEarnings } = options;
     products.push({ ...item, id, canonicalBlankKey: id, qrgBlankId: master.qrgBlankId,
-      title: item.name, imageUrl: item.primaryImageUrl, baseCost: cost, cost, retailPrice,
-      memberEarnings,
+      title: item.name, imageUrl: item.primaryImageUrl, 
+      
       blueprintId: provider === 'printful' ? master.printfulId : master.blueprintId,
-      printProviderId: master.printProviderId, provider, fulfillmentProvider: provider,
-      availableColors: colors, availableSizes: sizes, colors, sizes, brand: item.manufacturer, effectiveDescription: item.description, selectedColors: reference.colors, selectedSizes: reference.sizes });
+      printProviderId: master.printProviderId, 
+      ...options, colors: options.availableColors, sizes: options.availableSizes, brand: item.manufacturer, effectiveDescription: item.description, selectedColors: reference.colors, selectedSizes: reference.sizes });
   }
   return { storeId, products, configured: saved.exists };
 }
@@ -96,3 +98,4 @@ export function registerStoreProductRoutes(app: any, prefix: string, auth: any, 
   app.get(`${prefix}/members/allowed-products`, get(() => 'member-products', true));
   app.post(`${prefix}/members/allowed-products`, auth, post(() => 'member-products'));
 }
+

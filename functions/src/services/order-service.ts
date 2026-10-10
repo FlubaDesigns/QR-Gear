@@ -1,3 +1,6 @@
+import { getSizeUpcharges } from './pricing';
+import { selectCatalogSaleVariant } from './catalog-sale-variants';
+import { validatePacketComposition } from './assembly-store';
 import { quoteCartBundle } from './product-bundles';
 import { createHash } from 'crypto';
 import type Stripe from 'stripe';
@@ -60,6 +63,19 @@ export interface PacketPricingContext {
 }
 
 export async function freezePacketPricing(ctx: PacketPricingContext): Promise<{ totalPrice: number; productCost: number; snapshot: PricingSnapshot }> {
+  if (ctx.packet.productionPacketId) {
+    const packet = ctx.packet;
+    const production = (await db.collection('productPackets').doc(packet.productionPacketId).get()).data();
+    if (!production || production.memberId !== packet.memberId) throw new Error('Member production packet is unavailable.');
+    await validatePacketComposition(db, packet.productionPacketId, production);
+    const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data();
+    selectCatalogSaleVariant({ enabledColors: [packet.selectedColor], enabledSizes: [ctx.selectedSize] }, master, packet.fulfillmentProvider, ctx.selectedSize, packet.selectedColor);
+    const upcharges = await getSizeUpcharges();
+    const base = Number(packet.pricing?.customerPrice), productCost = Number(packet.pricing?.subtotal);
+    if (!(base > 0) || !Number.isFinite(productCost)) throw new Error('Product pricing is incomplete.');
+    const totalPrice = Math.round((base + (upcharges[ctx.selectedSize] ?? 0)) * 100) / 100;
+    return { totalPrice, productCost, snapshot: freezePricingSnapshot({ salePrice: totalPrice, productCost }) };
+  }
   const pricingDoc = await db.collection('testSettings').doc('pricing').get();
   const ps = pricingDoc.exists ? pricingDoc.data() : null;
   const defaultSU: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
@@ -519,3 +535,4 @@ async function writeAffiliatePayouts(input: PayoutAttributionInput, nowISO: stri
   await db.collection(AFFILIATE_PAYOUT_LEDGER_COLLECTION).add(payoutEntry);
   console.log(`[OrderService] Affiliate ${input.affiliateUserId} payout $${payoutEntry.affiliateAmount} for order ${input.orderId}`);
 }
+

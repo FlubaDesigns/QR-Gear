@@ -132,6 +132,7 @@ export function SimpleWizardProductSteps() {
       
       {simpleStep === 'color' && (
         <ColorPickerStep
+          availableColors={selectedProductType?.availableColors || []}
           selectedColor={selectedColor}
           onSelect={setSelectedColor}
           productName={getProductFriendlyName(selectedProductType?.title)}
@@ -145,6 +146,7 @@ export function SimpleWizardProductSteps() {
         );
         return (
           <SizePickerStep
+            availableSizes={selectedProductType?.availableVariants?.filter(v => v.color === selectedColor).map(v => v.size) || []}
             selectedSize={selectedShirtSize}
             selectedColor={selectedColor}
             baseEarnings={runningEarnings}
@@ -461,3 +463,4 @@ export function SimpleWizardProductSteps() {
     </>
   );
 }
+

@@ -50,11 +50,11 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
     enabled: !!memberId
   });
 
-  const { data: products } = useQuery<MemberProduct[]>({
+  const { data: products, error: productsError } = useQuery<MemberProduct[]>({
     queryKey: ['/api/members', memberId, 'products'],
     queryFn: async () => {
       if (!memberId) return [];
-      return memberFetch<MemberProduct[]>(`/${memberId}/products`).catch(() => []);
+      return memberFetch<MemberProduct[]>(`/${memberId}/products`);
     },
     enabled: !!memberId
   });
@@ -150,6 +150,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
 
   return (
     <div className="space-y-6">
+      {productsError && <p role="alert" className="text-red-300">Could not load your products. Refresh to try again.</p>}
       <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-slate-700">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
           <CardTitle className="text-white flex items-center gap-2">
@@ -369,4 +370,5 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
     </div>
   );
 }
+
 

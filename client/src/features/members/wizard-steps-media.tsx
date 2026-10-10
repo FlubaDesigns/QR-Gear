@@ -191,6 +191,7 @@ export function WizardMediaSteps({
                   : qrApiUrl;
 
                 const mockupResult = await api.generateMockup({
+        canonicalBlankKey: selectedProductType?.canonicalBlankKey,
                   blueprintId: selectedProductType.blueprintId,
                   printProviderId: selectedProductType.printProviderId || 99,
                   colorName: selectedColor,

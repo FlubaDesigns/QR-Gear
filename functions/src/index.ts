@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261010-main-qrg-cart-variants-2';
+const _BUILD_ID = '20261011-main-member-shared-build';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
@@ -156,3 +156,4 @@ export const api = onRequest(
 // deploy-1776830756
 
 export const BUILD_TAG = "oil-change-rules-indexes-20260423";
+

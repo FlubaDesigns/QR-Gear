@@ -99,6 +99,8 @@ export interface ProductItem {
 }
 
 export interface AllowedProduct {
+  pricingError?: string | null;
+  availableVariants?: Array<{size:string;color:string}>;
   blueprintId: number;
   printProviderId?: number;
   canonicalBlankKey?: string;
@@ -503,3 +505,4 @@ export function calculateAutoTextSize(text: string, baseSize: string, areaWidth:
 
   return { lines, fontSize: Math.round(effectiveSize * 100) / 100 };
 }
+

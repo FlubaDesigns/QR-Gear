@@ -1,3 +1,4 @@
+import { publishMemberBuild } from '@/lib/memberBuild';
 import {
   generateQRCodeUrl,
   normalizeWizardProduct,
@@ -77,14 +78,14 @@ export async function executeUpdatePacket(ctx: any, updates: Record<string, any>
   }
 }
 
-export async function executeSimplePublish(ctx: any): Promise<void> {
+export async function executeSimplePublish(ctx: any): Promise<boolean> {
   if (!ctx.user?.id) {
     ctx.setShowSignInToPublish(true);
-    return;
+    return false;
   }
   if (!ctx.selectedChannel) {
     ctx.toast({ title: 'Select a channel', description: 'Go to My Channels and select or create one first.', variant: 'destructive' });
-    return;
+    return false;
   }
 
   ctx.setIsPublishing(true);
@@ -191,23 +192,15 @@ export async function executeSimplePublish(ctx: any): Promise<void> {
 
     let result: any;
 
-    if (ctx.currentPacketId) {
-      packetData.existingPacketId = ctx.currentPacketId;
-      result = await memberFetch<any>(`/${ctx.user.id}/products`, {
-        method: 'POST',
-        json: packetData,
-      });
-    } else {
-      result = await memberFetch<any>(`/${ctx.user.id}/products`, {
-        method: 'POST',
-        json: packetData,
-      });
-    }
+    packetData.existingPacketId = ctx.currentPacketId;
+    packetData.graphicLayoutMode = ctx.graphicLayoutMode;
+    result = await publishMemberBuild(ctx.user.id, packetData);
 
     const packetId = result.id || result.packetId || ctx.currentPacketId || null;
     ctx.setPublishedPacketId(packetId);
     ctx.setCurrentPacketId(packetId);
     ctx.incrementPublishCount();
+    ctx.api.invalidateMembers();
 
     if (ctx.qrType === 'qr-compose') {
       ctx.setComposeInstanceId(result.composeInstanceId || null);
@@ -264,9 +257,11 @@ export async function executeSimplePublish(ctx: any): Promise<void> {
       ctx.setUrlGraphic('');
       ctx.setProductGraphic('');
     }
+    return true;
   } catch (error) {
     console.error('Simple publish error:', error);
-    ctx.toast({ title: 'Publish failed', description: 'Failed to publish. Please try again.', variant: 'destructive' });
+    ctx.toast({ title: 'Publish failed', description: error instanceof Error ? error.message : 'Failed to publish. Please try again.', variant: 'destructive' });
+    return false;
   } finally {
     ctx.setIsPublishing(false);
   }
@@ -536,6 +531,7 @@ export async function executeGenerateProductMockup(
       console.log(`[${type}] Generating mockup with graphicSize:`, ctx.graphicSize, '→ effectiveQrSize:', effectiveQrSize, 'provider:', isPrintful ? 'printful' : 'printify');
 
       const mockupResult = await ctx.api.generateMockup({
+        canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
         blueprintId: ctx.selectedProductType.blueprintId,
         printProviderId: ctx.selectedProductType.printProviderId || 99,
         colorName: ctx.selectedColor,
@@ -578,7 +574,8 @@ export async function executeHandleProductSelect(ctx: any, product: AllowedProdu
   }
 
   if (!product.placements || product.placements.length === 0) {
-    const prov = product.fulfillmentProvider || 'printify';
+    const prov = product.fulfillmentProvider;
+    if (!prov || !product.canonicalBlankKey) throw new Error('Reload the QRG member catalog.');
     const params = new URLSearchParams({ provider: prov });
     if (prov === 'printify') {
       if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
@@ -586,7 +583,7 @@ export async function executeHandleProductSelect(ctx: any, product: AllowedProdu
     } else {
       params.set('productId', String(product.blueprintId));
     }
-    fetch(`/api/public/catalog/placements?${params}`)
+    fetch(`/api/members/product-options/${encodeURIComponent(product.canonicalBlankKey)}`)
       .then(r => r.json())
       .then(data => {
         if (data.placements && data.placements.length > 0) {
@@ -598,46 +595,9 @@ export async function executeHandleProductSelect(ctx: any, product: AllowedProdu
 }
 
 export async function executeHandlePublish(ctx: any): Promise<void> {
-  if (!ctx.user?.id || !ctx.selectedProduct || !ctx.selectedChannel) return;
-
-  ctx.setIsPublishing(true);
-  try {
-    const textLines = ctx.textLayoutChoice === 'both' ? 2 : (ctx.textLayoutChoice === 'header' || ctx.textLayoutChoice === 'footer') ? 1 : 0;
-    const textUpcharge = textLines * (ctx.pricingSettings?.textLineUpcharge || 2);
-    const extraPlacements = Math.max(0, ctx.selectedPlacements.length - 1);
-    const placementUpcharge = extraPlacements * (ctx.pricingSettings?.additionalPlacementCost || 4);
-    const baseProductPrice = (ctx.selectedProduct as any).retailPrice || ctx.pricingSettings?.baseRetailPrice || 0;
-    const calculatedBasePrice = baseProductPrice + textUpcharge + placementUpcharge;
-
-    await memberFetch(`/${ctx.user.id}/products`, {
-      method: 'POST',
-      json: {
-        printfulProductId: ctx.selectedProduct.productId,
-        variantId: ctx.selectedProduct.id,
-        qrType: ctx.qrType,
-        qrDestination: ctx.qrDestination || ctx.landingPage.url || null,
-        headerStyle: ctx.headerStyle.enabled ? ctx.headerStyle : null,
-        footerStyle: ctx.footerStyle.enabled ? ctx.footerStyle : null,
-        background: ctx.urlGraphic || null,
-        landingPage: ctx.landingPage,
-        videoUrl: ctx.videoUrl || null,
-        channelId: ctx.selectedChannel.id,
-        name: ctx.selectedProduct.name,
-        price: calculatedBasePrice,
-        textLines,
-        textUpcharge,
-        placementUpcharge,
-        memberEarnings: ctx.runningEarnings
-      },
-    });
-
-    ctx.setCompletedSteps((prev: Set<any>) => new Set([...Array.from(prev), 'publish']));
-    ctx.incrementPublishCount();
-    ctx.setViewMode('index');
-  } catch (error) {
-    console.error('Publish error:', error);
-    ctx.toast({ title: 'Publish failed', description: 'Failed to publish. Please try again.', variant: 'destructive' });
-  } finally {
-    ctx.setIsPublishing(false);
+  if (!ctx.selectedProductType) {
+    ctx.toast({ title: 'Select a QRG product', description: 'Choose a product from the member catalog before publishing.', variant: 'destructive' });
+    return;
   }
+  await executeSimplePublish(ctx);
 }

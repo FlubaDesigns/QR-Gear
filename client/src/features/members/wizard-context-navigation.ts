@@ -56,6 +56,7 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
         const effectiveQrSize = (ctx.graphicSize === 'small' || ctx.graphicSize === 'medium' || ctx.graphicSize === 'large') ? ctx.graphicSize : 'medium';
         console.log('[QR Basic] Generating mockup with graphicSize:', ctx.graphicSize, '→ effectiveQrSize:', effectiveQrSize, 'provider:', isPrintfulBasic ? 'printful' : 'printify');
         const mockupResult = await ctx.api.generateMockup({
+        canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
           blueprintId: ctx.selectedProductType.blueprintId,
           printProviderId: ctx.selectedProductType.printProviderId || 99,
           colorName: ctx.selectedColor,
@@ -95,7 +96,7 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'qr-basic-save-choice') {
-    await ctx.saveQrBasicToPacket();
+    if (!await ctx.saveQrBasicToPacket()) return;
     ctx.setSimpleStep('qr-basic-confirm');
     return;
   }
@@ -114,7 +115,7 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'qr-plus-save-choice') {
-    await ctx.saveQrPlusToPacket();
+    if (!await ctx.saveQrPlusToPacket()) return;
     ctx.setSimpleStep('qr-plus-confirm');
     return;
   }

@@ -1,3 +1,5 @@
+import { readStoreProducts } from '../services/store-products';
+import { memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -52,7 +54,11 @@ app.patch('/members/:memberId/packets/:packetId', async (req: Request, res: Resp
     const doc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
     if (doc.data()?.memberId !== memberId) { res.status(403).json({ error: "Not authorized" }); return; }
+    if (doc.data()?.productionPacketId) {
+      res.status(409).json({ error: 'Rebuild this product to change its saved artwork or configuration.' }); return;
+    }
     const memberClean = stripUndef(updates);
+    delete memberClean.memberId; delete memberClean.productionPacketId; delete memberClean.packetId; delete memberClean.id;
     if (memberClean.headerStyle) memberClean.headerStyle = sanitizeStyleForFirestore(memberClean.headerStyle);
     if (memberClean.footerStyle) memberClean.footerStyle = sanitizeStyleForFirestore(memberClean.footerStyle);
     await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ ...memberClean, updatedAt: new Date().toISOString() });
@@ -94,7 +100,7 @@ app.get('/member/packets', requireAuth, async (req: Request, res: Response): Pro
     if (!memberId) { res.status(400).json({ error: "memberId is required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const snapshot = await db.collection(MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId as string).limit(100).get();
-    const packets = snapshot.docs.map(doc => doc.data());
+    const packets = await Promise.all(snapshot.docs.map(doc => memberBuildProjection(doc.id)));
     res.json({ packets });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -189,10 +195,13 @@ app.post('/member/play-packets', requireAuth, async (req: Request, res: Response
 
 app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { blueprintId, printProviderId, colorName, colorHex, placement, artworkUrl, qrSize = "medium", fulfillmentProvider = "printify", packetId } = req.body;
-    if (!blueprintId || !colorName || !artworkUrl) {
-      res.status(400).json({ error: "Missing required fields: blueprintId, colorName, artworkUrl" }); return;
+    const { canonicalBlankKey, colorName, colorHex, placement, artworkUrl, qrSize = 'medium' } = req.body;
+    const choices = await readStoreProducts(db, 'member-products', 'member');
+    const product = choices.products.find((p: any) => p.canonicalBlankKey === canonicalBlankKey);
+    if (!product || !product.availableColors.some((c: any) => c.name === colorName) || !artworkUrl) {
+      res.status(400).json({ error: 'Choose an available QRG product and color before previewing.' }); return;
     }
+    const { blueprintId, printProviderId, fulfillmentProvider } = product;
     console.log(`[CF Member Mockup] Generating for: ${colorName} @ ${placement}, provider: ${fulfillmentProvider}`);
     const result = await generateMockupFromPrintful({
       blueprintId: parseInt(blueprintId), printProviderId: parseInt(printProviderId) || 99,
@@ -203,24 +212,6 @@ app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Resp
       hasCompositeGraphic: true,
     });
     console.log(`[CF Member Mockup] Generated: ${result.mockupUrl} (cached: ${result.fromCache})`);
-
-    // Write-back: save mockup URL to the packet so gallery can read it dynamically
-    if (packetId && result.mockupUrl) {
-      try {
-        const updateData: Record<string, any> = { mockupUrl: result.mockupUrl };
-        if (result.lifestyleMockupUrl) updateData.lifestyleMockupUrl = result.lifestyleMockupUrl;
-        const pRef = db.collection('productPackets').doc(packetId);
-        const pDoc = await pRef.get();
-        if (pDoc.exists) {
-          await pRef.update(updateData);
-        } else {
-          await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update(updateData);
-        }
-        console.log(`[CF Member Mockup] Saved mockupUrl to packet ${packetId}`);
-      } catch (writeErr: any) {
-        console.warn(`[CF Member Mockup] Failed to write mockupUrl to packet ${packetId}:`, writeErr.message);
-      }
-    }
 
     res.json({ success: true, mockupUrl: result.mockupUrl, lifestyleMockupUrl: result.lifestyleMockupUrl, fromCache: result.fromCache, generatedAt: new Date().toISOString() });
   } catch (error: any) {
@@ -635,3 +626,4 @@ app.post('/member/play-packets/:packetId/publish', requireAuth, async (req: Requ
 
 
 }
+

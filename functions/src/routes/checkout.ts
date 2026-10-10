@@ -1,3 +1,4 @@
+import { memberBuildProjection } from '../services/member-build';
 import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
@@ -22,7 +23,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
 
     const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
     if (!packetDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
-    const packet = packetDoc.data()!;
+    const packet = await memberBuildProjection(packetId);
     if (packet.status !== 'published' && packet.status !== 'active') {
       res.status(400).json({ error: "Product is no longer available" }); return;
     }
@@ -141,7 +142,7 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
     }
 
     const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
-    const packet = packetDoc.exists ? packetDoc.data()! : {};
+    const packet = packetDoc.exists ? await memberBuildProjection(packetId) : {};
 
     const buyerEmail = (session.customer_details as any)?.email || '';
     const buyerName = (session.customer_details as any)?.name || '';

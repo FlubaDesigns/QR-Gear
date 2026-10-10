@@ -154,10 +154,10 @@ export function SimpleWizardStepContent({
 
       {simpleStep === 'color' && (
         <ColorPickerStep
+          availableColors={selectedProductType?.availableColors || []}
           selectedColor={selectedColor}
           onSelect={setSelectedColor}
           productName={getProductFriendlyName(selectedProductType?.title)}
-          availableColors={selectedProductType?.availableColors}
         />
       )}
 
@@ -168,6 +168,7 @@ export function SimpleWizardStepContent({
         );
         return (
           <SizePickerStep
+            availableSizes={selectedProductType?.availableVariants?.filter(v => v.color === selectedColor).map(v => v.size) || []}
             selectedSize={selectedShirtSize}
             selectedColor={selectedColor}
             baseEarnings={runningEarnings}
@@ -457,6 +458,7 @@ export function SimpleWizardStepContent({
                 const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic
                   ? productGraphicResult.productGraphic : qrApiUrl;
                 const mockupResult = await api.generateMockup({
+        canonicalBlankKey: selectedProductType?.canonicalBlankKey,
                   blueprintId: selectedProductType.blueprintId,
                   printProviderId: selectedProductType.printProviderId || 99,
                   colorName: selectedColor, artworkUrl: artworkForMockup, placement: 'front',
@@ -722,3 +724,4 @@ export function SimpleWizardStepContent({
     </>
   );
 }
+

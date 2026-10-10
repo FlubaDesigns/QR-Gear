@@ -1,4 +1,4 @@
-import { memberProductPricing } from '../../../shared/memberProductPricing';
+import { memberProductOptions } from './member-product-options';
 import { CATALOG_SECTIONS } from '../../../shared/catalogs';
 import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 import { masterCatalogProduct } from '../../../shared/masterCatalog';
@@ -21,6 +21,7 @@ export async function catalogTierProducts(db: any, section: string) {
   const catalog = catalogDoc.data();
   const tierConfig = catalog.tierConfig || {};
   const pricing = (await db.collection('testSettings').doc('pricing').get()).data() || {};
+  const providerSetting = (await db.collection('settings').doc('admin').get()).data()?.defaultFulfillmentProvider;
   const tiers: Record<string, Record<string, any>> = {};
   const unavailableBlankIds: string[] = [];
   for (const id of catalog.blankIds || []) {
@@ -32,26 +33,26 @@ export async function catalogTierProducts(db: any, section: string) {
     if (!doc.exists || raw.isActive === false || raw.status === 'archived') { unavailableBlankIds.push(id); continue; }
     const master = masterCatalogProduct(id, raw);
     const item = catalogToSelectItem(master, catalog.blankDescriptions?.[id], catalog.blankTitles?.[id], catalog.blankImages?.[id], catalog.blankColors?.[id]);
-    const provider = master.printfulId != null ? 'printful' : master.blueprintId != null ? 'printify' : null;
+    const options = memberProductOptions(raw, item, providerSetting, pricing);
+    const provider = options.provider;
     // Provider IDs are outbound lookup references; canonicalBlankKey is the identity.
     if (!provider) { unavailableBlankIds.push(id); continue; }
     const category = typeof raw.qrgCategory === 'string' && raw.qrgCategory ? raw.qrgCategory : 'Unclassified';
-    const cost = item.price;
-    const { retailPrice, memberEarnings } = memberProductPricing(cost, pricing);
+    const { cost, retailPrice, memberEarnings } = options;
     const config = tierConfig[tier] || {};
     tiers[category] ||= {};
     tiers[category][tier] ||= { tier, displayName: config.displayName || tier[0].toUpperCase() + tier.slice(1), description: config.description || '', tagline: config.tagline || '', products: [] };
     tiers[category][tier].products.push({
       blueprintId: provider === 'printful' ? master.printfulId : master.blueprintId,
-      canonicalBlankKey: id, qrgBlankId: master.qrgBlankId, provider, fulfillmentProvider: provider,
+      canonicalBlankKey: id, qrgBlankId: master.qrgBlankId, 
       title: item.name, providerTitle: item.providerTitle, adminCatalogTitle: item.adminCatalogTitle,
       description: item.description, effectiveDescription: item.description,
       providerDescription: item.providerDescription, adminCatalogDescription: item.adminCatalogDescription,
       brand: item.manufacturer, category, imageUrl: item.primaryImageUrl, images: item.images,
-      cost, retailPrice, memberEarnings,
-      availableColors: item.availableColors, availableSizes: item.availableSizes,
-      colors: item.availableColors, sizes: item.availableSizes,
+      
+      ...options, colors: options.availableColors, sizes: options.availableSizes,
     });
   }
   return { hasTiers: Object.keys(tiers).length > 0, catalogId, catalogName: catalog.name, tiers, tierConfig, unavailableBlankIds };
 }
+

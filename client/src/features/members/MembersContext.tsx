@@ -59,6 +59,7 @@ export interface MembersApi {
 }
 
 export interface MockupParams {
+  canonicalBlankKey?: string;
   blueprintId: number;
   printProviderId: number;
   colorName: string;
@@ -105,6 +106,7 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
     const getQueryKey = (type: string = "all"): string[] => ["members", type];
 
     const invalidateMembers = (type?: string): void => {
+      queryClient.invalidateQueries({ queryKey: ["/api/members"] });
       if (type) {
         queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
       } else {
@@ -153,6 +155,7 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
           const data = await memberFetch<any>(`/mockup/priority`, {
             method: "POST",
             json: {
+              canonicalBlankKey: params.canonicalBlankKey,
               blueprintId: params.blueprintId,
               printProviderId: params.printProviderId,
               colorName: params.colorName,

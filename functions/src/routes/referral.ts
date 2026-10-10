@@ -1,3 +1,4 @@
+import { memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -65,13 +66,13 @@ app.get('/public/member-packet/:packetId', async (req: Request, res: Response): 
       doc = await db.collection('productPackets').doc(packetId).get();
     }
     if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-    const data = doc.data()!;
+    const data = doc.data()?.productionPacketId ? await memberBuildProjection(packetId) : doc.data()!;
     const publicData = {
       id: doc.id,
       title: data.title || 'QR Gear Product',
       description: data.description || '',
       itemImage: data.itemImage || data.qrCanvasMockup || data.qrBasicMockup || data.qrPlusMockup || data.qrPlayMockup || data.composeMockup || data.productGraphic || null,
-      retailPrice: data.pricingSnapshot?.retailPriceBase || data.boundProduct?.retailPrice || data.pricingSnapshot?.customerPrice || null,
+      retailPrice: data.pricing?.customerPrice ?? data.pricingSnapshot?.retailPriceBase ?? data.boundProduct?.retailPrice ?? data.pricingSnapshot?.customerPrice ?? null,
       productTitle: data.boundProduct?.title || data.title || 'QR Gear Product',
       productImage: data.boundProduct?.imageUrl || null,
       selectedColor: data.selectedColor || null,
@@ -79,6 +80,8 @@ app.get('/public/member-packet/:packetId', async (req: Request, res: Response): 
       qrType: data.qrType || data.packetType || null,
       memberId: data.memberId || null,
       status: data.status || 'unknown',
+      availableSizes: data.availableSizes || null,
+      sizeUpcharges: data.pricing?.sizeUpcharges || null,
     };
     res.json({ success: true, packet: publicData });
   } catch (error: any) { res.status(500).json({ error: error.message }); }

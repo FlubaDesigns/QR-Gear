@@ -203,7 +203,9 @@ export function MemberProductDetailSkin({ product, onSelect, onClose, onDescript
             </p>
           )}
 
+          {localProduct.pricingError && <p role="alert" className="text-amber-300 text-sm">{localProduct.pricingError}</p>}
           <Button
+            disabled={!!localProduct.pricingError || !localProduct.availableVariants?.length}
             onClick={() => {
               onSelect(localProduct);
               onClose();

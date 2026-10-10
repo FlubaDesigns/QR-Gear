@@ -266,6 +266,10 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   const [composeInstanceId, setComposeInstanceId] = useState<string | null>(null);
   const [contentRightsConfirmed, setContentRightsConfirmed] = useState(false);
 
+  useEffect(() => {
+    if (selectedShirtSize && !selectedProductType?.availableVariants?.some(v => v.color === selectedColor && v.size === selectedShirtSize)) setSelectedShirtSize('');
+  }, [selectedColor, selectedProductType, selectedShirtSize]);
+
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front' as PlacementOption;
 
   const actionCtx = {
@@ -308,7 +312,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleSimplePublish = async () => {
-    return executeSimplePublish(actionCtx);
+    await executeSimplePublish(actionCtx);
   };
 
   const saveCanvasToLibrary = async () => {
@@ -339,8 +343,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     if (!user?.id) return false;
     setIsQrBasicSaving(true);
     try {
-      await handleSimplePublish();
-      return true;
+      return await executeSimplePublish(actionCtx);
     } finally {
       setIsQrBasicSaving(false);
     }
@@ -353,8 +356,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     }
     setIsQrPlusSaving(true);
     try {
-      await handleSimplePublish();
-      return true;
+      return await executeSimplePublish(actionCtx);
     } finally {
       setIsQrPlusSaving(false);
     }
@@ -562,3 +564,4 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;
 }
+

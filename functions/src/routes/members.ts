@@ -1,3 +1,5 @@
+import { readStoreProducts } from '../services/store-products';
+import { prepareMemberBuild, saveMemberArtwork, commitMemberBuild, memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -384,106 +386,46 @@ app.delete('/members/:memberId/products/:productId', async (_req: Request, res: 
   res.status(410).json({ error: 'This endpoint is deprecated. Use /members/:memberId/packets/:packetId instead.' });
 });
 
-app.get('/members/:memberId/products', async (_req: Request, res: Response): Promise<void> => {
-  res.status(410).json({ error: 'This endpoint is deprecated. Use /members/:memberId/packets instead.' });
-});
-
-app.post('/members/:memberId/products', async (req: Request, res: Response): Promise<void> => {
+app.get('/members/:memberId/products', async (req: Request, res: Response) => {
   try {
     const { memberId } = req.params;
-    const body = req.body;
     const auth = await verifyMemberAuthCF(req, memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    const rows = await db.collection(MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId).get();
+    res.json(await Promise.all(rows.docs.map(row => memberBuildProjection(row.id))));
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+});
 
-    const { packetType, title, description, storeId, status, qrType, channelId, headerText, footerText, videoUrl, textLines, textUpcharge, placementUpcharge, memberEarnings, boundProduct, selectedColor, selectedShirtSize, selectedPlacements, perPlacementConfigs, perPlacementSizes, graphicSize, textLayoutChoice, headerStyle, footerStyle, qrDestination, qrBasicInputType, qrBasicContent, qrBasicMockup, qrBasicSaveChoice, qrPlusMockup, qrPlusSaveChoice, qrCanvasMockup, qrPlayMockup, source, printfulProductId, variantId, graphicUrl, name, price } = body;
+app.get('/members/product-options/:id', async (req: Request, res: Response) => {
+  try {
+    const products = await readStoreProducts(db, 'member-products', 'member');
+    const product = products.products.find((p: any) => p.canonicalBlankKey === req.params.id);
+    if (!product) { res.status(404).json({ error: 'Member product not found.' }); return; }
+    res.json(product);
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
+});
 
-    if (packetType === 'qr-canvas' || packetType === 'qr-play' || packetType === 'qr-basic' || packetType === 'qr-plus' || packetType === 'qr-compose') {
-      const existingPacketId = body.existingPacketId;
-      let packetId = existingPacketId || `pkt-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-      const baseUrl = process.env.PUBLIC_URL || 'https://qrgear-c1ffd.web.app';
-      const destinationUrl = `${baseUrl}/view/${packetId}`;
-      const now = new Date().toISOString();
-      const packetData: Record<string, any> = {
-        id: packetId, memberId, storeId: storeId || PLATFORM_STORE_ID, channelId: channelId || null, packetType,
-        title: title || 'Untitled', description: description || '', status: status || 'published',
-        createdAt: now, updatedAt: now, source: source || { entryPoint: 'wizard' },
-        boundProduct: boundProduct || null, selectedColor: selectedColor || null,
-        selectedShirtSize: selectedShirtSize || null, selectedPlacements: selectedPlacements || null,
-        perPlacementConfigs: perPlacementConfigs || null, perPlacementSizes: perPlacementSizes || null,
-        graphicSize: graphicSize || null, textLayoutChoice: textLayoutChoice || null,
-        headerStyle: sanitizeStyleForFirestore(headerStyle) || null, footerStyle: sanitizeStyleForFirestore(footerStyle) || null,
-        qrType: qrType || packetType, qrDestination: qrDestination || null,
-        qrGraphic: body.qrGraphic || null, productGraphic: body.productGraphic || null,
-        urlGraphic: body.background || null, originalUrlGraphic: body.originalUrlGraphic || null,
-        videoUrl: videoUrl || null,
-        destinationUrl: (packetType === 'qr-canvas' || packetType === 'qr-play') ? destinationUrl : null,
-        qrBasicInputType: qrBasicInputType || null, qrBasicContent: qrBasicContent || null,
-        qrBasicMockup: qrBasicMockup || null, qrBasicSaveChoice: qrBasicSaveChoice || null,
-        qrPlusMockup: qrPlusMockup || null, qrPlusSaveChoice: qrPlusSaveChoice || null,
-        qrCanvasMockup: qrCanvasMockup || null, qrPlayMockup: qrPlayMockup || null,
-        composeMockup: body.composeMockup || null, composeItems: body.composeItems || null,
-        composeMode: body.composeMode || 'auto-rotate', composeHostingTerm: body.composeHostingTerm || null,
-        composeInstanceId: null, textLines: textLines || 0, textUpcharge: textUpcharge || 0,
-        placementUpcharge: placementUpcharge || 0, memberEarnings: memberEarnings || 0,
-        itemImage: body.itemImage || qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || body.composeMockup || body.productGraphic || body.qrGraphic || null,
-      };
-
-      try {
-        if (boundProduct?.blueprintId && boundProduct?.printProviderId) {
-          const providerDocId = `${boundProduct.blueprintId}_${boundProduct.printProviderId}`;
-          const providerDoc = await db.collection('printifyPrintProviders').doc(providerDocId).get();
-          if (providerDoc.exists) {
-            const provData = providerDoc.data();
-            const printifyCostBase = (provData?.minCost || 0) / 100;
-            const pricingDoc = await db.collection("testSettings").doc("pricing").get();
-            const ps = pricingDoc.exists ? pricingDoc.data() : {};
-            const pMP = ps?.markupPercent ?? 25; const pMF = ps?.markupFixed ?? 0;
-            const pAPC = ps?.additionalPlacementCost ?? 4; const pTLU = ps?.textLineUpcharge ?? 2;
-            const pMPS = ps?.memberProfitShare ?? 0.25;
-            const numTL = textLines || 0; const textUpT = numTL * pTLU;
-            const plArr = selectedPlacements ? (Array.isArray(selectedPlacements) ? selectedPlacements : [selectedPlacements]) : [];
-            const placementUpT = Math.max(0, plArr.length - 1) * pAPC;
-            const totalCostBase = printifyCostBase + textUpT + placementUpT;
-            const retailPriceBase = Math.round((totalCostBase * (1 + pMP / 100) + pMF) * 100) / 100;
-            const profitBase = Math.round((retailPriceBase - printifyCostBase) * 100) / 100;
-            const memberEarningsBase = Math.round((profitBase * pMPS) * 100) / 100;
-            const adminMarginBase = Math.round((profitBase - memberEarningsBase) * 100) / 100;
-            packetData.pricingSnapshot = { printifyCostBase, customerPrice: retailPriceBase, textLines: numTL, textUpchargeTotal: textUpT, extraPlacements: Math.max(0, plArr.length - 1), placementUpchargeTotal: placementUpT, markupPercent: pMP, markupFixed: pMF, totalCostBase, retailPriceBase, profitBase, memberProfitShare: pMPS, memberEarningsBase, adminMarginBase, memberEarningsRange: { min: memberEarningsBase, max: memberEarningsBase }, calculatedAt: new Date().toISOString() };
-          }
-        }
-      } catch (pricingErr: any) { console.error('[UnifiedPublish CF] Pricing snapshot failed (non-fatal):', pricingErr.message); }
-
-      const socialBaseUrl = process.env.PUBLIC_URL || 'https://qrgear-c1ffd.web.app';
-      packetData.socialPacket = {
-        itemImage: packetData.itemImage || null,
-        title: packetData.title || 'QR Gear Product',
-        description: packetData.description || '',
-        retailPrice: packetData.pricingSnapshot?.retailPriceBase || boundProduct?.retailPrice || null,
-        shareUrl: `${socialBaseUrl}/p/${packetId}`,
-        referralUrl: `${socialBaseUrl}/p/${packetId}?ref=${memberId}`,
-        memberId,
-        createdAt: new Date().toISOString(),
-      };
-
-      await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).set(packetData);
-
-      if (packetType === 'qr-compose' && body.composeItems && Array.isArray(body.composeItems)) {
-        try {
-          const nowEpoch = Math.floor(Date.now() / 1000);
-          const instanceData = { memberId, packetId, createdAt: nowEpoch, startTimestamp: nowEpoch, mode: 'loop', composeMode: body.composeMode || 'auto-rotate', hostingTerm: body.composeHostingTerm || '1-year', fallbackUrl: null, slots: body.composeItems.map((item: any, index: number) => ({ slotId: `slot-${Date.now()}-${index}`, packetId: item.packetId, name: item.name || 'Untitled', thumbnailUrl: item.thumbnailUrl || null, type: item.type || 'qr-canvas', durationSeconds: item.durationSeconds || 86400, order: item.order ?? index + 1 })) };
-          const instanceRef = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
-          await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ composeInstanceId: instanceRef.id, destinationUrl: `/qr/d/${instanceRef.id}` });
-          packetData.composeInstanceId = instanceRef.id;
-          packetData.destinationUrl = `/qr/d/${instanceRef.id}`;
-        } catch (instanceErr: any) { console.error('[QR Compose CF] Instance creation failed:', instanceErr); }
-      }
-
-      res.json(packetData);
-      return;
-    }
-
-    res.status(400).json({ error: "Direct product creation is deprecated. Submit a packet via packetType field instead." });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+app.post('/members/:memberId/builds', async (req: Request, res: Response) => {
+  try {
+    const auth = await verifyMemberAuthCF(req, req.params.memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    res.json(await prepareMemberBuild(req.params.memberId, req.body));
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
+});
+app.post('/members/:memberId/builds/:id/artwork', async (req: Request, res: Response) => {
+  try {
+    const auth = await verifyMemberAuthCF(req, req.params.memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    res.json(await saveMemberArtwork(req.params.memberId, req.params.id, req.body.placement, req.body.imageData));
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
+});
+app.post('/members/:memberId/products', async (req: Request, res: Response) => {
+  try {
+    const auth = await verifyMemberAuthCF(req, req.params.memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    if (!req.body.productionPacketId) { res.status(400).json({ error: 'Generate your product through the member builder before publishing.' }); return; }
+    res.json(await commitMemberBuild(req.params.memberId, req.body.productionPacketId));
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
 });
 
 app.get('/members/:memberId/published-items', async (req: Request, res: Response): Promise<void> => {
@@ -505,15 +447,15 @@ app.get('/members/:memberId/published-items', async (req: Request, res: Response
     const snapshot = await db.collection(MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId).where('status', '==', 'published').get();
 
     const items: any[] = [];
-    snapshot.forEach(doc => {
-      const data = doc.data();
+    for (const doc of snapshot.docs) {
+      const data = await memberBuildProjection(doc.id);
       const rawType = data.packetType || data.kind || '';
       const normalizedType = normalizeType(rawType);
       const normalizedItem = { id: doc.id, packetId: doc.id, ...data, packetType: normalizedType };
       if (requestedTypes.length === 0 || requestedTypes.includes(normalizedType)) {
         items.push(normalizedItem);
       }
-    });
+    }
 
     res.json({ items });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -569,20 +511,20 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
     if (channelFilter) query = query.where('channelId', '==', channelFilter);
     const packetsSnap = await query.orderBy('updatedAt', 'desc').limit(50).get();
 
-    const items = packetsSnap.docs.map(doc => {
-      const d = doc.data();
+    const items = await Promise.all(packetsSnap.docs.map(async doc => {
+      const d: any = await memberBuildProjection(doc.id);
       return {
         id: doc.id,
         title: d.title || 'QR Gear Product',
         description: d.description || '',
         itemImage: d.qrCanvasMockup || d.qrBasicMockup || d.qrPlusMockup || d.qrPlayMockup || d.composeMockup || d.productGraphic || null,
-        retailPrice: d.pricingSnapshot?.retailPriceBase ?? d.pricingSnapshot?.customerPrice ?? null,
+        retailPrice: d.pricing?.customerPrice ?? d.pricingSnapshot?.retailPriceBase ?? null,
         qrType: d.qrType || d.packetType || null,
         status: d.status || 'published',
         channelId: d.channelId || null,
         updatedAt: d.updatedAt || '',
       };
-    });
+    }));
 
     // Resolve channel display name: prefer explicit filter, else first packet's channel
     let channelName: string | null = null;
@@ -611,3 +553,4 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
 });
 
 }
+

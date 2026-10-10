@@ -10,6 +10,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 interface PublicPacketData {
+  availableSizes?: string[];
+  sizeUpcharges?: Record<string, number>;
   id: string;
   title: string;
   description: string;
@@ -67,9 +69,8 @@ export default function PacketPage() {
     queryKey: ["/api/pricing-settings"],
   });
 
-  const sizeUpcharges = pricingData?.sizeUpcharges || DEFAULT_SIZE_UPCHARGES;
-
   const packet = data?.packet;
+  const sizeUpcharges = packet?.sizeUpcharges || pricingData?.sizeUpcharges || {};
   const referrerId = localStorage.getItem('qrgear_referrer');
 
   useEffect(() => {
@@ -224,7 +225,7 @@ export default function PacketPage() {
                         <SelectValue placeholder="Select size" />
                       </SelectTrigger>
                       <SelectContent>
-                        {AVAILABLE_SIZES.map((size) => (
+                        {(packet.availableSizes || AVAILABLE_SIZES).map((size) => (
                           <SelectItem key={size} value={size} data-testid={`select-size-${size}`}>
                             {size}
                             {(sizeUpcharges[size] || 0) > 0 ? ` (+$${(sizeUpcharges[size] || 0).toFixed(2)})` : ''}

@@ -711,3 +711,13 @@ Emergency Main pricing repair: the canonical packet calculator uses the QRG prov
 The live Asphalt / XS failure exposed a storefront projection bug: independent color and size lists offered a Printify-only QRG row on a Printful build. Product detail and the sale resolver now share the enabled QRG variant/provider intersection. The storefront disables unavailable sizes per color, clears an incompatible selected size with an explanation, and never substitutes a size or provider. Both Add to Cart and Buy Now validate the same saved production packet before adding an item, including guest carts. Invalid combinations return an actionable 400 instead of a retrying 500. Existing QRG identities, artwork, inside labels and shared retail pricing remain authoritative.
 
 Acceptance: Asphalt XS/5XL must be unavailable for these Printful builds; Asphalt S must persist through each cart button at the unchanged retail price; Black XS remains available; checkout must agree with the cart. The earlier two-variant smoke check did not cover provider-specific size availability. No new test suite was added.
+
+
+
+## Member shared build path — October 11, 2026
+
+Member publishing now resolves the selected blank, supplier variants and print areas through QRG, prices the captured build through the shared packet calculator, registers print assets through GRF, and commits the shared BLD and Assembly before marking the product published. The member listing stores ownership and a reference to its production packet; dashboard and public share reads project that saved packet. Member color/size choices use the QRG/provider intersection. Mockup requests resolve provider identity from the QRG member selection. Failed Basic/Plus publishing no longer advances to a success screen.
+
+Acceptance for this batch: select a verified Printful blank in Members, publish QR Basic with a valid color/size, reopen the saved product, and verify its QRG member identity, BLD, GRF, Assembly, saved price and public share display. Main deployment and authenticated live persistence must be checked separately from compilation. No new automated test suite was added.
+
+Scope: the member product creation/listing path. QR Compose sequence publishing remains unavailable until its content sequence is connected to the shared build; legacy member products are not silently migrated. This batch does not claim payout, paid member fulfillment or every Members tab verified.

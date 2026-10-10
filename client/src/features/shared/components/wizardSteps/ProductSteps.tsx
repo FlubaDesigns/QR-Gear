@@ -262,7 +262,7 @@ export function ColorPickerStep({
   availableColors?: Array<{ name: string; hex: string }>;
 }) {
   const itemName = productName || 'product';
-  const colors = availableColors && availableColors.length > 0
+  const colors = availableColors !== undefined
     ? availableColors.map(c => ({ id: c.name, name: c.name, hex: c.hex }))
     : SHIRT_COLORS;
   return (
@@ -315,8 +315,10 @@ export function SizePickerStep({
   onEarningsAnimate,
   selectedPlacements = [],
   context = 'member',
-  productName
+  productName,
+  availableSizes,
 }: {
+  availableSizes?: string[];
   selectedSize: string;
   selectedColor: string;
   baseEarnings?: number;
@@ -392,7 +394,7 @@ export function SizePickerStep({
       </div>
       
       <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
-        {SHIRT_SIZES.map((size) => {
+        {(availableSizes ?? SHIRT_SIZES).map((size) => {
           const bonus = sizeEarningsBonuses[size] || 0;
           const totalForSize = baseEarnings + bonus;
           return (
@@ -431,6 +433,7 @@ export function SizePickerStep({
 }
 
 interface TierProduct {
+  pricingError?: string | null;
   blueprintId: number;
   printProviderId?: number;
   providerProductId?: number;
@@ -450,6 +453,8 @@ interface TierProduct {
   cost?: number;
   availableColors?: Array<{ name: string; hex?: string }>;
   availableSizes?: string[];
+  placements?: any[];
+  availableVariants?: Array<{size:string;color:string}>;
 }
 
 interface TierGroup {
@@ -483,6 +488,9 @@ function tierProductToAllowedProduct(tp: TierProduct): AllowedProduct {
     fulfillmentProvider: (tp.fulfillmentProvider as 'printify' | 'printful') || 'printify',
     availableColors: tp.availableColors?.map(c => ({ name: c.name, hex: c.hex || '' })),
     availableSizes: tp.availableSizes,
+    placements: tp.placements,
+    availableVariants: tp.availableVariants,
+    pricingError: tp.pricingError,
     description: tp.description,
     providerDescription: tp.providerDescription || null,
     adminCatalogDescription: tp.adminCatalogDescription || null,
@@ -647,3 +655,4 @@ export function TierPickerStep({
     </div>
   );
 }
+
