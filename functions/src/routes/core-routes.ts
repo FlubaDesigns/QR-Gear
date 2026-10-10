@@ -1,4 +1,5 @@
-import { CatalogSelectionError } from '../services/catalog-sale-variants';
+import { resolveColorHex } from '../../../shared/colorUtils';
+import { catalogProductOptions, CatalogSelectionError } from '../services/catalog-sale-variants';
 import { resolveSaleItem } from '../services/order-fulfillment';
 import { hasAdminAccess } from '../../../shared/adminAccess';
 import { registerStoreProductRoutes } from "../services/store-products";
@@ -42,7 +43,10 @@ app.get('/products', async (req: Request, res: Response): Promise<void> => {
       query = query.where('isFeatured', '==', true);
     }
     const snapshot = await query.get();
-    res.json(docsToArray(snapshot));
+    res.json(await Promise.all(docsToArray(snapshot).map(async (product: any) => {
+      const options = await catalogProductOptions(db, { enabledColors: product.selectedColors ?? product.availableColors ?? [], enabledSizes: product.availableSizes ?? [] }, product);
+      return { ...product, ...options, selectedColors: options.availableColors, availableColorsWithHex: options.availableColors.map(name => ({ name, hex: resolveColorHex(name) })) };
+    })));
   } catch (error: any) {
     console.error('Error fetching products:', error);
     res.status(500).json({ error: error.message });
@@ -56,7 +60,9 @@ app.get('/products/:id', async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ error: 'Product not found' });
       return;
     }
-    res.json(docToObject(doc));
+    const product: any = docToObject(doc);
+    const options = await catalogProductOptions(db, { enabledColors: product.selectedColors ?? product.availableColors ?? [], enabledSizes: product.availableSizes ?? [] }, product);
+    res.json({ ...product, ...options, selectedColors: options.availableColors, availableColorsWithHex: options.availableColors.map(name => ({ name, hex: resolveColorHex(name) })) });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

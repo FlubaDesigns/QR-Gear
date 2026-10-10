@@ -1,3 +1,4 @@
+import { isAvailableProductVariant } from '@shared/storefrontTypes';
 import type { PricingSettings } from "@shared/schema-orders";
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -234,7 +235,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
   const [contentRightsConfirmed, setContentRightsConfirmed] = useState(false);
 
   useEffect(() => {
-    if (selectedShirtSize && !selectedProductType?.availableVariants?.some(v => v.color === selectedColor && v.size === selectedShirtSize)) setSelectedShirtSize('');
+    if (selectedShirtSize && !isAvailableProductVariant(selectedProductType?.availableVariants, selectedColor, selectedShirtSize)) setSelectedShirtSize('');
   }, [selectedColor, selectedProductType, selectedShirtSize]);
 
   // Recompute from the selected options and Admin Pricing, never accumulated clicks.

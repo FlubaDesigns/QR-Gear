@@ -1,3 +1,4 @@
+import { resolveColorHex } from '@shared/colorUtils';
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,6 @@ import { ZoneThumbnail } from "@/features/shared/components/ZonePreview";
 import {
   type GraphicSize,
   type GraphicLocation,
-  SHIRT_COLORS,
   SHIRT_TEXT_COLORS,
   SHIRT_TEXT_SIZES,
   SHIRT_TEXT_FONTS,
@@ -36,7 +36,7 @@ export function HeaderTextEditStep({
   context?: 'member' | 'owner';
   graphicLayoutMode?: "zone" | "freeform";
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentMode = headerStyle.mode || 'text';
 
@@ -310,7 +310,7 @@ export function FooterTextEditStep({
   context?: 'member' | 'owner';
   graphicLayoutMode?: "zone" | "freeform";
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const currentMode = footerStyle.mode || 'text';
 

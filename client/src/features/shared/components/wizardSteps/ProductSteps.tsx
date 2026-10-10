@@ -1,10 +1,12 @@
+import { resolveColorHex } from '@shared/colorUtils';
+import { ColorSwatchPicker } from "../ColorSwatchPicker";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Package, Check, DollarSign, X, Ruler, Palette, ShoppingBag, Crown, Star, Award, Pencil } from "lucide-react";
-import { type AllowedProduct, SHIRT_COLORS, SHIRT_SIZES, type PlacementOption } from "./wizardTypes";
+import { type AllowedProduct, type PlacementOption } from "./wizardTypes";
 import { ScrollVerticalView } from "../views/ScrollVerticalView";
 import { TierCardSkin, type TierItem } from "../skins/TierCardSkin";
 import { WizardProductCardSkin, type WizardProductItem } from "../skins/WizardProductCardSkin";
@@ -259,12 +261,9 @@ export function ColorPickerStep({
   onSelect: (color: string) => void;
   context?: WizardContextType;
   productName?: string;
-  availableColors?: Array<{ name: string; hex: string }>;
+  availableColors: Array<{ name: string; hex: string }>;
 }) {
   const itemName = productName || 'product';
-  const colors = availableColors !== undefined
-    ? availableColors.map(c => ({ id: c.name, name: c.name, hex: c.hex }))
-    : SHIRT_COLORS;
   return (
     <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-5 duration-300">
       <div>
@@ -272,29 +271,14 @@ export function ColorPickerStep({
         <p className="text-slate-400">What color {itemName} would you like?</p>
       </div>
       
-      <div className="flex justify-center items-center flex-wrap gap-2 max-w-[320px] mx-auto">
-        {colors.map((color) => (
-          <button
-            key={color.id}
-            onClick={() => onSelect(color.id)}
-            className={`w-10 h-10 rounded-full transition-all ${
-              selectedColor === color.id
-                ? 'border-[3px] border-orange-500 scale-110'
-                : 'border-2 border-slate-600 hover:border-slate-400'
-            }`}
-            style={{ backgroundColor: color.hex }}
-            title={color.name}
-            data-testid={`button-color-${color.id}`}
-          />
-        ))}
-      </div>
-      
-      {selectedColor && (
-        <p className="text-white font-medium">
-          {colors.find(c => c.id === selectedColor)?.name}
-        </p>
-      )}
-      
+      <ColorSwatchPicker
+        label="Product Color"
+        colors={availableColors ?? []}
+        selectedColor={selectedColor}
+        onChange={color => onSelect(color.name)}
+        testIdPrefix="button-color"
+      />
+
       <div className="mt-4 p-4 bg-slate-800/50 rounded-lg max-w-md mx-auto">
         <p className="text-slate-400 text-sm">
           {context === 'member'
@@ -331,7 +315,7 @@ export function SizePickerStep({
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number; x: number; y: number } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const sizeScales: Record<string, number> = {
     'XS': 0.7,
@@ -394,7 +378,7 @@ export function SizePickerStep({
       </div>
       
       <div className="flex flex-wrap justify-center gap-3 max-w-md mx-auto">
-        {(availableSizes ?? SHIRT_SIZES).map((size) => {
+        {(availableSizes ?? []).map((size) => {
           const bonus = sizeEarningsBonuses[size] || 0;
           const totalForSize = baseEarnings + bonus;
           return (

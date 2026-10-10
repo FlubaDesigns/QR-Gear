@@ -1,3 +1,4 @@
+import { resolveColorHex } from '@shared/colorUtils';
 import { Button } from "@/components/ui/button";
 import {
   QrCode,
@@ -11,7 +12,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import type { QRType, GraphicLocation, GraphicSize } from "./wizardTypes";
-import { SHIRT_COLORS, LOCATION_AREA_DIMS } from "./wizardTypes";
+import { LOCATION_AREA_DIMS } from "./wizardTypes";
 
 export function TypePickerStep({ 
   selectedType, 
@@ -302,7 +303,7 @@ export function GenerateGraphicStep({
   onNo: () => void;
   context?: 'member' | 'owner';
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const getQrSize = () => {
     const sizeKey = graphicSize || 'medium';
@@ -416,7 +417,7 @@ export function GraphicLocationStep({
   selectedColor: string;
   onSelect: (location: GraphicLocation) => void;
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   return (
     <div className="text-center space-y-2 animate-in fade-in slide-in-from-right-5 duration-300">

@@ -1,3 +1,4 @@
+import { productSizesForColor } from '@shared/storefrontTypes';
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Crosshair, SlidersHorizontal, Copy } from "lucide-react";
@@ -160,7 +161,7 @@ export function AdvancedWizardProductSteps() {
         );
         return (
           <SizePickerStep
-            availableSizes={selectedProductType?.availableVariants?.filter(v => v.color === selectedColor).map(v => v.size) || []}
+            availableSizes={productSizesForColor(selectedProductType?.availableVariants, selectedColor)}
             selectedSize={selectedShirtSize}
             selectedColor={selectedColor}
             baseEarnings={runningEarnings}

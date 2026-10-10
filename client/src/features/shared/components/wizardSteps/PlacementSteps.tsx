@@ -1,3 +1,4 @@
+import { resolveColorHex } from '@shared/colorUtils';
 import { useState } from "react";
 import {
   Check,
@@ -10,7 +11,6 @@ import {
   PlacementGraphicChoice,
   GraphicSize,
   GraphicLocation,
-  SHIRT_COLORS,
   TextLayoutChoice,
   calculateAutoTextSize,
   getPrintAreaDims,
@@ -38,7 +38,7 @@ export function GraphicSizeStep({
   currentPlacement: PlacementOption;
   onSelect: (size: GraphicSize) => void;
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const currentSize = getPrintAreaDims(currentPlacement, selectedSize);
   
@@ -211,7 +211,7 @@ export function PlacementCountStep({
   context?: 'member' | 'owner';
 }) {
   const [floatingEarning, setFloatingEarning] = useState<{ amount: number; key: number } | null>(null);
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const handleToggleWithAnimation = (placement: PlacementOption) => {
     const isAdding = !selected.includes(placement);
@@ -425,7 +425,7 @@ export function PlacementConfigStep({
   const placementLabel = getPlacementLabel(currentPlacement);
   const showHeader = graphicChoice === 'full' && (textLayoutChoice === 'header' || textLayoutChoice === 'both');
   const showFooter = graphicChoice === 'full' && (textLayoutChoice === 'footer' || textLayoutChoice === 'both');
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const isPocket = isPocketPlacement(currentPlacement);
   const isSleeve = isSleevePlacement(currentPlacement);

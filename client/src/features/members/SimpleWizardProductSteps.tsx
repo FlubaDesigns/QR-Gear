@@ -1,3 +1,4 @@
+import { productSizesForColor } from '@shared/storefrontTypes';
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
 import { GraphicSizeStep, PlacementCountStep, PlacementConfigStep } from "@/features/shared/components/wizardSteps/PlacementSteps";
@@ -146,7 +147,7 @@ export function SimpleWizardProductSteps() {
         );
         return (
           <SizePickerStep
-            availableSizes={selectedProductType?.availableVariants?.filter(v => v.color === selectedColor).map(v => v.size) || []}
+            availableSizes={productSizesForColor(selectedProductType?.availableVariants, selectedColor)}
             selectedSize={selectedShirtSize}
             selectedColor={selectedColor}
             baseEarnings={runningEarnings}

@@ -1,3 +1,4 @@
+import { productSizesForColor } from '@shared/storefrontTypes';
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ShoppingCart, DollarSign, Crown, Sparkles, QrCode, Type, ImagePlus, Play, Check, Layers, Loader2 } from "lucide-react";
 import { ProductPickerStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
@@ -138,6 +139,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
 
       {simpleStep === 'color' && (
         <ColorPickerStep
+          availableColors={selectedProductType?.availableColors ?? []}
           selectedColor={selectedColor}
           onSelect={setSelectedColor}
           context="owner"
@@ -147,6 +149,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
 
       {simpleStep === 'size' && (
         <SizePickerStep
+          availableSizes={productSizesForColor(selectedProductType?.availableVariants, selectedColor)}
           selectedSize={selectedShirtSize}
           selectedColor={selectedColor}
           baseEarnings={runningCost}

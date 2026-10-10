@@ -22,7 +22,6 @@ import {
   type TextLayoutChoice,
   type GraphicSize,
   type GraphicLocation,
-  SHIRT_COLORS,
   SHIRT_TEXT_COLORS,
   SHIRT_TEXT_SIZES,
   SHIRT_TEXT_FONTS,

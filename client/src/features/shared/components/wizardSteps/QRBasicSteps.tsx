@@ -1,3 +1,4 @@
+import { resolveColorHex } from '@shared/colorUtils';
 import { QrCode, Link2, Type, Loader2, Check, ShoppingBag, Library, Move, Maximize2, Upload, X, ImageIcon } from "lucide-react";
 import { BrandedQR } from "@/components/BrandedQR";
 import { PlaceholderPreview } from "@/features/shared/components/ZonePreview";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import type { QRBasicInputType, QRBasicSaveOption, GraphicSize } from "./wizardTypes";
-import { SHIRT_COLORS, generateQRCodeUrl, getPrintAreaDims } from "./wizardTypes";
+import { generateQRCodeUrl, getPrintAreaDims } from "./wizardTypes";
 import { useProductGraphicPreview } from "@/hooks/useProductGraphicPreview";
 import { useRef } from "react";
 
@@ -28,7 +29,7 @@ export function QRBasicTypeStep({
   selectedColor: string;
   graphicSize: GraphicSize;
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const outlineSize = getPrintAreaDims('front', graphicSize);
   
@@ -137,7 +138,7 @@ export function QRBasicInputStep({
   selectedColor: string;
   graphicSize: GraphicSize;
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   const isUrl = inputType === 'url';
   const maxLength = isUrl ? 500 : 2000;
   const charCount = content.length;
@@ -260,7 +261,7 @@ export function QRBasicMockupStep({
   areaImageUrl?: string;
   onAreaImageUrlChange?: (url: string) => void;
 }) {
-  const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
+  const colorName = selectedColor;
   const showControls = onPositionXChange && onPositionYChange && onSizeChange;
   const showImageUpload = !!onAreaImageUrlChange;
   const posX = qrPositionX ?? 50;

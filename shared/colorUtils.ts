@@ -169,3 +169,8 @@ export function getColorHex(color: { name: string; hex?: string }): string {
 export function resolveColorHex(colorName: string): string {
   return getColorHexByName(colorName) ?? "#CCCCCC";
 }
+
+/** Mockup cache spelling only; never use this to merge distinct QRG variants. */
+export function normalizeMockupColorKey(name: string): string {
+  return name.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
+}

@@ -1,4 +1,5 @@
-import { normalizeSize } from '../../../shared/storefrontTypes';
+import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
+import { normalizeSize, sortProductSizes } from '../../../shared/storefrontTypes';
 
 export class CatalogSelectionError extends Error {
   readonly status = 400;
@@ -24,4 +25,20 @@ export function selectCatalogSaleVariant(instance: any, master: any, provider: s
   const variant = catalogSaleVariants(instance, master, provider).find(v => v.size === normalizeSize(size) && v.color === color);
   if (!variant) throw new CatalogSelectionError(`${color} / ${size} is unavailable for this product. Choose an available size or color.`);
   return variant;
+}
+
+/** Public option projection: saved selections can narrow QRG, never replace it. */
+export async function catalogProductOptions(db: any, selection: any, packet: any) {
+  const masterId = packet?.builderSnapshot?.metadata?.selectedProductDocId || packet?.sourceMasterId;
+  const unavailable = (optionsError: string) => ({ availableVariants: [] as Array<{ color: string; size: string }>, availableColors: [] as string[], availableSizes: [] as string[], optionsError });
+  if (typeof masterId !== 'string' || !isValidMasterCatalogDocId(masterId)) return unavailable('Product options unavailable: the saved QRG master reference is missing.');
+  const master = (await db.collection('master_catalog').doc(masterId).get()).data();
+  if (!master || master.isActive === false || master.status === 'archived') return unavailable('Product options unavailable: the QRG master is unavailable.');
+  const variants = catalogSaleVariants(selection, master, packet.fulfillmentProvider);
+  return {
+    availableVariants: variants.map(({ color, size }) => ({ color, size })),
+    availableColors: Array.from(new Set(variants.map(v => v.color))),
+    availableSizes: sortProductSizes(Array.from(new Set(variants.map(v => v.size)))),
+    optionsError: variants.length ? null : 'No available QRG color and size combinations for this product.',
+  };
 }

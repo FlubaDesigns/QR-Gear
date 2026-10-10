@@ -1,3 +1,5 @@
+import { ColorSwatchPicker } from '@/features/shared/components/ColorSwatchPicker';
+import { productSizesForColor, isAvailableProductVariant, type ProductVariantOption } from '@shared/storefrontTypes';
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,9 +10,9 @@ import UsaFlag from "./UsaFlag";
 import InstantMockupPreview from "./InstantMockupPreview";
 import ProductImageGallery from "./ProductImageGallery";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
+import { getColorHex } from "@shared/colorUtils";
 import { Button } from "@/components/ui/button";
-import { Loader2, ShoppingCart, Check } from "lucide-react";
+import { Loader2, ShoppingCart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient as qc } from "@/lib/queryClient";
 import { buildMockupGalleryImages } from "@/lib/mockup-gallery";
@@ -41,6 +43,8 @@ interface FeaturedProduct extends Omit<Product, 'defaultColor' | 'mockupsByColor
   selectedColors?: string[] | null;
   defaultMockupImage?: string | null;
   availableColorsWithHex?: ColorWithHex[];
+  availableVariants?: ProductVariantOption[];
+  optionsError?: string | null;
   isCustomizable?: boolean;
   retailPrice?: number; // Final price with markup and QR cost
 }
@@ -56,18 +60,11 @@ function ProductCard({
     product.defaultColor || null
   );
 
-  // Use availableColorsWithHex if provided, otherwise fallback to names only
-  const colorsWithHex: ColorWithHex[] = product.availableColorsWithHex || 
-    (product.selectedColors?.map(name => ({ name })) || 
-    (product.mockupsByColor ? Object.keys(product.mockupsByColor).map(name => ({ name })) : []));
-  
+  // Only the server-projected QRG choices are selectable.
+  const colorsWithHex: ColorWithHex[] = product.availableColorsWithHex ?? [];
+
   const availableColors = colorsWithHex.map(c => c.name);
   
-  // Create hex lookup map from data
-  const colorHexMap: Record<string, string> = {};
-  colorsWithHex.forEach(c => {
-    if (c.hex) colorHexMap[c.name] = c.hex;
-  });
 
   // Handle color swatch selection - NO API CALL, just swap from pre-cached mockups
   // Per Ghost's guidance: mockups are fetched ONCE at product creation and stored in DB
@@ -115,33 +112,8 @@ function ProductCard({
       
       {availableColors.length > 1 && (
         <div className="product-card-colors">
-          {availableColors.slice(0, 5).map((color) => (
-            // FIX #1: Stop Event Bubbling on Swatch Buttons (Ghost's exact spec)
-            <button
-              type="button"
-              key={color}
-              className={`color-swatch ${selectedColor === color ? 'selected' : ''}`}
-              style={{ backgroundColor: colorHexMap[color] || getColorHexByName(color) || '#CCCCCC' }}
-              onPointerDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClickCapture={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleColorChange(color);
-              }}
-              title={color}
-              data-testid={`swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
-            />
-          ))}
-          {availableColors.length > 5 && (
-            <span className="color-swatch-more">+{availableColors.length - 5}</span>
-          )}
+          <ColorSwatchPicker hideLabel colors={colorsWithHex.map(c => ({ name: c.name, hex: c.hex || '' }))}
+            selectedColor={selectedColor} onChange={color => handleColorChange(color.name)} testIdPrefix="swatch" />
         </div>
       )}
       
@@ -203,20 +175,13 @@ function ProductQuickView({
     }
   }, [isOpen, product]);
 
-  // Use availableColorsWithHex if provided, otherwise fallback to names only
-  const colorsWithHex: ColorWithHex[] = product?.availableColorsWithHex || 
-    (product?.selectedColors?.map(name => ({ name })) || 
-    (product?.mockupsByColor ? Object.keys(product.mockupsByColor).map(name => ({ name })) : []));
-  
+  // Only the server-projected QRG choices are selectable.
+  const colorsWithHex: ColorWithHex[] = product?.availableColorsWithHex ?? [];
+
   const availableColors = colorsWithHex.map(c => c.name);
   
-  // Create hex lookup map from data
-  const colorHexMap: Record<string, string> = {};
-  colorsWithHex.forEach(c => {
-    if (c.hex) colorHexMap[c.name] = c.hex;
-  });
 
-  const availableSizes = product?.availableSizes || ['S', 'M', 'L', 'XL', '2XL'];
+  const availableSizes = productSizesForColor(product?.availableVariants, selectedColor);
 
   const generateMockupMutation = useMutation({
     mutationFn: async ({ productId, color }: { productId: string; color: string }) => {
@@ -254,7 +219,7 @@ function ProductQuickView({
 
   const addToCartMutation = useMutation({
     mutationFn: async () => {
-      if (!product || !selectedColor || !selectedSize) return;
+      if (!product || !isAvailableProductVariant(product.availableVariants, selectedColor, selectedSize)) throw new Error('Choose an available QRG color and size.');
 
       // Resolve price + Printify IDs via the catalog add-to-cart endpoint first
       const resolveRes = await fetch(`/api/store/product/${product.id}/add-to-cart`, {
@@ -305,6 +270,7 @@ function ProductQuickView({
 
   const handleColorClick = (color: string) => {
     setSelectedColor(color);
+    if (!isAvailableProductVariant(product?.availableVariants, color, selectedSize)) setSelectedSize(null);
     
     // Check if we have a mockup for this color
     const hasMockup = localMockups[color]?.front || product?.mockupsByColor?.[color]?.front;
@@ -338,7 +304,7 @@ function ProductQuickView({
           <div className="relative">
             {(() => {
               const hasMockup = galleryImages.length > 0 && galleryImages[0].url !== product.imageUrl;
-              const hexColor = selectedColor ? (colorHexMap[selectedColor] || getColorHexByName(selectedColor) || '#CCCCCC') : null;
+              const hexColor = selectedColor ? getColorHex(colorsWithHex.find(c => c.name === selectedColor) || { name: selectedColor }) : null;
               const qrArtworkBlack = product.frontChestImage || product.qrCodeUrl;
               const qrArtworkWhite = (product as any).frontChestImageWhite || null;
               
@@ -395,37 +361,11 @@ function ProductQuickView({
             </div>
             
             <div>
-              <h4 className="font-medium mb-3">Color: {selectedColor || 'Select a color'}</h4>
-              <div className="flex flex-wrap gap-2">
-                {availableColors.map((color: string) => {
-                  const hasMockup = localMockups[color]?.front || product.mockupsByColor?.[color]?.front;
-                  const hexColor = colorHexMap[color] || getColorHexByName(color) || '#CCCCCC';
-                  return (
-                    <button
-                      key={color}
-                      className={`w-10 h-10 rounded-full border-2 transition-all relative ${
-                        selectedColor === color 
-                          ? 'border-primary ring-2 ring-primary ring-offset-2' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                      style={{ backgroundColor: hexColor }}
-                      onClick={() => handleColorClick(color)}
-                      title={color}
-                      disabled={generatingColor === color}
-                      data-testid={`quickview-swatch-${color.toLowerCase().replace(/\s+/g, '-')}`}
-                    >
-                      {generatingColor === color && (
-                        <Loader2 className="h-4 w-4 animate-spin absolute inset-0 m-auto text-white drop-shadow-md" />
-                      )}
-                      {hasMockup && generatingColor !== color && (
-                        <Check className="h-3 w-3 absolute bottom-0 right-0 text-green-500 bg-white rounded-full" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
+              <ColorSwatchPicker label="Color" colors={colorsWithHex.map(c => ({ name: c.name, hex: c.hex || '' }))}
+                selectedColor={selectedColor} onChange={color => handleColorClick(color.name)} testIdPrefix="quickview-swatch" />
+              {product.optionsError && <p role="alert" className="text-destructive">{product.optionsError}</p>}
             </div>
-            
+
             <div>
               <h4 className="font-medium mb-3">Size: {selectedSize || 'Select a size'}</h4>
               <div className="flex flex-wrap gap-2">

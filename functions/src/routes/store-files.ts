@@ -1,4 +1,4 @@
-import { catalogSaleVariants, CatalogSelectionError } from '../services/catalog-sale-variants';
+import { catalogProductOptions, CatalogSelectionError } from '../services/catalog-sale-variants';
 import { resolveSaleItem } from '../services/order-fulfillment';
 import { publicProductText } from '../../../shared/descriptionLayers';
 import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
@@ -17,7 +17,7 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
-import { buildStructuredOptions, deriveCardMode, sortProductSizes, sizeUpcharge } from '../../../shared/storefrontTypes';
+import { isAvailableProductVariant, buildStructuredOptions, deriveCardMode, sortProductSizes, sizeUpcharge } from '../../../shared/storefrontTypes';
 
 /**
  * Convert a productPackets.mockupsByColor nested structure into the flat frontend format.
@@ -143,18 +143,14 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let packetCompositeUrl: string | null = null;
       let packetQrOnlyUrl: string | null = null;
       let packetPlayMediaUrl: string | null = null;
-      let availableVariants: Array<{ color: string; size: string }> = [];
+      let productOptions = await catalogProductOptions(db, d, null);
 
       if (d.currentPacketId) {
         try {
           const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
           if (pDoc.exists) {
             const pkt = pDoc.data()!;
-            const masterId = pkt.builderSnapshot?.metadata?.selectedProductDocId;
-            if (masterId) {
-              const master = (await db.collection('master_catalog').doc(masterId).get()).data();
-              if (master && master.isActive !== false) availableVariants = catalogSaleVariants(d, master, pkt.fulfillmentProvider).map(({ color, size }) => ({ color, size }));
-            }
+            productOptions = await catalogProductOptions(db, d, pkt);
             const extracted = extractPacketMockups(pkt);
             packetMockupsByColor = extracted.mockupsByColor;
             packetMockupImages = extracted.mockupImages;
@@ -179,8 +175,8 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         mockups: packetMockupImages,
       });
 
-      const bColors = toStrArr(d.enabledColors || resolved.colors || []).filter(color => availableVariants.some(v => v.color === color));
-      const bSizes = sortProductSizes(toStrArr(d.enabledSizes || resolved.sizes || []));
+      const bColors = productOptions.availableColors;
+      const bSizes = productOptions.availableSizes;
 
       res.json({
         id: instanceDoc.id,
@@ -197,8 +193,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         playMediaUrl: packetPlayMediaUrl,
         qrProductType: packetQrProductType,
         price: price !== null ? Math.round(price * 100) / 100 : null,
-        availableSizes: bSizes,
-        availableVariants,
+        ...productOptions,
         sizeUpcharges: await getSizeUpcharges(),
         availableColors: bColors,
         availablePlacements: [],
@@ -225,8 +220,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       const link = linkDoc.data()!;
 
       let price: number | null = null;
-      let availableSizes: string[] = link.enabledSizes || [];
-      let availableColors: string[] = link.enabledColors || [];
+      let productOptions = await catalogProductOptions(db, link, null);
       let availablePlacements: string[] = [];
       let description = '';
       let category = '';
@@ -239,6 +233,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         const packetDoc = await db.collection('packets').doc(link.packetId).get();
         if (packetDoc.exists) {
           const packet = packetDoc.data()!;
+          productOptions = await catalogProductOptions(db, link, packet);
           packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
           if (packet.placementMockupUrls && typeof packet.placementMockupUrls === 'object') {
             packetPlacementMockupUrls = packet.placementMockupUrls as Record<string, string>;
@@ -254,8 +249,6 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
             const productDoc = await db.collection('products').doc(productId).get();
             if (productDoc.exists) {
               const product = productDoc.data()!;
-              if (availableSizes.length === 0) availableSizes = product.availableSizes || product.sizes || [];
-              if (availableColors.length === 0) availableColors = product.availableColors || product.colors || [];
               availablePlacements = product.availablePlacements || [];
               description = product.description || '';
               category = product.category || '';
@@ -309,6 +302,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
       const allImages = resolveProductImages({ mockups: mockupImages });
 
+      const { availableColors, availableSizes } = productOptions;
       res.json({
         id: linkDoc.id,
         name: publicProductText(link.productName || 'Untitled Product'),
@@ -321,6 +315,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         qrCodeUrl: link.qrOnlyUrl || null,
         qrProductType: link.qrProductState || 'qr-basics',
         price: price !== null ? Math.round(price * 100) / 100 : null,
+        ...productOptions,
         availableSizes: sortProductSizes(availableSizes),
         sizeUpcharges: await getSizeUpcharges(),
         availableColors,
@@ -376,6 +371,9 @@ app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Respons
     if (linkDoc.exists) {
       const link = linkDoc.data()!;
 
+      const savedPacket = link.packetId ? (await db.collection('packets').doc(link.packetId).get()).data() : null;
+      const options = await catalogProductOptions(db, link, savedPacket);
+      if (!isAvailableProductVariant(options.availableVariants, selectedColor, selectedSize)) throw new CatalogSelectionError(options.optionsError || 'Choose an available QRG color and size.');
       let price: number | null = null;
       let productId: string | null = null;
 
@@ -476,12 +474,14 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupImages1: string[] = [];
             let pktDefaultColor1: string | null = null;
             let pktQrProductType1: string | null = null;
+            let productOptions = await catalogProductOptions(db, d, null);
 
             if (d.currentPacketId) {
               try {
                 const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
+                  productOptions = await catalogProductOptions(db, d, pkt);
                   const extracted = extractPacketMockups(pkt);
                   pktMockupsByColor1 = extracted.mockupsByColor;
                   pktMockupImages1 = extracted.mockupImages;
@@ -504,8 +504,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               mockups: pktMockupImages1,
             });
 
-            const l1Colors = toStringArray(rawColors);
-            const l1Sizes = toStringArray(rawSizes);
+            const l1Colors = productOptions.availableColors;
+            const l1Sizes = productOptions.availableSizes;
             return {
               id: doc.id,
               name: publicProductText(resolved.title || 'Untitled'),
@@ -519,6 +519,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               qrProductType: pktQrProductType1,
               qrCodeUrl: null,
               selectedColors: l1Colors,
+              ...productOptions,
               availableSizes: l1Sizes,
               defaultColor: pktDefaultColor1,
               mockupsByColor: pktMockupsByColor1,
@@ -613,12 +614,14 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             let pktMockupImages2: string[] = [];
             let pktDefaultColor2: string | null = null;
             let pktQrProductType2: string | null = null;
+            let productOptions = await catalogProductOptions(db, d, null);
 
             if (d.currentPacketId) {
               try {
                 const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
                 if (pDoc.exists) {
                   const pkt = pDoc.data()!;
+                  productOptions = await catalogProductOptions(db, d, pkt);
                   const extracted = extractPacketMockups(pkt);
                   pktMockupsByColor2 = extracted.mockupsByColor;
                   pktMockupImages2 = extracted.mockupImages;
@@ -636,8 +639,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               mockups: pktMockupImages2,
             });
 
-            const l2Colors = toStrArr(d.enabledColors || resolved.colors || []);
-            const l2Sizes = toStrArr(d.enabledSizes || resolved.sizes || []);
+            const l2Colors = productOptions.availableColors;
+            const l2Sizes = productOptions.availableSizes;
             return {
               id: doc.id,
               name: publicProductText(resolved.title || 'Untitled'),
@@ -651,6 +654,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
               qrProductType: pktQrProductType2,
               qrCodeUrl: null,
               selectedColors: l2Colors,
+              ...productOptions,
               availableSizes: l2Sizes,
               defaultColor: pktDefaultColor2,
               mockupsByColor: pktMockupsByColor2,
@@ -711,12 +715,14 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           let pktMockupImages3: string[] = [];
           let pktDefaultColor3: string | null = null;
             let pktQrProductType3: string | null = null;
+            let productOptions = await catalogProductOptions(db, d, null);
 
           if (d.currentPacketId) {
             try {
               const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
               if (pDoc.exists) {
                 const pkt = pDoc.data()!;
+                  productOptions = await catalogProductOptions(db, d, pkt);
                 const extracted = extractPacketMockups(pkt);
                 pktMockupsByColor3 = extracted.mockupsByColor;
                 pktMockupImages3 = extracted.mockupImages;
@@ -734,8 +740,8 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             mockups: pktMockupImages3,
           });
 
-          const l3Colors = toStrArr2(d.enabledColors || resolved.colors || []);
-          const l3Sizes = toStrArr2(d.enabledSizes || resolved.sizes || []);
+          const l3Colors = productOptions.availableColors;
+          const l3Sizes = productOptions.availableSizes;
           return {
             id: doc.id,
             name: publicProductText(resolved.title || 'Untitled'),
@@ -749,6 +755,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
             qrProductType: pktQrProductType3,
             qrCodeUrl: null,
             selectedColors: l3Colors,
+            ...productOptions,
             availableSizes: l3Sizes,
             defaultColor: pktDefaultColor3,
             mockupsByColor: pktMockupsByColor3,

@@ -5,6 +5,14 @@ Last updated: October 10, 2026
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
 
+## Shared QRG product options — October 10, 2026
+
+Active Admin Builder, member/owner wizard, storefront detail and featured-product color controls now use the existing shared ColorSwatchPicker. Selection is keyed by canonical color name, not display hex; swatches wrap into rows. The old six-color and generic-size wizard fallback lists are removed. Shared variant helpers clear invalid sizes after color changes, and the shared color map supplies appearance only.
+
+The existing catalogSaleVariants resolver projects selectable options from master_catalog QRG variants, narrowed by saved catalog choices and valid provider mappings. Admin options, storefront listings/detail, and legacy product endpoints reuse this resolver; missing QRG references expose an explicit options error and no invented choices. Member options already use this resolver. No new collection or schema is introduced. QRG numbering, artwork, pricing, inside labels and member/admin permissions remain unchanged.
+
+Validation: frontend TypeScript, backend compilation and production build passed. Deployment and live UI checks are recorded in the release workflow and task report.
+
 ## Storefront color-change crash — October 10, 2026
 
 The shared product image gallery now keys its selection and zoom state to the complete ordered media URL list. Changing shirt color resets to the new gallery's first image before rendering, including when the list shrinks or its lead image stays the same. This removes the stale-index `url` crash in Monuments and all other storefronts using this gallery. Pending mobile long-press timers are cleared when the gallery changes.
@@ -417,6 +425,19 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### October 10, 2026 — Shared QRG color picker
+
+Connected active product color controls to the existing shared component and QRG variant resolver; removed wizard fallback choices. Missing QRG references now give an explicit unavailable-options message.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/features/shared/components/ColorSwatchPicker.tsx` | Canonical name selection, accessible wrapping swatches and dropdown |
+| `shared/storefrontTypes.ts` | Shared color/size availability helpers |
+| `functions/src/services/catalog-sale-variants.ts` | Shared QRG product option projection |
+| Admin, member/owner and storefront callers | Consume the shared control and canonical option projection |
+
 
 ### October 10, 2026 — QR Dynamics and individual copies
 

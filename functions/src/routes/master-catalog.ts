@@ -1,3 +1,5 @@
+import { normalizeSize } from '../../../shared/storefrontTypes';
+import { catalogSaleVariants } from '../services/catalog-sale-variants';
 import { catalogColorOptions } from "../services/catalog-color-options";
 import { resolveQrgPrintSpecs } from '../services/qrg-print-specs';
 import { Request, Response } from 'express';
@@ -970,6 +972,8 @@ export function register(app: express.Express): void {
         layoutSource = 'qrg_verified_printfiles';
       }
 
+      const catalogColors = await catalogColorOptions(db, req.query.catalogId, docId, availableColors);
+      const saleVariants = catalogSaleVariants({ enabledColors: catalogColors, enabledSizes: availableSizes.map(s => s.label) }, product, requestedProvider);
       // 7. Build response — schema-first: QRG identity leads, provider IDs are metadata only
       res.json({
         docId,
@@ -983,8 +987,9 @@ export function register(app: express.Express): void {
         brand: product.brand || null,
         model: product.model || null,
         category: product.qrgCategory || product.category || null,
-        availableSizes,
-        availableColors: await catalogColorOptions(db, req.query.catalogId, docId, availableColors),
+        availableSizes: availableSizes.filter(size => saleVariants.some(v => v.size === normalizeSize(size.label))),
+        availableColors: catalogColors.filter(color => saleVariants.some(v => v.color === color.name)),
+        availableVariants: saleVariants.map(({ color, size }) => ({ color, size })),
         providerMappings: isProviderObj ? pm : null,
         printLocations,
         provider: {

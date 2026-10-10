@@ -1,3 +1,4 @@
+import { normalizeMockupColorKey } from '@shared/colorUtils';
 /**
  * storefront-shared/buildProductGallery.ts
  *
@@ -39,11 +40,6 @@ function normalizeImageUrl(item: string | { url?: string; alt?: string }): strin
   return item?.url || null;
 }
 
-/** Strip the optional Solid prefix; Heather remains a distinct shirt color. Normalize and normalize to lowercase (e.g. "Solid Black" → "black"). */
-function normalizeColorName(name: string): string {
-  return name.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
-}
-
 /**
  * Extract just the color portion from a compound key like "navy_large_front" → "navy".
  * Keys are stored as {color}_{size}_{placement} or just {color}.
@@ -75,18 +71,18 @@ function findColorMockup(
     return mockupsByColor[keys[0]] ?? null;
   }
 
-  const normalizedTarget = normalizeColorName(targetColor);
+  const normalizedTarget = normalizeMockupColorKey(targetColor);
 
   // Collect all entries whose color portion matches the target
   const matches = keys.filter((key) => {
-    const keyColor = normalizeColorName(extractColorFromKey(key));
+    const keyColor = normalizeMockupColorKey(extractColorFromKey(key));
     return keyColor === normalizedTarget;
   });
 
   // If no compound-key matches, try a full-key normalized match (simple keys like "Navy")
   if (matches.length === 0) {
     for (const key of keys) {
-      if (normalizeColorName(key) === normalizedTarget) return mockupsByColor[key];
+      if (normalizeMockupColorKey(key) === normalizedTarget) return mockupsByColor[key];
     }
     return null;
   }

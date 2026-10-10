@@ -1,3 +1,4 @@
+import { resolveColorHex } from '@shared/colorUtils';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,7 +21,6 @@ import {
   type PlacementGraphicChoice,
   type ProductItem,
   QR_TYPES,
-  SHIRT_COLORS,
   getPrintAreaDims,
   GRAPHIC_CENTER,
   isSleevePlacement,
@@ -91,7 +91,7 @@ export function ShirtPreviewStep({
   perPlacementConfigs?: Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; size: GraphicSize }>;
   graphicLayoutMode?: "zone" | "freeform";
 }) {
-  const colorHex = SHIRT_COLORS.find(c => c.id === selectedColor)?.hex || '#1a1a1a';
+  const colorHex = resolveColorHex(selectedColor);
   
   const hasFrontPlacement = selectedPlacements.some(p => isFrontPlacement(p) || isPocketPlacement(p));
   const hasBackPlacement = selectedPlacements.some(p => isBackPlacement(p));

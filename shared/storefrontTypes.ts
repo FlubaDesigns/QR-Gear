@@ -10,7 +10,7 @@
  * Single source of truth. Do not redefine these shapes locally.
  */
 
-import { COLOR_HEX_MAP } from './colorUtils';
+import { resolveColorHex } from './colorUtils';
 
 // ── Media ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,17 @@ export function normalizeSize(size: string): string {
   return repeated ? `${repeated[1].length}XL` : value;
 }
 
+/** UI selection consumes the combinations already approved by the QRG resolver. */
+export interface ProductVariantOption { color: string; size: string }
+
+export function productSizesForColor(variants: readonly ProductVariantOption[] | null | undefined, color: string | null | undefined): string[] {
+  return sortProductSizes(Array.from(new Set((variants ?? []).filter(v => v.color === color).map(v => normalizeSize(v.size)))));
+}
+
+export function isAvailableProductVariant(variants: readonly ProductVariantOption[] | null | undefined, color: string | null | undefined, size: string | null | undefined): boolean {
+  return !!color && !!size && (variants ?? []).some(v => v.color === color && normalizeSize(v.size) === normalizeSize(size));
+}
+
 export function sortProductSizes(sizes: string[]): string[] {
   return [...sizes].sort((a, b) => {
     const rank = (s: string) => {
@@ -78,7 +89,7 @@ export function buildStructuredOptions(colors: string[], sizes: string[]): Produ
       isPrimary: true,
       values: colors.map(label => ({
         label,
-        hex: COLOR_HEX_MAP[label] ?? '#CCCCCC',
+        hex: resolveColorHex(label),
         available: true,
       })),
     });

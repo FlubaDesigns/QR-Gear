@@ -1,3 +1,4 @@
+import { ColorSwatchPicker } from "@/features/shared/components/ColorSwatchPicker";
 import { useState } from "react";
 import { printArtworkFrame } from '@shared/printSizing';
 import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
@@ -65,33 +66,12 @@ export function ColorSection({
 
       {open && (
         <div className="px-3 pb-3 pt-1 border-t">
-          <div className="overflow-x-auto -mx-1 pb-1">
-            <div className="flex gap-2 px-1 w-max">
-              {availableColors.map((color) => {
-                const isSelected = selectedColor?.hex === color.hex;
-                return (
-                  <button
-                    key={color.hex}
-                    type="button"
-                    onClick={() => onSelect(color)}
-                    className={`
-                      w-9 h-9 rounded-md border-2 flex-shrink-0 transition-all
-                      ${isSelected
-                        ? "border-primary ring-2 ring-primary/30 scale-110"
-                        : "border-border hover:border-primary/50"
-                      }
-                    `}
-                    style={{ backgroundColor: color.hex }}
-                    title={color.name}
-                    data-testid={`swatch-${color.name.toLowerCase().replace(/\s+/g, '-')}`}
-                  />
-                );
-              })}
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground mt-2">
-            {availableColors.length} colors — swipe to see all
-          </p>
+          <ColorSwatchPicker
+            colors={availableColors}
+            selectedColor={selectedColor?.name ?? null}
+            onChange={onSelect}
+            testIdPrefix="swatch"
+          />
         </div>
       )}
     </div>

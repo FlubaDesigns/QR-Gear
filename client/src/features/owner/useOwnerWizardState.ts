@@ -1,3 +1,6 @@
+import { isAvailableProductVariant } from '@shared/storefrontTypes';
+import { getContrastQRColor } from "@/features/shared/components/ColorSwatchPicker";
+import { resolveColorHex } from '@shared/colorUtils';
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
@@ -6,7 +9,6 @@ import type {
   GraphicSize, PlacementOption, TextLayoutChoice, QRBasicInputType,
   PlacementGraphicChoice,
 } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { SHIRT_SIZES, SHIRT_COLORS } from "@/features/shared/components/wizardSteps/wizardTypes";
 
 export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) {
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('product');
@@ -56,6 +58,10 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [guidedSeenSteps, setGuidedSeenSteps] = useState<Set<string>>(new Set(isGuided ? ['product'] : []));
 
   useEffect(() => {
+    if (selectedShirtSize && !isAvailableProductVariant(selectedProductType?.availableVariants, selectedColor, selectedShirtSize)) setSelectedShirtSize('');
+  }, [selectedProductType, selectedColor, selectedShirtSize]);
+
+  useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -81,11 +87,11 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     const defaultUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10 };
     const upcharges = pricingSettings?.sizeUpcharges || defaultUpcharges;
     const bonuses: Record<string, number> = {};
-    for (const size of SHIRT_SIZES) {
+    for (const size of selectedProductType?.availableSizes ?? []) {
       bonuses[size] = upcharges[size] || 0;
     }
     return bonuses;
-  }, [pricingSettings]);
+  }, [pricingSettings, selectedProductType]);
 
   const createTempPacket = useCallback(async (product: AllowedProduct) => {
     if (packetCreating.current || tempPacketId) return;
@@ -131,7 +137,6 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     if (!selectedProductType) return false;
     setIsGeneratingRealMockup(true);
     try {
-      const colorInfo = SHIRT_COLORS.find(c => c.id === selectedColor);
       const qrContent = qrType === 'qr-basic'
         ? qrBasicContent || 'https://example.com'
         : `${window.location.origin}/preview/${Date.now()}`;
@@ -143,15 +148,15 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
           tempPacketId,
           blueprintId: selectedProductType.blueprintId,
           printProviderId: selectedProductType.printProviderId || 99,
-          colorName: colorInfo?.name || selectedColor,
-          colorHex: colorInfo?.hex || '#1a1a1a',
+          colorName: selectedColor,
+          colorHex: resolveColorHex(selectedColor),
           selectedPlacements: selectedPlacements.length > 0 ? selectedPlacements : ['front'],
           qrSize: graphicSize || 'medium',
           qrUrl: qrContent,
           headerStyle,
           footerStyle,
           textLayoutChoice,
-          qrColor: (colorInfo?.textColor === '#FFFFFF') ? 'white' : 'black',
+          qrColor: getContrastQRColor(resolveColorHex(selectedColor)),
           fulfillmentProvider: selectedProductType.fulfillmentProvider || 'printify',
         }),
       });

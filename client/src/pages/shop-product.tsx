@@ -1,4 +1,5 @@
-import { normalizeSize, sortProductSizes, sizeUpcharge } from '@shared/storefrontTypes';
+import { ColorSwatchPicker } from "@/features/shared/components/ColorSwatchPicker";
+import { isAvailableProductVariant, productSizesForColor, type ProductOption, buildStructuredOptions, sortProductSizes, sizeUpcharge } from '@shared/storefrontTypes';
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRoute, Link, useLocation } from "wouter";
@@ -25,7 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCart } from "@/contexts/CartContext";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getColorHexByName } from "@/features/storeBuilder/store-builder-types";
+import { normalizeMockupColorKey } from "@shared/colorUtils";
 import { StorefrontBreadcrumb } from "@/features/storefront/StorefrontBreadcrumb";
 import { getChannelConfig } from "@/data/shopHierarchy";
 import PhoneMockupCard from "@/components/PhoneMockupCard";
@@ -38,29 +39,6 @@ const QR_PRODUCT_TYPE_LABELS: Record<string, { label: string; color: string }> =
   "qr-play": { label: "QR Play", color: "bg-rose-500" },
   "qr-dynamics": { label: "QR Dynamics", color: "bg-emerald-500" },
 };
-
-function isLightColor(hex: string): boolean {
-  const h = hex.replace("#", "");
-  const r = parseInt(h.substring(0, 2), 16);
-  const g = parseInt(h.substring(2, 4), 16);
-  const b = parseInt(h.substring(4, 6), 16);
-  // Standard relative luminance (WCAG formula)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.55;
-}
-
-interface ProductOptionValue {
-  label: string;
-  hex?: string;
-  available: boolean;
-}
-
-interface ProductOption {
-  name: string;
-  displayType: 'swatches' | 'pills' | 'dropdown';
-  isPrimary: boolean;
-  values: ProductOptionValue[];
-}
 
 interface StoreProduct {
   id: string;
@@ -77,6 +55,7 @@ interface StoreProduct {
   compositeUrl?: string | null;
   qrProductType: string;
   price: number | null;
+  optionsError?: string | null;
   availableSizes: string[];
   availableVariants?: Array<{ color: string; size: string }>;
   sizeUpcharges?: Record<string, number>;
@@ -154,7 +133,7 @@ export default function ShopProductPage() {
     const defaultColor = colors.find(c => c.toLowerCase() === product.defaultColor?.toLowerCase()) || colors[0] || null;
     setSelectedColor(defaultColor);
     const sizes = product.availableVariants
-      ? product.availableVariants.filter(v => v.color === defaultColor).map(v => v.size)
+      ? productSizesForColor(product.availableVariants, defaultColor)
       : product.availableSizes || [];
     setSelectedSize(sortProductSizes(sizes)[0] || null);
     setSizeError(false);
@@ -162,16 +141,12 @@ export default function ShopProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
-  // Normalize color name the same way buildProductGallery does
-  const normalizeColorKey = (s: string) =>
-    s.replace(/^Solid\s+/i, '').toLowerCase().trim().replace(/\s+/g, '-');
-
   // Returns true if the color already has a mockup in the local cache
   const isMockupCached = (color: string): boolean => {
     if (!localMockupsByColor) return false;
-    const target = normalizeColorKey(color);
+    const target = normalizeMockupColorKey(color);
     return Object.keys(localMockupsByColor).some(
-      (key) => normalizeColorKey(key.split('_')[0]) === target && !!localMockupsByColor[key]?.front,
+      (key) => normalizeMockupColorKey(key.split('_')[0]) === target && !!localMockupsByColor[key]?.front,
     );
   };
 
@@ -179,7 +154,7 @@ export default function ShopProductPage() {
     const requestId = ++mockupRequestId.current;
     setSelectedColor(color);
     setColorError(false);
-    if (product?.availableVariants && selectedSize && !product.availableVariants.some(v => v.color === color && normalizeSize(v.size) === normalizeSize(selectedSize))) {
+    if (product?.availableVariants && selectedSize && !isAvailableProductVariant(product.availableVariants, color, selectedSize)) {
       setSelectedSize(null);
       setSizeError(true);
       setSizeNotice(`${selectedSize} is not available in ${color}. Choose an available size.`);
@@ -225,7 +200,7 @@ export default function ShopProductPage() {
   const displayImage = galleryImages[0]?.url || product?.imageUrl;
 
   const handleAddToCart = async (): Promise<boolean> => {
-    if (!product || !product.price) return false;
+    if (!product || !product.price || product.optionsError) return false;
 
     // ── Inline validation ──────────────────────────────────────────────────
     const needsColor = (product.availableColors?.length ?? 0) > 0;
@@ -236,7 +211,7 @@ export default function ShopProductPage() {
       colorSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       blocked = true;
     }
-    if (needsSize && (!selectedSize || (product.availableVariants && !product.availableVariants.some(v => v.color === selectedColor && normalizeSize(v.size) === normalizeSize(selectedSize))))) {
+    if (needsSize && (!selectedSize || (product.availableVariants && !isAvailableProductVariant(product.availableVariants, selectedColor, selectedSize)))) {
       setSizeError(true);
       if (!blocked) sizeSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       blocked = true;
@@ -340,33 +315,16 @@ export default function ShopProductPage() {
 
   const typeInfo = QR_PRODUCT_TYPE_LABELS[product.qrProductType];
 
-  // Build fallback options from raw arrays when structured options[] are absent
-  const colorOption = product.options?.find(o => o.name === 'color') ??
-    (product.availableColors?.length
-      ? {
-          name: 'color',
-          displayType: 'swatches' as const,
-          isPrimary: true,
-          values: product.availableColors.map(c => ({ label: c, available: true, hex: undefined })),
-        }
-      : null);
-
-  const rawSizeOption = product.options?.find(o => o.name === 'size') ??
-    (product.availableSizes?.length
-      ? {
-          name: 'size',
-          displayType: 'pills' as const,
-          isPrimary: false,
-          values: product.availableSizes.map(s => ({ label: s, available: true })),
-        }
-      : null);
+  const structuredOptions = product.options ?? buildStructuredOptions(product.availableColors ?? [], product.availableSizes ?? []);
+  const colorOption = structuredOptions.find(option => option.name === 'color');
+  const rawSizeOption = structuredOptions.find(option => option.name === 'size');
 
   const sizeOption = rawSizeOption ? { ...rawSizeOption } : null;
   if (sizeOption) {
     const labels = sortProductSizes(sizeOption.values.map(v => v.label));
     sizeOption.values = labels.map(label => ({
       ...sizeOption.values.find(v => v.label === label)!,
-      available: !!sizeOption.values.find(v => v.label === label)?.available && (!product.availableVariants || product.availableVariants.some(v => v.color === selectedColor && normalizeSize(v.size) === normalizeSize(label))),
+      available: !!sizeOption.values.find(v => v.label === label)?.available && (!product.availableVariants || isAvailableProductVariant(product.availableVariants, selectedColor, label)),
     }));
   }
   const selectedUpcharge = sizeUpcharge(selectedSize, product.sizeUpcharges || {});
@@ -523,6 +481,7 @@ export default function ShopProductPage() {
             </div>
 
             <Separator />
+            {product.optionsError && <p role="alert" className="text-destructive">{product.optionsError}</p>}
 
             {(() => {
               if (!colorOption || colorOption.values.length === 0) return null;
@@ -534,48 +493,16 @@ export default function ShopProductPage() {
                       <span className="text-xs font-normal text-destructive">— please select a color</span>
                     )}
                   </label>
-                  <Select
-                    value={selectedColor ?? ''}
-                    onValueChange={(val) => handleColorChange(val)}
-                    data-testid="select-color"
-                  >
-                    <SelectTrigger className={`w-full${colorError ? " ring-2 ring-destructive ring-offset-1" : ""}`}>
-                      {selectedColor ? (
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="w-4 h-4 rounded-full border border-border flex-shrink-0"
-                            style={{ backgroundColor: colorOption.values.find(cv => cv.label === selectedColor)?.hex || getColorHexByName(selectedColor) || '#ccc' }}
-                          />
-                          {selectedColor}
-                        </span>
-                      ) : (
-                        <SelectValue placeholder="Select a color" />
-                      )}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {colorOption.values.map(cv => {
-                        const hex = cv.hex || getColorHexByName(cv.label) || '#ccc';
-                        return (
-                          <SelectItem
-                            key={cv.label}
-                            value={cv.label}
-                            disabled={!cv.available}
-                            data-testid={`option-color-${cv.label.toLowerCase().replace(/\s+/g, '-')}`}
-                          >
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="w-4 h-4 rounded-full border border-border flex-shrink-0"
-                                style={{ backgroundColor: hex }}
-                              />
-                              <span className={!cv.available ? 'opacity-40' : ''}>
-                                {cv.label}
-                              </span>
-                            </span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                  <ColorSwatchPicker
+                    label="Color"
+                    hideLabel
+                    displayType="dropdown"
+                    colors={colorOption.values.map(value => ({ name: value.label, hex: value.hex || '', available: value.available }))}
+                    selectedColor={selectedColor}
+                    onChange={color => handleColorChange(color.name)}
+                    invalid={colorError}
+                    testIdPrefix="option-color"
+                  />
                 </div>
               );
             })()}
@@ -695,7 +622,7 @@ export default function ShopProductPage() {
               <Button
                 className="w-full"
                 size="lg"
-                disabled={!product.price || addingToCart || !selectedColor || !selectedSize}
+                disabled={!!product.optionsError || !product.price || addingToCart || !selectedColor || !selectedSize}
                 onClick={handleAddToCart}
                 data-testid="button-add-to-cart"
               >
@@ -713,7 +640,7 @@ export default function ShopProductPage() {
                 variant="outline"
                 className="w-full"
                 size="lg"
-                disabled={!product.price || addingToCart || !selectedColor || !selectedSize}
+                disabled={!!product.optionsError || !product.price || addingToCart || !selectedColor || !selectedSize}
                 onClick={async () => {
                   const success = await handleAddToCart();
                   if (success) setLocation("/cart");

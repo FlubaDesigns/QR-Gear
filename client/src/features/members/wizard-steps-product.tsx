@@ -1,3 +1,4 @@
+import { productSizesForColor } from '@shared/storefrontTypes';
 import { Button } from "@/components/ui/button";
 import {
   Store, Check
@@ -146,7 +147,7 @@ export function WizardProductSteps({
         );
         return (
           <SizePickerStep
-            availableSizes={selectedProductType?.availableVariants?.filter(v => v.color === selectedColor).map(v => v.size) || []}
+            availableSizes={productSizesForColor(selectedProductType?.availableVariants, selectedColor)}
             selectedSize={selectedShirtSize}
             selectedColor={selectedColor}
             baseEarnings={runningEarnings}

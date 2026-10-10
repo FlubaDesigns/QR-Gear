@@ -201,17 +201,6 @@ export interface MockupFetchResult {
   error?: string;
 }
 
-export const SHIRT_COLORS = [
-  { id: 'white', name: 'White', hex: '#FFFFFF', textColor: '#000000' },
-  { id: 'black', name: 'Black', hex: '#1a1a1a', textColor: '#FFFFFF' },
-  { id: 'navy', name: 'Navy', hex: '#1e3a5f', textColor: '#FFFFFF' },
-  { id: 'red', name: 'Red', hex: '#dc2626', textColor: '#FFFFFF' },
-  { id: 'forest', name: 'Forest', hex: '#166534', textColor: '#FFFFFF' },
-  { id: 'gray', name: 'Gray', hex: '#6b7280', textColor: '#FFFFFF' },
-];
-
-export const SHIRT_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
-
 export function calculateSizeEarningsBonuses(sizeUpcharges: Record<string, number> | undefined, memberProfitShare: number): Record<string, number> {
   const bonuses: Record<string, number> = {};
   for (const [size, upcharge] of Object.entries(sizeUpcharges || {})) {

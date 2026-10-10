@@ -1,6 +1,6 @@
 import { Loader2, Type, ShoppingBag, Library, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { type QRPlusSaveOption, SHIRT_COLORS } from "./wizardTypes";
+import { type QRPlusSaveOption } from "./wizardTypes";
 
 export function QRPlusMockupStep({
   mockupUrl,
@@ -17,7 +17,7 @@ export function QRPlusMockupStep({
   headerText?: string;
   footerText?: string;
 }) {
-  const colorName = SHIRT_COLORS.find(c => c.id === selectedColor)?.name || selectedColor;
+  const colorName = selectedColor;
   
   // Debug: Log what we received
   console.log('[QRPlusMockupStep] Rendering with:', { 
