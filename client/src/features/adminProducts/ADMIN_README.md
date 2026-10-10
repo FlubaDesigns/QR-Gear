@@ -7,7 +7,7 @@ Last updated: October 10, 2026
 
 ## Shared QRG product options — October 10, 2026
 
-Active Admin Builder, member/owner wizard, storefront detail and featured-product color controls now use the existing shared ColorSwatchPicker. Selection is keyed by canonical color name, not display hex; swatches wrap into rows. The old six-color and generic-size wizard fallback lists are removed. Shared variant helpers clear invalid sizes after color changes, and the shared color map supplies appearance only.
+Active Admin Builder (including replacement lead photos), partner-store default display, member/owner wizard, storefront detail and featured-product color controls now use the existing shared ColorSwatchPicker. Selection is keyed by canonical color name, not display hex; swatches wrap into rows. The old six-color and generic-size wizard fallback lists are removed. Shared variant helpers clear invalid sizes after color changes, and the shared color map supplies appearance only.
 
 The existing catalogSaleVariants resolver projects selectable options from master_catalog QRG variants, narrowed by saved catalog choices and valid provider mappings. Admin options, storefront listings/detail, and legacy product endpoints reuse this resolver; missing QRG references expose an explicit options error and no invented choices. Member options already use this resolver. No new collection or schema is introduced. QRG numbering, artwork, pricing, inside labels and member/admin permissions remain unchanged.
 

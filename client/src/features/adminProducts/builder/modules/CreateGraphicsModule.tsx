@@ -1,3 +1,4 @@
+import { ColorSwatchPicker } from '@/features/shared/components/ColorSwatchPicker';
 import type { PricingSettings } from '@shared/schema-orders';
 import { useState, useEffect, useRef } from "react";
 import { Package, Loader2, Check, CheckCircle2, Copy, Pencil } from "lucide-react";
@@ -418,12 +419,10 @@ export function CreateGraphicsModule({ generateRequested = false, onGenerateHand
             <div className="space-y-3 rounded-md border p-4">
               <label htmlFor="lead-photo-input" className="block text-base font-semibold">Replace lead photo</label>
               <p className="text-sm text-muted-foreground">Choose the photo and matching shirt color shown first in the store and on the product page. Your print design and QR page stay the same.</p>
-              <label htmlFor="lead-photo-color" className="block text-sm font-medium">Lead photo shirt color</label>
-              <select id="lead-photo-color" className="w-full min-h-12 rounded-md border bg-background px-3"
-                value={leadPhotoColor || state.selectedColor?.name || ''} disabled={savingLeadPhoto}
-                onChange={event => setLeadPhotoColor(event.target.value)}>
-                {state.selectedProduct.availableColors.map(color => <option key={color.name} value={color.name}>{color.name}</option>)}
-              </select>
+              <ColorSwatchPicker label="Lead photo shirt color" displayType="dropdown"
+                colors={state.selectedProduct.availableColors} disabled={savingLeadPhoto}
+                selectedColor={leadPhotoColor || state.selectedColor?.name || ''}
+                onChange={color => setLeadPhotoColor(color.name)} />
               <input id="lead-photo-input" ref={leadPhotoInput} type="file" accept="image/png,image/jpeg,image/webp"
                 className="block w-full min-h-12 text-sm" disabled={savingLeadPhoto || packetResult.priorityMockupLoading}
                 onChange={event => { setLeadPhoto(event.target.files?.[0] || null); setLeadPhotoError(null); }} />

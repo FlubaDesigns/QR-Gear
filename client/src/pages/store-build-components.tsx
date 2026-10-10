@@ -1,12 +1,8 @@
+import { ColorSwatchPicker } from '@/features/shared/components/ColorSwatchPicker';
 import { useState } from "react";
 import { Loader2, Check, X, Flag, Star, Globe2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +19,7 @@ type ProductConfig = {
 };
 
 interface StoreBuildProductCardProps {
-  product: Product;
+  product: Product & { optionsError?: string | null };
   config: ProductConfig | undefined;
   enabledSizes: string[];
   enabledColors: string[];
@@ -122,44 +118,14 @@ export function StoreBuildProductCard({
           <div className="text-sm font-medium text-muted-foreground mb-2">
             Display Color (tap to set default):
           </div>
-          <div className="admin-color-picker">
-            {colors.map((color, idx) => {
-              const isEnabled = enabledColors.includes(color.name);
-              const isDefault = config?.defaultColor === color.name;
-              return (
-                <Tooltip key={idx}>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => onSetDefaultColor(product.id, color.name, sizes, colors.map(c => c.name))}
-                      className={`admin-color-swatch ${isEnabled ? 'is-enabled' : ''} ${isDefault ? 'is-default' : ''}`}
-                      data-testid={`color-swatch-${product.id}-${idx}`}
-                    >
-                      <div
-                        className="admin-color-swatch-inner"
-                        style={{ backgroundColor: color.hex || '#ccc' }}
-                      />
-                      {isDefault && (
-                        <Star className="admin-color-swatch-star" />
-                      )}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {color.name} {isDefault ? '(Default Display)' : '- Tap to set as default'}
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
-          {config?.defaultColor && (
-            <div className="admin-color-default-label">
-              <Star />
-              Showing: <span className="font-medium">{config.defaultColor}</span>
-            </div>
-          )}
+          <ColorSwatchPicker hideLabel colors={colors.map(color => ({ ...color, available: enabledColors.includes(color.name) }))}
+            selectedColor={config?.defaultColor || null}
+            onChange={color => onSetDefaultColor(product.id, color.name, sizes, colors.map(c => c.name))}
+            testIdPrefix={`color-swatch-${product.id}`} />
         </div>
       )}
 
+      {product.optionsError && <p role="alert" className="mt-3 text-destructive">{product.optionsError}</p>}
       <div className="flex flex-wrap gap-3 mt-4">
         {(sizes.length > 0 || colors.length > 0) && (
           <button
@@ -177,7 +143,7 @@ export function StoreBuildProductCard({
             isSaving ? "is-loading" : ""
           }`}
           onClick={() => onSaveToStore(product.id, sizes, colors)}
-          disabled={isSaving}
+          disabled={isSaving || !!product.optionsError}
           data-testid={`button-save-${product.id}`}
           style={{ minWidth: '140px' }}
         >
@@ -251,12 +217,11 @@ export function StoreBuildOptionsDialog({
             {colors.length > 0 && (
               <div>
                 <div className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-                  Colors (switch to enable, tap star to set default)
+                  Colors (switch to enable)
                 </div>
                 <div className="flex flex-col gap-3">
                   {colors.map(color => {
                     const isEnabled = dialogColors.includes(color.name);
-                    const isDefault = dialogDefaultColor === color.name;
                     return (
                       <div key={color.name} className="dialog-color-row">
                         <Switch
@@ -267,29 +232,17 @@ export function StoreBuildOptionsDialog({
                         />
                         <div className="dialog-color-swatch" style={{ backgroundColor: color.hex }} />
                         <span className="dialog-color-name">{color.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => onSetDefault(color.name)}
-                          disabled={!isEnabled || generatingMockup !== null}
-                          className={`dialog-default-btn ${isDefault ? 'is-default' : ''} ${!isEnabled ? 'is-disabled' : ''} ${generatingMockup === color.name ? 'is-loading' : ''}`}
-                          data-testid={`dialog-default-${color.name}`}
-                        >
-                          {generatingMockup === color.name ? (
-                            <Loader2 className="dialog-default-star animate-spin" />
-                          ) : (
-                            <Star className="dialog-default-star" />
-                          )}
-                        </button>
+
                       </div>
                     );
                   })}
                 </div>
-                {dialogDefaultColor && (
-                  <div className="dialog-default-label">
-                    <Star className="dialog-default-label-star" />
-                    Default: <span className="font-semibold">{dialogDefaultColor}</span>
-                  </div>
-                )}
+                <div className="mt-4">
+                  <ColorSwatchPicker label="Default display color"
+                    colors={colors.map(color => ({ ...color, available: dialogColors.includes(color.name) }))}
+                    disabled={generatingMockup !== null} selectedColor={dialogDefaultColor} onChange={color => onSetDefault(color.name)} testIdPrefix="dialog-default" />
+                  {generatingMockup && <p role="status" className="text-sm">Updating {generatingMockup} preview…</p>}
+                </div>
               </div>
             )}
 

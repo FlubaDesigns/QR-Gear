@@ -1,3 +1,5 @@
+import { catalogProductOptions } from '../services/catalog-sale-variants';
+import { resolveColorHex } from '../../../shared/colorUtils';
 import {validateCoupon} from '../services/coupons';
 import { prepareCartOrder, readCartQuote } from '../services/order-service';
 import { Request, Response, NextFunction } from 'express';
@@ -246,7 +248,10 @@ app.put('/admin/settings', requireAdmin, async (req: Request, res: Response): Pr
 app.get('/admin/products', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('products').get();
-    res.json(docsToArray(snapshot));
+    res.json(await Promise.all(docsToArray(snapshot).map(async (product: any) => {
+      const options = await catalogProductOptions(db, { enabledColors: product.selectedColors ?? product.availableColors ?? [], enabledSizes: product.availableSizes ?? [] }, product);
+      return { ...product, ...options, availableColors: options.availableColors.map(name => ({ name, hex: resolveColorHex(name) })) };
+    })));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
