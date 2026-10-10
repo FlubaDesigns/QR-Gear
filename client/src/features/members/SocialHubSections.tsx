@@ -147,7 +147,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-white flex items-center gap-2">
           <Share2 className="w-5 h-5" />
           Social Profiles
@@ -156,7 +156,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
           {connectedCount} connected
         </Badge>
       </CardHeader>
-      <CardContent>
+      <CardContent className="row">
         {isLoading ? (
           <div className="flex justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
@@ -166,7 +166,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
             <p className="text-sm text-slate-400 mb-4">
               Add your social media handles and contact info for notifications and sharing.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="layout__auto">
               {PLATFORMS.map((platform) => {
                 const Icon = platform.icon;
                 return (
@@ -187,7 +187,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
             </div>
             <div className="border-t border-slate-700 pt-4 mt-4">
               <p className="text-sm text-slate-400 mb-3">Contact info for notifications and reminders</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="layout__auto">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 flex items-center justify-center rounded-md bg-slate-700/50 text-blue-400">
                     <Send className="w-4 h-4" />
@@ -356,7 +356,7 @@ export function ReadyToPostSection({ memberId }: { memberId: string }) {
 
   return (
     <Card className="bg-slate-800/50 border-amber-500/30">
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-white flex items-center gap-2">
           <Send className="w-5 h-5 text-amber-400" />
           Ready to Post
@@ -440,7 +440,7 @@ export function ReadyToPostSection({ memberId }: { memberId: string }) {
             </div>
 
             {item.packet?.shareImageSquareUrl && (
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <a
                   href={item.packet.shareImageSquareUrl}
                   target="_blank"

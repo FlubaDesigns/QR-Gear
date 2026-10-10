@@ -23,3 +23,11 @@ Upstream blob versions:
 - buttons.css: 2dc7b2d3ec139365cb82494e894a053ccea848bd
 - forms.css: 785b8a19648e04860a94e98bcc4e0f955271dc7c
 - skeleton.html: 287dcecec771a62dbd3448014a785533663bff1f
+
+Member routes (`/members`, `/member`, `/members/library`) now enter through
+`MemberRoute` in App.tsx. It owns a single PageSkeleton and full-width Master row,
+including protected-route loading states. Dashboard tabs and all four builder
+modes inherit that shell. Onboarding choices, library cards, earnings, Studio
+and Social Hub use Master layouts; Social Hub uses a two-column upper row and
+a full-width calendar below. Forms retain the Master centered reading width.
+The upstream structural CSS remains unchanged.

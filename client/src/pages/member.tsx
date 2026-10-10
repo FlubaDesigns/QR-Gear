@@ -40,7 +40,7 @@ export default function MemberOnboardingPage() {
   return (
     <>
       <SEO title="Welcome | QR Gear" description="Set up your creator workspace" />
-      <div className="min-h-screen py-8" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <div className="row py-4" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
         <MemberOnboarding onComplete={handleComplete} userId={userId} />
       </div>
     </>

@@ -106,7 +106,7 @@ function LibraryItemCard({
   return (
     <button
       onClick={onClick}
-      className="w-full text-left bg-slate-800/60 border border-slate-700 rounded-lg overflow-hidden hover-elevate transition-all group"
+      className="flex flex-col items-stretch justify-start w-full text-left bg-slate-800/60 border border-slate-700 rounded-lg overflow-hidden hover-elevate transition-all group"
       data-testid={`library-item-${instance.id}`}
     >
       {/* Thumbnail */}
@@ -245,7 +245,7 @@ function EditPanel({
       {/* Panel */}
       <div className="relative z-10 w-full max-w-lg bg-slate-900 border-l border-slate-700 flex flex-col h-full overflow-hidden shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
+        <div className="flex flex-row-reverse items-center justify-between px-5 py-4 border-b border-slate-700 shrink-0">
           <div className="flex items-center gap-2">
             <Pencil className="w-4 h-4 text-blue-400" />
             <span className="font-semibold text-white text-sm">Personalize Item</span>
@@ -369,7 +369,7 @@ function EditPanel({
         </div>
 
         {/* Footer actions */}
-        <div className="shrink-0 border-t border-slate-700 px-5 py-4 flex items-center justify-between gap-3">
+        <div className="shrink-0 border-t border-slate-700 px-5 py-4 flex flex-wrap items-center justify-between gap-3">
           {isCustomized && (
             <Button
               size="sm"
@@ -484,11 +484,11 @@ export default function MemberLibraryPage() {
       <SEO title="My Library | QR Gear" description="Your personalized product library" />
 
       <div
-        className="min-h-screen"
+        className="row"
         style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)" }}
       >
         {/* Top bar */}
-        <div className="sticky top-0 z-40 bg-slate-900/90 backdrop-blur-sm border-b border-slate-700/60 px-4 py-3 flex items-center gap-3">
+        <div className="z-40 bg-slate-900/90 backdrop-blur-sm border-b border-slate-700/60 px-4 py-3 flex items-center gap-3">
           <Button
             size="icon"
             variant="ghost"
@@ -509,7 +509,7 @@ export default function MemberLibraryPage() {
           </div>
         </div>
 
-        <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+        <div className="row py-6 space-y-6">
           {/* Intro card */}
           <Card className="bg-gradient-to-br from-blue-900/40 to-indigo-900/40 border-blue-700/40">
             <CardContent className="p-4 flex items-start gap-3">
@@ -566,7 +566,7 @@ export default function MemberLibraryPage() {
 
           {/* Grid */}
           {!isLoading && instances.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+            <div className="layout__auto">
               {instances.map((instance) => (
                 <LibraryItemCard
                   key={instance.id}

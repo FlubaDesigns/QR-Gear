@@ -94,9 +94,11 @@ export function SocialHubView({ memberId }: { memberId: string }) {
   const [showAddSchedule, setShowAddSchedule] = useState(false);
 
   return (
-    <div className="space-y-6">
-      <SocialProfilesSection memberId={memberId} />
-      <ReadyToPostSection memberId={memberId} />
+    <div className="row space-y-6">
+      <div className="layout__split-2">
+        <div className="row"><SocialProfilesSection memberId={memberId} /></div>
+        <div className="row"><ReadyToPostSection memberId={memberId} /></div>
+      </div>
       <ContentCalendarSection
         memberId={memberId}
         showAddSchedule={showAddSchedule}
@@ -150,7 +152,7 @@ function ContentCalendarSection({ memberId, showAddSchedule, setShowAddSchedule 
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-white flex items-center gap-2">
           <Calendar className="w-5 h-5" />
           Content Calendar
@@ -190,7 +192,7 @@ function ContentCalendarSection({ memberId, showAddSchedule, setShowAddSchedule 
                 className={`p-3 rounded-lg border ${schedule.isActive ? 'bg-slate-700/50 border-slate-600' : 'bg-slate-800/30 border-slate-700/50 opacity-60'}`}
                 data-testid={`schedule-item-${schedule.id}`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex flex-wrap items-start gap-3">
                   {schedule.packet?.itemImage && (
                     <img
                       src={schedule.packet.itemImage}
@@ -198,7 +200,7 @@ function ContentCalendarSection({ memberId, showAddSchedule, setShowAddSchedule 
                       className="w-12 h-12 object-cover rounded-md shrink-0"
                     />
                   )}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-[min(100%,12rem)]">
                     <p className="text-white text-sm font-medium truncate">
                       {schedule.packet?.title || schedule.packetId}
                     </p>

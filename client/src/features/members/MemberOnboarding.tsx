@@ -243,12 +243,12 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
     switch (step) {
       case 0:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
               <Sparkles className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white" data-testid="text-onboarding-title">Welcome to your Creator Workspace</h2>
-            <div className="max-w-md mx-auto space-y-3 text-left">
+            <div className="layout__split-3 text-left">
               <div className="flex items-start gap-3 p-3 bg-white/5 rounded-lg">
                 <Check className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
                 <p className="text-slate-300">This is where you create products and publish them for sharing.</p>
@@ -267,12 +267,12 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 1:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center">
               <GraduationCap className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white" data-testid="text-learning-contract">We'll walk you through it — on purpose</h2>
-            <div className="max-w-md mx-auto space-y-4 text-left">
+            <div className="layout__center space-y-4 text-left">
               <p className="text-slate-300">We start slow for your first item so you can learn the system without stress.</p>
               <div className="space-y-2">
                 <p className="text-slate-300">Each item you create builds skill and speed:</p>
@@ -291,13 +291,13 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 2:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-500 to-violet-600 rounded-full flex items-center justify-center">
               <Users className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">What best describes you?</h2>
             <p className="text-slate-400">This helps us tailor your experience.</p>
-            <div className="max-w-md mx-auto grid grid-cols-1 gap-3">
+            <div className="layout__split-2">
               {USE_CASES.map(uc => (
                 <button
                   key={uc.id}
@@ -324,7 +324,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 3:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-orange-600 rounded-full flex items-center justify-center">
               <Package className="w-10 h-10 text-white" />
             </div>
@@ -335,7 +335,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                 : "Loading available products..."}
             </p>
             {dynamicCategories.length > 0 && (
-              <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
+              <div className="layout__auto">
                 {dynamicCategories.map(cat => {
                   const selected = data.productInterests.includes(cat.id);
                   return (
@@ -372,13 +372,13 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 4:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-cyan-500 to-teal-600 rounded-full flex items-center justify-center">
               <UserCircle className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">Creator Identity</h2>
             <p className="text-slate-400">This is how you'll appear to customers.</p>
-            <div className="max-w-md mx-auto space-y-4 text-left">
+            <div className="layout__center space-y-4 text-left">
               <div className="space-y-2">
                 <Label className="text-slate-300">Full Name <span className="text-red-400">*</span></Label>
                 <Input
@@ -444,13 +444,13 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 5:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-pink-500 to-rose-600 rounded-full flex items-center justify-center">
               <Share2 className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">Where will you share your links?</h2>
             <p className="text-slate-400">Pick the platforms you'll use to promote your products. Optional but recommended.</p>
-            <div className="max-w-md mx-auto grid grid-cols-2 gap-3">
+            <div className="layout__auto">
               {SOCIAL_PLATFORMS.map(sp => {
                 const selected = data.socialSurfaces.includes(sp.id);
                 return (
@@ -476,7 +476,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
               const hasText = data.socialSurfaces.includes('text');
               const handlePlatforms = data.socialSurfaces.filter(id => SOCIAL_PLATFORMS.find(p => p.id === id)?.needsHandle);
               return (
-                <div className="max-w-md mx-auto space-y-4 text-left">
+                <div className="layout__center space-y-4 text-left">
                   {handlePlatforms.length > 0 && (
                     <>
                       <div className="space-y-2">
@@ -543,11 +543,11 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 6:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <h2 className="text-2xl font-bold text-white">Here's What You're Building</h2>
             <p className="text-slate-400">Real products with real QR codes that link to real experiences.</p>
             <div className="max-w-sm mx-auto relative py-8">
-              <div className="flex items-end justify-center gap-8">
+              <div className="flex flex-wrap items-end justify-center gap-4">
                 <div className="flex flex-col items-center">
                   <div className="w-16 h-28 rounded-xl border-2 border-slate-500 bg-slate-700/50 flex items-center justify-center relative">
                     <Smartphone className="w-8 h-8 text-slate-400" />
@@ -578,14 +578,14 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                 </div>
               </div>
             </div>
-            <div className={`max-w-md mx-auto grid gap-3 ${dynamicCategories.length <= 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            <div className="layout__auto">
               {dynamicCategories.length > 0 ? dynamicCategories.map(cat => (
                 <div key={cat.id} className="p-3 bg-white/5 rounded-lg text-center">
                   <div className="w-6 h-6 text-blue-400 mx-auto mb-1">{cat.icon}</div>
                   <p className="text-xs text-slate-400">{cat.label}</p>
                 </div>
               )) : (
-                <div className="p-3 bg-white/5 rounded-lg text-center col-span-3">
+                <div className="p-3 bg-white/5 rounded-lg text-center">
                   <Loader2 className="w-6 h-6 text-slate-400 mx-auto mb-1 animate-spin" />
                   <p className="text-xs text-slate-400">Loading...</p>
                 </div>
@@ -596,12 +596,12 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 7:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
               <Mail className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">One last thing — verification</h2>
-            <div className="max-w-md mx-auto space-y-4 text-left">
+            <div className="layout__center space-y-4 text-left">
               <div className="p-4 bg-white/5 rounded-lg">
                 <p className="text-slate-300">After you finish here, we'll send you an email to verify your account. Just reply to that email — it's how we confirm you're a real person and complete your onboarding.</p>
               </div>
@@ -614,6 +614,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
               <div className="flex items-center gap-3 p-4 bg-slate-700/50 rounded-lg">
                 <Checkbox
                   id="terms"
+                  data-component="onboarding-consent"
                   checked={data.termsAccepted}
                   onCheckedChange={(checked) => setData(prev => ({ ...prev, termsAccepted: !!checked }))}
                   data-testid="checkbox-terms"
@@ -628,13 +629,13 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 8:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full flex items-center justify-center">
               <Search className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">How'd you find us?</h2>
             <p className="text-slate-400">Just curious — helps us know what's working.</p>
-            <div className="max-w-md mx-auto grid grid-cols-1 gap-3">
+            <div className="layout__split-2">
               {ATTRIBUTION_OPTIONS.map(opt => (
                 <button
                   key={opt}
@@ -656,12 +657,12 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 9:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-500 to-yellow-600 rounded-full flex items-center justify-center">
               <Tag className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white" data-testid="text-member-perk-title">Creator Perk: {shareLabel} Off Your Own Creations</h2>
-            <div className="max-w-md mx-auto space-y-4">
+            <div className="layout__center space-y-4">
               <div className="p-5 bg-gradient-to-br from-amber-900/30 to-yellow-900/20 rounded-xl border border-amber-500/30">
                 <p className="text-lg text-white font-medium mb-2">Get your own creations at {shareLabel} off — order a sample, build personal inventory, or just get one for yourself.</p>
                 <p className="text-slate-300 text-sm">This creator discount mirrors your profit share. One constant, zero confusion.</p>
@@ -683,12 +684,12 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
 
       case 10:
         return (
-          <div className="text-center space-y-6">
+          <div className="row text-center space-y-6">
             <div className="w-20 h-20 mx-auto bg-gradient-to-br from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
               <Rocket className="w-10 h-10 text-white" />
             </div>
             <h2 className="text-2xl font-bold text-white">Let's create your first item</h2>
-            <div className="max-w-md mx-auto space-y-4">
+            <div className="layout__center space-y-4">
               <p className="text-slate-300">We'll guide you through the <span className="text-emerald-400 font-semibold">Super Simple</span> version once.</p>
               <p className="text-slate-300">After that, you'll move faster with fewer prompts.</p>
               <div className="p-4 bg-emerald-900/20 rounded-lg border border-emerald-500/30">
@@ -714,7 +715,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
   };
 
   return (
-    <div className="max-w-2xl mx-auto px-4">
+    <div className="row">
       <div className="mb-6">
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs text-slate-500">{stepLabels[step]}</p>
@@ -729,10 +730,10 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
       </div>
 
       <Card className="bg-slate-800/50 border-slate-700">
-        <CardContent className="p-6 md:p-8">
+        <CardContent className="row p-4 sm:p-6 md:p-8">
           {renderStep()}
 
-          <div className="flex items-center justify-between mt-8 gap-4">
+          <div className="flex flex-wrap items-center justify-between mt-8 gap-4">
             {step > 0 ? (
               <Button
                 variant="ghost"

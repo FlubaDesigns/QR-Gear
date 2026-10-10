@@ -12,7 +12,7 @@ export function StudioMode() {
   } = useWizardContext();
 
   return (
-    <div className="space-y-4">
+    <div className="row space-y-4">
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader className="pb-2">
           <CardTitle className="text-white text-lg flex items-center gap-2">
@@ -21,8 +21,8 @@ export function StudioMode() {
             <Badge className="bg-amber-600 text-white">Pro</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CardContent className="row space-y-4">
+          <div className="layout__split-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Product</label>
               <div 

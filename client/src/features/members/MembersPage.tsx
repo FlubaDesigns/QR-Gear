@@ -1,4 +1,3 @@
-import { PageSkeleton } from '@/components/PageSkeleton';
 import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { useMemberRuntimeState } from './useMemberRuntimeState';
 import { useLocation } from "wouter";
@@ -61,7 +60,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="flex flex-row items-center justify-between gap-2">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle className="text-white flex items-center gap-2">
           <QrCode className="w-5 h-5" />
           QR Dynamics
@@ -70,7 +69,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
           Built with QR Compose
         </Badge>
       </CardHeader>
-      <CardContent>
+      <CardContent className="row">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
@@ -88,7 +87,7 @@ function CollectionsView({ memberId }: { memberId: string }) {
             <p className="text-sm">Use QR Compose in any wizard to stitch your Canvas and Play items into a rotating QR experience</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="layout__split-2">
             {itemList.map((item: any) => (
               <div 
                 key={item.id} 
@@ -144,14 +143,14 @@ function EarningsView({ memberId }: { memberId: string }) {
           Earnings Dashboard
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="row">
         {isLoading ? (
           <div className="flex justify-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full" />
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="layout__auto mb-6">
               <Card className="bg-slate-700/50 border-slate-600">
                 <CardContent className="p-4 text-center">
                   <p className="text-sm text-slate-400">Total Earnings</p>
@@ -355,10 +354,10 @@ function MembersController() {
   }
 
   return (
-    <div className="member-workspace">
+    <div className="row">
       <SEO title="Member Area" description="Build and sell your products" />
       
-      <div className="row py-4">
+      <div className="row">
         {viewMode !== 'wizard' && isAuthenticated && (
         <div className="flex gap-2 flex-wrap mb-4">
               <Button
@@ -465,7 +464,7 @@ function MembersController() {
         )}
 
         {showUnlockPrompt === 'advanced' && (
-          <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-blue-500/50 bg-blue-900/20">
+          <div className="glass-card p-4 mb-6 flex flex-wrap items-center justify-between gap-4 border-blue-500/50 bg-blue-900/20">
             <div className="flex items-center gap-3">
               <Layers className="w-6 h-6 text-blue-400" />
               <div>
@@ -486,7 +485,7 @@ function MembersController() {
         )}
 
         {showUnlockPrompt === 'studio' && (
-          <div className="glass-card p-4 mb-6 flex items-center justify-between gap-4 border-amber-500/50 bg-amber-900/20">
+          <div className="glass-card p-4 mb-6 flex flex-wrap items-center justify-between gap-4 border-amber-500/50 bg-amber-900/20">
             <div className="flex items-center gap-3">
               <Zap className="w-6 h-6 text-amber-400" />
               <div>
@@ -633,7 +632,6 @@ class MembersErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
 export default function MembersApp() {
   return (
-    <PageSkeleton>
     <MembersErrorBoundary>
       <MemberAuthProvider apiBase="/api/members">
         <MembersProvider>
@@ -641,6 +639,5 @@ export default function MembersApp() {
         </MembersProvider>
       </MemberAuthProvider>
     </MembersErrorBoundary>
-    </PageSkeleton>
   );
 }

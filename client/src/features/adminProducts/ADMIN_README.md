@@ -1348,3 +1348,15 @@ Member builder earnings are derived from the selected options and saved Admin Pr
 Validation: TypeScript and production/Functions builds are required; live add-on pricing is checked against Admin Pricing through the payment boundary without buying. Paid fulfillment and payouts are not exercised.
 
 Resume verification: QR Plus Back returns to the destination input, and a failed supplier mockup does not advance to the preview. Root TypeScript, frontend production build and Functions compilation passed. Live verification remains a separate release check.
+
+### 2026-10-10 — Canonical member page coverage
+
+All member entry routes (`/members`, `/member`, `/members/library`) now share
+PageSkeleton through MemberRoute, including authentication/loading states.
+The existing dashboard, channels, QR Dynamics, earnings, payouts, Social Hub
+and Super Simple/Simple/Advanced/Studio modes inherit the same full-width stage.
+Onboarding and library no longer cap the page width. Master container layouts
+arrange cards/options into responsive rows; Social Hub has a split upper row
+and a full-width calendar below. Wizard navigation margins match its content
+padding, and close buttons sit on the left. Product, schema, pricing, auth,
+and publication behavior are unchanged.

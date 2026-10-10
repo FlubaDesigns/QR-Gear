@@ -100,6 +100,7 @@ import DevAuth from "@/pages/dev-auth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AdminAuthProvider } from "@/features/shared/AdminAuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { PageSkeleton } from "@/components/PageSkeleton";
 import AdminBottomNav from "@/components/admin/AdminBottomNav";
 
 function AdminRoute({ children }: { children: React.ReactNode }) {
@@ -115,6 +116,17 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Every member route shares the same canonical stage, including auth/loading states.
+function MemberRoute({ children, requireAuth = false }: { children: React.ReactNode; requireAuth?: boolean }) {
+  return (
+    <PageSkeleton>
+      <div className="member-workspace row py-4">
+        {requireAuth ? <ProtectedRoute requireAdmin={false}>{children}</ProtectedRoute> : children}
+      </div>
+    </PageSkeleton>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -125,9 +137,9 @@ function Router() {
       <Route path="/cart" component={Cart} />
       <Route path="/widget" component={Widget} />
       <Route path="/account" component={Account} />
-      <Route path="/members" component={Members} />
-      <Route path="/members/library">{() => <ProtectedRoute requireAdmin={false}><MemberLibrary /></ProtectedRoute>}</Route>
-      <Route path="/member">{() => <ProtectedRoute requireAdmin={false}><Member /></ProtectedRoute>}</Route>
+      <Route path="/members">{() => <MemberRoute><Members /></MemberRoute>}</Route>
+      <Route path="/members/library">{() => <MemberRoute requireAuth><MemberLibrary /></MemberRoute>}</Route>
+      <Route path="/member">{() => <MemberRoute requireAuth><Member /></MemberRoute>}</Route>
       <Route path="/admin">{() => <AdminRoute><AdminRun /></AdminRoute>}</Route>
       <Route path="/admin/run">{() => <Redirect to="/admin" />}</Route>
       <Route path="/admin/dashboard">{() => <Redirect to="/admin" />}</Route>

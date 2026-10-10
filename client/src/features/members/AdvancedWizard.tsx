@@ -56,7 +56,7 @@ export function AdvancedWizard() {
   if (capabilities.requiresAuth && !user) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
+        <CardHeader className="pb-1 pt-3 flex flex-row-reverse flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-slate-400 flex items-center gap-1">
             <Layers className="w-3 h-3" />
             {capabilities.label}
@@ -72,7 +72,7 @@ export function AdvancedWizard() {
             <X className="w-4 h-4" />
           </Button>
         </CardHeader>
-        <CardContent className="p-4 pt-1 text-white/80">
+        <CardContent className="row p-4 pt-1 text-white/80">
           <p className="text-lg font-semibold text-white mb-2">Sign in required</p>
           <p className="text-sm text-white/70 mb-4">
             Advanced Builder needs your account so we can load your channels and save your setup.
@@ -89,7 +89,7 @@ export function AdvancedWizard() {
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
+      <CardHeader className="pb-1 pt-3 flex flex-row-reverse flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-blue-400 flex items-center gap-1">
           <Layers className="w-3 h-3" />
           {capabilities.label}
@@ -105,7 +105,7 @@ export function AdvancedWizard() {
           <X className="w-4 h-4" />
         </Button>
       </CardHeader>
-      <CardContent className="p-4 pt-1">
+      <CardContent className="row p-4 pt-1">
         {(() => {
           const getTierInfo = () => {
             if (['play-upload', 'play-preview', 'play-save-choice'].includes(simpleStep)) {
@@ -150,7 +150,7 @@ export function AdvancedWizard() {
           />
 
         {!FINAL_CONFIRM_STEPS.includes(simpleStep) && (
-          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
+          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-4 px-4 z-10 mt-4">
             <Button
               variant="outline"
               onClick={handleSimpleBack}
