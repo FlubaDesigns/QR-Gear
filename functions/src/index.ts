@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261011-main-member-shared-build';
+const _BUILD_ID = '20261011-main-member-catalog-binding';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

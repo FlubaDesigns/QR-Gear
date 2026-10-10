@@ -1,4 +1,4 @@
-import { readStoreProducts } from '../services/store-products';
+import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { prepareMemberBuild, saveMemberArtwork, commitMemberBuild, memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -398,8 +398,8 @@ app.get('/members/:memberId/products', async (req: Request, res: Response) => {
 
 app.get('/members/product-options/:id', async (req: Request, res: Response) => {
   try {
-    const products = await readStoreProducts(db, 'member-products', 'member');
-    const product = products.products.find((p: any) => p.canonicalBlankKey === req.params.id);
+    const products = await memberCatalogProducts(db);
+    const product = products.find((p: any) => p.canonicalBlankKey === req.params.id);
     if (!product) { res.status(404).json({ error: 'Member product not found.' }); return; }
     res.json(product);
   } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }

@@ -721,3 +721,5 @@ Member publishing now resolves the selected blank, supplier variants and print a
 Acceptance for this batch: select a verified Printful blank in Members, publish QR Basic with a valid color/size, reopen the saved product, and verify its QRG member identity, BLD, GRF, Assembly, saved price and public share display. Main deployment and authenticated live persistence must be checked separately from compilation. No new automated test suite was added.
 
 Scope: the member product creation/listing path. QR Compose sequence publishing remains unavailable until its content sequence is connected to the shared build; legacy member products are not silently migrated. This batch does not claim payout, paid member fulfillment or every Members tab verified.
+
+Live catalog alignment: the member picker is populated from the assigned tier catalog while the older `member-products` allowlist is explicitly empty. Build preparation, QRG options and mockup resolution now consume that same assigned tier catalog, falling back to the allowed-products list only when the picker has no tier catalog. This avoids showing a selectable blank and then rejecting it as unassigned.

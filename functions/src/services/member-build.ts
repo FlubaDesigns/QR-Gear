@@ -1,6 +1,6 @@
 import { db, QR_GEAR_BRANDED_TAG_URL } from '../core';
 import { MEMBER_PACKETS_COLLECTION } from '../constants';
-import { readStoreProducts } from './store-products';
+import { memberCatalogProducts } from './catalog-tier-products';
 import { catalogSaleVariants, selectCatalogSaleVariant } from './catalog-sale-variants';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { requireBuilderSnapshot, packetBuildFields } from '../../../shared/builderSnapshot';
@@ -30,8 +30,8 @@ export async function ownedMemberBuild(memberId: string, id: string) {
 export async function prepareMemberBuild(memberId: string, input: any) {
   const sourceMasterId = input.boundProduct?.canonicalBlankKey;
   if (!isValidMasterCatalogDocId(sourceMasterId)) fail('Select a QRG product again before building.');
-  const choices = await readStoreProducts(db, 'member-products', 'member');
-  const product = choices.products.find((p: any) => p.canonicalBlankKey === sourceMasterId);
+  const choices = await memberCatalogProducts(db);
+  const product = choices.find((p: any) => p.canonicalBlankKey === sourceMasterId);
   if (!product) fail('This product is not enabled in the member catalog.');
   const provider = requireFulfillmentProvider(product.fulfillmentProvider);
   const master = (await db.collection('master_catalog').doc(sourceMasterId).get()).data()!;

@@ -56,3 +56,11 @@ export async function catalogTierProducts(db: any, section: string) {
   return { hasTiers: Object.keys(tiers).length > 0, catalogId, catalogName: catalog.name, tiers, tierConfig, unavailableBlankIds };
 }
 
+
+/** Resolve exactly the assigned catalog shown by the member picker. */
+export async function memberCatalogProducts(db: any) {
+  const catalog = await catalogTierProducts(db, 'member');
+  if (catalog.hasTiers) return Object.values(catalog.tiers).flatMap(tiers => Object.values(tiers).flatMap((tier: any) => tier.products));
+  const { readStoreProducts } = await import('./store-products');
+  return (await readStoreProducts(db, 'member-products', 'member')).products;
+}

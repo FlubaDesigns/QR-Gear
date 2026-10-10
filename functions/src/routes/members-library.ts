@@ -1,4 +1,4 @@
-import { readStoreProducts } from '../services/store-products';
+import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -196,8 +196,8 @@ app.post('/member/play-packets', requireAuth, async (req: Request, res: Response
 app.post('/members/mockup/priority', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { canonicalBlankKey, colorName, colorHex, placement, artworkUrl, qrSize = 'medium' } = req.body;
-    const choices = await readStoreProducts(db, 'member-products', 'member');
-    const product = choices.products.find((p: any) => p.canonicalBlankKey === canonicalBlankKey);
+    const choices = await memberCatalogProducts(db);
+    const product = choices.find((p: any) => p.canonicalBlankKey === canonicalBlankKey);
     if (!product || !product.availableColors.some((c: any) => c.name === colorName) || !artworkUrl) {
       res.status(400).json({ error: 'Choose an available QRG product and color before previewing.' }); return;
     }

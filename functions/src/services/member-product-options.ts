@@ -15,7 +15,7 @@ export function memberProductOptions(master: any, item: any, providerValue: unkn
   try {
     const first = placements.find((p: any) => p.id === 'front') || placements[0];
     if (!first) throw new Error('QRG print areas need to be refreshed before building.');
-    const snapshot = withInsideLabel(master, { graphics: { content: {} }, qrConfig: { qrProductState: 'qr_basics' },
+    const snapshot = withInsideLabel(master, { graphics: { content: { graphicLayoutMode: 'zone', qrSizePercent: 75 } }, qrConfig: { qrProductState: 'qr_basics' },
       layoutConfig: { selectedPlacements: [first.id], providerLayouts: { [first.id]: first } },
       metadata: { fulfillmentProvider: provider } });
     pricing = calculatePacketPricing(master, snapshot, settings);
