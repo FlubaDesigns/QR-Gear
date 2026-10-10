@@ -17,14 +17,16 @@ const styles = `@scope (.qrg-skeleton) to ([data-component]) {\n${
 /** React expression of canonical-v1/skeleton.html's stage/main/slot contract. */
 export function PageSkeleton({ children }: { children: ReactNode }) {
   return (
-    <div className="stage qrg-skeleton">
+    <div className="qrg-skeleton">
       <style>{styles}</style>
-      <a className="skip-link" href="#main-content">Skip to main content</a>
-      <div data-component="site-header"><Navbar /></div>
-      <main id="main-content" className="main">
-        <div className="main-inner" data-slot="page-content">{children}</div>
-      </main>
-      <div data-component="site-footer"><Footer /></div>
+      <div className="stage">
+        <a className="skip-link" href="#main-content">Skip to main content</a>
+        <div data-component="site-header"><Navbar /></div>
+        <main id="main-content" className="main">
+          <div className="main-inner" data-slot="page-content">{children}</div>
+        </main>
+        <div data-component="site-footer"><Footer /></div>
+      </div>
     </div>
   );
 }

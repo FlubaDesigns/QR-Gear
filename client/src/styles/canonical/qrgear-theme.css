@@ -8,7 +8,7 @@
   --theme-input: hsl(var(--background));
   --theme-primary: hsl(var(--primary));
   --theme-on-primary: hsl(var(--primary-foreground));
-  --theme-accent: hsl(var(--accent));
+  --theme-accent: var(--accent);
   --theme-on-accent: hsl(var(--accent-foreground));
   --theme-danger: hsl(var(--destructive));
   --theme-font-heading: Orbitron, system-ui, sans-serif;
