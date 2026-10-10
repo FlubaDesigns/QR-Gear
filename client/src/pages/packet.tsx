@@ -168,16 +168,16 @@ export default function PacketPage() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black">
       <Navbar />
-      <main className="flex-1 flex items-center justify-center p-4 py-8">
-        <div className="max-w-lg w-full space-y-6">
+      <main className="flex-1 w-full p-4 sm:p-6 lg:p-8">
+        <div className="w-full space-y-6">
           <Card className="overflow-hidden border-slate-700 bg-slate-900/80">
-            <CardContent className="p-0">
+            <CardContent className={`p-0 ${packet.itemImage ? 'lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]' : ''}`}>
               {packet.itemImage && (
-                <div className="relative bg-black flex items-center justify-center p-6">
+                <div className="relative min-w-0 bg-black flex items-center justify-center p-4 sm:p-6 lg:h-[calc(100svh-11rem)] lg:min-h-[28rem]">
                   <img
                     src={packet.itemImage}
                     alt={packet.title}
-                    className="max-w-full max-h-80 object-contain rounded"
+                    className="w-full h-auto max-h-[65svh] object-contain rounded lg:h-full lg:max-h-full"
                     data-testid="img-packet-product"
                   />
                   {packet.qrType && (
@@ -188,13 +188,13 @@ export default function PacketPage() {
                 </div>
               )}
 
-              <div className="p-6 space-y-4">
+              <div className="min-w-0 p-6 space-y-6 lg:self-center lg:p-8 xl:p-12">
                 <div>
-                  <h1 className="text-2xl font-bold text-white mb-1" data-testid="text-packet-title">
+                  <h1 className="text-2xl lg:text-3xl xl:text-4xl break-words font-bold text-white mb-3" data-testid="text-packet-title">
                     {packet.title}
                   </h1>
                   {packet.description && (
-                    <p className="text-slate-400 text-sm" data-testid="text-packet-description">
+                    <p className="text-slate-400 text-sm lg:text-base break-words" data-testid="text-packet-description">
                       {packet.description}
                     </p>
                   )}
