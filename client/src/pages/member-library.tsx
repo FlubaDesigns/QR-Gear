@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { ArrowLeft, Download, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Loader2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,35 +20,16 @@ interface LibraryAsset {
   thumbnailUrl?: string;
 }
 
-function AssetCard({ asset, allowDownload }: { asset: LibraryAsset; allowDownload: boolean }) {
-  const [downloading, setDownloading] = useState(false);
+function AssetCard({ asset }: { asset: LibraryAsset }) {
   const [previewFailed, setPreviewFailed] = useState(false);
-  const { toast } = useToast();
-  const download = async () => {
-    setDownloading(true);
-    try {
-      const response = await fetch(asset.publicUrl, { cache: 'no-store' });
-      if (!response.ok) throw new Error('Could not download this file. Refresh and try again.');
-      const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement('a');
-      link.href = url; link.download = asset.name || 'download';
-      document.body.appendChild(link); link.click(); link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-      toast({ title: 'Download failed', description: (error as Error).message, variant: 'destructive' });
-    } finally { setDownloading(false); }
-  };
   return <article className="row rounded-lg border p-3 min-w-0" data-testid="library-asset">
     <div className="aspect-[4/3] overflow-hidden rounded bg-muted flex items-center justify-center">
       {previewFailed ? <p role="alert" className="text-sm p-3">Preview unavailable. Refresh and try again.</p>
         : asset.mediaType === 'video'
-          ? <video src={asset.publicUrl} controls controlsList={allowDownload ? undefined : 'nodownload'} preload="metadata" className="h-full w-full object-contain" onError={() => setPreviewFailed(true)} />
+          ? <video src={asset.publicUrl} controls controlsList="nodownload" preload="metadata" className="h-full w-full object-contain" onError={() => setPreviewFailed(true)} />
           : <img src={asset.thumbnailUrl || asset.publicUrl} alt={asset.name} loading="lazy" className="h-full w-full object-contain" onError={() => setPreviewFailed(true)} />}
     </div>
     <p className="font-medium break-words">{asset.name}</p>
-    {allowDownload && <Button variant="outline" className="min-h-12" onClick={download} disabled={downloading}>
-      {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}Download
-    </Button>}
   </article>;
 }
 
@@ -134,7 +115,7 @@ export default function MemberLibrary() {
           </Button>
           <p className="text-xs text-muted-foreground">PNG, JPEG, WebP, GIF, MP4 or WebM · up to 25 MB</p>
           {personal.isPending ? <p role="status">Loading your uploads…</p> : personal.error ? <div role="alert" className="row"><p>Could not load your private uploads.</p><Button variant="outline" onClick={() => void personal.refetch()}>Retry uploads</Button></div>
-            : personal.data?.assets.length ? <div className="layout__auto">{personal.data.assets.map(asset => <AssetCard key={asset.id} asset={asset} allowDownload />)}</div>
+            : personal.data?.assets.length ? <div className="layout__auto">{personal.data.assets.map(asset => <AssetCard key={asset.id} asset={asset} />)}</div>
               : <p className="text-muted-foreground">Your private library is empty. Upload a file to begin.</p>}
         </CardContent>
       </Card>
@@ -152,7 +133,7 @@ export default function MemberLibrary() {
             {sharedProgress && <p role={sharedUpload.isError ? 'alert' : 'status'} className="text-sm break-words">{sharedProgress}</p>}
           </div>}
           {shared.isPending ? <p role="status">Loading shared files…</p> : shared.error ? <div role="alert" className="row"><p>Could not load the shared starter library.</p><Button variant="outline" onClick={() => void shared.refetch()}>Retry shared files</Button></div>
-            : shared.data?.assets.length ? <><p className="text-sm text-muted-foreground">{shared.data.assets.filter(asset => asset.mediaType === 'image').length} images · {shared.data.assets.filter(asset => asset.mediaType === 'video').length} videos</p><div className="layout__auto">{shared.data.assets.map(asset => <AssetCard key={asset.id} asset={asset} allowDownload={false} />)}</div></>
+            : shared.data?.assets.length ? <><p className="text-sm text-muted-foreground">{shared.data.assets.filter(asset => asset.mediaType === 'image').length} images · {shared.data.assets.filter(asset => asset.mediaType === 'video').length} videos</p><div className="layout__auto">{shared.data.assets.map(asset => <AssetCard key={asset.id} asset={asset} />)}</div></>
               : <p className="text-muted-foreground">No shared starter files have been added yet.</p>}
         </CardContent>
       </Card>

@@ -414,7 +414,7 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ### October 10, 2026 — Shared files are for use in QR Gear
 
-Removed Download from shared starter cards and the native shared-video download control. Shared copy directs members to select assets in the builder. Download remains available for each member's own private uploads. No shared originals, memberships, or builder endpoints were changed. This is a UI correction, not a claim that browser-rendered media cannot be saved.
+Removed Download from personal and shared cards and from native video controls. Personal files have upload and preview; shared copy directs members to select assets in the builder. No shared originals, memberships, or builder endpoints were changed. This is a UI correction, not a claim that browser-rendered media cannot be saved.
 
 Files: `client/src/pages/member-library.tsx`, READMEs, manifest and source ZIP.
 
