@@ -42,7 +42,7 @@ export function SimpleWizardStepContent({
     graphicSize, setGraphicSize,
     wantsHeaderFooter, setWantsHeaderFooter,
     setCurrentPacketId,
-    runningEarnings, setRunningEarnings,
+    runningEarnings,
     earningsPulse, setEarningsPulse,
     qrType, setQrType,
     headerStyle, setHeaderStyle,
@@ -164,7 +164,7 @@ export function SimpleWizardStepContent({
       {simpleStep === 'size' && (() => {
         const sizeEarningsBonuses = calculateSizeEarningsBonuses(
           pricingSettings?.sizeUpcharges,
-          pricingSettings?.memberProfitShare || 0.25
+          pricingSettings?.memberProfitShare ?? 0
         );
         return (
           <SizePickerStep
@@ -176,21 +176,9 @@ export function SimpleWizardStepContent({
             selectedPlacements={selectedPlacements}
             productName={getProductFriendlyName(selectedProductType?.title)}
             onSelect={(size: string) => {
-              const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
-              const newBonus = sizeEarningsBonuses[size] || 0;
-              const earningsDiff = newBonus - oldBonus;
               setSelectedShirtSize(size);
-              const doUpdate = () => {
-                if (selectedShirtSize && earningsDiff !== 0) {
-                  setRunningEarnings(prev => prev + earningsDiff);
-                } else if (!selectedShirtSize) {
-                  setRunningEarnings(prev => prev + newBonus);
-                }
-                setEarningsPulse(true);
-                setTimeout(() => setEarningsPulse(false), 600);
-              };
-              if (size !== selectedShirtSize) setTimeout(doUpdate, 1200);
-              else doUpdate();
+              setEarningsPulse(true);
+              setTimeout(() => setEarningsPulse(false), 600);
             }}
           />
         );
@@ -343,10 +331,6 @@ export function SimpleWizardStepContent({
           selected={textLayoutChoice}
           textLineEarningsBonus={textLineEarningsBonus}
           onSelect={(choice: string) => {
-            const prevLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
-            const newLines = choice === 'both' ? 2 : 1;
-            const diff = newLines - prevLines;
-            if (diff !== 0) setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
             setTextLayoutChoice(choice as any);
           }}
         />
@@ -357,12 +341,9 @@ export function SimpleWizardStepContent({
           selected={selectedPlacements}
           onToggle={(placement: string) => {
             const isRemoving = selectedPlacements.includes(placement);
-            const currentCount = selectedPlacements.length;
             if (isRemoving) {
-              if (currentCount > 1) setRunningEarnings(prev => prev - placementEarningsBonus);
               setSelectedPlacements(prev => prev.filter(p => p !== placement));
             } else {
-              if (currentCount >= 1) setRunningEarnings(prev => prev + placementEarningsBonus);
               setSelectedPlacements(prev => [...prev, placement]);
             }
           }}
@@ -436,45 +417,9 @@ export function SimpleWizardStepContent({
             setSimpleStep('compose-pick-items');
           }}
           publishedItemCount={publishedCanvasPlayItems.length}
-          onSkip={async () => {
+          onSkip={() => {
             setQrType('qr-plus');
-            setIsGeneratingPlusMockup(true);
-            setSimpleStep('qr-plus-mockup');
-            try {
-              const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-              const qrApiUrl = await generateBrandedQRDataUrl(previewUrl, 200);
-              setQrGraphic(qrApiUrl);
-              const productGraphicResult = await api.generateProductGraphic({
-                qrUrl: previewUrl, headerStyle, footerStyle, textLayoutChoice, qrColor: 'black',
-              });
-              if (productGraphicResult.success && productGraphicResult.productGraphic) {
-                setProductGraphic(productGraphicResult.productGraphic);
-              } else {
-                setProductGraphic(qrApiUrl);
-              }
-              const isPrintfulPlus = selectedProductType?.fulfillmentProvider === 'printful';
-              if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintfulPlus) && selectedColor) {
-                const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
-                const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic
-                  ? productGraphicResult.productGraphic : qrApiUrl;
-                const mockupResult = await api.generateMockup({
-        canonicalBlankKey: selectedProductType?.canonicalBlankKey,
-                  blueprintId: selectedProductType.blueprintId,
-                  printProviderId: selectedProductType.printProviderId || 99,
-                  colorName: selectedColor, artworkUrl: artworkForMockup, placement: 'front',
-                  qrSize: effectiveQrSize, fulfillmentProvider: isPrintfulPlus ? 'printful' : 'printify',
-                });
-                const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-                if (mockupResult.success && bestUrl) setQrPlusMockup(bestUrl);
-                else setQrPlusMockup(qrApiUrl);
-              } else {
-                setQrPlusMockup(qrApiUrl);
-              }
-            } catch {
-              setQrPlusMockup(await generateBrandedQRDataUrl('placeholder', 200));
-            } finally {
-              setIsGeneratingPlusMockup(false);
-            }
+            setSimpleStep('qr-basic-type');
           }}
         />
       )}

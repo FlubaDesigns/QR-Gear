@@ -38,7 +38,7 @@ export function WizardProductSteps({
     graphicSize, setGraphicSize,
     wantsHeaderFooter, setWantsHeaderFooter,
     setCurrentPacketId,
-    runningEarnings, setRunningEarnings,
+    runningEarnings,
     earningsPulse, setEarningsPulse,
     qrType, setQrType,
     headerStyle, setHeaderStyle,
@@ -142,7 +142,7 @@ export function WizardProductSteps({
       {simpleStep === 'size' && (() => {
         const sizeEarningsBonuses = calculateSizeEarningsBonuses(
           pricingSettings?.sizeUpcharges,
-          pricingSettings?.memberProfitShare || 0.25
+          pricingSettings?.memberProfitShare ?? 0
         );
         return (
           <SizePickerStep
@@ -154,27 +154,9 @@ export function WizardProductSteps({
             selectedPlacements={selectedPlacements}
             productName={getProductFriendlyName(selectedProductType?.title)}
             onSelect={(size) => {
-              const oldBonus = sizeEarningsBonuses[selectedShirtSize] || 0;
-              const newBonus = sizeEarningsBonuses[size] || 0;
-              const earningsDiff = newBonus - oldBonus;
-
               setSelectedShirtSize(size);
-
-              const doUpdate = () => {
-                if (selectedShirtSize && earningsDiff !== 0) {
-                  setRunningEarnings(prev => prev + earningsDiff);
-                } else if (!selectedShirtSize) {
-                  setRunningEarnings(prev => prev + newBonus);
-                }
-                setEarningsPulse(true);
-                setTimeout(() => setEarningsPulse(false), 600);
-              };
-
-              if (size !== selectedShirtSize) {
-                setTimeout(doUpdate, 1200);
-              } else {
-                doUpdate();
-              }
+              setEarningsPulse(true);
+              setTimeout(() => setEarningsPulse(false), 600);
             }}
           />
         );
@@ -366,12 +348,6 @@ export function WizardProductSteps({
             selected={textLayoutChoice}
             textLineEarningsBonus={textLineEarningsBonus}
             onSelect={(choice) => {
-              const prevLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
-              const newLines = choice === 'both' ? 2 : 1;
-              const diff = newLines - prevLines;
-              if (diff !== 0) {
-                setRunningEarnings(prev => prev + (diff * textLineEarningsBonus));
-              }
               setTextLayoutChoice(choice);
             }}
           />
@@ -383,17 +359,10 @@ export function WizardProductSteps({
           selected={selectedPlacements}
           onToggle={(placement) => {
             const isRemoving = selectedPlacements.includes(placement);
-            const currentCount = selectedPlacements.length;
 
             if (isRemoving) {
-              if (currentCount > 1) {
-                setRunningEarnings(prev => prev - placementEarningsBonus);
-              }
               setSelectedPlacements(prev => prev.filter(p => p !== placement));
             } else {
-              if (currentCount >= 1) {
-                setRunningEarnings(prev => prev + placementEarningsBonus);
-              }
               setSelectedPlacements(prev => [...prev, placement]);
             }
           }}

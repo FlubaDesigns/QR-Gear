@@ -136,7 +136,7 @@ export function getSimpleBackStep(
     return { step: 'canvas-fork' };
   }
   if (simpleStep === 'qr-basic-type') {
-    return { step: 'generate' };
+    return { step: state.qrType === 'qr-plus' ? 'canvas-fork' : 'generate' };
   }
   if (simpleStep === 'qr-basic-input') {
     return { step: 'qr-basic-type' };
@@ -151,7 +151,7 @@ export function getSimpleBackStep(
     return { step: 'qr-basic-save-choice' };
   }
   if (simpleStep === 'qr-plus-mockup') {
-    return { step: 'canvas-fork' };
+    return { step: 'qr-basic-input' };
   }
   if (simpleStep === 'qr-plus-save-choice') {
     return { step: 'qr-plus-mockup' };

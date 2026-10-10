@@ -126,6 +126,7 @@ export function useSuperSimpleTutorial(deps: TutorialDeps) {
   };
 
   const handleSuperNext = async () => {
+    if (tutorialAlreadyDone) { await handleSimpleNext(); return; }
     const postCards = POST_STEP_BLACKBOARDS[simpleStep];
     if (postCards && !seenSteps.has(`post-${simpleStep}`)) {
       setBlackboardQueue([...postCards]);
@@ -186,7 +187,7 @@ export function useSuperSimpleTutorial(deps: TutorialDeps) {
         const base = selectedProductType?.memberEarnings || 0;
         const sizeBonuses = calculateSizeEarningsBonuses(
           pricingSettings?.sizeUpcharges,
-          pricingSettings?.memberProfitShare || 0.25
+          pricingSettings?.memberProfitShare ?? 0
         );
         const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
         const newTotal = base + sizeBonus;
@@ -213,7 +214,7 @@ export function useSuperSimpleTutorial(deps: TutorialDeps) {
     const base = selectedProductType?.memberEarnings || 0;
     const sizeBonuses = calculateSizeEarningsBonuses(
       pricingSettings?.sizeUpcharges,
-      pricingSettings?.memberProfitShare || 0.25
+      pricingSettings?.memberProfitShare ?? 0
     );
     const sizeBonus = sizeBonuses[selectedShirtSize] || 0;
     const currentTotal = base + sizeBonus;

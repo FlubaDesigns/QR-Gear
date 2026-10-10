@@ -80,7 +80,7 @@ export async function prepareMemberBuild(memberId: string, input: any) {
   if (previous.exists && previous.data()?.memberId !== memberId) fail('This product belongs to another member.', 403);
   const ref = db.collection('productPackets').doc();
   const origin = resolveRuntimeConfig().origin;
-  const hosted = input.packetType !== 'qr-basic';
+  const hosted = ['qr-canvas', 'qr-play', 'qr-compose'].includes(input.packetType);
   const landingPageSlug = `member-${ref.id}`;
   const qrContent = hosted ? `${origin}/m/${landingPageSlug}` : String(input.qrBasicContent || input.qrDestination || '').trim();
   if (!qrContent) fail('Enter the content for your QR code.');

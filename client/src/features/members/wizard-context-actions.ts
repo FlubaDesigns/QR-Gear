@@ -116,11 +116,6 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
       ctx.setPendingVideoFile(null);
     }
 
-    const textLines = ctx.textLayoutChoice === 'both' ? 2 : (ctx.textLayoutChoice === 'header' || ctx.textLayoutChoice === 'footer') ? 1 : 0;
-    const textUpcharge = textLines * (ctx.pricingSettings?.textLineUpcharge || 2);
-    const extraPlacements = Math.max(0, ctx.selectedPlacements.length - 1);
-    const placementUpcharge = extraPlacements * (ctx.pricingSettings?.additionalPlacementCost || 4);
-
     const packetData: Record<string, any> = {
       packetType: ctx.qrType,
       title: ctx.simpleTitle,
@@ -149,8 +144,8 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
       background: ctx.urlGraphic || null,
       originalUrlGraphic: ctx.originalUrlGraphic || null,
       videoUrl: ctx.qrType === 'qr-play' ? (resolvedVideoUrl || ctx.videoUrl) : null,
-      qrBasicInputType: ctx.qrType === 'qr-basic' ? (ctx.qrBasicInputType || null) : null,
-      qrBasicContent: ctx.qrType === 'qr-basic' ? (ctx.qrBasicContent || null) : null,
+      qrBasicInputType: ['qr-basic', 'qr-plus'].includes(ctx.qrType) ? (ctx.qrBasicInputType || null) : null,
+      qrBasicContent: ['qr-basic', 'qr-plus'].includes(ctx.qrType) ? (ctx.qrBasicContent || null) : null,
       qrBasicMockup: ctx.qrType === 'qr-basic' ? (ctx.qrBasicMockup || null) : null,
       qrBasicSaveChoice: ctx.qrType === 'qr-basic' ? (ctx.qrBasicSaveChoice || null) : null,
       qrPlusMockup: ctx.qrType === 'qr-plus' ? (ctx.qrPlusMockup || null) : null,
@@ -166,10 +161,6 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
       qrSizePercent: ctx.qrSizePercent,
       areaImageUrl: ctx.areaImageUrl || null,
       areaImageMode: ctx.areaImageMode,
-      textLines,
-      textUpcharge,
-      placementUpcharge,
-      memberEarnings: ctx.runningEarnings,
       source: { entryPoint: 'simple-wizard' },
       itemImage: ctx.qrType === 'qr-canvas' ? (ctx.qrCanvasMockup || ctx.productGraphic || null)
         : ctx.qrType === 'qr-basic' ? (ctx.qrBasicMockup || ctx.productGraphic || null)
@@ -197,6 +188,7 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
     result = await publishMemberBuild(ctx.user.id, packetData);
 
     const packetId = result.id || result.packetId || ctx.currentPacketId || null;
+    ctx.setPublishedBuild(result);
     ctx.setPublishedPacketId(packetId);
     ctx.setCurrentPacketId(packetId);
     ctx.incrementPublishCount();

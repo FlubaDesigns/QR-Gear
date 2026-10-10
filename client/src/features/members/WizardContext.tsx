@@ -1,3 +1,4 @@
+import type { PricingSettings } from "@shared/schema-orders";
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -106,23 +107,16 @@ function WizardSession({ children, startTier, startNewBuild }: {
   const [wantsHeaderFooter, setWantsHeaderFooter] = useState<boolean | null>(null);
 
   const [currentPacketId, setCurrentPacketId] = useState<string | null>(null);
-  const [runningEarnings, setRunningEarnings] = useState<number>(0);
   const [earningsPulse, setEarningsPulse] = useState(false);
 
-  const { data: pricingSettings } = useQuery<{
-    memberProfitShare: number;
-    additionalPlacementCost: number;
-    textLineUpcharge: number;
-    sizeUpcharges: Record<string, number>;
-    baseRetailPrice: number;
-  }>({
+  const { data: pricingSettings } = useQuery<PricingSettings>({
     queryKey: ['/api/pricing-settings'],
     staleTime: 5 * 60 * 1000,
   });
 
-  const placementEarningsBonus = (pricingSettings?.additionalPlacementCost || 4) * (pricingSettings?.memberProfitShare || 0.25);
-  const textLineEarningsBonus = (pricingSettings?.textLineUpcharge || 2) * (pricingSettings?.memberProfitShare || 0.25);
-  const sizeEarningsIncrement = (pricingSettings?.sizeUpcharges?.['M'] || 2) * (pricingSettings?.memberProfitShare || 0.25);
+  const placementEarningsBonus = (pricingSettings?.additionalPlacementCost ?? 0) * (pricingSettings?.markupPercent ?? 0) / 100 * (pricingSettings?.memberProfitShare ?? 0);
+  const textLineEarningsBonus = (pricingSettings?.textLineUpcharge ?? 0) * (pricingSettings?.markupPercent ?? 0) / 100 * (pricingSettings?.memberProfitShare ?? 0);
+  const sizeEarningsIncrement = (pricingSettings?.sizeUpcharges?.['M'] ?? 0) * (pricingSettings?.memberProfitShare ?? 0);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
@@ -197,6 +191,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
 
   const [canvasSaveChoice, setCanvasSaveChoice] = useState<QRCanvasSaveOption>('');
   const [isCanvasSaving, setIsCanvasSaving] = useState(false);
+  const [publishedBuild, setPublishedBuild] = useState<Record<string, any> | null>(null);
   const [publishedPacketId, setPublishedPacketId] = useState<string | null>(null);
   const [publishedQrGraphicUrl, setPublishedQrGraphicUrl] = useState<string | null>(null);
   const [publishedProductGraphicUrl, setPublishedProductGraphicUrl] = useState<string | null>(null);
@@ -242,6 +237,19 @@ function WizardSession({ children, startTier, startNewBuild }: {
     if (selectedShirtSize && !selectedProductType?.availableVariants?.some(v => v.color === selectedColor && v.size === selectedShirtSize)) setSelectedShirtSize('');
   }, [selectedColor, selectedProductType, selectedShirtSize]);
 
+  // Recompute from the selected options and Admin Pricing, never accumulated clicks.
+  const runningEarnings = useMemo(() => {
+    if (!pricingSettings || !selectedProductType) return 0;
+    const zones = [headerStyle, footerStyle].filter(zone => zone.enabled &&
+      (zone.mode === 'image' ? zone.imageUrl?.trim() : zone.text?.trim())).length;
+    const hosting = ['qr-canvas', 'qr-play', 'qr-compose'].includes(qrType)
+      ? pricingSettings.hostingTiers.find(t => t.code === (qrType === 'qr-compose' ? composeHostingTerm.replace('-', '_') : '1_year'))?.price ?? 0 : 0;
+    const extraCost = Math.max(0, selectedPlacements.length - 1) * pricingSettings.additionalPlacementCost
+      + zones * pricingSettings.textLineUpcharge + (areaImageUrl ? pricingSettings.centerGraphicUpcharge : 0) + hosting;
+    const bonus = (extraCost * pricingSettings.markupPercent / 100 + (pricingSettings.sizeUpcharges[selectedShirtSize] ?? 0)) * pricingSettings.memberProfitShare;
+    return Math.round(((selectedProductType.memberEarnings ?? 0) + bonus) * 100) / 100;
+  }, [pricingSettings, selectedProductType, selectedPlacements, headerStyle, footerStyle, areaImageUrl, qrType, composeHostingTerm, selectedShirtSize]);
+
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front' as PlacementOption;
 
   const actionCtx = {
@@ -257,17 +265,17 @@ function WizardSession({ children, startTier, startNewBuild }: {
     selectedProduct, landingPage, currentPlacement, currentPlacementIndex, wantsHeaderFooter,
     placementGraphicChoice, placementSize, isPublishing, simpleStep,
     setIsPublishing, setShowSignInToPublish, setSelectedChannel, setPlayVideoUrl, setPendingVideoFile,
-    setPublishedPacketId, setCurrentPacketId, setComposeInstanceId, setSimpleStep, setViewMode,
+    setPublishedBuild, setPublishedPacketId, setCurrentPacketId, setComposeInstanceId, setSimpleStep, setViewMode,
     setPublishedQrGraphicUrl, setPublishedProductGraphicUrl, setSimpleTitle, setSimpleDescription,
     setQrType, setContentRightsConfirmed, setUrlGraphic, setProductGraphic, setQrGraphic,
     setIsCanvasSaving, setIsPlaySaving, setIsLoadingPublishedItems, setPublishedCanvasPlayItems,
     setSelectedProductType, setVideoUploadError, setVideoUploadSuccess, setIsUploadingVideo,
     setVideoUploadProgress, setVideoUrl, setIsGeneratingBasicMockup, setQrBasicMockup,
     setIsGeneratingPlayMockup, setQrPlayMockup, setIsGeneratingCanvasMockup, setQrCanvasMockup,
-    setIsGeneratingComposeMockup, setComposeMockup, setRunningEarnings, setCurrentPlacementIndex,
+    setIsGeneratingComposeMockup, setComposeMockup, setCurrentPlacementIndex,
     setGraphicSize, setPerPlacementSizes, setPlacementGraphicChoice, setPlacementSize,
     setPerPlacementConfigs, setCompletedSteps, setQrBasicInputType, setQrBasicContent,
-    setQrBasicSaveChoice, setQrPlusMockup, setQrPlusSaveChoice,
+    setQrBasicSaveChoice, setIsGeneratingPlusMockup, setQrPlusMockup, setQrPlusSaveChoice,
     setComposeItems, setComposeMode, setComposeHostingTerm,
   };
 
@@ -405,6 +413,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
   };
 
   const canSimpleProceed = () => {
+    if (!pricingSettings || isGeneratingBasicMockup || isGeneratingPlusMockup || isPublishing || isQrBasicSaving || isQrPlusSaving) return false;
     return computeCanSimpleProceed(simpleStep, {
       selectedChannel, selectedProductType, selectedColor, selectedShirtSize,
       qrType, graphicSize, wantsHeaderFooter, textLayoutChoice, selectedPlacements,
@@ -472,7 +481,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
     graphicLocation, setGraphicLocation, graphicSize, setGraphicSize,
     wantsHeaderFooter, setWantsHeaderFooter,
     currentPacketId, setCurrentPacketId,
-    runningEarnings, setRunningEarnings, earningsPulse, setEarningsPulse,
+    runningEarnings, earningsPulse, setEarningsPulse,
     selectedProduct, setSelectedProduct, placementConfigs, setPlacementConfigs,
     qrType, setQrType, qrPositionX, setQrPositionX, qrPositionY, setQrPositionY,
     qrSizePercent, setQrSizePercent, areaImageUrl, setAreaImageUrl,
@@ -522,7 +531,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
     composeInstanceId, setComposeInstanceId,
     contentRightsConfirmed, setContentRightsConfirmed,
     currentPlacement,
-    pricingSettings, placementEarningsBonus, textLineEarningsBonus, sizeEarningsIncrement,
+    publishedBuild, pricingSettings, placementEarningsBonus, textLineEarningsBonus, sizeEarningsIncrement,
     unlockedTiers, incrementPublishCount,
     generatePreviewQrCode, createPacketForProduct, updatePacket,
     saveQrBasicToPacket, saveQrPlusToPacket, saveCanvasToLibrary,

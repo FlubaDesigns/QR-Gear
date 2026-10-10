@@ -20,7 +20,7 @@ export function SimpleWizard() {
     urlGraphic, setUrlGraphic,
     currentPlacement,
     qrBasicMockup,
-    publishedPacketId,
+    publishedBuild, publishedPacketId,
     qrPlusMockup,
     qrCanvasMockup,
     qrPlayMockup,
@@ -42,9 +42,9 @@ export function SimpleWizard() {
     title: simpleTitle || 'QR Gear Product',
     description: simpleDescription || '',
     memberId: user?.id || '',
-    itemImage: qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || composeMockup || productGraphic || '',
+    itemImage: publishedBuild?.itemImage || qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || composeMockup || productGraphic || '',
     previewUrl: productGraphic || urlGraphic || '',
-    retailPrice: selectedProductType?.retailPrice || 0,
+    retailPrice: publishedBuild?.retailPrice ?? 0,
     channelName: selectedChannel?.name || '',
   });
 

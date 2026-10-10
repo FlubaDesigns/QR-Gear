@@ -56,7 +56,7 @@ export function AdvancedWizardMediaSteps() {
     composeInstanceId,
     contentRightsConfirmed,
     setContentRightsConfirmed,
-    publishedPacketId,
+    publishedBuild, publishedPacketId,
     handleVideoFileUpload,
     handleCanvasDone,
     handleSimplePublish,
@@ -85,9 +85,9 @@ export function AdvancedWizardMediaSteps() {
     title: simpleTitle || 'QR Gear Product',
     description: simpleDescription || '',
     memberId: user?.id || '',
-    itemImage: qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || composeMockup || productGraphic || '',
+    itemImage: publishedBuild?.itemImage || qrCanvasMockup || qrBasicMockup || qrPlusMockup || qrPlayMockup || composeMockup || productGraphic || '',
     previewUrl: productGraphic || urlGraphic || '',
-    retailPrice: selectedProductType?.retailPrice || 0,
+    retailPrice: publishedBuild?.retailPrice ?? 0,
     channelName: selectedChannel?.name || '',
   });
 
@@ -160,66 +160,9 @@ export function AdvancedWizardMediaSteps() {
             setSimpleStep('compose-pick-items');
           }}
           publishedItemCount={publishedCanvasPlayItems.length}
-          onSkip={async () => {
+          onSkip={() => {
             setQrType('qr-plus');
-            setIsGeneratingPlusMockup(true);
-            setSimpleStep('qr-plus-mockup');
-            
-            try {
-              const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-              const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
-              setQrGraphic(qrApiUrl);
-              
-              const productGraphicResult = await api.generateProductGraphic({
-                qrUrl: previewUrl,
-                headerStyle: headerStyle,
-                footerStyle: footerStyle,
-                textLayoutChoice: textLayoutChoice,
-                qrColor: 'black',
-              });
-              
-              if (productGraphicResult.success && productGraphicResult.productGraphic) {
-                setProductGraphic(productGraphicResult.productGraphic);
-              } else {
-                setProductGraphic(qrApiUrl);
-              }
-              
-              const isPrintfulAdv = selectedProductType?.fulfillmentProvider === 'printful';
-              if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintfulAdv) && selectedColor) {
-                const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
-                
-                const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic 
-                  ? productGraphicResult.productGraphic 
-                  : qrApiUrl;
-                
-                const mockupResult = await api.generateMockup({
-        canonicalBlankKey: selectedProductType?.canonicalBlankKey,
-                  blueprintId: selectedProductType.blueprintId,
-                  printProviderId: selectedProductType.printProviderId || 99,
-                  colorName: selectedColor,
-                  artworkUrl: artworkForMockup,
-                  placement: 'front',
-                  qrSize: effectiveQrSize,
-                  fulfillmentProvider: isPrintfulAdv ? 'printful' : 'printify',
-                });
-                
-                const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-                
-                if (mockupResult.success && bestUrl) {
-                  setQrPlusMockup(bestUrl);
-                } else {
-                  setQrPlusMockup(qrApiUrl);
-                }
-              } else {
-                setQrPlusMockup(qrApiUrl);
-              }
-            } catch (error) {
-              console.error('[Advanced QR Plus] Error generating mockup:', error);
-              const fallbackUrl = generateQRCodeUrl('placeholder', 200);
-              setQrPlusMockup(fallbackUrl);
-            } finally {
-              setIsGeneratingPlusMockup(false);
-            }
+            setSimpleStep('qr-basic-type');
           }}
         />
       )}

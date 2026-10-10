@@ -419,6 +419,8 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ### October 11, 2026 — Super Simple completion
 
+Returning members with completed tutorials also bypass post-selection teaching cards in `members/useSuperSimpleTutorial.ts`.
+
 Tutorial completion follows the successful saved packet instead of an unreachable confirmation-screen Next action. Returning creators skip the teaching cards after their first successful publish, and progress failures display a message.
 
 #### Files Changed
@@ -1337,3 +1339,12 @@ Live cart correction: memberProfitShare is creator earnings, not a purchase disc
 ## Actual Printful base pricing — October 9, 2026
 
 Emergency Main pricing repair: the canonical packet calculator uses the QRG provider minimum/base cost instead of the most expensive supplier size. Admin size surcharges remain in the shared pricing settings and are applied once by the product/cart resolver. The QRG pricing import now refreshes Printful costs from the existing live connection before saving its provider range, so a populated but stale lookup range cannot prevent refresh. Supplier data enters through QRG table logic; storefront and cart continue to read saved packet prices. The mandatory inside label and other saved pricing settings remain in force. Existing catalog items are repriced through Admin Pricing's preview/apply transaction; deployment alone does not change their saved prices. No automated test suite was added.
+
+
+## Member add-ons and Admin Pricing — October 11, 2026
+
+Member builder earnings are derived from the selected options and saved Admin Pricing, including all configured sizes (4XL/5XL included), zero-valued settings, markup, center graphics and hosting. Click-based earnings increments and duplicate client price inputs are removed. Saved sharing cards use the published production packet price and image, including add-ons. QR Plus now asks for the real direct QR destination before preview and uses that destination in the shared production build. It no longer publishes a placeholder or an unconfigured hosted route. Save/preview actions remain disabled while work is in progress. New builds still use QRG and the shared snapshot/GRF/BLD/Assembly pipeline.
+
+Validation: TypeScript and production/Functions builds are required; live add-on pricing is checked against Admin Pricing through the payment boundary without buying. Paid fulfillment and payouts are not exercised.
+
+Resume verification: QR Plus Back returns to the destination input, and a failed supplier mockup does not advance to the preview. Root TypeScript, frontend production build and Functions compilation passed. Live verification remains a separate release check.

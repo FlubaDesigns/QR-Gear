@@ -9,20 +9,36 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
   window.scrollTo({ top: 0, behavior: 'instant' });
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
-  if (ctx.simpleStep === 'product-congrats' && ctx.selectedProductType) {
-    ctx.setRunningEarnings((prev: number) => {
-      if (prev === 0) {
-        return ctx.selectedProductType.memberEarnings || 0;
-      }
-      return prev;
-    });
-  }
-
   if (ctx.simpleStep === 'qr-basic-type') {
     ctx.setSimpleStep('qr-basic-input');
     return;
   }
   if (ctx.simpleStep === 'qr-basic-input') {
+    if (ctx.qrType === 'qr-plus') {
+      ctx.setIsGeneratingPlusMockup(true);
+      try {
+        const qrUrl = generateQRCodeUrl(ctx.qrBasicContent, 1000);
+        ctx.setQrGraphic(qrUrl);
+        const graphic = await ctx.api.generateProductGraphic({ qrUrl: ctx.qrBasicContent,
+          headerStyle: ctx.headerStyle, footerStyle: ctx.footerStyle,
+          textLayoutChoice: ctx.textLayoutChoice, qrColor: 'black' });
+        if (!graphic.success || !graphic.productGraphic) throw new Error('Could not generate the print artwork. Please retry.');
+        ctx.setProductGraphic(graphic.productGraphic);
+        const mockup = await ctx.api.generateMockup({ canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
+          blueprintId: ctx.selectedProductType?.blueprintId, printProviderId: ctx.selectedProductType?.printProviderId,
+          colorName: ctx.selectedColor, artworkUrl: graphic.productGraphic,
+          placement: ctx.selectedPlacements[0], qrSize: ctx.graphicSize,
+          fulfillmentProvider: ctx.selectedProductType?.fulfillmentProvider });
+        const mockupUrl = mockup.lifestyleMockupUrl || mockup.mockupUrl;
+        if (!mockup.success || !mockupUrl) throw new Error(mockup.error || 'Could not generate the product preview. Please retry.');
+        ctx.setQrPlusMockup(mockupUrl);
+        ctx.setSimpleStep('qr-plus-mockup');
+      } catch (error) {
+        ctx.toast({ title: 'Preview failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+      } finally { ctx.setIsGeneratingPlusMockup(false); }
+      return;
+    }
+
     ctx.setIsGeneratingBasicMockup(true);
     try {
       const qrContent = ctx.qrBasicContent;
@@ -331,7 +347,7 @@ export function executeSimpleBack(ctx: any): void {
   }
 
   if (ctx.simpleStep === 'qr-basic-type') {
-    ctx.setSimpleStep('generate');
+    ctx.setSimpleStep(ctx.qrType === 'qr-plus' ? 'canvas-fork' : 'generate');
     return;
   }
   if (ctx.simpleStep === 'qr-basic-input') {
@@ -352,7 +368,7 @@ export function executeSimpleBack(ctx: any): void {
   }
 
   if (ctx.simpleStep === 'qr-plus-mockup') {
-    ctx.setSimpleStep('canvas-fork');
+    ctx.setSimpleStep('qr-basic-input');
     return;
   }
   if (ctx.simpleStep === 'qr-plus-save-choice') {

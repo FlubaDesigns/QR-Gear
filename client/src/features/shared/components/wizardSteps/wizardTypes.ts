@@ -213,11 +213,9 @@ export const SHIRT_COLORS = [
 export const SHIRT_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL'];
 
 export function calculateSizeEarningsBonuses(sizeUpcharges: Record<string, number> | undefined, memberProfitShare: number): Record<string, number> {
-  const defaultUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10 };
-  const upcharges = sizeUpcharges || defaultUpcharges;
   const bonuses: Record<string, number> = {};
-  for (const size of SHIRT_SIZES) {
-    bonuses[size] = (upcharges[size] || 0) * memberProfitShare;
+  for (const [size, upcharge] of Object.entries(sizeUpcharges || {})) {
+    bonuses[size] = upcharge * memberProfitShare;
   }
   return bonuses;
 }

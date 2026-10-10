@@ -738,3 +738,14 @@ Validation before release: root TypeScript and production build passed. Authenti
 Super Simple records tutorial completion when the shared build actually returns a published packet. The old completion handler was behind a Next button hidden on confirmation screens, so returning creators repeatedly saw the first-time guide. Progress read/write failures are now visible.
 
 Payouts consumes the same earnings summary envelope as the dashboard. A failed Connect status read now shows a retry instead of incorrectly reporting an unconnected bank account. No bank connection, payment or payout was performed during this repair.
+
+Completed Super Simple tutorials bypass both introductory and post-selection teaching cards; the quiet returning-member flow still uses the same builder progression.
+
+
+## Member add-ons and Admin Pricing — October 11, 2026
+
+Member builder earnings are derived from the selected options and saved Admin Pricing, including all configured sizes (4XL/5XL included), zero-valued settings, markup, center graphics and hosting. Click-based earnings increments and duplicate client price inputs are removed. Saved sharing cards use the published production packet price and image, including add-ons. QR Plus now asks for the real direct QR destination before preview and uses that destination in the shared production build. It no longer publishes a placeholder or an unconfigured hosted route. Save/preview actions remain disabled while work is in progress. New builds still use QRG and the shared snapshot/GRF/BLD/Assembly pipeline.
+
+Validation: TypeScript and production/Functions builds are required; live add-on pricing is checked against Admin Pricing through the payment boundary without buying. Paid fulfillment and payouts are not exercised.
+
+Resume verification: QR Plus Back returns to the destination input, and a failed supplier mockup does not advance to the preview. Root TypeScript, frontend production build and Functions compilation passed. Live verification remains a separate release check.

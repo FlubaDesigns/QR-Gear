@@ -1,3 +1,4 @@
+import type { PricingSettings } from "@shared/schema-orders";
 import type { TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 import type { PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import type { LandingPageConfig } from "@/features/shared/components/LandingPageEditor";
@@ -83,7 +84,6 @@ export interface WizardContextType {
   currentPacketId: string | null;
   setCurrentPacketId: React.Dispatch<React.SetStateAction<string | null>>;
   runningEarnings: number;
-  setRunningEarnings: React.Dispatch<React.SetStateAction<number>>;
   earningsPulse: boolean;
   setEarningsPulse: React.Dispatch<React.SetStateAction<boolean>>;
 
@@ -248,13 +248,8 @@ export interface WizardContextType {
 
   currentPlacement: PlacementOption;
 
-  pricingSettings: {
-    memberProfitShare: number;
-    additionalPlacementCost: number;
-    textLineUpcharge: number;
-    sizeUpcharges: Record<string, number>;
-    baseRetailPrice: number;
-  } | undefined;
+  publishedBuild: Record<string, any> | null;
+  pricingSettings: PricingSettings | undefined;
   placementEarningsBonus: number;
   textLineEarningsBonus: number;
   sizeEarningsIncrement: number;
