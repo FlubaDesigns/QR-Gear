@@ -22,6 +22,29 @@ const PROFILE_STALE_MS = 2 * 60 * 1000;
 
 export { PROFILE_QUERY_KEY };
 
+export const MEMBER_PACKETS_QUERY_KEY = (userId: string) => ['/api/member/packets', userId];
+
+/** One authenticated packet projection for dashboard, channels and tier progress. */
+export function useMemberPackets(userId: string) {
+  return useQuery<{ packets: any[] }>({
+    queryKey: MEMBER_PACKETS_QUERY_KEY(userId),
+    queryFn: async () => {
+      await auth.authStateReady();
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Sign in to load your products.');
+      const res = await fetch(`/api/member/packets?memberId=${encodeURIComponent(userId)}`, {
+        cache: 'no-store', headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Could not load your products (${res.status}).`);
+      const data = await res.json();
+      if (!Array.isArray(data.packets)) throw new Error('The product list could not be read.');
+      return data;
+    },
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
+}
+
 export function useMemberRuntimeState(): MemberRuntimeState {
   const { user: apiUser, firebaseUser, isLoading: authLoading, isAuthenticated } = useAuth();
   const userId = apiUser?.id || firebaseUser?.uid || '';
@@ -52,11 +75,8 @@ export function useMemberRuntimeState(): MemberRuntimeState {
 
   const onboardingComplete = profileData?.isMember === true;
 
-  const serverCount = profileData?.profile?.publishCount ?? 0;
-  const localCount = userId
-    ? parseInt(localStorage.getItem(`publish_count_${userId}`) || '0', 10)
-    : 0;
-  const publishCount = Math.max(serverCount, localCount);
+  const { data: packets } = useMemberPackets(isAuthenticated ? userId : '');
+  const publishCount = packets?.packets.filter(p => p.productionPacketId && p.status === 'published').length ?? 0;
 
   return {
     isLoading: authLoading || (!!userId && isAuthenticated && profileLoading),

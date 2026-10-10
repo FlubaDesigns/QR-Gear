@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 9, 2026
+Last updated: October 11, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -411,6 +411,23 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### October 11, 2026 — Shared member dashboard and fresh builds
+
+The dashboard, channels, and published count read the same member packet projection. New builds clear all draft state through a shared session boundary. Authentication no longer opens the first-product wizard while the returning member profile loads. Members uses the master page skeleton and row/split helpers. Earnings reads the API summary envelope; request failures are visible. All three builder experiences retain their distinct controls over the existing shared QRG/BLD/GRF/Assembly publication path.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `members/useMemberRuntimeState.ts` | Shared authenticated packet query and persisted publish count |
+| `members/WizardContext.tsx` | Fresh build sessions and shared progress |
+| `members/MembersPage.tsx` | Master skeleton and authentication timing |
+| `members/member-index-view.tsx`, `members/member-channels-view.tsx` | Consistent totals, errors, and saved product links |
+| `members/*Wizard.tsx`, `members/AdvancedWizardProductSteps.tsx` | Shared fresh-build reset and accurate QR badges |
+| `shared/components/wizardSteps/WizardProgressBars.tsx` | Labels and progress without numbered steps |
+| `lib/memberFetch.ts` | Reject unreadable success responses |
+
+
 
 ## Main admin smoke-test repairs — October 9, 2026
 

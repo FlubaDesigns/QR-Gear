@@ -41,7 +41,7 @@ export function SimpleWizardProgressBar({
     <div className="w-full mb-6">
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm font-medium text-white flex items-center gap-2 flex-wrap">
-          Step {currentIndex + 1} of {steps.length}: {stepLabel}
+          {stepLabel}
           {showPlacement && (
             <span className="inline-flex items-center bg-amber-500/15 border border-amber-500/30 rounded px-2 py-0.5 text-amber-300 font-bold text-xs">
               {placementLabel}
@@ -80,7 +80,7 @@ export function WizardProgressBar({
     <div className="w-full mb-6">
       <div className="flex justify-between items-center mb-2">
         <span className="text-sm font-medium text-white flex items-center gap-2 flex-wrap">
-          Step {currentIndex + 1} of {WIZARD_STEPS.length}: {stepLabel}
+          {stepLabel}
           {showPlacement && (
             <span className="inline-flex items-center bg-amber-500/15 border border-amber-500/30 rounded px-2 py-0.5 text-amber-300 font-bold text-xs">
               {placementLabel}

@@ -17,7 +17,7 @@ import { useWizardContext } from './WizardContext';
 
 export function AdvancedWizardProductSteps() {
   const {
-    capabilities,
+    capabilities, startNewBuild,
     user,
     simpleStep, setSimpleStep,
     selectedChannel, setSelectedChannel,
@@ -89,19 +89,8 @@ export function AdvancedWizardProductSteps() {
     channelName: selectedChannel?.name || '',
   });
 
-  const resetWizardState = () => {
-    setSimpleStep('channel');
-    setCurrentPacketId(null);
-    setSimpleTitle('');
-    setSimpleDescription('');
-    setQrType('');
-    setContentRightsConfirmed(false);
-    setUrlGraphic('');
-    setProductGraphic('');
-  };
-
-  const handleCreateAnother = () => resetWizardState();
-  const handleBackToDashboard = () => { resetWizardState(); setViewMode('index'); };
+  const handleCreateAnother = () => startNewBuild('advanced');
+  const handleBackToDashboard = () => setViewMode('index');
 
   return (
     <>

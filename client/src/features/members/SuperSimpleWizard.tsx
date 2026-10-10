@@ -18,7 +18,7 @@ import { useSuperSimpleTutorial } from './useSuperSimpleTutorial';
 
 export function SuperSimpleWizard() {
   const {
-    capabilities,
+    capabilities, startNewBuild,
     user,
     simpleStep, setSimpleStep,
     selectedChannel, setSelectedChannel,
@@ -136,28 +136,8 @@ export function SuperSimpleWizard() {
     channelName: selectedChannel?.name || '',
   });
 
-  const handleCreateAnother = () => {
-    setSimpleStep('channel');
-    setCurrentPacketId(null);
-    setSimpleTitle('');
-    setSimpleDescription('');
-    setQrType('');
-    setContentRightsConfirmed(false);
-    setUrlGraphic('');
-    setProductGraphic('');
-  };
-
-  const handleBackToDashboard = () => {
-    setSimpleStep('channel');
-    setViewMode('index');
-    setCurrentPacketId(null);
-    setSimpleTitle('');
-    setSimpleDescription('');
-    setQrType('');
-    setContentRightsConfirmed(false);
-    setUrlGraphic('');
-    setProductGraphic('');
-  };
+  const handleCreateAnother = () => startNewBuild('super-simple');
+  const handleBackToDashboard = () => setViewMode('index');
 
   if (checkingTutorial) {
     return (
@@ -237,7 +217,7 @@ export function SuperSimpleWizard() {
             if (['compose-pick-items', 'compose-mode', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
               return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
             }
-            return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
+            return qrType ? { label: qrType.replace('qr-', 'QR '), color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' } : null;
           };
           const tier = getTierInfo();
           return !isShowingBlackboard && !showQrTypeCards && !showQrCongrats && tier ? (

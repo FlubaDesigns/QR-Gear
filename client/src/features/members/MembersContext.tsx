@@ -107,6 +107,7 @@ export function MembersProvider({ children, initialMemberId = null }: MembersPro
 
     const invalidateMembers = (type?: string): void => {
       queryClient.invalidateQueries({ queryKey: ["/api/members"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/member/packets"] });
       if (type) {
         queryClient.invalidateQueries({ queryKey: getQueryKey(type) });
       } else {

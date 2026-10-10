@@ -85,8 +85,9 @@ export async function memberFetch<T = unknown>(
   }
 
   const contentType = res.headers.get("content-type") ?? "";
-  if (res.status === 204 || !contentType.includes("application/json")) {
-    return undefined as T;
+  if (res.status === 204) return undefined as T;
+  if (!contentType.includes("application/json")) {
+    throw new Error("The member service returned an unreadable response. Refresh and try again.");
   }
 
   return res.json() as Promise<T>;

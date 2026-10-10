@@ -1,3 +1,4 @@
+import { PageSkeleton } from '@/components/PageSkeleton';
 import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { useMemberRuntimeState } from './useMemberRuntimeState';
 import { useLocation } from "wouter";
@@ -272,7 +273,7 @@ function MembersController() {
   const {
     user,
     viewMode, setViewMode,
-    wizardTier, setWizardTier,
+    wizardTier, setWizardTier, startNewBuild,
     publishCount,
     showUnlockPrompt, setShowUnlockPrompt,
     setSelectedColor, setQrType, setSelectedPlacements, setGraphicSize,
@@ -315,11 +316,11 @@ function MembersController() {
   });
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (!isLoading && !isAuthenticated) {
       setWizardTier('super-simple');
       setViewMode('wizard');
     }
-  }, [isAuthenticated]);
+  }, [isLoading, isAuthenticated]);
 
   if (isAuthenticated && profileError) {
     return (
@@ -354,10 +355,10 @@ function MembersController() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+    <div className="member-workspace">
       <SEO title="Member Area" description="Build and sell your products" />
       
-      <div className="container py-4 max-w-5xl mx-auto px-4">
+      <div className="row py-4">
         {viewMode !== 'wizard' && isAuthenticated && (
         <div className="flex gap-2 flex-wrap mb-4">
               <Button
@@ -373,7 +374,7 @@ function MembersController() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setViewMode('wizard'); setWizardTier('super-simple'); }}
+                onClick={() => startNewBuild('super-simple')}
                 data-testid="tab-super-simple"
                 className="text-white/70 hover:text-white hover:bg-white/10"
               >
@@ -383,7 +384,7 @@ function MembersController() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setViewMode('wizard'); setWizardTier('simple'); }}
+                onClick={() => startNewBuild('simple')}
                 data-testid="tab-simple"
                 className="text-white/70 hover:text-white hover:bg-white/10"
               >
@@ -393,7 +394,7 @@ function MembersController() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setViewMode('wizard'); setWizardTier('advanced'); }}
+                onClick={() => startNewBuild('advanced')}
                 data-testid="tab-advanced"
                 className="text-white/70 hover:text-white hover:bg-white/10"
               >
@@ -403,7 +404,7 @@ function MembersController() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => { setViewMode('wizard'); setWizardTier('studio'); }}
+                onClick={() => startNewBuild('studio')}
                 data-testid="tab-studio"
                 className="text-white/70 hover:text-white hover:bg-white/10"
               >
@@ -567,10 +568,7 @@ function MembersController() {
               }
               setViewMode(view);
             }}
-            onStartWizard={(tier) => {
-              setWizardTier(tier);
-              setViewMode('wizard');
-            }}
+            onStartWizard={startNewBuild}
             publishCount={publishCount}
           />
         )}
@@ -635,6 +633,7 @@ class MembersErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
 export default function MembersApp() {
   return (
+    <PageSkeleton>
     <MembersErrorBoundary>
       <MemberAuthProvider apiBase="/api/members">
         <MembersProvider>
@@ -642,5 +641,6 @@ export default function MembersApp() {
         </MembersProvider>
       </MemberAuthProvider>
     </MembersErrorBoundary>
+    </PageSkeleton>
   );
 }

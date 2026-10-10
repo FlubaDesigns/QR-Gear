@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
-import { PROFILE_QUERY_KEY } from './useMemberRuntimeState';
+import { MEMBER_PACKETS_QUERY_KEY, useMemberRuntimeState } from './useMemberRuntimeState';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembersContext } from "@/features/members/MembersContext";
@@ -47,6 +47,15 @@ export function useWizardContext() {
 }
 
 export function WizardProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<{ generation: number; tier?: WizardTier }>({ generation: 0 });
+  const startNewBuild = (tier: WizardTier) => setSession(previous => ({ generation: previous.generation + 1, tier }));
+  return <WizardSession key={session.generation} startTier={session.tier} startNewBuild={startNewBuild}>{children}</WizardSession>;
+}
+
+// A new build remounts all draft state, including packet IDs, mockups and tier-specific controls.
+function WizardSession({ children, startTier, startNewBuild }: {
+  children: React.ReactNode; startTier?: WizardTier; startNewBuild: (tier: WizardTier) => void;
+}) {
   const { user: apiUser, firebaseUser, isLoading: authLoading, isAuthenticated } = useAuth();
   const user = useMemo(() => {
     if (apiUser) return apiUser;
@@ -59,14 +68,14 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('wizard') ? 'wizard' : 'index';
+    return startTier || params.get('wizard') ? 'wizard' : 'index';
   });
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>('channel');
   const [completedSteps, setCompletedSteps] = useState<Set<WizardStep>>(new Set());
   const [wizardTier, setWizardTier] = useState<WizardTier>(() => {
     const params = new URLSearchParams(window.location.search);
-    const w = params.get('wizard');
+    const w = startTier || params.get('wizard');
     if (w === 'super-simple' || w === 'simple' || w === 'advanced' || w === 'studio') return w;
     return 'simple';
   });
@@ -121,49 +130,12 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
     document.body.scrollTop = 0;
   }, [simpleStep]);
 
-  const { data: memberProfileData } = useQuery({
-    queryKey: PROFILE_QUERY_KEY(user?.id || ''),
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { auth } = await import('@/lib/firebase');
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) return null;
-      const res = await fetch('/api/members/profile', { headers: { Authorization: `Bearer ${token}` } });
-      if (!res.ok) return null;
-      return res.json();
-    },
-    enabled: !!user?.id && isAuthenticated,
-    staleTime: 2 * 60 * 1000,
-  });
-
-  useEffect(() => {
-    if (user?.id) {
-      const serverCount = (memberProfileData as any)?.profile?.publishCount ?? 0;
-      const localCount = parseInt(localStorage.getItem(`publish_count_${user.id}`) || '0', 10);
-      const count = Math.max(serverCount, localCount);
-      localStorage.setItem(`publish_count_${user.id}`, String(count));
-      setPublishCount(count);
-      if (count === 0) setWizardTier('simple');
-    }
-  }, [user?.id, memberProfileData]);
+  const { publishCount: savedPublishCount } = useMemberRuntimeState();
+  useEffect(() => { setPublishCount(savedPublishCount); }, [savedPublishCount]);
 
   const incrementPublishCount = () => {
     if (user?.id) {
-      const newCount = publishCount + 1;
-      localStorage.setItem(`publish_count_${user.id}`, String(newCount));
-      setPublishCount(newCount);
-      if (newCount === 1) setShowUnlockPrompt('advanced');
-      else if (newCount === 2) setShowUnlockPrompt('studio');
-      import('@/lib/firebase').then(({ auth }) =>
-        auth.currentUser?.getIdToken().then(token => {
-          if (!token) return;
-          return fetch('/api/members/increment-publish', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          });
-        }).catch(err => console.warn('[Member] Server publish count sync failed:', err))
-      );
-      queryClient.invalidateQueries({ queryKey: PROFILE_QUERY_KEY(user.id) });
+      queryClient.invalidateQueries({ queryKey: MEMBER_PACKETS_QUERY_KEY(user.id) });
     }
   };
 
@@ -480,6 +452,7 @@ export function WizardProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value: WizardContextType = {
+    startNewBuild,
     capabilities,
     user, authLoading, isAuthenticated, api,
     viewMode, setViewMode, currentStep, setCurrentStep,

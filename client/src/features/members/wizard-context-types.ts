@@ -14,6 +14,7 @@ import type { useMembersContext } from "@/features/members/MembersContext";
 import type { BuilderCapabilities } from "@/features/shared/builder-capabilities";
 
 export interface WizardContextType {
+  startNewBuild: (tier: WizardTier) => void;
   capabilities: BuilderCapabilities;
   user: any;
   authLoading: boolean;

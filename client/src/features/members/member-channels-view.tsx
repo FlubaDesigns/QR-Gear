@@ -1,3 +1,4 @@
+import { useMemberPackets } from './useMemberRuntimeState';
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
@@ -32,34 +33,16 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
   const [newChannelName, setNewChannelName] = useState('');
   const [showNewChannel, setShowNewChannel] = useState(false);
 
-  const { data: channels, isLoading } = useQuery<MemberChannel[]>({
+  const { data: channels, isLoading, error: channelsError } = useQuery<MemberChannel[]>({
     queryKey: ['/api/members', memberId, 'channels'],
     queryFn: async () => {
       if (!memberId) return [];
-      return memberFetch<MemberChannel[]>(`/${memberId}/channels`).catch(() => []);
+      return memberFetch<MemberChannel[]>(`/${memberId}/channels`);
     },
     enabled: !!memberId
   });
 
-  const { data: products } = useQuery<MemberProduct[]>({
-    queryKey: ['/api/members', memberId, 'products'],
-    queryFn: async () => {
-      if (!memberId) return [];
-      return memberFetch<MemberProduct[]>(`/${memberId}/products`).catch(() => []);
-    },
-    enabled: !!memberId
-  });
-
-  const { data: packets } = useQuery<{ packets: any[] }>({
-    queryKey: ['/api/member/packets'],
-    queryFn: async () => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/member/packets?memberId=${memberId}`, { headers });
-      if (!res.ok) return { packets: [] };
-      return res.json();
-    },
-    enabled: !!memberId
-  });
+  const { data: packets, isLoading: packetsLoading, error: packetsError } = useMemberPackets(memberId);
 
   const { data: memberProfile } = useQuery<{ isMember: boolean; profile?: { creatorSlug?: string } }>({
     queryKey: ['/api/members/profile', memberId],
@@ -110,76 +93,19 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
     onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
   });
 
-  const deleteProductMutation = useMutation({
-    mutationFn: (productId: string) =>
-      memberFetch(`/${memberId}/products/${productId}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      toast({ title: 'Product deleted' });
-      setConfirmDeleteProduct(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'products'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/member/packets'] });
-    },
-    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
-  });
-
   const channelList = channels || [];
-  const productList = products || [];
   const packetList = packets?.packets || [];
   const selectedChannel = selectedChannelId ? channelList.find(c => c.id === selectedChannelId) : null;
 
-  const getProductPacket = (product: MemberProduct) => {
-    const pid = (product as any).packetId;
-    if (pid) return packetList.find((p: any) => p.id === pid);
-    return null;
-  };
-
-  const deletePacketMutation = useMutation({
-    mutationFn: async (packetId: string) => {
-      const headers = await getAuthHeaders();
-      const res = await fetch(`/api/member/packets/${packetId}`, {
-        method: 'DELETE', headers: { 'Content-Type': 'application/json', ...headers },
-      });
-      if (!res.ok) throw new Error('Failed to delete packet');
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: 'Item deleted' });
-      setConfirmDeleteProduct(null);
-      queryClient.invalidateQueries({ queryKey: ['/api/member/packets'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/members', memberId, 'products'] });
-    },
-    onError: (err: Error) => toast({ title: 'Error', description: err.message, variant: 'destructive' }),
-  });
+  if (channelsError) return <p role="alert" className="text-red-300">{channelsError.message}</p>;
+  if (packetsError) return <p role="alert" className="text-red-300">{packetsError.message}</p>;
+  if (packetsLoading) return <p role="status">Loading your products…</p>;
 
   if (selectedChannel) {
-    const channelProducts = productList.filter(p => p.channelId === selectedChannelId);
-    const channelPackets = packetList.filter((p: any) => p.channelId === selectedChannelId);
-    const productPacketIds = new Set(channelProducts.map((p: any) => p.packetId).filter(Boolean));
-    const normalizedProducts = channelProducts.map((p: any) => ({
-      id: p.id,
-      name: p.name || 'Untitled',
-      thumbnailUrl: p.thumbnailUrl || null,
-      price: p.price || 0,
-      status: p.status || 'draft',
-      channelId: p.channelId,
-      packetId: p.packetId || null,
-      memberEarnings: (p as any).memberEarnings || 0,
-      _type: 'product' as const,
+    const allItems = packetList.filter((p: any) => p.channelId === selectedChannelId).map((p: any) => ({
+      ...p, name: p.name || p.title || 'Untitled', thumbnailUrl: p.thumbnailUrl || p.itemImage,
+      price: p.retailPrice, packetId: p.id, _type: 'packet',
     }));
-    const normalizedPackets = channelPackets
-      .filter((p: any) => !productPacketIds.has(p.id))
-      .map((p: any) => ({
-        id: p.id,
-        name: p.title || p.simpleTitle || 'Untitled',
-        thumbnailUrl: p.itemImage || p.socialPacket?.itemImage || p.qrBasicMockup || p.qrPlusMockup || p.qrCanvasMockup || null,
-        price: p.pricingSnapshot?.retailPrice || p.retailPrice || 0,
-        status: p.status || 'draft',
-        channelId: p.channelId,
-        packetId: p.id,
-        memberEarnings: p.pricingSnapshot?.memberEarnings || p.memberEarnings || 0,
-        _type: 'packet' as const,
-      }));
-    const allItems = [...normalizedProducts, ...normalizedPackets];
 
     return (
       <div className="space-y-4">
@@ -241,9 +167,9 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
             ) : (
               <div className="space-y-3">
                 {allItems.map((item: any) => {
-                  const packet = getProductPacket(item) || (item.packetId ? packetList.find((p: any) => p.id === item.packetId) : null);
-                  const retailPrice = packet?.pricingSnapshot?.retailPrice || item.price || 0;
-                  const earnings = packet?.pricingSnapshot?.memberEarnings || item.memberEarnings || 0;
+                  const packet = item;
+                  const retailPrice = item.retailPrice ?? 0;
+                  const earnings = item.pricing?.affiliateAmount ?? item.memberEarnings ?? 0;
                   const imageUrl = item.thumbnailUrl || packet?.itemImage || packet?.socialPacket?.itemImage || null;
                   const title = item.name || packet?.title || 'Untitled';
                   const status = item.status || packet?.status || 'draft';
@@ -273,6 +199,9 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
                           </Badge>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
+                          {status === 'published' && item.productionPacketId && (
+                            <a className="btn btn-secondary" href={`/p/${item.packetId}`}>View product</a>
+                          )}
                           {status === 'published' && item.packetId && (
                             <Button
                               size="icon"
@@ -369,9 +298,7 @@ export function ChannelsView({ memberId, initialChannelId }: { memberId: string;
         ) : (
           <div className="space-y-3">
             {channelList.map((channel) => {
-              const channelProductCount = productList.filter(p => p.channelId === channel.id).length;
-              const channelPacketCount = packetList.filter((p: any) => p.channelId === channel.id).length;
-              const totalItems = Math.max(channelProductCount, channelPacketCount);
+              const totalItems = packetList.filter((p: any) => p.channelId === channel.id).length;
               return (
                 <button 
                   key={channel.id}

@@ -1,3 +1,4 @@
+import { useMemberPackets } from './useMemberRuntimeState';
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,36 +42,30 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
   const [hasSeenIntro, setHasSeenIntro] = useState(true);
   const [, setLocation] = useLocation();
 
-  const { data: channels } = useQuery<MemberChannel[]>({
+  const { data: channels, isLoading: channelsLoading, error: channelsError } = useQuery<MemberChannel[]>({
     queryKey: ['/api/members', memberId, 'channels'],
     queryFn: async () => {
       if (!memberId) return [];
-      return memberFetch<MemberChannel[]>(`/${memberId}/channels`).catch(() => []);
+      return memberFetch<MemberChannel[]>(`/${memberId}/channels`);
     },
     enabled: !!memberId
   });
 
-  const { data: products, error: productsError } = useQuery<MemberProduct[]>({
-    queryKey: ['/api/members', memberId, 'products'],
-    queryFn: async () => {
-      if (!memberId) return [];
-      return memberFetch<MemberProduct[]>(`/${memberId}/products`);
-    },
-    enabled: !!memberId
-  });
+  const { data: packetData, isLoading: productsLoading, error: productsError } = useMemberPackets(memberId);
+  const products = packetData?.packets;
 
-  const { data: earnings } = useQuery<EarningsSummary>({
+  const { data: earnings, isLoading: earningsLoading, error: earningsError } = useQuery<{ summary: EarningsSummary }>({
     queryKey: ['/api/members', memberId, 'earnings'],
     queryFn: async () => {
-      if (!memberId) return { total: 0, pending: 0, paid: 0, profitShare: 25 };
-      return memberFetch<EarningsSummary>(`/${memberId}/earnings`).catch(() => ({ total: 0, pending: 0, paid: 0, profitShare: 25 }));
+      if (!memberId) return { summary: { total: 0, pending: 0, paid: 0, profitShare: 0 } };
+      return memberFetch<{ summary: EarningsSummary }>(`/${memberId}/earnings`);
     },
     enabled: !!memberId
   });
 
   const channelCount = channels?.length || 0;
   const productCount = products?.length || 0;
-  const totalEarnings = earnings?.total || 0;
+  const totalEarnings = earnings?.summary.total || 0;
 
   const handleGetStarted = () => {
     localStorage.setItem(`member_intro_seen_${memberId}`, 'true');
@@ -150,6 +145,8 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
 
   return (
     <div className="space-y-6">
+      {channelsError && <p role="alert" className="text-red-300">Could not load your channels. Refresh to try again.</p>}
+      {earningsError && <p role="alert" className="text-red-300">Could not load your earnings. Refresh to try again.</p>}
       {productsError && <p role="alert" className="text-red-300">Could not load your products. Refresh to try again.</p>}
       <Card className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 border-slate-700">
         <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -179,15 +176,15 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="row">
+          <div className="layout__split-4">
             <button
               onClick={() => onNavigate('channels')}
               className="bg-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-600/50 transition-colors"
               data-testid="stat-products"
             >
               <Package className="w-8 h-8 mx-auto mb-2 text-blue-400" />
-              <div className="text-lg font-bold text-white">{productCount}</div>
+              <div className="text-lg font-bold text-white">{productsLoading ? '…' : productsError ? '—' : productCount}</div>
               <div className="text-sm text-slate-400">Products</div>
             </button>
             <button
@@ -196,7 +193,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
               data-testid="stat-channels"
             >
               <Layers className="w-8 h-8 mx-auto mb-2 text-purple-400" />
-              <div className="text-lg font-bold text-white">{channelCount}</div>
+              <div className="text-lg font-bold text-white">{channelsLoading ? '…' : channelsError ? '—' : channelCount}</div>
               <div className="text-sm text-slate-400">Channels</div>
             </button>
             <button
@@ -205,16 +202,16 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
               data-testid="stat-earnings"
             >
               <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-400" />
-              <div className="text-lg font-bold text-white">${totalEarnings.toFixed(2)}</div>
+              <div className="text-lg font-bold text-white">{earningsLoading ? '…' : earningsError ? '—' : `$${totalEarnings.toFixed(2)}`}</div>
               <div className="text-sm text-slate-400">Earnings</div>
             </button>
             <button
-              onClick={() => onNavigate('collections')}
+              onClick={() => onNavigate('channels')}
               className="bg-slate-700/50 rounded-lg p-4 text-center hover:bg-slate-600/50 transition-colors"
               data-testid="stat-dynamics"
             >
               <QrCode className="w-8 h-8 mx-auto mb-2 text-amber-400" />
-              <div className="text-lg font-bold text-white">{publishCount}</div>
+              <div className="text-lg font-bold text-white">{productsLoading ? '…' : productsError ? '—' : publishCount}</div>
               <div className="text-sm text-slate-400">Published</div>
             </button>
           </div>
@@ -228,8 +225,8 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
             Create a Product
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <CardContent className="row">
+          <div className="layout__split-4">
             <button
               onClick={() => onStartWizard('super-simple')}
               className="p-5 bg-gradient-to-br from-emerald-900/40 to-green-900/40 rounded-lg border border-emerald-500/30 hover:border-emerald-400/60 transition-all text-left group"
@@ -261,7 +258,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
                 <Layers className="w-6 h-6 text-purple-400" />
               </div>
               <h3 className="font-bold text-white text-lg mb-1">Advanced</h3>
-              <p className="text-sm text-slate-400">Dense 8-step builder with full control over every detail.</p>
+              <p className="text-sm text-slate-400">Detailed controls for experienced creators.</p>
             </button>
             <button
               onClick={() => onStartWizard('studio')}
@@ -308,8 +305,8 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <CardContent className="row">
+            <div className="layout__split-2">
               {(channels || []).slice(0, 4).map((channel) => (
                 <button
                   key={channel.id}
@@ -336,7 +333,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
         </Card>
       )}
 
-      {channelCount === 0 && (
+      {!channelsLoading && !channelsError && channelCount === 0 && (
         <Card className="bg-slate-800/50 border-slate-700 border-dashed">
           <CardContent className="p-8 text-center">
             <Layers className="w-12 h-12 mx-auto mb-3 text-slate-500" />
@@ -362,7 +359,7 @@ export function MemberIndexView({ memberId, onNavigate, onStartWizard, publishCo
           </div>
           <div>
             <p className="font-semibold text-white text-sm">Get paid automatically</p>
-            <p className="text-slate-400 text-xs">Connect your bank account to receive your 25% profit share on every sale</p>
+            <p className="text-slate-400 text-xs">Connect your bank account to receive your profit share on every sale</p>
           </div>
         </div>
         <ArrowRight className="w-5 h-5 text-emerald-400 shrink-0" />

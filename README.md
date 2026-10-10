@@ -725,3 +725,12 @@ Scope: the member product creation/listing path. QR Compose sequence publishing 
 Live catalog alignment: the member picker is populated from the assigned tier catalog while the older `member-products` allowlist is explicitly empty. Build preparation, QRG options and mockup resolution now consume that same assigned tier catalog, falling back to the allowed-products list only when the picker has no tier catalog. This avoids showing a selectable blank and then rejecting it as unassigned.
 
 Member read freshness: authenticated member fetches explicitly bypass the browser cache, and member routes emit private/no-store responses. A cached retired 410 product-list response and a stale empty channel response must not survive a source release or a successful member write.
+
+
+## Member dashboard and three builder experiences — October 11, 2026
+
+Dashboard totals, channel items, and publish progress now use the same authenticated member packet projection. Published progress counts saved production-backed packets instead of a browser/profile counter. Loading and request failures remain visible. Returning members stay on the dashboard after authentication settles. New builds and Create Another remount the shared draft state so a previous packet, mockup or selection cannot leak into a new product. Super Simple retains its teaching cards, Simple its guided flow, and Advanced its detailed controls.
+
+The Members workspace now uses PageSkeleton, Master rows and responsive split helpers. Progress bars retain labels without step counts; a QR badge appears only after a type is selected. Channels offer a direct saved-product link. Earnings reads use the server summary envelope, and member requests reject non-JSON responses instead of treating them as empty data.
+
+Validation before release: root TypeScript and production build passed. Authenticated Main walkthroughs of all three experiences are the release acceptance step; no payment or supplier order is authorized by that check. QR Compose's previously documented shared-sequence limitation remains open.

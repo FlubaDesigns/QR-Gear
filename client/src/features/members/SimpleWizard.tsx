@@ -7,7 +7,7 @@ import { SimpleWizardStepContent } from './SimpleWizardStepContent';
 
 export function SimpleWizard() {
   const {
-    capabilities,
+    capabilities, startNewBuild,
     user,
     simpleStep, setSimpleStep,
     selectedChannel,
@@ -50,28 +50,8 @@ export function SimpleWizard() {
 
   const FINAL_CONFIRM_STEPS = ['qr-basic-confirm', 'qr-plus-confirm', 'canvas-confirm', 'play-save-choice', 'compose-confirm'];
 
-  const handleCreateAnother = () => {
-    setSimpleStep('channel');
-    setCurrentPacketId(null);
-    setSimpleTitle('');
-    setSimpleDescription('');
-    setQrType('');
-    setContentRightsConfirmed(false);
-    setUrlGraphic('');
-    setProductGraphic('');
-  };
-
-  const handleBackToDashboard = () => {
-    setSimpleStep('channel');
-    setViewMode('index');
-    setCurrentPacketId(null);
-    setSimpleTitle('');
-    setSimpleDescription('');
-    setQrType('');
-    setContentRightsConfirmed(false);
-    setUrlGraphic('');
-    setProductGraphic('');
-  };
+  const handleCreateAnother = () => startNewBuild('simple');
+  const handleBackToDashboard = () => setViewMode('index');
 
   if (capabilities.requiresAuth && !user) {
     return (
@@ -143,7 +123,7 @@ export function SimpleWizard() {
             if (['compose-pick-items', 'compose-mode', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
               return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
             }
-            return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
+            return qrType ? { label: qrType.replace('qr-', 'QR '), color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' } : null;
           };
           const tier = getTierInfo();
           return tier ? (
