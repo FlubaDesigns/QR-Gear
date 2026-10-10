@@ -74,11 +74,7 @@ export default function PacketPage() {
   const referrerId = localStorage.getItem('qrgear_referrer');
 
   useEffect(() => {
-    if (packet?.selectedShirtSize && !selectedSize) {
-      setSelectedSize(packet.selectedShirtSize);
-    } else if (!selectedSize) {
-      setSelectedSize('M');
-    }
+    if (packet && !selectedSize) setSelectedSize(packet.selectedShirtSize || packet.availableSizes?.[0] || 'M');
   }, [packet]);
 
   const basePrice = packet?.retailPrice || 0;

@@ -3,10 +3,11 @@ import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import { memberCatalogProducts } from './catalog-tier-products';
 import { catalogSaleVariants, selectCatalogSaleVariant } from './catalog-sale-variants';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
-import { requireBuilderSnapshot, packetBuildFields } from '../../../shared/builderSnapshot';
+import { requireBuilderSnapshot, packetBuildFields, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 import { priceNewPacket } from './pricing';
-import { registerGrfAsset, registerPacketGrfAssets } from './grf-registrar';
+import { registerGrfAsset, registerPacketGrfAssets, registerMockupGrfAssets } from './grf-registrar';
+import { generateMockupFromPrintful } from './mockup-generator';
 import { GRF_PACKET_SLOTS } from '../../../shared/GRF_engine';
 import { decodeLibraryImage } from './image-validation';
 import { writeBldDefinition, writeAutoAssembly } from './bld-builder';
@@ -56,6 +57,11 @@ export async function prepareMemberBuild(memberId: string, input: any) {
   if (input.packetType === 'qr-play' && !input.videoUrl) fail('Choose your QR Play video.');
   const label = locations.find((p: any) => p.id === 'label_inside');
   if (!label?.verifiedVariantIds?.includes(Number(variant.mapping.variantId))) fail('This variant does not support the required inside label.');
+  const placementSizes = Object.fromEntries(selected.map((placement: string) => {
+    const size = input.perPlacementSizes?.[placement] || input.graphicSize || 'medium';
+    if (!['small', 'medium', 'large'].includes(size)) fail('Choose a valid graphic size.');
+    return [placement, size];
+  }));
   const rawSnapshot = requireBuilderSnapshot({ title, description: String(input.description || ''),
     graphics: { loadedBackground: input.background ? { url: input.background } : null, content: {
       headerStyle: input.headerStyle, footerStyle: input.footerStyle, areaImageUrl: input.areaImageUrl || '',
@@ -64,7 +70,7 @@ export async function prepareMemberBuild(memberId: string, input: any) {
       hostingTierCode: input.hostingTierCode || '1_year', playMediaUrl: input.videoUrl || '', qrBasicInputType: input.qrBasicInputType || 'url', areaImageMode: input.areaImageMode || 'cover',
     } },
     qrConfig: { qrProductState: mode, selectedColor: product.availableColors.find((c: any) => c.name === variant.color) },
-    layoutConfig: { selectedPlacements: selected, providerLayouts, placementSizes: input.perPlacementSizes || {} },
+    layoutConfig: { selectedPlacements: selected, providerLayouts, placementSizes },
     metadata: { selectedProductDocId: sourceMasterId, fulfillmentProvider: provider, selectedRole: 'member' },
   });
   const priced = await priceNewPacket(db, rawSnapshot, QR_GEAR_BRANDED_TAG_URL);
@@ -117,8 +123,18 @@ export async function commitMemberBuild(memberId: string, id: string) {
   const compositeUrl = packet.placementGraphicUrls[primary];
   await ref.update({ compositeUrl, productGraphicUrl: compositeUrl });
   const grfs = await registerPacketGrfAssets({ ...packet, compositeUrl }, null, id);
+  const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data()!;
+  const mapping = master.qrgVariants?.[packet.selectedVariantKey]?.providerVariants?.printful;
+  if (packet.fulfillmentProvider !== 'printful' || !mapping) fail('This saved build needs its QRG Printful mockup mapping.');
+  const mockup = await generateMockupFromPrintful({
+    ...buildPacketMockupRequest(packet, master, primary), printfulVariantId: Number(mapping.variantId),
+  });
+  const placementMockupUrls = { [primary]: mockup.mockupUrl };
+  const mockupGrfs = await registerMockupGrfAssets(id, mockup.lifestyleMockupUrl || null, placementMockupUrls);
+  await ref.update({ mockupUrl: mockup.mockupUrl, lifestyleMockupUrl: mockup.lifestyleMockupUrl || null,
+    placementMockupUrls, ...mockupGrfs });
   const bld = await writeBldDefinition({ working: snapshot, packetId: id });
-  await writeAutoAssembly({ working: snapshot, qrgId: packet.qrgBlankId, bldId: bld.bldId, sourceSessionId: null, packetId: id, grfIds: grfs });
+  await writeAutoAssembly({ working: snapshot, qrgId: packet.qrgBlankId, bldId: bld.bldId, sourceSessionId: null, packetId: id, grfIds: { ...grfs, ...mockupGrfs } });
   const built = (await ref.get()).data()!;
   await validatePacketComposition(db, id, built);
   const identity = built.qrgBaseCode ? {} : await allocateQrgInstance({ qrgBlankId: packet.qrgBlankId, context: 'M' });
