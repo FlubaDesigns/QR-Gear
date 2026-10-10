@@ -796,3 +796,5 @@ Validation: TypeScript and production builds, manifest and source ZIP verificati
 The existing QR Dynamics resolver now binds hosted member builds and purchased copies to canonical QRG identities. Members manage only their own sequences. Each purchased physical copy receives its own O identity, QR URL, registered graphics and Assembly; fulfillment retries reuse that identity. Member share checkout now joins the frozen-order/provider path, and guest claims preserve the already-printed item identity. Basic/Plus retain direct QR payload semantics.
 
 Admin → Schema Keys has a dedicated QR Dynamics section. See `docs/QR_DYNAMICS_SPEC.md`, `FIREBASE_SCHEMA.md` and `docs/QR_DYNAMICS_AUDIT.md`. The audit identifies all 22 approved products and verifies their original and regenerated QR images. No paid order or physical print was performed during validation.
+
+Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.

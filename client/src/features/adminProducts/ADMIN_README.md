@@ -1422,3 +1422,5 @@ and publication behavior are unchanged.
 The owner clarified that the two shared videos were accidental. The shared starter API now returns only image GRFs for every query, including `all`; the 18 uploaded photos remain available. Existing video originals and registry references are preserved but excluded from member shared selections. Shared uploads now accept images only, with server validation and matching page labels. Personal media uploads remain separate. Both library sections retain preview-only cards without Download controls.
 
 Validation: TypeScript and production builds, manifest and source ZIP verification, then live release markers and shared background counts. Member post-creation review remains a separate read-only follow-up.
+
+Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
