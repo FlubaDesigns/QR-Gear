@@ -36,3 +36,5 @@ The original 22 source records/graphics are retained. Their I identities identif
 Not performed: paid checkout, charged Printful submission, physical printing or delivery. Existing printed goods cannot be assigned different QR payloads without reprinting. This audit makes no claim that those operations were exercised.
 
 Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
+
+Purchased-copy allocation reads the blank identity from the validated Assembly/master relationship. It does not require a duplicate `qrgBlankId` field on the source packet; the approved Admin packets use that canonical relationship.

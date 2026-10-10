@@ -798,3 +798,5 @@ The existing QR Dynamics resolver now binds hosted member builds and purchased c
 Admin → Schema Keys has a dedicated QR Dynamics section. See `docs/QR_DYNAMICS_SPEC.md`, `FIREBASE_SCHEMA.md` and `docs/QR_DYNAMICS_AUDIT.md`. The audit identifies all 22 approved products and verifies their original and regenerated QR images. No paid order or physical print was performed during validation.
 
 Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
+
+Purchased-copy allocation reads the blank identity from the validated Assembly/master relationship. It does not require a duplicate `qrgBlankId` field on the source packet; the approved Admin packets use that canonical relationship.

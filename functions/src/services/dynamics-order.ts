@@ -40,7 +40,8 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
     const sourceRef = db.collection('productPackets').doc(item.packetId);
     const source = (await sourceRef.get()).data();
     if (!source || !item.qrExperience || item.qrExperience.sourceHash !== dynamicsPrintSource(source)) throw new Error('This order needs its frozen QR production source reconciled before printing.');
-    await validatePacketComposition(db, item.packetId, source);
+    const composition = await validatePacketComposition(db, item.packetId, source);
+    const qrgBlankId = composition.assembly.qrgId;
     const snapshot = requireBuilderSnapshot(source.builderSnapshot);
     const hosted = ['qr_canvas', 'qr_play', 'qr_compose'].includes(snapshot.qrConfig.qrProductState);
     const compose = snapshot.qrConfig.qrProductState === 'qr_compose';
@@ -50,7 +51,7 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
       await renewLease();
       let instanceId = (await line.ref.get()).data()?.dynamicsInstanceIds?.[index];
       if (!instanceId) {
-        const identity = await allocateQrgInstance({ qrgBlankId: source.qrgBlankId, context: 'O' });
+        const identity = await allocateQrgInstance({ qrgBlankId, context: 'O' });
         const ref = db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc();
         const packetRef = db.collection('productPackets').doc();
         const epoch = Math.floor(paidAt.getTime() / 1000);

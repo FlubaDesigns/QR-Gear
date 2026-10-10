@@ -1424,3 +1424,5 @@ The owner clarified that the two shared videos were accidental. The shared start
 Validation: TypeScript and production builds, manifest and source ZIP verification, then live release markers and shared background counts. Member post-creation review remains a separate read-only follow-up.
 
 Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
+
+Purchased-copy allocation reads the blank identity from the validated Assembly/master relationship. It does not require a duplicate `qrgBlankId` field on the source packet; the approved Admin packets use that canonical relationship.
