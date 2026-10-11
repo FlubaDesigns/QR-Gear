@@ -1,14 +1,15 @@
 import type { ReactNode } from 'react';
 
-/** Member content composes the canonical PageSkeleton rows and Master helpers. */
-export function MemberWizardFrame({ header, status, children, navigation }: {
+/** Builder content composes the canonical PageSkeleton rows and Master helpers. */
+export function MemberWizardFrame({ header, status, children, navigation, testId = 'member-wizard-frame' }: {
+  testId?: string;
   header: ReactNode;
   status?: ReactNode;
   children: ReactNode;
   navigation?: ReactNode;
 }) {
   return (
-    <div className="row" data-testid="member-wizard-frame">
+    <div className="row" data-testid={testId}>
       <div className="row">
         <div className="flex-between wrap flex-row-reverse py-3">{header}</div>
       </div>

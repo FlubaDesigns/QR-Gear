@@ -247,7 +247,7 @@ function App() {
         <TooltipProvider>
           <ScrollToTop />
           <Toaster />
-          {!memberRoute && <BreadcrumbTrail />}
+          {!memberRoute && location !== '/build' && <BreadcrumbTrail />}
           <Router />
         </TooltipProvider>
       </CartProvider>

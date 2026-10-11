@@ -85,7 +85,7 @@ export const GUIDED_CARDS: Record<string, GuidedCardData> = {
       { text: "Up next we'll figure out where it goes on your shirt and how big you want it." },
       { text: "You'll have choices at every step — nothing is locked in until you say so." },
     ],
-    tip: "You can always change the link your QR points to later — even after you get the shirt.",
+    tip: "Check your destination before ordering — a printed Basic QR code keeps the content you choose.",
   },
   'type-confirm-plus': {
     icon: <Type className="w-8 h-8" />,

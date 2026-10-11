@@ -72,6 +72,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
 
   const { data: pricingSettings, error: pricingError } = useQuery<{
     memberProfitShare: number;
+    markupPercent: number;
     additionalPlacementCost: number;
     textLineUpcharge: number;
     sizeUpcharges: Record<string, number>;
@@ -82,8 +83,9 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   });
 
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
-  const placementCostExtra = pricingSettings?.additionalPlacementCost ?? 0;
-  const textLineCost = pricingSettings?.textLineUpcharge ?? 0;
+  const markup = 1 + (pricingSettings?.markupPercent ?? 0) / 100;
+  const placementCostExtra = Math.round((pricingSettings?.additionalPlacementCost ?? 0) * markup * 100) / 100;
+  const textLineCost = Math.round((pricingSettings?.textLineUpcharge ?? 0) * markup * 100) / 100;
   const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
 
   const sizeCostBonuses = useMemo(() => {

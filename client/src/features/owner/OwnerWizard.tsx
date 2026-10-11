@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MemberWizardFrame as BuilderFrame } from "@/features/members/MemberWizardFrame";
 import { ChevronLeft, ChevronRight, ShoppingCart, Tag, X, QrCode, Type, ImagePlus, Play, Sparkles, Loader2 } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import type { QRType, SimpleWizardStep } from "@/features/shared/components/wizardSteps/wizardTypes";
@@ -136,12 +136,12 @@ export function OwnerWizard() {
   if (showMemberPitch) {
     const memberEarnings = (selectedProductType?.memberEarnings || 5);
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
-          <p className="text-xs text-slate-400 flex items-center gap-1">
+      <BuilderFrame testId="owner-wizard-frame"
+        header={<>
+          <h1 className="flex items-center gap-2">
             <ShoppingCart className="w-3 h-3" />
             {OWNER_CAPABILITIES.label}
-          </p>
+          </h1>
           <Button
             variant="ghost"
             size="sm"
@@ -152,8 +152,9 @@ export function OwnerWizard() {
           >
             <X className="w-4 h-4" />
           </Button>
-        </CardHeader>
-        <CardContent className="p-4 pt-1 space-y-4">
+        </>}
+        >
+        <div className="row space-y-4">
           <OwnerCostSummary
             basePrice={state.quotedPricing?.customerPrice ?? selectedProductType?.retailPrice ?? 0}
             sizeCost={state.quotedPricing?.sizeUpcharges?.[selectedShirtSize] ?? sizeCostBonuses[selectedShirtSize] ?? 0}
@@ -191,18 +192,18 @@ export function OwnerWizard() {
               )}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </BuilderFrame>
     );
   }
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="pb-1 pt-3 flex flex-row items-center justify-between gap-2">
-        <p className="text-xs text-slate-400 flex items-center gap-1">
+    <BuilderFrame testId="owner-wizard-frame"
+      header={<>
+        <h1 className="flex items-center gap-2">
           <ShoppingCart className="w-3 h-3" />
           {OWNER_CAPABILITIES.label}
-        </p>
+        </h1>
         <Button
           variant="ghost"
           size="sm"
@@ -213,13 +214,8 @@ export function OwnerWizard() {
         >
           <X className="w-4 h-4" />
         </Button>
-      </CardHeader>
-      <CardContent className="p-4 pt-1">
-        {state.buildError && <div role="alert" className="mb-4 rounded-lg border border-red-500/50 p-3 text-red-300">
-          <p>{state.buildError}</p>
-          {isFinalStep && <Button variant="outline" onClick={() => void generateRealMockup()} disabled={isGeneratingRealMockup}>Retry preview</Button>}
-        </div>}
-        {guidedQueue.length === 0 && (
+      </>}
+      status={guidedQueue.length === 0 ? (
           <>
             {tier && (
               <div className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border mb-2 ${tier.color}`} data-testid="badge-tier-label">
@@ -236,9 +232,60 @@ export function OwnerWizard() {
               </div>
             )}
           </>
-        )}
+        ) : undefined}
+      navigation={guidedQueue.length === 0 && (
+        <>
+          {simpleStep !== 'product' && (
+          <Button
+            variant="outline"
+            onClick={handleBack}
+            disabled={isGeneratingRealMockup || isCheckingOut}
+            className="flex-1 min-w-[100px] sm:flex-none"
+            data-testid="button-owner-back"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back
+          </Button>
+          )}
 
-        <div className="min-h-[350px]" id="wizard-step-content">
+          {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && simpleStep !== ('compose-explain' as SimpleWizardStep) && (
+            <Button
+              onClick={handleNext}
+              disabled={!canProceed || isGeneratingRealMockup || isCheckingOut}
+              className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                canProceed
+                  ? isFinalStep
+                    ? "bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/40"
+                    : "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40"
+                  : "bg-slate-600"
+              }`}
+              style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+              data-testid="button-owner-next"
+            >
+              {isFinalStep ? (
+                <>
+                  <ShoppingCart className="w-4 h-4 mr-1" />
+                  Continue to Checkout
+                </>
+              ) : (
+                <>
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </>
+              )}
+            </Button>
+          )}
+        </>
+        )}
+      >
+      <div className="row">
+        {state.buildError && <div role="alert" className="mb-4 rounded-lg border border-red-500/50 p-3 text-red-300">
+          <p>{state.buildError}</p>
+          {isFinalStep && <Button variant="outline" onClick={() => void generateRealMockup()} disabled={isGeneratingRealMockup}>Retry preview</Button>}
+        </div>}
+
+
+        <div className="row">
           {guidedQueue.length > 0 && GUIDED_CARDS[guidedQueue[0]] ? (
             <GuidedCard
               data={GUIDED_CARDS[guidedQueue[0]]}
@@ -315,52 +362,9 @@ export function OwnerWizard() {
           )}
         </div>
 
-        {guidedQueue.length === 0 && (
-        <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-6 px-6 z-10 mt-4">
-          {simpleStep !== 'product' && (
-          <Button
-            variant="outline"
-            onClick={handleBack}
-            disabled={isGeneratingRealMockup || isCheckingOut}
-            className="flex-1 min-w-[100px] sm:flex-none"
-            data-testid="button-owner-back"
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Back
-          </Button>
-          )}
 
-          {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && simpleStep !== ('compose-explain' as SimpleWizardStep) && (
-            <Button
-              onClick={handleNext}
-              disabled={!canProceed || isGeneratingRealMockup || isCheckingOut}
-              className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
-                canProceed
-                  ? isFinalStep
-                    ? "bg-blue-500 hover:bg-blue-600 shadow-lg shadow-blue-500/40"
-                    : "bg-green-500 hover:bg-green-600 shadow-lg shadow-green-500/40"
-                  : "bg-slate-600"
-              }`}
-              style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
-              data-testid="button-owner-next"
-            >
-              {isFinalStep ? (
-                <>
-                  <ShoppingCart className="w-4 h-4 mr-1" />
-                  Continue to Checkout
-                </>
-              ) : (
-                <>
-                  Next
-                  <ChevronRight className="w-4 h-4 ml-1" />
-                </>
-              )}
-            </Button>
-          )}
-        </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+    </BuilderFrame>
   );
 }
 

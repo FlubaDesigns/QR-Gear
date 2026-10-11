@@ -1522,3 +1522,7 @@ Validation: TypeScript, frontend build, and Functions build pass. Live verificat
 ### Member save choices — October 11, 2026
 
 QR Basic and QR Plus now honor item-only, graphic-only, and both save choices. Graphics are registered in the member library using the rendered canonical artwork; graphic-only saves do not publish a product. A failed library save remains on the save step with an error instead of claiming completion.
+
+### Public builder skeleton — October 11, 2026
+
+`/build` now composes the existing `PageSkeleton` and wizard frame. Header/footer, main-content slot, responsive rows, progress sidebar, and navigation use the established canonical helpers. The Create breadcrumb is inside the main area, with the old narrow gradient/card wrapper removed. Canonical stylesheet sources and member behavior are unchanged. Public option estimates include the saved markup, and Basic QR guidance correctly describes a fixed printed destination.

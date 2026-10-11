@@ -1,11 +1,14 @@
 import { OwnerWizard } from "@/features/owner/OwnerWizard";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 
 export default function BuildPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900">
-      <div className="max-w-lg mx-auto px-3 py-3 sm:px-4 sm:py-6">
+    <PageSkeleton>
+      <div className="row py-4">
+        <BreadcrumbTrail />
         <OwnerWizard />
       </div>
-    </div>
+    </PageSkeleton>
   );
 }
