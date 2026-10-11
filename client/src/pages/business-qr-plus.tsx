@@ -1,7 +1,5 @@
 import { Briefcase, CheckCircle, UtensilsCrossed, HelpCircle, Phone, Store, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const uses = [
 
 export default function BusinessQRPlus() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Business QR Plus | Clear Calls-to-Action for Your Brand | QR Gear"
         description="Create professional QR products with clear prompts like 'SCAN FOR MENU' or 'NEED HELP? SCAN ME'. No confusion, no hesitation. USA options available."
         keywords="business QR, menu QR code, restaurant QR, service business QR, professional QR shirts, customer service QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Briefcase />
@@ -55,7 +53,7 @@ export default function BusinessQRPlus() {
               <h1 className="vanity-title">Business QR Plus</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Make it obvious.</p>
           <p className="vanity-description">
             No confusion. No hesitation. When customers see "SCAN FOR MENU" or "NEED HELP? SCAN ME" - 
@@ -79,7 +77,7 @@ export default function BusinessQRPlus() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Business applications:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {uses.map((use, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -91,7 +89,7 @@ export default function BusinessQRPlus() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -150,8 +148,8 @@ export default function BusinessQRPlus() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

@@ -12,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 export function ProductTagsContent() {
   const { toast } = useToast();
-  
+
   const { data: categories, isLoading, isFetching, isError, refetch } = useQuery<ProductTag[]>({
     queryKey: ["/api/admin/product-categories"],
     queryFn: async () => parseProductTags(await (await apiRequest("GET", "/api/admin/product-categories")).json()),

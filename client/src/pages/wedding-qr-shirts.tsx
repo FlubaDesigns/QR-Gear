@@ -1,7 +1,5 @@
 import { Heart, CheckCircle, Sparkles, Camera, Users, Gift, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const ideas = [
 
 export default function WeddingQRShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Wedding QR Shirts | Custom Photo Favors Your Guests Will Keep | QR Gear"
         description="Create unique wedding favor shirts with scannable QR codes. Guests scan to see your wedding photos. Personal, memorable, and they'll actually wear them. USA options available."
         keywords="wedding favors, wedding shirts, custom wedding gifts, QR wedding favors, photo wedding shirts, unique wedding ideas, personalized wedding gifts"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -51,7 +49,7 @@ export default function WeddingQRShirts() {
               <h1 className="vanity-title">Wedding QR Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Wearable wedding favors that actually mean something.</p>
           <p className="vanity-description">
             Forget the koozies nobody keeps. Give your guests something unique and personal — 
@@ -81,14 +79,14 @@ export default function WeddingQRShirts() {
               <Camera />
               Photo Ideas:
             </h2>
-            <div className="vanity-items-grid vanity-scenarios">
+            <div className="row"><div className="layout__split-2">
               {ideas.map((idea, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{idea.title}</h3>
                   <p>{idea.description}</p>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -146,8 +144,8 @@ export default function WeddingQRShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

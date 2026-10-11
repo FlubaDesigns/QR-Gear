@@ -1,7 +1,5 @@
 import { Play, CheckCircle, ArrowRight, Heart, Home, Clock, Briefcase } from "lucide-react";
 import { Link } from "wouter";
-import { PageSkeleton } from "@/components/PageSkeleton";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -49,14 +47,14 @@ const businessUses = [
 
 export default function QRVideoLanding() {
   return (
-    <PageSkeleton>
+    <>
       <SEO 
         title="QR Play | Video QR Code Products | QR Gear"
         description="Create QR Play merchandise - upload your video that plays instantly when scanned. Perfect for personal messages, memories, and stories meant to be seen, heard, and felt. USA options available."
         keywords="QR Play, video QR code, video message shirt, memorial video gift, personal video QR, scannable video merchandise"
       />
       <div className="row py-6">
-        <BreadcrumbTrail />
+
         <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
@@ -67,7 +65,7 @@ export default function QRVideoLanding() {
               <h1 className="vanity-title">QR Play</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Bring your QR to life with video.</p>
           <p className="vanity-description">
             Upload a video or point it at your favorite video URL — it plays instantly in your hosted QR Space when scanned. 
@@ -133,6 +131,6 @@ export default function QRVideoLanding() {
 
         </div>
       </div>
-    </PageSkeleton>
+    </>
   );
 }

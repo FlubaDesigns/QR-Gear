@@ -1,7 +1,5 @@
 import { Tag, CheckCircle, User, Shirt, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -35,15 +33,15 @@ const items = [
 
 export default function PersonalItemsQR() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Personal Items QR | Label Your Stuff With Style | QR Gear"
         description="Create QR gear for personal items with 'IF FOUND' text and contact info. Perfect for hoodies, bags, and anything you don't want to lose. USA options available."
         keywords="personal QR code, lost and found QR, emergency contact QR, QR for personal items, QR labels for belongings"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Tag />
@@ -53,7 +51,7 @@ export default function PersonalItemsQR() {
               <h1 className="vanity-title">Personal Items QR</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Simple words make all the difference when it matters.</p>
           <p className="vanity-description">
             Add a header like "If Found, Please Call" so people know exactly what to do before they scan. 
@@ -83,7 +81,7 @@ export default function PersonalItemsQR() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Print on your gear:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {items.map((item, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -95,7 +93,7 @@ export default function PersonalItemsQR() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <Link href="/build?type=plus">
@@ -139,8 +137,8 @@ export default function PersonalItemsQR() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

@@ -6,8 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { CheckCircle, Package, ArrowRight, Mail, Loader2, Sparkles, Copy, Check } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 interface PacketOrder {
   id: string;
@@ -57,9 +55,9 @@ export default function PacketSuccessPage() {
 
   if (!sessionId) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center p-4">
+      <div className="flex flex-col bg-gradient-to-b from-gray-900 to-black">
+
+        <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full border-slate-700 bg-slate-900/80">
             <CardContent className="p-6 text-center">
               <p className="text-slate-400">Invalid checkout session. Please try again.</p>
@@ -70,34 +68,34 @@ export default function PacketSuccessPage() {
               </Link>
             </CardContent>
           </Card>
-        </main>
-        <Footer />
+        </div>
+
       </div>
     );
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center p-4">
+      <div className="flex flex-col bg-gradient-to-b from-gray-900 to-black">
+
+        <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full border-slate-700 bg-slate-900/80">
             <CardContent className="p-6 flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 animate-spin text-green-400" />
               <p className="text-slate-400">Confirming your order...</p>
             </CardContent>
           </Card>
-        </main>
-        <Footer />
+        </div>
+
       </div>
     );
   }
 
   if (error || !data?.order) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center p-4">
+      <div className="flex flex-col bg-gradient-to-b from-gray-900 to-black">
+
+        <div className="flex-1 flex items-center justify-center p-4">
           <Card className="max-w-md w-full border-slate-700 bg-slate-900/80">
             <CardContent className="p-6 text-center">
               <p className="text-slate-400">
@@ -110,8 +108,8 @@ export default function PacketSuccessPage() {
               </Link>
             </CardContent>
           </Card>
-        </main>
-        <Footer />
+        </div>
+
       </div>
     );
   }
@@ -120,9 +118,9 @@ export default function PacketSuccessPage() {
   const claimCode = data.claimCode || order.claimCode;
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-gray-900 to-black">
-      <Navbar />
-      <main className="flex-1 flex items-center justify-center p-4 py-8">
+    <div className="flex flex-col bg-gradient-to-b from-gray-900 to-black">
+
+      <div className="flex-1 flex items-center justify-center p-4 py-8">
         <div className="max-w-lg w-full space-y-6">
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-900/50 mb-4">
@@ -254,8 +252,8 @@ export default function PacketSuccessPage() {
             </CardContent>
           </Card>
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

@@ -30,35 +30,35 @@ async function generateGLBFromImage(imageUrl: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    
+
     img.onload = () => {
       const scene = new THREE.Scene();
-      
+
       // Calculate aspect ratio from image
       const aspectRatio = img.width / img.height;
       const width = 0.4; // 40cm wide (realistic t-shirt size)
       const height = width / aspectRatio;
-      
+
       // Create plane geometry
       const geometry = new THREE.PlaneGeometry(width, height);
-      
+
       // Create texture from loaded image
       const texture = new THREE.Texture(img);
       texture.needsUpdate = true;
       texture.colorSpace = THREE.SRGBColorSpace;
-      
+
       // Create material with the texture
       const material = new THREE.MeshStandardMaterial({
         map: texture,
         side: THREE.DoubleSide,
         transparent: true,
       });
-      
+
       // Create mesh and add to scene
       const mesh = new THREE.Mesh(geometry, material);
       mesh.name = "ProductImage";
       scene.add(mesh);
-      
+
       // Export to GLB
       const exporter = new GLTFExporter();
       exporter.parse(
@@ -76,7 +76,7 @@ async function generateGLBFromImage(imageUrl: string): Promise<string> {
         { binary: true }
       );
     };
-    
+
     img.onerror = () => reject(new Error("Failed to load image"));
     img.src = imageUrl;
   });
@@ -111,7 +111,7 @@ export default function TestARDemo() {
   const handleGenerateModel = async () => {
     setIsGenerating(true);
     setError(null);
-    
+
     try {
       const url = await generateGLBFromImage(sampleMockupUrl);
       setGlbUrl(url);
@@ -124,8 +124,8 @@ export default function TestARDemo() {
   };
 
   return (
-    <div className="page-wrap">
-      <div className="container mobile-compact mobile-compact-stack">
+    <div className="row">
+      <div className="row mobile-compact mobile-compact-stack">
         <div className="glass-card">
           <h1 className="glass-title text-lg flex items-center gap-2 mb-4" data-testid="text-page-title">
             <Box className="h-5 w-5 text-blue-400" />
@@ -157,7 +157,7 @@ export default function TestARDemo() {
                   crossOrigin="anonymous"
                 />
               </div>
-              
+
               <button 
                 className="qr-btn qr-btn--primary qr-btn--touch qr-btn--full qr-btn--xxl"
                 onClick={handleGenerateModel} 
@@ -176,7 +176,7 @@ export default function TestARDemo() {
                   </>
                 )}
               </button>
-              
+
               {error && (
                 <p className="text-base text-red-400 text-center">{error}</p>
               )}
@@ -187,7 +187,7 @@ export default function TestARDemo() {
                 <CheckCircle className="h-5 w-5" />
                 <span>3D model generated! Tap the AR button to view in your space.</span>
               </div>
-              
+
               <div className="aspect-square w-full bg-gradient-to-b from-slate-700 to-slate-800 rounded-lg overflow-hidden">
                 <model-viewer
                   ref={modelViewerRef as any}
@@ -206,7 +206,7 @@ export default function TestARDemo() {
                   style={{ width: '100%', height: '100%' }}
                 />
               </div>
-              
+
               <button 
                 className="qr-btn qr-btn--outline qr-btn--touch qr-btn--full qr-btn--xl"
                 onClick={() => {

@@ -13,7 +13,6 @@
 
 import { QrCode } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import { StoreProductCard } from "./ProductCard";
 import { StorefrontBreadcrumb } from "./StorefrontBreadcrumb";
 import { getChannelConfig, getCollectionConfig } from "@/data/shopHierarchy";
@@ -59,7 +58,7 @@ export function CollectionView({
   const heroImage = COLLECTION_HERO_IMAGES[collectionSlug];
 
   return (
-    <StorefrontLayout>
+    <>
       {/* Collection hero image */}
       {heroImage ? (
         <div className="relative w-full overflow-hidden" style={{ minHeight: "280px" }}>
@@ -139,6 +138,6 @@ export function CollectionView({
           </div>
         )}
       </div>
-    </StorefrontLayout>
+    </>
   );
 }

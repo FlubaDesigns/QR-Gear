@@ -1,7 +1,5 @@
 import { QrCode, CheckCircle, Link2, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { PageSkeleton } from "@/components/PageSkeleton";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -51,14 +49,14 @@ const examples = [
 
 export default function QRStaticLanding() {
   return (
-    <PageSkeleton>
+    <>
       <SEO 
         title="QR Basics | Text & URL QR Code Products | QR Gear"
         description="Create QR Basics merchandise - encode text, URLs, or contact info directly into a permanent QR code. Perfect for business cards, contact info, and direct links. USA options available."
         keywords="QR Basics, simple QR code, basic QR products, text QR code, URL QR code, QR merchandise"
       />
       <div className="row py-6">
-        <BreadcrumbTrail />
+
         <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
@@ -69,10 +67,10 @@ export default function QRStaticLanding() {
               <h1 className="vanity-title">QR Basics</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">A clean, scannable QR code.</p>
           <p className="vanity-description">Permanent. No subscriptions. Just works.</p>
-          
+
           <p className="vanity-description">
             Encode your text, URL, or contact info directly into a permanent QR code printed on quality merchandise.
             Need a simple link to your website? This is it.
@@ -125,6 +123,6 @@ export default function QRStaticLanding() {
 
         </div>
       </div>
-    </PageSkeleton>
+    </>
   );
 }

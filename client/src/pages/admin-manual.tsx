@@ -43,7 +43,7 @@ const sections: ManualSection[] = [
     content: (
       <div className="space-y-6">
         <p>Categories help organize your products and pre-designed collections. Users can filter products by category on the homepage.</p>
-        
+
         <div className="space-y-3">
           <h4 className="font-semibold">Viewing Categories</h4>
           <p>When you open the admin panel, you'll see a table showing all your categories with:</p>
@@ -104,7 +104,7 @@ const sections: ManualSection[] = [
     content: (
       <div className="space-y-6">
         <p>Gift Mode lets customers purchase gift packages that recipients can redeem and customize.</p>
-        
+
         <div className="space-y-3">
           <h4 className="font-semibold">Creating a Gift Package</h4>
           <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
@@ -141,7 +141,7 @@ const sections: ManualSection[] = [
     content: (
       <div className="space-y-6">
         <p>View and manage orders from all channels in one place at <code className="px-2 py-1 bg-muted rounded">/admin/orders</code>.</p>
-        
+
         <div className="space-y-3">
           <h4 className="font-semibold">Order List Shows</h4>
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
@@ -180,7 +180,7 @@ const sections: ManualSection[] = [
     content: (
       <div className="space-y-6">
         <p>Open the Analytics tab to inspect recorded QR scans at <code className="px-2 py-1 bg-muted rounded">/admin/orchestration</code>.</p>
-        
+
         <div className="space-y-3">
           <h4 className="font-semibold">Available Metrics</h4>
           <ul className="list-disc list-inside space-y-1 text-muted-foreground">
@@ -254,7 +254,7 @@ export default function AdminManual() {
       backLabel="Back"
       sectionNav={<AdminSectionSubNav items={SYSTEM_SUBNAV} />}
     >
-        <div className="grid lg:grid-cols-[280px_1fr] gap-6">
+        <div className="row"><div className="layout__sidebar">
           <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -321,7 +321,7 @@ export default function AdminManual() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </div></div>
     </AdminShell>
   );
 }

@@ -1,3 +1,4 @@
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 /**
  * StoreRootView — renders the QR Gear parent store landing page.
  *
@@ -9,8 +10,6 @@ import { ArrowRight, QrCode, ScanLine, Share2, ShoppingBag } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
-import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import type { StoreConfig } from "@/data/shopHierarchy";
 import heroImg from "@assets/store_hero.png";
 
@@ -29,8 +28,9 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
   const primaryChannel = storeConfig.channels[0];
 
   return (
-    <StorefrontLayout>
+    <>
       <BreadcrumbTrail />
+      
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <div className="relative w-full overflow-hidden" style={{ minHeight: "520px" }}>
         <img
@@ -144,6 +144,6 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
           </div>
         )}
       </div>
-    </StorefrontLayout>
+    </>
   );
 }

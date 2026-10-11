@@ -1,8 +1,6 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
 import { ArrowLeft, Calendar, Car, Smartphone, ShoppingBag, Sparkles } from "lucide-react";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 
 const timeline = [
   {
@@ -47,16 +45,16 @@ const funFacts = [
 
 export default function QRHistory() {
   return (
-    <div className="page-container">
-      <Navbar />
+    <div className="row">
+
       <section className="hero-section">
-        <div className="container">
+        <div className="row">
           <Link href="/">
             <QRButton variant="ghost" size="small" className="back-link">
               <ArrowLeft /> Back to Home
             </QRButton>
           </Link>
-          
+
           <div className="hero-content">
             <h1 className="hero-title">The Story Behind the Square</h1>
             <p className="hero-subtitle">
@@ -67,7 +65,7 @@ export default function QRHistory() {
       </section>
 
       <section className="home-section">
-        <div className="container">
+        <div className="row">
           <div className="section-header">
             <h2>A Brief History of QR Codes</h2>
             <p>30 years of connecting people to information</p>
@@ -91,7 +89,7 @@ export default function QRHistory() {
       </section>
 
       <section className="home-section-muted">
-        <div className="container">
+        <div className="row">
           <div className="section-header">
             <h2>Fun Facts</h2>
             <p>Things you probably didn't know about QR codes</p>
@@ -109,7 +107,7 @@ export default function QRHistory() {
       </section>
 
       <section className="home-section">
-        <div className="container">
+        <div className="row">
           <div className="glass-card cta-card premium">
             <h2>Ready to Make History?</h2>
             <p>Join the next chapter of QR technology. Create custom gear that tells your story.</p>
@@ -121,7 +119,7 @@ export default function QRHistory() {
           </div>
         </div>
       </section>
-      <Footer />
+
     </div>
   );
 }

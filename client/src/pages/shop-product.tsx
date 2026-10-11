@@ -18,7 +18,6 @@ import {
   Loader2, ArrowLeft, ShoppingCart, Check, QrCode, Package, Minus, Plus,
   ScanLine, Shield, Truck,
 } from "lucide-react";
-import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { buildProductGallery } from "@/features/storefront-shared/buildProductGallery";
@@ -279,37 +278,37 @@ export default function ShopProductPage() {
 
   if (!match || !linkId) {
     return (
-      <StorefrontLayout>
-        <div className="container max-w-4xl py-16 px-4 text-center">
+      <>
+        <div className="row py-16 text-center">
           <Package className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h1 className="text-2xl font-bold mb-2">Product Not Found</h1>
           <Link href="/"><Button data-testid="button-go-home"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Button></Link>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
   if (isLoading) {
     return (
-      <StorefrontLayout>
+      <>
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading product...</span>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
   if (error || !product) {
     return (
-      <StorefrontLayout>
-        <div className="container max-w-4xl py-16 px-4 text-center">
+      <>
+        <div className="row py-16 text-center">
           <Package className="h-16 w-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-2">Product Not Found</h1>
           <p className="text-muted-foreground mb-4">{(error as Error)?.message || "This product could not be loaded."}</p>
           <Link href="/"><Button data-testid="button-go-home-error"><ArrowLeft className="mr-2 h-4 w-4" />Back to Home</Button></Link>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
@@ -357,15 +356,15 @@ export default function ShopProductPage() {
   })();
 
   return (
-    <StorefrontLayout>
+    <>
       <SEO
         title={`${product.name} | QR Gear`}
         description={product.description || `Custom QR merchandise - ${product.name}`}
       />
-      <div className="container max-w-6xl py-6 px-4">
+      <div className="row py-6">
         <StorefrontBreadcrumb crumbs={breadcrumbs} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="row"><div className="layout__split-2">
           <div>
             {/* overflow-hidden clips image to Card radius; no aspect-square wrapper so dots + thumbnails show below */}
             <Card className="overflow-hidden relative">
@@ -665,8 +664,8 @@ export default function ShopProductPage() {
             </div>
 
           </div>
-        </div>
+        </div></div>
       </div>
-    </StorefrontLayout>
+    </>
   );
 }

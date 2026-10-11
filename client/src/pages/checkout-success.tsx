@@ -28,8 +28,8 @@ export default function CheckoutSuccess() {
 
   if (!sessionId) {
     return (
-      <div className="min-h-screen bg-background">
-<div className="container mx-auto px-4 py-16 text-center">
+      <div className="bg-background">
+<div className="row py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">
               <p className="text-muted-foreground">Invalid checkout session. Please try again.</p>
@@ -47,8 +47,8 @@ export default function CheckoutSuccess() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-<div className="container mx-auto px-4 py-16 text-center">
+      <div className="bg-background">
+<div className="row py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6 flex flex-col items-center gap-4">
               <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -62,8 +62,8 @@ export default function CheckoutSuccess() {
 
   if (error || !orderData?.order) {
     return (
-      <div className="min-h-screen bg-background">
-<div className="container mx-auto px-4 py-16 text-center">
+      <div className="bg-background">
+<div className="row py-16 text-center">
           <Card className="max-w-md mx-auto">
             <CardContent className="pt-6">
               <p className="text-muted-foreground">
@@ -84,12 +84,12 @@ export default function CheckoutSuccess() {
   const order = orderData.order;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <SEO 
         title="Order Confirmed | QR Gear"
         description="Your QR Gear order has been confirmed and is being processed."
       />
-<div className="container mx-auto px-4 py-8 max-w-3xl">
+<div className="row py-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900 mb-4">
             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />

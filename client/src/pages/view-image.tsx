@@ -63,7 +63,7 @@ export default function ViewImage() {
 
   return (
     <div className="min-h-screen bg-background">
-<div className="max-w-3xl mx-auto p-4 py-8">
+<div className="layout__center p-4 py-8">
         {imageInfo.businessName && (
           <div className="flex items-center gap-3 mb-6">
             {imageInfo.businessLogo ? (
@@ -95,14 +95,14 @@ export default function ViewImage() {
               data-testid="img-hosted-image"
             />
           </div>
-          
+
           <CardContent className="p-6">
             {imageInfo.title && (
               <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-image-title">
                 {imageInfo.title}
               </h1>
             )}
-            
+
             {imageInfo.description && (
               <p className="text-muted-foreground mb-4" data-testid="text-image-description">
                 {imageInfo.description}

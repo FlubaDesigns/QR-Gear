@@ -57,7 +57,7 @@ export function BulkPublishDialog({
     try {
       const job: BulkPublishJob = await adminFetch<BulkPublishJob>(`/orchestration/bulk-publish/${jobId}`);
       setActiveJob(job);
-      
+
       if (job.status === "pending" || job.status === "running") {
         setTimeout(() => pollJob(jobId), 1000);
       } else {
@@ -104,7 +104,7 @@ export function BulkPublishDialog({
             Publish multiple products to multiple channels at once.
           </DialogDescription>
         </DialogHeader>
-        
+
         {activeJob ? (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
@@ -119,21 +119,21 @@ export function BulkPublishDialog({
                 {activeJob.completedItems} / {activeJob.totalItems} items
               </span>
             </div>
-            
+
             {polling && (
               <div className="flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <span className="text-sm">Publishing in progress...</span>
               </div>
             )}
-            
+
             <Progress value={(activeJob.completedItems / activeJob.totalItems) * 100} />
-            
+
             <div className="flex gap-4 text-sm">
               <span className="text-green-600">Success: {activeJob.successCount}</span>
               <span className="text-red-600">Failed: {activeJob.failureCount}</span>
             </div>
-            
+
             {activeJob.results.length > 0 && (
               <div className="border rounded-md max-h-60 overflow-y-auto">
                 <table className="w-full text-sm">
@@ -162,7 +162,7 @@ export function BulkPublishDialog({
                 </table>
               </div>
             )}
-            
+
             {!polling && (
               <DialogFooter>
                 <Button 
@@ -221,7 +221,7 @@ export function BulkPublishDialog({
                 )}
               </div>
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
                 <Label>Select Channels</Label>
@@ -265,12 +265,12 @@ export function BulkPublishDialog({
                 )}
               </div>
             </div>
-            
+
             <div className="text-sm text-muted-foreground">
               Will publish {selectedProducts.length} products to {selectedChannels.length} channels
               ({selectedProducts.length * selectedChannels.length} total operations)
             </div>
-            
+
             <DialogFooter>
               <Button 
                 onClick={() => startBulkPublishMutation.mutate()}

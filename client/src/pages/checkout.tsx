@@ -6,7 +6,6 @@ import { useLocation, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft, ShoppingCart, AlertCircle } from "lucide-react";
-import Navbar from "@/components/Navbar";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
@@ -73,9 +72,9 @@ export default function Checkout() {
 
   if (authLoading || cartLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-        <div className="container mx-auto px-4 py-16 text-center">
+      <div className="bg-background">
+
+        <div className="row py-16 text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
           <p className="mt-4 text-muted-foreground">Loading checkout...</p>
         </div>
@@ -89,9 +88,9 @@ export default function Checkout() {
 
   if (cartItems.length === 0) {
     return (
-      <div className="min-h-screen bg-background">
-        <Navbar />
-<div className="container mx-auto px-4 py-16 max-w-2xl">
+      <div className="bg-background">
+
+<div className="row py-16">
           <Card className="text-center py-12">
             <CardContent>
               <ShoppingCart className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
@@ -111,13 +110,13 @@ export default function Checkout() {
 
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <SEO
         title="Checkout | QR Gear"
         description="Complete your purchase of custom QR code merchandise."
       />
-      <Navbar />
-<div className="container mx-auto px-4 py-8 max-w-4xl">
+
+<div className="row py-8">
         <div className="flex items-center gap-4 mb-6">
           <Link href="/cart">
             <Button variant="ghost" size="icon" data-testid="button-back-to-cart">

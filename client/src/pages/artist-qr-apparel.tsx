@@ -1,7 +1,5 @@
 import { Palette, CheckCircle, Brush, Image, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const artistTypes = [
 
 export default function ArtistQRApparel() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Artist QR Apparel | Wearable Portfolio Shirts | QR Gear"
         description="Turn your artwork into wearable merch. When people scan, your art fills their screen. Perfect for painters, photographers, designers, and digital artists. USA options available."
         keywords="artist merch, custom artist shirts, photographer apparel, wearable portfolio, art QR shirts, designer merchandise, creative apparel"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Palette />
@@ -51,7 +49,7 @@ export default function ArtistQRApparel() {
               <h1 className="vanity-title">Artist QR Apparel</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Your art, full screen.</p>
           <p className="vanity-description">
             Painters, photographers, designers — your work becomes the destination. 
@@ -76,12 +74,12 @@ export default function ArtistQRApparel() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-scenarios">
+          <div className="row"><div className="glass-card vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Brush />
               Made for creatives:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {artistTypes.map((type, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{type.title}</h3>
@@ -89,7 +87,7 @@ export default function ArtistQRApparel() {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
 
           <div className="glass-card vanity-highlight">
             <div className="vanity-highlight-inner">
@@ -147,8 +145,8 @@ export default function ArtistQRApparel() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

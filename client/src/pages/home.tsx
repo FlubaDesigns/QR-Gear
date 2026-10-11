@@ -2,7 +2,6 @@ import { Link } from "wouter";
 import { PUBLIC_SHOP_PATH } from '@shared/navigation';
 import { useQuery } from "@tanstack/react-query";
 import { Shield, FlaskConical, Users, Store, ArrowRight, Check } from "lucide-react";
-import { PageSkeleton } from "@/components/PageSkeleton";
 import { QR_GEAR } from "@/data/shopHierarchy";
 import type { StoreResponse } from "@/features/storefront/types";
 import Hero from "@/components/Hero";
@@ -106,7 +105,7 @@ export default function Home() {
   const featuredProduct = data?.products.find(product => product.qrProductType === "qr-canvas");
 
   return (
-    <PageSkeleton>
+    <>
       <SEO title="QR Gear — Wear the Story. Share It with a Scan." description="Make meaningful QR gear for your memories, your message, or your brand. Create your own or shop the USA 250 collection." />
       <AdminQuickAccess />
       <div className="home-page row">
@@ -118,6 +117,6 @@ export default function Home() {
         </section>
         <BecomeMember />
       </div>
-    </PageSkeleton>
+    </>
   );
 }

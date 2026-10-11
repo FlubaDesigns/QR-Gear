@@ -1,15 +1,6 @@
 import type { ReactNode } from "react";
-import Navbar from "@/components/Navbar";
 
-interface StorefrontLayoutProps {
-  children: ReactNode;
-}
-
-export default function StorefrontLayout({ children }: StorefrontLayoutProps) {
-  return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      {children}
-    </div>
-  );
+/** Storefront content inherits the single application PageSkeleton. */
+export default function StorefrontLayout({ children }: { children: ReactNode }) {
+  return <>{children}</>;
 }

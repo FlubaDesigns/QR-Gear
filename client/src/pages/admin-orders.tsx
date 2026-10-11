@@ -191,7 +191,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
   onOpenChange: (open: boolean) => void;
 }) {
   const { toast } = useToast();
-  
+
   const updateStatusMutation = useMutation({
     mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
       return await apiRequest("PATCH", `/api/admin/orders-unified/${orderId}`, { status });
@@ -423,7 +423,7 @@ function OrderList({ orders, onViewDetails }: { orders: OrderUnified[]; onViewDe
     );
   }
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="row"><div className="layout__split-3">
       {orders.map((order) => (
         <OrderCard 
           key={order.id} 
@@ -431,7 +431,7 @@ function OrderList({ orders, onViewDetails }: { orders: OrderUnified[]; onViewDe
           onViewDetails={() => onViewDetails(order)}
         />
       ))}
-    </div>
+    </div></div>
   );
 }
 
@@ -507,7 +507,7 @@ export default function AdminOrdersPage() {
           </Button>
         }
       >
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
+        <div className="row"><div className="layout__auto mb-4">
           <Card>
             <CardContent className="p-3 text-center">
               <div className="text-xl font-bold" data-testid="text-stat-total">{stats.total}</div>
@@ -546,7 +546,7 @@ export default function AdminOrdersPage() {
               <div className="text-[10px] text-muted-foreground">Profit</div>
             </CardContent>
           </Card>
-        </div>
+        </div></div>
 
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">

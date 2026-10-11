@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Gift, ArrowLeft, Search, Check, Package, Sparkles, Palette, Ruler, QrCode, Heart } from "lucide-react";
-import StorefrontLayout from "@/components/StorefrontLayout";
 
 interface GiftDetails {
   giftCodeId: string;
@@ -39,13 +38,13 @@ export default function GiftRedeemPage() {
   const [, navigate] = useLocation();
   const params = useParams<{ code?: string }>();
   const { toast } = useToast();
-  
+
   const [codeInput, setCodeInput] = useState(params.code || "");
   const [giftDetails, setGiftDetails] = useState<GiftDetails | null>(null);
   const [lookupError, setLookupError] = useState("");
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [redeemSuccess, setRedeemSuccess] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     recipientName: "",
     recipientEmail: "",
@@ -60,14 +59,14 @@ export default function GiftRedeemPage() {
       toast({ title: "Enter a code", description: "Please enter your gift code", variant: "destructive" });
       return;
     }
-    
+
     setIsLookingUp(true);
     setLookupError("");
-    
+
     try {
       const res = await nexusFetch(`/api/gifts/redeem/${codeInput.trim().toUpperCase()}`, { source: "gift-redeem:lookup", tries: 3 });
       const data = await res.json();
-      
+
       if (!res.ok) {
         setLookupError(data.error || "Invalid gift code");
         setGiftDetails(null);
@@ -119,8 +118,8 @@ export default function GiftRedeemPage() {
 
   if (redeemSuccess) {
     return (
-      <StorefrontLayout>
-        <div className="container max-w-lg py-12 px-4">
+      <>
+        <div className="row py-12">
           <Card>
             <CardContent className="py-12 text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -142,13 +141,13 @@ export default function GiftRedeemPage() {
             </CardContent>
           </Card>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
   return (
-    <StorefrontLayout>
-    <div className="container max-w-2xl py-8 px-4">
+    <>
+    <div className="row py-8">
 <Button
         variant="ghost"
         onClick={() => navigate("/gifts")}
@@ -243,7 +242,7 @@ export default function GiftRedeemPage() {
               <CardDescription>Fill in your details to receive your gift</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="row"><div className="layout__split-2">
                 <div className="space-y-2">
                   <Label htmlFor="recipientName">Your Name *</Label>
                   <Input
@@ -267,7 +266,7 @@ export default function GiftRedeemPage() {
                     data-testid="input-recipient-email"
                   />
                 </div>
-              </div>
+              </div></div>
 
               {/* Product Customization Options */}
               {giftDetails.giftType === "product" && (
@@ -389,6 +388,6 @@ export default function GiftRedeemPage() {
         </div>
       )}
     </div>
-    </StorefrontLayout>
+    </>
   );
 }

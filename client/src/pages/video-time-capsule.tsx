@@ -1,7 +1,5 @@
 import { Clock, CheckCircle, Baby, Heart, GraduationCap, Gift, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const ideas = [
 
 export default function VideoTimeCapsule() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Video Time Capsule | A Message for Tomorrow | QR Gear"
         description="Record a video for your child, partner, or future self. Years later, one scan brings your voice back to life. The gift that gains meaning with time."
         keywords="video time capsule, future message, message for child, future self video, time capsule shirt, milestone gift"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Clock />
@@ -55,7 +53,7 @@ export default function VideoTimeCapsule() {
               <h1 className="vanity-title">Video Time Capsule</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">A message for tomorrow.</p>
           <p className="vanity-description">
             Record a video for your child, partner, or future self. 
@@ -82,7 +80,7 @@ export default function VideoTimeCapsule() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Time capsule ideas:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {ideas.map((idea, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -94,7 +92,7 @@ export default function VideoTimeCapsule() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -153,8 +151,8 @@ export default function VideoTimeCapsule() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

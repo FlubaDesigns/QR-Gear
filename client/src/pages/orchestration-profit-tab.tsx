@@ -11,11 +11,11 @@ export function ProfitTabContent() {
   return <div className="space-y-4">
     <div className="flex items-center gap-4 flex-wrap"><h2 className="text-lg font-semibold">Profit &amp; Product Costs</h2><Button variant="outline" className="min-h-12" onClick={() => refetch()}>Refresh</Button></div>
     {error ? <p role="alert">Profit could not be loaded: {error.message}</p> : isLoading ? <p>Loading profit data…</p> : data && <>
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="row"><div className="layout__split-3">
         <Card><CardContent className="p-4"><p>Paid store orders</p><strong>{data.paidOrders}</strong></CardContent></Card>
         <Card><CardContent className="p-4"><p>Recorded revenue</p><strong data-testid="text-total-revenue">{money(data.revenue)}</strong></CardContent></Card>
         <Card><CardContent className="p-4"><p>Realized net profit</p><strong data-testid="text-net-profit">{money(data.netProfit)}</strong></CardContent></Card>
-      </div>
+      </div></div>
       <p className="text-sm text-muted-foreground">{data.note}</p>
       <h3 className="font-semibold">Saved product estimates ({data.products.length})</h3>
       <p className="text-sm text-muted-foreground">Base selling price minus saved production, artwork, hosting, label and shipping costs. Payment and marketplace fees are excluded. Size increases are applied at checkout.</p>

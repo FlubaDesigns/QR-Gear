@@ -432,6 +432,22 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Canonical skeleton across every route
+
+All 102 route entries now inherit the shared application PageSkeleton. AdminShell is a content toolbar/row inside its canonical main, with the existing admin rail/bottom navigation preserved. Marketing, storefront, cart, account and admin page columns use Master helpers and gutters. The upstream Master stylesheet is unchanged. Loading, errors, sign-in and not-found states use the same shell; scan/embed routes keep purpose-specific presentation. The production build now runs the source layout guard. Full coverage and component-layout boundaries are documented in `docs/PAGE_LAYOUT_AUDIT.md`. No Firestore, QRG, pricing, checkout or authorization behavior changes.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `client/src/App.tsx`, `client/src/components/PageSkeleton.tsx` | Single canonical shell around all routes |
+| `client/src/components/AdminShell.tsx`, `StorefrontLayout.tsx`, `BreadcrumbTrail.tsx`, `ProtectedRoute.tsx` | Shared content and state layout |
+| `client/src/pages/*.tsx`, `client/src/features/storefront/*.tsx` | Remove duplicate shells; migrate page rows/columns |
+| `client/src/styles/auth.css` | Auth panel spacing inside the shared stage |
+| `scripts/verify-page-layouts.js`, `package.json` | Enforce layout guard before builds |
+| `docs/PAGE_LAYOUT_AUDIT.md`, `README.md`, this guide | Ownership, coverage and maintenance notes |
+| `MANIFEST.json`, `downloads/QR_Gear_Full_Website.zip` | Updated manifest and changed-source export |
+
+
 ### October 11, 2026 — Desktop header logo
 
 Increased the shared header logo height from 48px to 55.2px (15%) inside its existing min-width:768px theme rule. The 40px mobile rule, aspect ratio, header structure and canonical Master files are unchanged.
@@ -1621,3 +1637,8 @@ QR Basic and QR Plus now honor item-only, graphic-only, and both save choices. G
 ### Public builder skeleton — October 11, 2026
 
 `/build` now composes the existing `PageSkeleton` and wizard frame. Header/footer, main-content slot, responsive rows, progress sidebar, and navigation use the established canonical helpers. The Create breadcrumb is inside the main area, with the old narrow gradient/card wrapper removed. Canonical stylesheet sources and member behavior are unchanged. Public option estimates include the saved markup, and Basic QR guidance correctly describes a fixed printed destination.
+
+
+Desktop footer follow-up (October 11, 2026): Footer.tsx now composes the Master row and split-4 helper inside the shared skeleton scope. Removed its old independent grid rules. Desktop footer presentation is quieter: reduced vertical padding, smaller labels/social icons, compact contact/partner details, and transparent background. Column gaps remain owned by Master CSS.
+
+Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.

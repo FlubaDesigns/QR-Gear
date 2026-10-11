@@ -68,7 +68,7 @@ export default function BuildSuccess() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
         <SEO title="Confirming Order | QR Gear" description="Confirming your QR Gear purchase." />
         <Card className="max-w-md w-full mx-4 bg-slate-800/80 border-slate-700">
           <CardContent className="pt-8 pb-8 flex flex-col items-center gap-4">
@@ -83,7 +83,7 @@ export default function BuildSuccess() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
+      <div className="bg-gradient-to-b from-slate-900 to-slate-950 flex items-center justify-center">
         <SEO title="Order Issue | QR Gear" description="There was an issue with your order." />
         <Card className="max-w-md w-full mx-4 bg-slate-800/80 border-slate-700">
           <CardContent className="pt-8 pb-8 text-center space-y-4">
@@ -103,9 +103,9 @@ export default function BuildSuccess() {
 
   if (chosenPath === 'member') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 py-8 px-4">
+      <div className="bg-gradient-to-b from-slate-900 to-slate-950 py-8 px-4">
         <SEO title="Become a Member | QR Gear" description="Join QR Gear to earn from your designs." />
-        <div className="max-w-lg mx-auto space-y-6">
+        <div className="layout__center space-y-6">
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-amber-500/20 mb-4">
               <Crown className="w-8 h-8 text-amber-400" />
@@ -172,9 +172,9 @@ export default function BuildSuccess() {
 
   if (chosenPath === 'guest') {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 py-8 px-4">
+      <div className="bg-gradient-to-b from-slate-900 to-slate-950 py-8 px-4">
         <SEO title="Order Confirmed | QR Gear" description="Your QR Gear order has been confirmed." />
-        <div className="max-w-lg mx-auto space-y-6">
+        <div className="layout__center space-y-6">
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 mb-4">
               <CheckCircle className="w-8 h-8 text-green-400" />
@@ -256,9 +256,9 @@ export default function BuildSuccess() {
   const qrTypeLabel = order.qrType?.replace('qr-', 'QR ').replace(/^\w/, (c: string) => c.toUpperCase()) || 'QR Product';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-950 py-8 px-4">
+    <div className="bg-gradient-to-b from-slate-900 to-slate-950 py-8 px-4">
       <SEO title="Order Confirmed | QR Gear" description="Your QR Gear order has been confirmed." />
-      <div className="max-w-lg mx-auto space-y-6">
+      <div className="layout__center space-y-6">
         <div className="text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/20 mb-4">
             <CheckCircle className="w-8 h-8 text-green-400" />

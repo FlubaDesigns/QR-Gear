@@ -1,7 +1,5 @@
 import { Coffee, CheckCircle, Tag, Smile, Building, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const scenarios = [
 
 export default function OfficeQRMug() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Office QR Mug | The Mug That Finds Its Way Home | QR Gear"
         description="Create a personalized office mug with your contact info encoded in a QR code. Never lose your mug to the office borrower again. USA options available."
         keywords="office mug QR, personalized mug, contact info mug, office supplies QR, custom work mug, scannable mug"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Coffee />
@@ -51,7 +49,7 @@ export default function OfficeQRMug() {
               <h1 className="vanity-title">Office QR Mug</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">The mug that finds its way home.</p>
           <p className="vanity-description">
             When Karen "borrows" your mug again, she'll know exactly whose it is. 
@@ -81,14 +79,14 @@ export default function OfficeQRMug() {
               <Building />
               Office scenarios:
             </h2>
-            <div className="vanity-items-grid vanity-scenarios">
+            <div className="row"><div className="layout__split-2">
               {scenarios.map((scenario, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{scenario.title}</h3>
                   <p>{scenario.description}</p>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -147,8 +145,8 @@ export default function OfficeQRMug() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

@@ -17,7 +17,7 @@ export default function CustomsPage() {
 
   if (!match || !designId) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center">
             <QrCode className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -39,7 +39,7 @@ export default function CustomsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -47,7 +47,7 @@ export default function CustomsPage() {
 
   if (error || !design) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
           <CardContent className="p-6 text-center">
             <QrCode className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
@@ -79,8 +79,8 @@ export default function CustomsPage() {
   } | null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-8 px-4">
-<div className="max-w-2xl mx-auto">
+    <div className="bg-gradient-to-b from-background to-muted/30 py-8 px-4">
+<div className="layout__center ">
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             {/* Design Preview */}
@@ -103,7 +103,7 @@ export default function CustomsPage() {
                   <p>Custom Design</p>
                 </div>
               )}
-              
+
               {/* Landing page overlay - displayed when QR is scanned */}
               {landingOverlay?.enabled && (
                 <div 
@@ -134,13 +134,13 @@ export default function CustomsPage() {
                 </div>
               )}
             </div>
-            
+
             {/* Design Info */}
             <div className="p-6 space-y-4">
               <h1 className="text-2xl font-bold" data-testid="text-design-name">
                 {design.productName}
               </h1>
-              
+
               <div className="flex flex-wrap gap-2">
                 {design.isFeatured && (
                   <span className="px-2 py-1 bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 rounded text-sm">
@@ -156,13 +156,13 @@ export default function CustomsPage() {
                   {design.placements?.[0] || "Custom"}
                 </span>
               </div>
-              
+
               {design.storeName && (
                 <p className="text-sm text-muted-foreground">
                   Available at: {design.storeName}
                 </p>
               )}
-              
+
               {/* QR Code Display */}
               {design.qrCodeUrl && (
                 <div className="flex justify-center p-4 bg-white rounded-lg">
@@ -174,7 +174,7 @@ export default function CustomsPage() {
                   />
                 </div>
               )}
-              
+
               <div className="pt-4 border-t">
                 <Link href="/shop/internal/qrgear">
                   <Button className="w-full" data-testid="button-shop-now">

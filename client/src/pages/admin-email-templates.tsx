@@ -164,14 +164,14 @@ export default function AdminEmailTemplates() {
             </div>
 
             {loadingTemplates ? (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="row"><div className="layout__split-2">
                 {[1, 2, 3].map((i) => (
                   <Card key={i} className="animate-pulse">
                     <CardHeader><div className="h-6 bg-muted rounded w-1/2" /></CardHeader>
                     <CardContent><div className="h-4 bg-muted rounded w-3/4" /></CardContent>
                   </Card>
                 ))}
-              </div>
+              </div></div>
             ) : templates.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
@@ -185,7 +185,7 @@ export default function AdminEmailTemplates() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="row"><div className="layout__split-2">
                 {templates.map((template) => (
                   <Card key={template.id} data-testid={`card-template-${template.id}`}>
                     <CardHeader className="flex flex-row items-start justify-between gap-2">
@@ -219,7 +219,7 @@ export default function AdminEmailTemplates() {
                     </CardContent>
                   </Card>
                 ))}
-              </div>
+              </div></div>
             )}
           </TabsContent>
 

@@ -168,12 +168,12 @@ function MetricsSection() {
           <Activity className="h-3.5 w-3.5 text-muted-foreground" />
           <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Metrics</h2>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-3">
+        <div className="row"><div className="layout__split-4 mb-3">
           {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
-        </div>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        </div></div>
+        <div className="row"><div className="layout__split-4">
           {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
-        </div>
+        </div></div>
       </section>
     );
   }
@@ -190,7 +190,7 @@ function MetricsSection() {
           <span className="text-[10px] text-muted-foreground">Stripe</span>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 mb-2">
+      <div className="row"><div className="layout__split-4 mb-2">
         <MetricCard
           title="Today's Revenue"
           value={formatCurrency(metrics?.revenue.today || 0)}
@@ -215,8 +215,8 @@ function MetricsSection() {
           trend={metrics?.orders.trend}
           trendLabel="this week"
         />
-      </div>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      </div></div>
+      <div className="row"><div className="layout__split-4">
         <MetricCard
           title="Pending"
           value={metrics?.orders.pending || 0}
@@ -241,7 +241,7 @@ function MetricsSection() {
           subtitle={`${metrics?.customers.newThisWeek || 0} new this week`}
           icon={Users}
         />
-      </div>
+      </div></div>
     </section>
   );
 }
@@ -402,7 +402,7 @@ export default function AdminRun() {
             <Activity className="h-3.5 w-3.5 text-muted-foreground" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Quick Actions</h2>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="row"><div className="layout__split-3">
             {quickActions.map((action) => {
               const Icon = action.icon;
               return (
@@ -422,7 +422,7 @@ export default function AdminRun() {
                 </Card>
               );
             })}
-          </div>
+          </div></div>
         </section>
 
         <section>
@@ -430,7 +430,7 @@ export default function AdminRun() {
             <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Reference</h2>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="row"><div className="layout__split-3">
             <button
               onClick={() => navigate("/admin/manual")}
               className="flex items-center gap-2 p-3 rounded-md text-left border border-border hover-elevate transition-colors bg-card"
@@ -455,7 +455,7 @@ export default function AdminRun() {
               <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
               <span className="text-sm font-medium">Schema Keys</span>
             </button>
-          </div>
+          </div></div>
         </section>
       </div>
     </AdminShell>

@@ -50,7 +50,7 @@ export default function ClaimPage() {
 
   if (isLoading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
@@ -58,7 +58,7 @@ export default function ClaimPage() {
 
   if (error || !data?.valid) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -85,7 +85,7 @@ export default function ClaimPage() {
 
   if (step === 'welcome') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <QrCode className="h-12 w-12 text-blue-500 mx-auto mb-4" />
@@ -146,7 +146,7 @@ export default function ClaimPage() {
 
   if (step === 'auth') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <Shield className="h-12 w-12 text-blue-500 mx-auto mb-4" />
@@ -159,7 +159,7 @@ export default function ClaimPage() {
             <p className="text-sm text-muted-foreground text-center">
               Your account will be linked to this item for ownership and control.
             </p>
-            
+
             <div className="flex flex-col gap-3">
               <Button 
                 className="w-full" 
@@ -194,7 +194,7 @@ export default function ClaimPage() {
 
   if (step === 'confirm') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -265,7 +265,7 @@ export default function ClaimPage() {
     expirationDate.setFullYear(expirationDate.getFullYear() + 1);
 
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <div className="relative mx-auto mb-4">

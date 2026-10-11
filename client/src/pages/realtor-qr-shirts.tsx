@@ -1,7 +1,5 @@
 import { Building2, CheckCircle, Sparkles, Home, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const scenarios = [
 
 export default function RealtorQRShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Realtor QR Shirts | One Polo, Infinite Listings | QR Gear"
         description="Create realtor shirts with QR codes you can update for every listing. Same polo, different property every week. Track scans and engagement. No reprinting needed."
         keywords="realtor QR shirt, real estate polo, listing QR code, open house shirt, agent merchandise, property QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Building2 />
@@ -55,7 +53,7 @@ export default function RealtorQRShirts() {
               <h1 className="vanity-title">Realtor QR Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">One polo, infinite listings.</p>
           <p className="vanity-description">
             Monday it's the downtown condo. Friday it's the lakefront estate. 
@@ -82,7 +80,7 @@ export default function RealtorQRShirts() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">How realtors use it:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {scenarios.map((scenario, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -94,7 +92,7 @@ export default function RealtorQRShirts() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -153,8 +151,8 @@ export default function RealtorQRShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

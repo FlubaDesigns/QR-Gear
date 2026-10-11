@@ -156,7 +156,7 @@ export default function AdminPartners() {
     const availableSegmentsArr = formData.availableSegments 
       ? formData.availableSegments.split(",").map(s => s.trim()).filter(Boolean) 
       : [];
-    
+
     const data: Record<string, any> = {
       slug: formData.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
       name: formData.name,
@@ -170,7 +170,7 @@ export default function AdminPartners() {
       isInternal: formData.isInternal,
       isActive: formData.isActive,
     };
-    
+
     // Only include arrays if they have values (avoids Zod rejecting empty arrays)
     if (allowedOriginsArr.length > 0) {
       data.allowedOrigins = allowedOriginsArr;
@@ -365,7 +365,7 @@ export default function AdminPartners() {
               Configure partner store settings for widget embedding
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -391,7 +391,7 @@ export default function AdminPartners() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -402,7 +402,7 @@ export default function AdminPartners() {
                 data-testid="input-description"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="logoUrl">Logo URL</Label>
@@ -427,7 +427,7 @@ export default function AdminPartners() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="businessPageUrlPattern">Business Page URL Pattern</Label>
               <Input
@@ -440,7 +440,7 @@ export default function AdminPartners() {
               />
               <p className="text-xs text-muted-foreground">Use {"{slug}"} as placeholder for business slug</p>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="allowedOrigins">Allowed Origins (CORS)</Label>
               <Input
@@ -453,7 +453,7 @@ export default function AdminPartners() {
               />
               <p className="text-xs text-muted-foreground">Comma-separated list of origins allowed to embed the widget</p>
             </div>
-            
+
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="primaryColor">Primary Color</Label>
@@ -504,7 +504,7 @@ export default function AdminPartners() {
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="availableSegments">Available Segments</Label>
               <Input
@@ -517,7 +517,7 @@ export default function AdminPartners() {
               />
               <p className="text-xs text-muted-foreground">Comma-separated list of store segments this partner can access</p>
             </div>
-            
+
             <div className="flex items-center justify-between gap-4 pt-2">
               <div className="flex items-center gap-3">
                 <Switch
@@ -539,7 +539,7 @@ export default function AdminPartners() {
               </div>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)} className="h-12" data-testid="button-cancel">
               Cancel
@@ -565,7 +565,7 @@ export default function AdminPartners() {
               Use this key for widget authentication
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>API Key</Label>
@@ -586,7 +586,7 @@ export default function AdminPartners() {
                 </Button>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <Label>Widget Embed Code</Label>
               <Textarea
@@ -607,7 +607,7 @@ export default function AdminPartners() {
               </Button>
             </div>
           </div>
-          
+
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button
               variant="destructive"

@@ -20,7 +20,7 @@ interface OrderWithItems extends Order {
 
 function getTrackingUrl(carrier: string | null | undefined, trackingNumber: string): string {
   const carrierLower = (carrier || '').toLowerCase();
-  
+
   if (carrierLower.includes('usps')) {
     return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${trackingNumber}`;
   }
@@ -166,8 +166,8 @@ export default function Account() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
-        <div className="max-w-5xl mx-auto">
+      <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
+        <div className="row ">
           <div className="glass-card rounded-xl p-8 text-center space-y-4">
             <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
             <p className="text-sm text-muted-foreground">Checking authentication...</p>
@@ -179,7 +179,7 @@ export default function Account() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
+      <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-6">
         <div className="max-w-md mx-auto mt-20">
           <Card className="glass-card">
             <CardHeader className="text-center">
@@ -212,13 +212,13 @@ export default function Account() {
   const isLoading = ordersLoading || cartLoading || historyLoading;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+    <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <SEO 
         title="My Account | QR Gear"
         description="Manage your QR Gear account, view order history, track shipments, and manage your saved designs."
         keywords="QR Gear account, order history, manage designs"
       />
-<div className="max-w-6xl mx-auto space-y-6 p-6">
+<div className="row space-y-6 py-6">
         <div className="glass-card rounded-xl p-6">
           <div className="flex items-center justify-between gap-4 flex-wrap">
             <div className="flex items-center gap-4">
@@ -254,7 +254,7 @@ export default function Account() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="row"><div className="layout__split-4">
           <Card className="glass-card" data-testid="stat-total-orders">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
@@ -294,7 +294,7 @@ export default function Account() {
               <div className="text-2xl font-bold text-foreground">{stats.cartItemsCount}</div>
             </CardContent>
           </Card>
-        </div>
+        </div></div>
 
         <Tabs defaultValue="orders" className="space-y-4">
           <TabsList className="glass-card p-1 flex-wrap">
@@ -397,7 +397,7 @@ export default function Account() {
                           </a>
                         </div>
                       )}
-                      
+
                       {order.items && order.items.length > 0 && (
                         <div className="space-y-2">
                           {order.items.slice(0, 3).map((item, idx) => {
@@ -460,7 +460,7 @@ export default function Account() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="row"><div className="layout__split-3">
                 {savedDesigns.map((design) => {
                   const product = getProductById(design.productId || "");
                   const qrStyle = design.qrStyle as { color?: string; backgroundColor?: string } | null;
@@ -520,7 +520,7 @@ export default function Account() {
                     </Card>
                   );
                 })}
-              </div>
+              </div></div>
             )}
           </TabsContent>
 
@@ -615,7 +615,7 @@ export default function Account() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="row"><div className="layout__split-4">
                 {browsingHistory.slice(0, 8).map((entry) => {
                   const product = getProductById(entry.productId);
                   if (!product) return null;
@@ -640,7 +640,7 @@ export default function Account() {
                     </Card>
                   );
                 })}
-              </div>
+              </div></div>
             )}
           </TabsContent>
 
@@ -667,11 +667,11 @@ export default function Account() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="row"><div className="layout__split-3">
                 {dynamicPages.map((page) => {
                   const pageUrl = `${window.location.origin}/dynamic/${page.slug}`;
                   const isExpired = page.expiresAt && new Date(page.expiresAt) < new Date();
-                  
+
                   return (
                     <Card key={page.id} className="glass-card" data-testid={`card-dynamic-${page.id}`}>
                       <CardContent className="p-4">
@@ -739,12 +739,12 @@ export default function Account() {
                     </Card>
                   );
                 })}
-              </div>
+              </div></div>
             )}
           </TabsContent>
 
           <TabsContent value="suggestions" className="space-y-4">
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="row"><div className="layout__split-4">
               {getSuggestedProducts().map((product) => (
                 <Card key={product.id} className="glass-card hover-elevate" data-testid={`card-suggestion-${product.id}`}>
                   <CardContent className="p-4">
@@ -768,7 +768,7 @@ export default function Account() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </div></div>
           </TabsContent>
 
           <TabsContent value="my-qr-items" className="space-y-4">
@@ -794,7 +794,7 @@ export default function Account() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="row"><div className="layout__split-3">
                 {claimedInstances.map((instance: any) => {
                   const expiresAt = new Date(instance.hostingExpiresAt);
                   const now = new Date();
@@ -850,7 +850,7 @@ export default function Account() {
                     </Card>
                   );
                 })}
-              </div>
+              </div></div>
             )}
           </TabsContent>
         </Tabs>

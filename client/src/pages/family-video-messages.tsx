@@ -1,7 +1,5 @@
 import { Home, CheckCircle, Heart, Users, MessageCircle, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const scenarios = [
 
 export default function FamilyVideoMessages() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Family Video Messages | Home in Their Pocket | QR Gear"
         description="Create shirts with QR codes that play video messages from the whole family. Perfect for college students, military deployment, or anyone far from home. Instant comfort."
         keywords="family video shirt, going away gift, college student gift, military gift, long distance family, video message shirt"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Home />
@@ -51,7 +49,7 @@ export default function FamilyVideoMessages() {
               <h1 className="vanity-title">Family Video Messages</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Home in their pocket.</p>
           <p className="vanity-description">
             The whole family recorded messages. Now every time they miss you, they scan the shirt. Instant comfort.
@@ -75,12 +73,12 @@ export default function FamilyVideoMessages() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-scenarios">
+          <div className="row"><div className="glass-card vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Users />
               Perfect for:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {scenarios.map((scenario, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{scenario.title}</h3>
@@ -88,7 +86,7 @@ export default function FamilyVideoMessages() {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
 
           <div className="glass-card vanity-highlight">
             <div className="vanity-highlight-inner">
@@ -146,8 +144,8 @@ export default function FamilyVideoMessages() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

@@ -28,9 +28,9 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="site-footer">
-      <div className="container footer__content">
-        <div className="footer__grid">
+    <footer className="site-footer qrg-footer">
+      <div className="row"><div className="footer__content">
+        <div className="layout__split-4">
 
           <div className="footer__col footer__col--brand">
             <div className="footer__brand">
@@ -104,10 +104,10 @@ export default function Footer() {
             <Link href="/terms" className="footer__link" data-testid="footer-link-terms">Terms of Service</Link>
           </div>
           <div className="footer__powered">
-            <span>Powered by Printify</span>
+            <span>Powered by <a href="https://flubadesigns.com" target="_blank" rel="noopener noreferrer">FlubaDesigns.com</a></span>
           </div>
         </div>
-      </div>
+      </div></div>
     </footer>
   );
 }

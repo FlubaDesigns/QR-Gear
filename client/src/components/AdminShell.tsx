@@ -16,7 +16,6 @@ interface AdminShellProps {
   hideBack?: boolean;
   actions?: ReactNode;
   children: ReactNode;
-  maxWidth?: string;
   noPadding?: boolean;
   tabs?: AdminTab[];
   activeTab?: string;
@@ -33,7 +32,6 @@ export default function AdminShell({
   hideBack = false,
   actions,
   children,
-  maxWidth,
   noPadding = false,
   tabs,
   activeTab,
@@ -45,9 +43,9 @@ export default function AdminShell({
   const mode = getModeForPath(location);
 
   return (
-    <div className="qr-admin-page">
+    <div className="row">
       <div className="qr-admin-bar">
-        <div className="qr-admin-bar__inner">
+        <div className="row flex-between wrap py-3">
           <div className="qr-admin-bar__left">
             {!hideBack && (
               <Button
@@ -99,12 +97,9 @@ export default function AdminShell({
         />
       )}
 
-      <main
-        className={noPadding ? "" : "qr-admin-main"}
-        style={maxWidth ? { maxWidth } : undefined}
-      >
+      <div className={noPadding ? "row" : "row section"}>
         {children}
-      </main>
+      </div>
 
       {stickyBar && (
         <>

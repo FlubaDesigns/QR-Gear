@@ -1,7 +1,5 @@
 import { TrendingUp, CheckCircle, Sparkles, BarChart3, RefreshCw, Target, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const capabilities = [
 
 export default function BusinessAnalyticsQR() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Business Analytics QR | The Shirt That Reports Back | QR Gear"
         description="Create business shirts with QR codes that track every scan. See what gets traction, update destinations mid-campaign, and optimize your marketing. No reprint required."
         keywords="business QR analytics, marketing QR shirt, trackable QR, campaign QR, sales analytics shirt, team performance QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <TrendingUp />
@@ -55,7 +53,7 @@ export default function BusinessAnalyticsQR() {
               <h1 className="vanity-title">Business Analytics QR</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">The shirt that reports back.</p>
           <p className="vanity-description">
             Track every scan. See which rep gets traction. 
@@ -82,7 +80,7 @@ export default function BusinessAnalyticsQR() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Business intelligence built in:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {capabilities.map((cap, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -94,7 +92,7 @@ export default function BusinessAnalyticsQR() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -153,8 +151,8 @@ export default function BusinessAnalyticsQR() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

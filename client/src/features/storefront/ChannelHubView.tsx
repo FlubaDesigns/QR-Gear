@@ -15,7 +15,6 @@ import { Link } from "wouter";
 import { ArrowRight, QrCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import { getChannelConfig } from "@/data/shopHierarchy";
 import { StorefrontBreadcrumb } from "./StorefrontBreadcrumb";
 import type { StoreResponse } from "./types";
@@ -66,7 +65,7 @@ export function ChannelHubView({
   const collections = channelConfig?.collections ?? [];
 
   return (
-    <StorefrontLayout>
+    <>
       {/* ── Channel hero header ───────────────────────────────────────────────── */}
       <div className="relative w-full overflow-hidden" style={{ minHeight: "360px" }}>
         <img
@@ -169,6 +168,6 @@ export function ChannelHubView({
           </Card>
         )}
       </div>
-    </StorefrontLayout>
+    </>
   );
 }

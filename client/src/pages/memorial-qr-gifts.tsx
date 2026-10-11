@@ -1,7 +1,5 @@
 import { Heart, CheckCircle, Star, Camera, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const uses = [
 
 export default function MemorialQRGifts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Memorial QR Gifts | Remembrance Photo Shirts | QR Gear"
         description="Create memorial shirts with scannable QR codes that show a photo of your loved one. A meaningful way to keep memories close. Perfect for remembrance and tribute. USA options available."
         keywords="memorial shirts, remembrance gifts, in memory of shirts, tribute apparel, pet memorial, loved one shirts, grief gifts, memorial QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -51,7 +49,7 @@ export default function MemorialQRGifts() {
               <h1 className="vanity-title">Memorial QR Gifts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Memories you can wear.</p>
           <p className="vanity-description">
             A favorite vacation. A loved one. A moment you don't want to lose. 
@@ -76,12 +74,12 @@ export default function MemorialQRGifts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-scenarios">
+          <div className="row"><div className="glass-card vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Camera />
               Ways to remember:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {uses.map((use, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{use.title}</h3>
@@ -89,7 +87,7 @@ export default function MemorialQRGifts() {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
 
           <div className="glass-card vanity-highlight">
             <div className="vanity-highlight-inner">
@@ -147,8 +145,8 @@ export default function MemorialQRGifts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

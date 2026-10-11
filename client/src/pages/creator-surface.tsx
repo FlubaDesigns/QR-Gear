@@ -82,7 +82,7 @@ export default function CreatorSurface() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="bg-slate-950 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
       </div>
     );
@@ -92,7 +92,7 @@ export default function CreatorSurface() {
     return (
       <>
         <SEO title="Creator Not Found | QR Gear" description="This creator page could not be found." />
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center gap-4 text-center px-4">
+        <div className="bg-slate-950 flex flex-col items-center justify-center gap-4 text-center px-4">
           <Store className="w-16 h-16 text-slate-600" />
           <h1 className="text-2xl font-bold text-white">Creator not found</h1>
           <p className="text-slate-400">The link you followed may be expired or incorrect.</p>
@@ -135,10 +135,10 @@ export default function CreatorSurface() {
         ogUrl={typeof window !== "undefined" ? window.location.href : undefined}
       />
 
-      <div className="min-h-screen bg-slate-950">
+      <div className="bg-slate-950">
         {/* Header */}
         <div className="bg-gradient-to-b from-slate-900 to-slate-950 border-b border-slate-800">
-          <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="row py-8">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-4">
                 <Avatar className="w-14 h-14 shrink-0">
@@ -191,7 +191,7 @@ export default function CreatorSurface() {
         </div>
 
         {/* Items Grid */}
-        <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="row py-8">
           {publishedItems.length === 0 ? (
             <div className="text-center py-16 space-y-4">
               <ShoppingBag className="w-12 h-12 mx-auto text-slate-700 opacity-60" />
@@ -207,7 +207,7 @@ export default function CreatorSurface() {
                 {publishedItems.length}{" "}
                 {publishedItems.length === 1 ? "product" : "products"}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              <div className="row"><div className="layout__split-3">
                 {publishedItems.map((item) => (
                   <Link key={item.id} href={`/p/${item.id}${refParam}`}>
                     <Card
@@ -240,14 +240,14 @@ export default function CreatorSurface() {
                     </Card>
                   </Link>
                 ))}
-              </div>
+              </div></div>
             </>
           )}
         </div>
 
         {/* Footer */}
         <div className="border-t border-slate-800 mt-8">
-          <div className="max-w-4xl mx-auto px-4 py-6 text-center">
+          <div className="row py-6 text-center">
             <p className="text-slate-600 text-xs">
               Powered by{" "}
               <Link href="/" className="text-slate-500 hover:text-slate-400">

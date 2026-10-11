@@ -1,7 +1,5 @@
 import { Users, CheckCircle, Handshake, Smartphone, Zap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const scenarios = [
 
 export default function NetworkingQRShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Networking QR Shirts | Skip the Business Card | QR Gear"
         description="Create shirts with QR codes that save your contact info directly to their phone. Skip the business card shuffle at conferences and networking events. USA options available."
         keywords="networking QR shirt, digital business card, vCard QR code, conference shirt, contact info QR, professional networking"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Users />
@@ -51,7 +49,7 @@ export default function NetworkingQRShirts() {
               <h1 className="vanity-title">Networking QR Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Networking on autopilot.</p>
           <p className="vanity-description">
             Skip the business card shuffle. They scan, your vCard saves. 
@@ -81,14 +79,14 @@ export default function NetworkingQRShirts() {
               <Handshake />
               Perfect for:
             </h2>
-            <div className="vanity-items-grid vanity-scenarios">
+            <div className="row"><div className="layout__split-2">
               {scenarios.map((scenario, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{scenario.title}</h3>
                   <p>{scenario.description}</p>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -147,8 +145,8 @@ export default function NetworkingQRShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

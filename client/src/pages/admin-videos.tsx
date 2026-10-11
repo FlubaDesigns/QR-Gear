@@ -215,7 +215,7 @@ function VideosContent() {
           </Button>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="row"><div className="layout__split-3">
           {assets.map((asset) => (
             <Card key={asset.grfId} data-testid={`card-video-${asset.grfId}`}>
               <CardContent className="p-4">
@@ -274,7 +274,7 @@ function VideosContent() {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </div></div>
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={open => { if (!open) handleCloseDialog(); }}>
@@ -368,7 +368,7 @@ export default function AdminVideosPage() {
 
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );

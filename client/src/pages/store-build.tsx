@@ -60,7 +60,7 @@ export default function StoreBuildPage() {
   const [productConfigs, setProductConfigs] = useState<Record<string, ProductConfig>>({});
   const [savedItems, setSavedItems] = useState<SavedItem[]>([]);
   const [saveStatus, setSaveStatus] = useState<Record<string, "success" | "error" | null>>({});
-  
+
   // Track which product's options dialog is open
   const [optionsDialogProductId, setOptionsDialogProductId] = useState<string | null>(null);
   // Temp state for dialog editing (so cancel doesn't save)
@@ -94,7 +94,7 @@ export default function StoreBuildPage() {
 
   // Track if we've initialized configs for this store to avoid overwriting user edits
   const [configsInitialized, setConfigsInitialized] = useState(false);
-  
+
   // Reset initialization flag when store changes
   useEffect(() => {
     setConfigsInitialized(false);
@@ -115,7 +115,7 @@ export default function StoreBuildPage() {
           savedAt: new Date(),
         }));
       setSavedItems(items);
-      
+
       // Only initialize productConfigs once per store to avoid overwriting user edits
       if (!configsInitialized) {
         const configs: Record<string, ProductConfig> = {};
@@ -221,7 +221,7 @@ export default function StoreBuildPage() {
     // Can only set default if color is enabled
     if (dialogColors.includes(colorName)) {
       setDialogDefaultColor(colorName);
-      
+
       // Trigger mockup generation for this color
       if (selectedStoreId && optionsDialogProductId) {
         setGeneratingMockup(colorName);
@@ -325,7 +325,7 @@ export default function StoreBuildPage() {
   const filteredStores = storeType === "external" ? (stores || []) : [];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
 <nav className="flex items-center gap-2 px-6 py-4 border-b text-sm" aria-label="Breadcrumb">
         <Link href="/" className="text-muted-foreground hover:text-foreground" data-testid="breadcrumb-home">
           Home
@@ -338,7 +338,7 @@ export default function StoreBuildPage() {
         <span className="text-foreground font-medium" aria-current="page">Build Store Segment</span>
       </nav>
 
-      <div className="container mx-auto p-6 max-w-5xl">
+      <div className="row p-6">
         <div className="flex items-center gap-4 mb-8">
           <h1 className="text-3xl font-bold">Build Store Segment</h1>
           <Select value={storeType} onValueChange={(v) => { setStoreType(v as any); setSelectedStoreId(""); setSelectedPlacement(""); }}>

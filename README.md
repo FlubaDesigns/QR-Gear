@@ -939,3 +939,13 @@ The homepage product grid uses the existing Master layout__auto helper directly 
 ### Desktop header logo — October 11, 2026
 
 Increased the shared header logo height from 48px to 55.2px (15%) inside its existing min-width:768px theme rule. The 40px mobile rule, aspect ratio, header structure and canonical Master files are unchanged.
+
+
+## Shared page skeleton — October 11, 2026
+
+All routes now inherit one canonical PageSkeleton at the App routing boundary, including admin, member, standalone scan/widget, loading/error and not-found states. Pages no longer mount their own Navbar/Footer/main or parallel storefront shells. Master CSS remains unchanged; page containers and responsive columns use its row/layout helpers and gutter token. AdminShell keeps its workflow toolbar and navigation within the shared stage. Scan/embed surfaces retain their dedicated presentation. See `docs/PAGE_LAYOUT_AUDIT.md` for all 102 route entries and layout ownership. `npm run layout:verify` checks the boundary, duplicate shells, legacy page containers and upstream Master integrity before production builds. No backend, QRG, checkout or auth behavior changes.
+
+
+Desktop footer follow-up (October 11, 2026): Footer.tsx now composes the Master row and split-4 helper inside the shared skeleton scope. Removed its old independent grid rules. Desktop footer presentation is quieter: reduced vertical padding, smaller labels/social icons, compact contact/partner details, and transparent background. Column gaps remain owned by Master CSS.
+
+Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.

@@ -67,7 +67,7 @@ export default function RenewPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800">
         <Loader2 className="h-8 w-8 animate-spin text-white" />
       </div>
     );
@@ -75,7 +75,7 @@ export default function RenewPage() {
 
   if (error || !data?.instance) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -97,7 +97,7 @@ export default function RenewPage() {
 
   if (verifyMutation.isSuccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+      <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
@@ -131,7 +131,7 @@ export default function RenewPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
+    <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
           {isActive ? (

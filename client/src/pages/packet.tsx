@@ -2,7 +2,6 @@ import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Loader2, QrCode, ArrowLeft, ShoppingCart, Sparkles } from "lucide-react";
-import { PageSkeleton } from "@/components/PageSkeleton";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface PublicPacketData {
@@ -107,7 +106,7 @@ export default function PacketPage() {
 
   if (isLoading) {
     return (
-      <PageSkeleton>
+      <>
         <section className="hero" aria-label="Loading product" aria-busy="true">
           <div className="row">
             <div className="layout__split-3-2 card product-detail">
@@ -119,13 +118,13 @@ export default function PacketPage() {
             </div>
           </div>
         </section>
-      </PageSkeleton>
+      </>
     );
   }
 
   if (!match || !packetId || error || !packet) {
     return (
-      <PageSkeleton>
+      <>
         <section className="hero">
           <div className="row">
             <div className="layout__center card detail__body">
@@ -138,14 +137,14 @@ export default function PacketPage() {
             </div>
           </div>
         </section>
-      </PageSkeleton>
+      </>
     );
   }
 
   const createYourOwnUrl = referrerId ? `/build?ref=${referrerId}` : '/build';
 
   return (
-    <PageSkeleton>
+    <>
       <section className="hero" aria-labelledby="packet-title">
         <div className="row">
           <div className={`${packet.itemImage ? 'layout__split-3-2' : 'col-full'} card product-detail`}>
@@ -208,6 +207,6 @@ export default function PacketPage() {
           </div>
         </div>
       </section>
-    </PageSkeleton>
+    </>
   );
 }

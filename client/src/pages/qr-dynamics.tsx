@@ -1,7 +1,5 @@
 import { Sparkles, CheckCircle, ArrowRight, Calendar, Music, Building2, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
-import { PageSkeleton } from "@/components/PageSkeleton";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -48,14 +46,14 @@ const popularUses = [
 
 export default function QRDynamicsLanding() {
   return (
-    <PageSkeleton>
+    <>
       <SEO 
         title="QR Dynamics™ | Living QR Codes You Can Update Anytime"
         description="Create QR Dynamics - living QR codes that link to pages you control. Update content, schedule changes, rotate destinations, track engagement. Premium subscription QR merchandise."
         keywords="QR Dynamics, dynamic QR code, living QR code, updateable QR, subscription QR, scheduled QR, analytics QR"
       />
       <div className="row py-6">
-        <BreadcrumbTrail />
+
         <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
@@ -66,7 +64,7 @@ export default function QRDynamicsLanding() {
               <h1 className="vanity-title">QR Dynamics™</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Content that changes over time.</p>
           <p className="vanity-description">
             Your personal QR Space — digital real estate you control. 
@@ -126,6 +124,6 @@ export default function QRDynamicsLanding() {
 
         </div>
       </div>
-    </PageSkeleton>
+    </>
   );
 }

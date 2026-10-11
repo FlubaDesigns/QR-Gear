@@ -104,7 +104,7 @@ export function HealthTabContent() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="row"><div className="layout__split-3">
           {healthData.providers.map((provider) => (
             <Card key={provider.providerType} data-testid={`card-health-${provider.providerType}`}>
               <CardContent className="p-5">
@@ -122,7 +122,7 @@ export function HealthTabContent() {
                     </Badge>
                   )}
                 </div>
-                
+
                 <div className="text-sm space-y-2">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Response Time</span>
@@ -130,7 +130,7 @@ export function HealthTabContent() {
                       {provider.responseTimeMs == null ? "Not measured" : `${provider.responseTimeMs}ms`}
                     </span>
                   </div>
-                  
+
                   {provider.stats24h.totalChecks > 0 && (
                     <>
                       <div className="flex justify-between">
@@ -149,14 +149,14 @@ export function HealthTabContent() {
                       </div>
                     </>
                   )}
-                  
+
                   {provider.errorMessage && (
                     <div className="mt-2 p-2 bg-destructive/10 rounded text-xs text-destructive">
                       {provider.errorCode && <span className="font-mono mr-1">[{provider.errorCode}]</span>}
                       {provider.errorMessage}
                     </div>
                   )}
-                  
+
                   <div className="pt-2 border-t text-xs text-muted-foreground">
                     Last check: {provider.lastCheck ? new Date(provider.lastCheck).toLocaleString() : "Never"}
                   </div>
@@ -164,7 +164,7 @@ export function HealthTabContent() {
               </CardContent>
             </Card>
           ))}
-        </div>
+        </div></div>
       )}
     </>
   );

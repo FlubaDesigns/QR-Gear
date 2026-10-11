@@ -34,7 +34,7 @@ export default function MyItemPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -42,7 +42,7 @@ export default function MyItemPage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <div className="flex flex-col items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <h1 className="text-xl font-bold mb-2">Sign In Required</h1>
@@ -58,7 +58,7 @@ export default function MyItemPage() {
 
   if (error || !data?.instance) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
+      <div className="flex flex-col items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
           <CardContent className="pt-6 text-center">
             <h1 className="text-xl font-bold mb-2">Item Not Found</h1>
@@ -84,8 +84,8 @@ export default function MyItemPage() {
   return (
     <>
       <SEO title={`${instance.productName} — My QR Item | QR Gear`} />
-      <div className="min-h-screen bg-background">
-        <div className="max-w-2xl mx-auto p-4 py-8 space-y-6">
+      <div className="bg-background">
+        <div className="row py-4 py-8 space-y-6">
 
           <div className="flex items-center gap-3">
             <Button

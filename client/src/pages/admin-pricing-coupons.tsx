@@ -92,7 +92,7 @@ export function CouponsSection() {
     if (!newCoupon.code.trim()) missingFields.push("Coupon Code");
     if (!newCoupon.name.trim()) missingFields.push("Internal Name");
     if (!newCoupon.discountValue) missingFields.push(newCoupon.discountType === "percent" ? "Percentage" : "Amount");
-    
+
     if (missingFields.length > 0) {
       toast({ 
         title: "Missing Information", 
@@ -209,7 +209,7 @@ export function CouponsSection() {
                       <Badge variant="default" className="bg-[#635BFF] text-white text-xs">Stripe</Badge>
                     )}
                   </div>
-                  
+
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <Button 
                       variant="outline"
@@ -222,7 +222,7 @@ export function CouponsSection() {
                   </div>
                 </div>
               ))}
-              
+
               <p className="text-sm text-muted-foreground mt-4">
                 Only codes marked Stripe have synchronized. Checkout discount acceptance still requires end-to-end verification before release.
               </p>

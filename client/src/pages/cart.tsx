@@ -7,7 +7,6 @@ import {
   LogIn, ShieldCheck, Printer, QrCode,
 } from "lucide-react";
 import { Link, useLocation } from "wouter";
-import StorefrontLayout from "@/components/StorefrontLayout";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { useCart, mergeGuestCartOnLogin, type GuestCartItem } from "@/contexts/CartContext";
@@ -127,7 +126,7 @@ export default function Cart() {
 
   if (isLoadingState) {
     return (
-      <StorefrontLayout>
+      <>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary mb-3" />
@@ -136,12 +135,12 @@ export default function Cart() {
             </p>
           </div>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
   return (
-    <StorefrontLayout>
+    <>
       <SEO
         title="Your Cart | QR Gear"
         description="Review your custom QR code merchandise before checkout."
@@ -153,22 +152,22 @@ export default function Cart() {
         <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 4rem)" }}>
           {/* Page header */}
           <div className="border-b bg-background px-4 py-4">
-            <div className="container max-w-4xl mx-auto flex items-center gap-3">
+            <div className="row"><div className="flex items-center gap-3">
               <ShoppingCart className="w-6 h-6 text-primary flex-shrink-0" />
               <h1 className="text-2xl font-bold">Your Cart</h1>
               <span className="text-muted-foreground text-sm">
                 ({displayItems.length} item{displayItems.length !== 1 ? "s" : ""})
               </span>
-            </div>
+            </div></div>
           </div>
 
           {/* Scrollable body */}
           <div className="flex-1 overflow-y-auto">
-            <div className="container max-w-4xl mx-auto px-4 py-5">
-              <div className="lg:grid lg:grid-cols-3 lg:gap-8">
+            <div className="row py-5">
+              <div className="row"><div className="layout__split-2-1">
 
                 {/* ── Item list ── */}
-                <div className="lg:col-span-2 space-y-3 mb-6 lg:mb-0">
+                <div className="space-y-3 mb-6 lg:mb-0">
                   {displayItems.map((item) => (
                     <CartItemCard
                       key={item.id}
@@ -190,7 +189,7 @@ export default function Cart() {
                     />
                   </div>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -203,7 +202,7 @@ export default function Cart() {
           />
         </div>
       )}
-    </StorefrontLayout>
+    </>
   );
 }
 

@@ -1,5 +1,3 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 export default function TermsOfService() {
@@ -9,8 +7,8 @@ export default function TermsOfService() {
         title="Terms of Service | QR Gear"
         description="QR Gear terms of service — the rules and guidelines for using our website and purchasing our products."
       />
-      <Navbar />
-      <main className="container max-w-3xl mx-auto px-4 py-12">
+
+      <div className="row"><div className="layout__center section">
         <h1 className="text-3xl font-bold mb-2" data-testid="text-terms-title">Terms of Service</h1>
         <p className="text-sm text-muted-foreground mb-8">Last updated: February 13, 2026</p>
 
@@ -179,8 +177,8 @@ export default function TermsOfService() {
             </p>
           </section>
         </div>
-      </main>
-      <Footer />
+      </div></div>
+
     </>
   );
 }

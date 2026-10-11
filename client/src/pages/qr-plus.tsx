@@ -1,7 +1,5 @@
 import { Type, CheckCircle, ArrowRight, User, Calendar, Heart, Briefcase } from "lucide-react";
 import { Link } from "wouter";
-import { PageSkeleton } from "@/components/PageSkeleton";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -50,14 +48,14 @@ const personalUses = [
 
 export default function QRStaticPlusLanding() {
   return (
-    <PageSkeleton>
+    <>
       <SEO 
         title="QR Plus | QR Code with Header & Footer Text | QR Gear"
         description="Create QR Plus merchandise with custom header and footer text printed on the product. Add context and calls-to-action around your QR codes. USA options available."
         keywords="QR Plus, QR code with text, custom text QR, header footer QR, QR merchandise with text"
       />
       <div className="row py-6">
-        <BreadcrumbTrail />
+
         <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
@@ -68,7 +66,7 @@ export default function QRStaticPlusLanding() {
               <h1 className="vanity-title">QR Plus</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Add a short message above and below your QR code.</p>
           <p className="vanity-description">
             QR Plus lets you print simple header and footer text directly on the product, 
@@ -127,6 +125,6 @@ export default function QRStaticPlusLanding() {
 
         </div>
       </div>
-    </PageSkeleton>
+    </>
   );
 }

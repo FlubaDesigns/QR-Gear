@@ -1,7 +1,5 @@
 import { Music, CheckCircle, Sparkles, Disc, Radio, TrendingUp, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const scenarios = [
 
 export default function BandDynamicMerch() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Band Dynamic Merch | Merch That Never Goes Stale | QR Gear"
         description="Create band merch with QR codes you can update anytime. Tour ends? New album? Just update the link. Same shirt, always current. Track fan engagement."
         keywords="band merch QR, dynamic band shirt, updateable merch, tour merchandise, musician QR, album merch"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Music />
@@ -55,7 +53,7 @@ export default function BandDynamicMerch() {
               <h1 className="vanity-title">Band Dynamic Merch</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Merch that never goes stale.</p>
           <p className="vanity-description">
             Tour ends? Update to the new album. Single drops? Link it. 
@@ -82,7 +80,7 @@ export default function BandDynamicMerch() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Keep it current:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {scenarios.map((scenario, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -94,7 +92,7 @@ export default function BandDynamicMerch() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -153,8 +151,8 @@ export default function BandDynamicMerch() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

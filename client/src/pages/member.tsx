@@ -18,7 +18,7 @@ export default function MemberOnboardingPage() {
 
   if (isLoading || (userId && onboardingComplete)) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
+      <div className="flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
       </div>
     );

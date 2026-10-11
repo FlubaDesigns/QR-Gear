@@ -81,7 +81,7 @@ export default function BreadcrumbTrail() {
   if (crumbs.length === 0) return null;
 
   return (
-    <nav className="container py-2 text-sm text-muted-foreground" aria-label="Breadcrumb" data-testid="nav-breadcrumb">
+    <nav className="row py-2 text-sm text-muted-foreground" aria-label="Breadcrumb" data-testid="nav-breadcrumb">
       {crumbs.map((crumb, i) => {
         const isLast = i === crumbs.length - 1;
         return (

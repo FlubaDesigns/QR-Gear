@@ -1,7 +1,5 @@
 import { Calendar, CheckCircle, Users, Camera, Music, PartyPopper, Heart, Footprints, GraduationCap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -46,15 +44,15 @@ const events = [
 
 export default function EventQRShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Event QR Shirts | Wearable Event Links | QR Gear"
         description="Create custom event QR shirts linking to schedules, photos, and group info. Perfect for family reunions, weddings, charity walks, and group activities. USA options available."
         keywords="event QR shirts, custom event shirts, QR code event shirts, family reunion shirts, wedding QR shirts"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Calendar />
@@ -64,7 +62,7 @@ export default function EventQRShirts() {
               <h1 className="vanity-title">Event QR Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">People know exactly what they're getting before they scan.</p>
           <p className="vanity-description">
             Header text like "Event Schedule" or "Photos from Today" tells guests exactly what they'll see when they scan. 
@@ -88,7 +86,7 @@ export default function EventQRShirts() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Perfect for:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {events.map((event, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -100,7 +98,7 @@ export default function EventQRShirts() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -158,8 +156,8 @@ export default function EventQRShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

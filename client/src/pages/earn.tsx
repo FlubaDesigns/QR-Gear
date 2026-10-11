@@ -2,8 +2,6 @@ import { Link } from "wouter";
 import { DollarSign, Layers, Wand2, Crown, ShoppingCart, Sparkles, ArrowRight, ChevronRight, QrCode, Image, Film, LayoutGrid, Repeat, CheckCircle, Zap, TrendingUp, Shield, Package, HelpCircle, Lightbulb, Megaphone, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { useState } from "react";
 
@@ -176,20 +174,20 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
 
 export default function EarnPage() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="flex flex-col">
       <SEO
         title="Make Money From Your Ideas | QR Gear Creator Program"
         description="Turn your creativity into income. Design custom QR merchandise, share it with the world, and earn money every time someone buys your design. Free to join. No inventory, no risk."
         keywords="earn money, creator program, sell merchandise, QR code products, passive income, design and sell, print on demand, no inventory"
       />
-      <Navbar />
-      <main className="flex-1">
+
+      <div className="flex-1">
 
         <section className="relative overflow-hidden py-16 sm:py-24">
           <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-transparent to-green-900/20" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent" />
-          <div className="container mx-auto px-4 relative z-10">
-            <div className="max-w-3xl mx-auto text-center space-y-6">
+          <div className="row relative z-10">
+            <div className="row text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium" data-testid="badge-creator-program">
                 <Crown className="w-4 h-4" />
                 QR Gear Creator Program
@@ -226,7 +224,7 @@ export default function EarnPage() {
         </section>
 
         <section className="py-12 sm:py-16 bg-slate-900/50" id="how-it-works">
-          <div className="container mx-auto px-4">
+          <div className="row">
             <div className="text-center mb-12">
               <h2 className="text-2xl sm:text-4xl font-bold text-white mb-3">
                 Make It. Store It. Sell It. Earn.
@@ -235,7 +233,7 @@ export default function EarnPage() {
                 Four phases. One simple process. Your path from idea to income.
               </p>
             </div>
-            <div className="max-w-4xl mx-auto space-y-8">
+            <div className="row space-y-8">
               {journeySteps.map((step, i) => (
                 <div key={step.phase} className={`rounded-xl border ${step.border} bg-gradient-to-r ${step.accent} overflow-hidden`} data-testid={`section-journey-${step.phase.toLowerCase().replace(/\s+/g, '-')}`}>
                   <div className="p-6 sm:p-8 space-y-5">
@@ -248,14 +246,14 @@ export default function EarnPage() {
                     </div>
                     <p className="text-lg text-white font-medium">{step.headline}</p>
                     <p className="text-slate-300 leading-relaxed">{step.description}</p>
-                    <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                    <div className="row"><ul className="layout__split-2 pt-2">
                       {step.details.map((detail, j) => (
                         <li key={j} className="flex items-start gap-2.5">
                           <CheckCircle className={`w-4 h-4 flex-shrink-0 mt-0.5 ${step.color}`} />
                           <span className="text-slate-300 text-sm">{detail}</span>
                         </li>
                       ))}
-                    </ul>
+                    </ul></div>
                   </div>
                 </div>
               ))}
@@ -264,7 +262,7 @@ export default function EarnPage() {
         </section>
 
         <section className="py-12 sm:py-16">
-          <div className="container mx-auto px-4">
+          <div className="row">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
                 Five Ways to Create
@@ -273,7 +271,7 @@ export default function EarnPage() {
                 Every QR type is unlocked for members. Mix and match to build exactly what you envision.
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
+            <div className="row"><div className="layout__split-3">
               {qrTypes.map((qt) => (
                 <div
                   key={qt.name}
@@ -292,12 +290,12 @@ export default function EarnPage() {
                 <Repeat className="w-7 h-7 text-slate-500" />
                 <p className="text-slate-400 text-sm">More product types and formats coming soon</p>
               </div>
-            </div>
+            </div></div>
           </div>
         </section>
 
         <section className="py-12 sm:py-16 bg-slate-900/50">
-          <div className="container mx-auto px-4">
+          <div className="row">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
                 Owner vs. Member
@@ -307,7 +305,7 @@ export default function EarnPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="row"><div className="layout__split-2">
               <Card className="bg-slate-800/50 border-slate-700">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex items-center gap-3 flex-wrap">
@@ -379,12 +377,12 @@ export default function EarnPage() {
                   </Button>
                 </CardContent>
               </Card>
-            </div>
+            </div></div>
           </div>
         </section>
 
         <section className="py-12 sm:py-16">
-          <div className="container mx-auto px-4">
+          <div className="row">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
                 Why This Works
@@ -393,7 +391,7 @@ export default function EarnPage() {
                 No guesswork. No risk. Just a straightforward way to turn creativity into cash.
               </p>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 max-w-5xl mx-auto">
+            <div className="row"><div className="layout__split-4">
               {[
                 { icon: Shield, title: "Zero Risk", desc: "Nothing to buy upfront. Products are made only when someone orders. You never invest a dime in inventory.", color: "text-green-400" },
                 { icon: Zap, title: "Instant Setup", desc: "Sign up in seconds. Create your first product in minutes. Be live in the store before your coffee gets cold.", color: "text-amber-400" },
@@ -406,12 +404,12 @@ export default function EarnPage() {
                   <p className="text-slate-300 text-sm leading-relaxed">{item.desc}</p>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
         </section>
 
         <section className="py-12 sm:py-16 bg-slate-900/50">
-          <div className="container mx-auto px-4">
+          <div className="row">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
                 How the Money Works
@@ -420,10 +418,10 @@ export default function EarnPage() {
                 Transparent. Simple. No surprises.
               </p>
             </div>
-            <div className="max-w-3xl mx-auto">
+            <div className="row ">
               <div className="rounded-xl border border-slate-700 bg-slate-800/30 overflow-hidden">
                 <div className="p-6 sm:p-8 space-y-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                  <div className="row"><div className="layout__split-3 text-center">
                     <div className="space-y-2">
                       <div className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center mx-auto">
                         <Package className="w-6 h-6 text-slate-300" />
@@ -445,7 +443,7 @@ export default function EarnPage() {
                       <p className="text-xs text-slate-400 uppercase tracking-wider">Your Earnings</p>
                       <p className="text-slate-300 text-sm">Your share of the profit, paid automatically</p>
                     </div>
-                  </div>
+                  </div></div>
                   <div className="border-t border-slate-700 pt-6">
                     <p className="text-slate-300 text-sm leading-relaxed text-center max-w-xl mx-auto">
                       Every product shows your estimated earnings <strong className="text-white">before you publish</strong>. No guessing, no fine print. You see exactly what you will earn per sale, and you can track it all from your earnings dashboard.
@@ -458,14 +456,14 @@ export default function EarnPage() {
         </section>
 
         <section className="py-12 sm:py-16">
-          <div className="container mx-auto px-4">
+          <div className="row">
             <div className="text-center mb-10">
               <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
                 Common Questions
               </h2>
               <p className="text-slate-400">Everything you need to know before you start</p>
             </div>
-            <div className="max-w-2xl mx-auto space-y-3">
+            <div className="row space-y-3">
               {faqs.map((faq, i) => (
                 <FAQItem key={i} q={faq.q} a={faq.a} index={i} />
               ))}
@@ -474,8 +472,8 @@ export default function EarnPage() {
         </section>
 
         <section className="py-16 sm:py-24 bg-gradient-to-br from-amber-900/20 via-transparent to-green-900/20">
-          <div className="container mx-auto px-4">
-            <div className="max-w-2xl mx-auto text-center space-y-6">
+          <div className="row">
+            <div className="row text-center space-y-6">
               <div className="bg-amber-500/20 rounded-full p-4 w-fit mx-auto">
                 <Sparkles className="w-10 h-10 text-amber-400" />
               </div>
@@ -505,8 +503,8 @@ export default function EarnPage() {
             </div>
           </div>
         </section>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

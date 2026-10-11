@@ -66,7 +66,7 @@ export default function ViewDynamic() {
 
   return (
     <div className="min-h-screen bg-background">
-<div className="max-w-3xl mx-auto p-4 py-8">
+<div className="layout__center p-4 py-8">
         <Card className="overflow-hidden">
           {pageInfo.image ? (
             <div className="relative bg-muted">
@@ -86,12 +86,12 @@ export default function ViewDynamic() {
               </div>
             </div>
           )}
-          
+
           <CardContent className="p-6">
             <h1 className="text-2xl font-bold text-foreground mb-2" data-testid="text-dynamic-title">
               {pageInfo.title}
             </h1>
-            
+
             {pageInfo.description && (
               <p className="text-muted-foreground" data-testid="text-dynamic-description">
                 {pageInfo.description}

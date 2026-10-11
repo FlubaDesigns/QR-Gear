@@ -190,7 +190,7 @@ export default function AdminHealth() {
         </div>
         {error ? <p role="alert">Health status could not load: {error.message}</p> : isLoading ? (
           <div className="space-y-6">
-            <div className="qr-admin-grid qr-admin-grid--2">
+            <div className="row"><div className="layout__split-2">
               {[...Array(2)].map((_, i) => (
                 <Card key={i}>
                   <CardContent className="p-4">
@@ -209,11 +209,11 @@ export default function AdminHealth() {
                   </CardContent>
                 </Card>
               ))}
-            </div>
+            </div></div>
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="qr-admin-grid qr-admin-grid--2">
+            <div className="row"><div className="layout__split-2">
               {providers.length > 0 ? (
                 providers.map((provider) => (
                   <ProviderCard key={provider.provider} provider={provider} />
@@ -221,7 +221,7 @@ export default function AdminHealth() {
               ) : (
                 <p>No provider checks are available.</p>
               )}
-            </div>
+            </div></div>
 
             <Card>
               <CardHeader className="pb-3">

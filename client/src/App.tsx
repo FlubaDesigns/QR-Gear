@@ -107,7 +107,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   return (
     <ProtectedRoute>
       <AdminAuthProvider apiBase="/api/admin">
-        <div className="pb-14 md:pb-0 md:pl-16">
+        <div className="row">
           {children}
         </div>
         <AdminBottomNav />
@@ -116,15 +116,12 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Every member route shares the same canonical stage, including auth/loading states.
+// Member content inherits the application skeleton, including auth/loading states.
 function MemberRoute({ children, requireAuth = false }: { children: React.ReactNode; requireAuth?: boolean }) {
   return (
-    <PageSkeleton>
-      <div className="member-workspace row py-4">
-        <BreadcrumbTrail />
-        {requireAuth ? <ProtectedRoute requireAdmin={false}>{children}</ProtectedRoute> : children}
-      </div>
-    </PageSkeleton>
+    <div className="member-workspace row py-4">
+      {requireAuth ? <ProtectedRoute requireAdmin={false}>{children}</ProtectedRoute> : children}
+    </div>
   );
 }
 
@@ -163,7 +160,6 @@ function Router() {
       <Route path="/admin/settings">{() => <AdminRoute><AdminSettings /></AdminRoute>}</Route>
       <Route path="/admin/sales/build">{() => <AdminRoute><StoreBuild /></AdminRoute>}</Route>
       <Route path="/build/success" component={BuildSuccess} />
-      <Route path="/build" component={BuildPage} />
       <Route path="/earn" component={EarnPage} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/customize" component={Customize} />
@@ -240,17 +236,22 @@ function Router() {
 
 function App() {
   const [location] = useLocation();
-  const skeletonPageRoute = ['/build', '/qr-basics', '/qr-plus', '/qr-canvas', '/qr-play', '/qr-dynamics'].includes(location);
-  const shopSegmentRoute = location.startsWith('/shop/') && !location.startsWith('/shop/product/');
-  const memberRoute = location === '/member' || location === '/members' || location.startsWith('/members/');
+  const adminRoute = location === '/admin' || location.startsWith('/admin/');
+  // These surfaces already have purpose-specific navigation or are embedded.
+  const standaloneRoute = /^\/(widget(?:\/|$)|play\/|view\/|dynamic\/|QRG-|[iem]\/)/.test(location);
+  const customBreadcrumb = location.startsWith('/shop/');
   return (
     <QueryClientProvider client={queryClient}>
       <CartProvider>
         <TooltipProvider>
           <ScrollToTop />
           <Toaster />
-          {!memberRoute && !skeletonPageRoute && !shopSegmentRoute && <BreadcrumbTrail />}
-          <Router />
+          <div className={adminRoute ? 'pb-14 md:pb-0 md:pl-16' : undefined}>
+            <PageSkeleton chrome={!adminRoute && !standaloneRoute}>
+              {!standaloneRoute && !customBreadcrumb && <BreadcrumbTrail />}
+              <Router />
+            </PageSkeleton>
+          </div>
         </TooltipProvider>
       </CartProvider>
     </QueryClientProvider>

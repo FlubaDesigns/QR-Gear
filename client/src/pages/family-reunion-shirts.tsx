@@ -1,7 +1,5 @@
 import { Users, CheckCircle, Heart, Camera, Gift, Home, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const occasions = [
 
 export default function FamilyReunionShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Family Reunion Shirts | Custom Photo QR Apparel | QR Gear"
         description="Create family reunion shirts with scannable QR codes. Everyone scans to see the family photo. Perfect for reunions, holidays, and gifts for grandparents. USA options available."
         keywords="family reunion shirts, custom family shirts, grandparent gifts, family photo shirts, reunion apparel, family gathering shirts, personalized family gifts"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon vanity-icon-blue">
               <Users />
@@ -51,7 +49,7 @@ export default function FamilyReunionShirts() {
               <h1 className="vanity-title">Family Reunion Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">The gift that keeps giving.</p>
           <p className="vanity-description">
             Family photos deserve more than a spot on the mantle. Put them on shirts everyone actually wears — 
@@ -76,12 +74,12 @@ export default function FamilyReunionShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-scenarios">
+          <div className="row"><div className="glass-card vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Home />
               Perfect for:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {occasions.map((occasion, i) => (
                 <div key={i} className="vanity-scenario vanity-scenario-blue">
                   <h3>{occasion.title}</h3>
@@ -89,7 +87,7 @@ export default function FamilyReunionShirts() {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
 
           <div className="glass-card vanity-highlight vanity-highlight-blue">
             <div className="vanity-highlight-inner">
@@ -147,8 +145,8 @@ export default function FamilyReunionShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

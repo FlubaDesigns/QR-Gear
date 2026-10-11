@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Gift, Sparkles, Package, Clock, Heart, Check, Copy, ArrowLeft } from "lucide-react";
 import type { GiftPackage } from "@shared/schema";
-import StorefrontLayout from "@/components/StorefrontLayout";
 
 export default function GiftShopPage() {
   const [, navigate] = useLocation();
@@ -79,19 +78,19 @@ export default function GiftShopPage() {
 
   if (isLoading) {
     return (
-      <StorefrontLayout>
-        <div className="container max-w-6xl py-8">
+      <>
+        <div className="row py-8">
           <div className="flex items-center justify-center min-h-[400px]">
             <div className="animate-pulse text-muted-foreground">Loading gift options...</div>
           </div>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
   return (
-    <StorefrontLayout>
-    <div className="container max-w-6xl py-8 px-4">
+    <>
+    <div className="row py-8">
 <Button
         variant="ghost"
         onClick={() => navigate("/")}
@@ -120,7 +119,7 @@ export default function GiftShopPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="row"><div className="layout__split-3">
           {packages.map((pkg) => (
             <Card 
               key={pkg.id} 
@@ -190,7 +189,7 @@ export default function GiftShopPage() {
               </CardFooter>
             </Card>
           ))}
-        </div>
+        </div></div>
       )}
 
       {/* Redeem Gift CTA */}
@@ -348,6 +347,6 @@ export default function GiftShopPage() {
         </DialogContent>
       </Dialog>
     </div>
-    </StorefrontLayout>
+    </>
   );
 }

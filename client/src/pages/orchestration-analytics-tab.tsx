@@ -48,7 +48,7 @@ export function AnalyticsTabContent() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="row"><div className="layout__auto">
             <Card>
               <CardContent className="p-4">
                 <p className="text-sm text-muted-foreground">Total Scans</p>
@@ -79,9 +79,9 @@ export function AnalyticsTabContent() {
                 <p className="text-2xl font-bold" data-testid="text-unique-products">{qrAnalyticsSummary?.uniqueProducts || 0}</p>
               </CardContent>
             </Card>
-          </div>
+          </div></div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="row"><div className="layout__split-2">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">Top Countries</CardTitle>
@@ -134,7 +134,7 @@ export function AnalyticsTabContent() {
                 )}
               </CardContent>
             </Card>
-          </div>
+          </div></div>
 
           <Card>
             <CardHeader className="pb-3">

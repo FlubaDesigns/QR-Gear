@@ -1,7 +1,5 @@
 import { Palette, CheckCircle, Heart, Camera, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import { PageSkeleton } from "@/components/PageSkeleton";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -45,14 +43,14 @@ const popularUses = [
 
 export default function QRUrlLanding() {
   return (
-    <PageSkeleton>
+    <>
       <SEO 
         title="QR Canvas | Custom Background QR Products | QR Gear"
         description="Create QR Canvas merchandise - upload your own image that appears when people scan your QR. Perfect for weddings, family gifts, artists, and treasured memories. USA options available."
         keywords="QR Canvas, custom QR background, wedding QR shirts, family photo gifts, artist QR apparel, memorial QR gifts"
       />
       <div className="row py-6">
-        <BreadcrumbTrail />
+
         <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
@@ -63,7 +61,7 @@ export default function QRUrlLanding() {
               <h1 className="vanity-title">QR Canvas</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Design a custom image your QR opens to.</p>
           <p className="vanity-description">
             Your visual space for the scan experience. When someone scans your QR, they land on your hosted QR Space 
@@ -115,6 +113,6 @@ export default function QRUrlLanding() {
 
         </div>
       </div>
-    </PageSkeleton>
+    </>
   );
 }

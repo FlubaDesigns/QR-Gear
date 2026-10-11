@@ -1,7 +1,5 @@
 import { Lightbulb, CheckCircle, HelpCircle, BookOpen, Info, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -45,15 +43,15 @@ const uses = [
 
 export default function EverydayQR() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Everyday QR | Simple Prompts That Invite Curiosity | QR Gear"
         description="Create QR products with simple prompts like 'SCAN TO LEARN MORE' or 'SCAN FOR THE STORY'. Small text, big clarity. USA options available."
         keywords="everyday QR, scan to learn, simple QR code, curiosity QR, story QR, instructions QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Lightbulb />
@@ -63,7 +61,7 @@ export default function EverydayQR() {
               <h1 className="vanity-title">Everyday QR</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Small text. Big clarity — every day.</p>
           <p className="vanity-description">
             Sometimes you just need a gentle prompt. "SCAN TO LEARN MORE" or "SCAN FOR THE STORY" — 
@@ -93,7 +91,7 @@ export default function EverydayQR() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Works for:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {uses.map((use, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -105,7 +103,7 @@ export default function EverydayQR() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <Link href="/build?type=plus">
@@ -149,8 +147,8 @@ export default function EverydayQR() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

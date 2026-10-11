@@ -111,7 +111,7 @@ const COLOR_ROWS = (() => {
 export default function AdminSchemaKeys() {
   return (
     <AdminShell title="Schema Keys" subtitle="Reference for all QRG internal code schemas">
-      <div className="max-w-4xl mx-auto space-y-8 pb-16 px-4 sm:px-0">
+      <div className="row space-y-8 pb-16 sm:">
 
         {/* ── QRG ──────────────────────────────────────────────────────────── */}
         <Section
@@ -140,7 +140,7 @@ export default function AdminSchemaKeys() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="row"><div className="layout__split-2">
             <div className="space-y-2">
               <Label>S — Super-category</Label>
               <KeyTable
@@ -160,7 +160,7 @@ export default function AdminSchemaKeys() {
                 ]}
               />
             </div>
-          </div>
+          </div></div>
 
           <div className="space-y-2">
             <Label>Doc ID format (Firestore)</Label>
@@ -249,10 +249,10 @@ export default function AdminSchemaKeys() {
             { seg: `0–${BLD_MAX_INSTANCES}`, desc: "Instance count", mono: true },
             { seg: `001–${BLD_MAX_SEQUENCE}`, desc: "Build sequence", mono: true },
           ]} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="row"><div className="layout__split-2">
             <KeyTable cols={["Context", "Meaning", "Layouts"]} rows={Object.entries(BLD_CONTEXTS).map(([code, label]) => [code, label, BLD_LAYOUTS_BY_CONTEXT[code as keyof typeof BLD_CONTEXTS].map(layout => `${layout}: ${BLD_LAYOUTS[layout]}`).join(', ')])} />
             <KeyTable cols={["Vehicle", "Meaning"]} rows={Object.entries(BLD_VEHICLES).map(([code, label]) => [code, label])} />
-          </div>
+          </div></div>
           <CodePill>{formatBldId('S', 'Z', 3, 1)}</CodePill>
           <p className="text-xs text-muted-foreground">Slots run in order from 01. Palette QR slots specify horizontal and vertical positions. Action slots are optional and may define a CTA link. Each definition stores one instances array.</p>
         </Section>
@@ -287,7 +287,7 @@ export default function AdminSchemaKeys() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="row"><div className="layout__split-2">
             <div className="space-y-2">
               <Label>D1 — Asset class</Label>
               <KeyTable
@@ -302,7 +302,7 @@ export default function AdminSchemaKeys() {
                 rows={Object.entries(GRF_MEDIA_TYPES).map(([k, v]) => [k, v])}
               />
             </div>
-          </div>
+          </div></div>
 
           <div className="space-y-2">
             <Label>D3 — Channel</Label>
@@ -479,7 +479,7 @@ export default function AdminSchemaKeys() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="row"><div className="layout__split-4">
             <div className="space-y-2">
               <Label>Viewer — digit 1</Label>
               <KeyTable
@@ -524,7 +524,7 @@ export default function AdminSchemaKeys() {
                 ]}
               />
             </div>
-          </div>
+          </div></div>
 
           <div className="space-y-2">
             <Label>Surface registry</Label>

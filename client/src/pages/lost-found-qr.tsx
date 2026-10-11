@@ -1,7 +1,5 @@
 import { MapPin, CheckCircle, Dumbbell, Backpack, Briefcase, Dog, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const items = [
 
 export default function LostFoundQR() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Lost & Found QR | Never Lose Your Gear Again | QR Gear"
         description="Add QR codes to your bags, luggage, and gear with your contact info. Good samaritans scan and call you. Perfect for gym bags, backpacks, and travel gear. USA options available."
         keywords="lost and found QR, gym bag QR, backpack QR code, contact info QR, gear identification, custom bags"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <MapPin />
@@ -55,7 +53,7 @@ export default function LostFoundQR() {
               <h1 className="vanity-title">Lost & Found QR</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Lost & Found Hero.</p>
           <p className="vanity-description">
             Gym bag goes missing? Your contact info is baked right in. 
@@ -82,7 +80,7 @@ export default function LostFoundQR() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Print on everything that travels:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {items.map((item, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -94,7 +92,7 @@ export default function LostFoundQR() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -153,8 +151,8 @@ export default function LostFoundQR() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

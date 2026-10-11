@@ -615,7 +615,7 @@ export default function AdminBlanks() {
 
             {/* Source → Target selectors */}
             {catalogs.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="row"><div className="layout__split-2">
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-muted-foreground">Choose products from:</p>
                   <select
@@ -659,7 +659,7 @@ export default function AdminBlanks() {
                     </p>
                   )}
                 </div>
-              </div>
+              </div></div>
             )}
 
             {/* Target catalog strip — sticky so it's always reachable while scrolling */}

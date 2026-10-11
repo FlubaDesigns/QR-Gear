@@ -172,7 +172,7 @@ export default function AdminPricing() {
           icon={Percent}
           description="Configure how much markup is added to the base production cost"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="row"><div className="layout__split-2">
             <div className="space-y-2">
               <Label htmlFor="markup-percent">Markup Percentage (%)</Label>
               <Input
@@ -205,7 +205,7 @@ export default function AdminPricing() {
               />
               <p className="text-xs text-muted-foreground">Added after percentage markup</p>
             </div>
-          </div>
+          </div></div>
           <div className="mt-4 pt-4 border-t space-y-3">
             <Button variant="outline" className="min-h-[44px]" onClick={() => syncPricingMutation.mutate(undefined)}
               disabled={syncPricingMutation.isPending || saveMutation.isPending || unsavedMarkup}
@@ -352,7 +352,7 @@ export default function AdminPricing() {
           <div className="space-y-6">
             <div>
               <h3 className="text-sm font-semibold mb-3">Printify Labels</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="row"><div className="layout__split-2">
                 <div className="space-y-2">
                   <Label htmlFor="printify-inside">Inside Label ($)</Label>
                   <Input
@@ -385,11 +385,11 @@ export default function AdminPricing() {
                   />
                   <p className="text-xs text-muted-foreground">Printed on outside back of neck</p>
                 </div>
-              </div>
+              </div></div>
             </div>
             <div className="border-t pt-4">
               <h3 className="text-sm font-semibold mb-3">Printful Labels</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="row"><div className="layout__split-2">
                 <div className="space-y-2">
                   <Label htmlFor="printful-inside">Inside Label ($)</Label>
                   <Input
@@ -422,7 +422,7 @@ export default function AdminPricing() {
                   />
                   <p className="text-xs text-muted-foreground">Printed on outside back of neck</p>
                 </div>
-              </div>
+              </div></div>
             </div>
             <div className="border-t pt-4">
               <h3 className="text-sm font-semibold mb-3">Default Tag Placement</h3>
@@ -481,7 +481,7 @@ export default function AdminPricing() {
           icon={Clock}
           description="Pricing for QR landing page hosting (applies to Canvas/Play/Dynamics modes)"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="row"><div className="layout__split-3">
             {hostingTiers.map((tier) => (
               <div key={tier.code} className="space-y-2">
                 <Label htmlFor={`tier-${tier.code}`}>{tier.name}</Label>
@@ -498,7 +498,7 @@ export default function AdminPricing() {
                 />
               </div>
             ))}
-          </div>
+          </div></div>
           <p className="text-xs text-muted-foreground mt-3">
             Hosting fee is added for QR Canvas, QR Play, and QR Dynamics products
           </p>

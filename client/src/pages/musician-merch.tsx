@@ -1,7 +1,5 @@
 import { Music, CheckCircle, Play, Disc, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const canvasFeatures = [
@@ -40,15 +38,15 @@ const ideas = [
 
 export default function MusicianMerch() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Musician Merch | Band Shirts with Scannable Media | QR Gear"
         description="Create band merch with scannable QR codes. Fans scan to see album art or watch music videos. Perfect for tours, album drops, and exclusive content. USA options available."
         keywords="band merch, musician shirts, album art shirts, tour merchandise, music video shirts, artist merch, band merchandise, QR music"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Music />
@@ -58,7 +56,7 @@ export default function MusicianMerch() {
               <h1 className="vanity-title">Musician Merch</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Merch that plays.</p>
           <p className="vanity-description">
             Your fans don't just wear your shirt — they interact with it. 
@@ -99,12 +97,12 @@ export default function MusicianMerch() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-scenarios">
+          <div className="row"><div className="glass-card vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Sparkles />
               Ideas for your drop:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {ideas.map((idea, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{idea.title}</h3>
@@ -112,7 +110,7 @@ export default function MusicianMerch() {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
 
           <div className="glass-card vanity-highlight">
             <div className="vanity-highlight-inner">
@@ -185,8 +183,8 @@ export default function MusicianMerch() {
           </div>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

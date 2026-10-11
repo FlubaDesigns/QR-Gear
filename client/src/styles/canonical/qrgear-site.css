@@ -172,3 +172,32 @@
   .home-page .hero__phone { transition: transform .25s ease; }
   .home-page .hero__experience:hover .hero__phone { transform: rotate(0); }
 }
+
+
+.qrg-footer .footer__powered a { color: inherit; }
+.qrg-footer .footer__powered a:hover { text-decoration: underline; }
+
+/* Compact desktop footer. Master owns the row, four columns and their gutter. */
+@media (min-width: 769px) {
+  .qrg-footer { padding-block: 1.5rem 1rem; background: transparent; }
+  .qrg-footer .footer__content { gap: 1rem; }
+  .qrg-footer .footer__col,
+  .qrg-footer .footer__accordion-content { gap: .5rem; }
+  .qrg-footer .footer__brand { font-size: 1rem; }
+  .qrg-footer .footer__brand > svg { width: 1.125rem; height: 1.125rem; }
+  .qrg-footer .footer__tagline { font-size: .75rem; margin: 0; }
+  .qrg-footer .footer__heading { font-size: .625rem; letter-spacing: .06em; margin: 0; color: var(--theme-muted); }
+  .qrg-footer .footer__nav,
+  .qrg-footer .footer__contact { gap: .25rem; }
+  .qrg-footer .footer__link,
+  .qrg-footer .footer__contact-item { font-size: .8125rem; line-height: 1.6; }
+  .qrg-footer .footer__social { gap: .375rem; margin: 0; }
+  .qrg-footer .footer__social-link { width: 1.75rem; height: 1.75rem; background: transparent; }
+  .qrg-footer .footer__social-link svg { width: 1rem; height: 1rem; }
+  .qrg-footer .footer__partner { flex-direction: row; align-items: baseline; flex-wrap: wrap; gap: .375rem; margin: 0; }
+  .qrg-footer .footer__bottom { padding-top: .75rem; gap: .75rem; }
+  .qrg-footer .footer__legal { align-items: center; gap: 1rem; }
+  .qrg-footer .footer__legal,
+  .qrg-footer .footer__legal .footer__link,
+  .qrg-footer .footer__powered { font-size: .6875rem; }
+}

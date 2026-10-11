@@ -1,7 +1,5 @@
 import { Heart, CheckCircle, AlertTriangle, Pill, Phone, Shield, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -38,15 +36,15 @@ const infoTypes = [
 
 export default function MedicalAlertQR() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Medical Alert QR | Emergency Info You Wear | QR Gear"
         description="Create wearable medical alert QR codes with allergies, medications, blood type, and emergency contacts. When you can't speak, your shirt can. USA options available."
         keywords="medical alert QR, emergency info shirt, allergy alert, medical ID QR, emergency contacts wearable, health info QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -56,7 +54,7 @@ export default function MedicalAlertQR() {
               <h1 className="vanity-title">Medical Alert QR</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Silent lifesaver.</p>
           <p className="vanity-description">
             Allergies. Blood type. Emergency contacts. Medications. 
@@ -83,7 +81,7 @@ export default function MedicalAlertQR() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Life-saving information:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {infoTypes.map((info, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -95,7 +93,7 @@ export default function MedicalAlertQR() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -154,8 +152,8 @@ export default function MedicalAlertQR() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

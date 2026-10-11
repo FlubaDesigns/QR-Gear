@@ -1,3 +1,4 @@
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 /**
  * shop-segment.tsx — route delegator
  *
@@ -23,8 +24,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { Loader2, Store, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import BreadcrumbTrail from "@/components/BreadcrumbTrail";
-import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import { getStoreConfig } from "@/data/shopHierarchy";
 import { StoreRootView } from "@/features/storefront/StoreRootView";
 import { ChannelHubView } from "@/features/storefront/ChannelHubView";
@@ -80,9 +79,10 @@ export default function ShopSegmentPage() {
   // ── Store root: no API call needed — config drives the landing page ─────────
   if (!storeName) {
     return (
-      <StorefrontLayout>
+      <>
       <BreadcrumbTrail />
-        <div className="container max-w-6xl py-16 px-4 text-center">
+
+        <div className="row py-16 text-center">
           <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h1 className="text-2xl font-bold mb-2">Store Not Found</h1>
           <p className="text-muted-foreground mb-4">
@@ -95,7 +95,7 @@ export default function ShopSegmentPage() {
             </Button>
           </Link>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
@@ -173,21 +173,23 @@ function ShopDataFetcher({
 
   if (isLoading) {
     return (
-      <StorefrontLayout>
+      <>
       <BreadcrumbTrail />
-        <div className="container max-w-6xl py-8 px-4 flex items-center justify-center min-h-[400px]">
+
+        <div className="row"><div className="py-8 flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading products...</span>
-        </div>
-      </StorefrontLayout>
+        </div></div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <StorefrontLayout>
+      <>
       <BreadcrumbTrail />
-        <div className="container max-w-6xl py-16 px-4 text-center">
+
+        <div className="row py-16 text-center">
           <Store className="h-16 w-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-2">Error Loading Store</h1>
           <p className="text-muted-foreground mb-4">{(error as Error).message}</p>
@@ -198,7 +200,7 @@ function ShopDataFetcher({
             </Button>
           </Link>
         </div>
-      </StorefrontLayout>
+      </>
     );
   }
 
@@ -233,8 +235,9 @@ function ShopDataFetcher({
   const products = data?.products ?? [];
 
   return (
-    <StorefrontLayout>
+    <>
       <BreadcrumbTrail />
+
       <div className="row py-8">
         <Link href="/">
           <Button variant="ghost" className="mb-6" data-testid="button-back-home">
@@ -267,6 +270,6 @@ function ShopDataFetcher({
           </div>
         )}
       </div>
-    </StorefrontLayout>
+    </>
   );
 }

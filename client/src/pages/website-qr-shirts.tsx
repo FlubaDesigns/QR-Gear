@@ -1,7 +1,5 @@
 import { Link2, CheckCircle, Globe, Smartphone, Zap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const useCases = [
 
 export default function WebsiteQRShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Website QR Shirts | Wearable Links to Your Site | QR Gear"
         description="Create shirts with QR codes that link directly to your website, portfolio, or booking page. One scan lands them on your site. No typing required. USA options available."
         keywords="website QR shirt, portfolio QR code, wearable link, booking page QR, URL QR shirt, scannable website shirt"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Link2 />
@@ -51,7 +49,7 @@ export default function WebsiteQRShirts() {
               <h1 className="vanity-title">Website QR Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Instant website access.</p>
           <p className="vanity-description">
             "Just scan my shirt." One tap lands them on your site, portfolio, or booking page. 
@@ -81,14 +79,14 @@ export default function WebsiteQRShirts() {
               <Globe />
               Perfect for:
             </h2>
-            <div className="vanity-items-grid vanity-scenarios">
+            <div className="row"><div className="layout__split-2">
               {useCases.map((use, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{use.title}</h3>
                   <p>{use.description}</p>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -146,8 +144,8 @@ export default function WebsiteQRShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

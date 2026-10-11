@@ -1,7 +1,5 @@
 import { Calendar, CheckCircle, Sparkles, Gift, Star, Church, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -37,15 +35,15 @@ const ideas = [
 
 export default function AdventQRShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Advent QR Shirts | 12 Days of Christmas, Automated | QR Gear"
         description="Create shirts with QR codes that reveal different content each day. Perfect for Advent devotionals, Christmas countdowns, and daily sequences. Set it once, it runs itself."
         keywords="advent calendar QR, 12 days christmas shirt, daily QR content, countdown shirt, devotional QR, scheduled QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Calendar />
@@ -55,7 +53,7 @@ export default function AdventQRShirts() {
               <h1 className="vanity-title">Advent QR Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">12 Days of Christmas, automated.</p>
           <p className="vanity-description">
             Day 1: A new devotional. Day 2: A different verse. Day 12: The grand finale. 
@@ -82,7 +80,7 @@ export default function AdventQRShirts() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Sequence ideas:</h2>
-            <div className="vanity-items-grid">
+            <div className="row"><div className="layout__split-2">
               {ideas.map((idea, i) => (
                 <div key={i} className="vanity-item">
                   <div className="vanity-item-icon">
@@ -94,7 +92,7 @@ export default function AdventQRShirts() {
                   </div>
                 </div>
               ))}
-            </div>
+            </div></div>
           </div>
 
           <div className="glass-card vanity-highlight">
@@ -153,8 +151,8 @@ export default function AdventQRShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

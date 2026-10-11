@@ -4,8 +4,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import SEO from "@/components/SEO";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import { Link } from "wouter";
 import { Sparkles, ArrowRight, Flag } from "lucide-react";
 import type { QrDesign, Product } from "@shared/schema";
@@ -29,15 +27,15 @@ export default function Gallery() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="bg-background">
       <SEO
         title="Design Gallery - QR Code Merchandise Inspiration"
         description="Browse our gallery of custom QR code merchandise designs. Get inspired by real creations from our community. USA options available."
         keywords="QR code designs, custom merchandise gallery, QR gear examples, promotional product ideas"
         ogType="website"
       />
-      <Navbar />
-<main className="container mx-auto px-4 py-8 max-w-7xl">
+
+<div className="row py-8">
         <div className="text-center mb-12">
           <Badge variant="secondary" className="mb-4">
             <Sparkles className="w-3 h-3 mr-1" />
@@ -53,7 +51,7 @@ export default function Gallery() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="row"><div className="layout__split-4">
             {[...Array(8)].map((_, i) => (
               <Card key={i} className="overflow-hidden">
                 <Skeleton className="aspect-square w-full" />
@@ -63,9 +61,9 @@ export default function Gallery() {
                 </CardContent>
               </Card>
             ))}
-          </div>
+          </div></div>
         ) : designs && designs.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="row"><div className="layout__split-4">
             {designs.map((design) => {
               const product = getProductForDesign(design);
               return (
@@ -115,7 +113,7 @@ export default function Gallery() {
                 </Card>
               );
             })}
-          </div>
+          </div></div>
         ) : (
           <div className="text-center py-16">
             <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -146,8 +144,8 @@ export default function Gallery() {
             </Button>
           </Link>
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }

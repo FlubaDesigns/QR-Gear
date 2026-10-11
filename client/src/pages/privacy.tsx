@@ -1,5 +1,3 @@
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 export default function PrivacyPolicy() {
@@ -9,8 +7,8 @@ export default function PrivacyPolicy() {
         title="Privacy Policy | QR Gear"
         description="QR Gear privacy policy — how we collect, use, and protect your personal information."
       />
-      <Navbar />
-      <main className="container max-w-3xl mx-auto px-4 py-12">
+
+      <div className="row"><div className="layout__center section">
         <h1 className="text-3xl font-bold mb-2" data-testid="text-privacy-title">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground mb-8">Last updated: February 13, 2026</p>
 
@@ -163,8 +161,8 @@ export default function PrivacyPolicy() {
             </p>
           </section>
         </div>
-      </main>
-      <Footer />
+      </div></div>
+
     </>
   );
 }

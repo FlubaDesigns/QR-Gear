@@ -1,7 +1,5 @@
 import { Heart, CheckCircle, Camera, Users, Star, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -33,15 +31,15 @@ const ideas = [
 
 export default function MemorialVideoShirts() {
   return (
-    <div className="vanity-page">
+    <div className="row">
       <SEO 
         title="Memorial Video Shirts | Keep Their Voice Alive | QR Gear"
         description="Create memorial shirts with QR codes that play video of your loved one. Their voice, their laugh, their stories - preserved forever. Scan anytime to see them again."
         keywords="memorial video shirt, remembrance video gift, loved one video QR, tribute shirt, memorial keepsake, grandpa memorial"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+
+<div className="section">
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -51,7 +49,7 @@ export default function MemorialVideoShirts() {
               <h1 className="vanity-title">Memorial Video Shirts</h1>
             </div>
           </div>
-          
+
           <p className="vanity-tagline">Grandpa lives on.</p>
           <p className="vanity-description">
             The hoodie has his photo. Scan it, and there he is — telling his favorite fishing story. Forever.
@@ -75,12 +73,12 @@ export default function MemorialVideoShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-scenarios">
+          <div className="row"><div className="glass-card vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Camera />
               Video ideas:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {ideas.map((idea, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{idea.title}</h3>
@@ -88,7 +86,7 @@ export default function MemorialVideoShirts() {
                 </div>
               ))}
             </div>
-          </div>
+          </div></div>
 
           <div className="glass-card vanity-highlight">
             <div className="vanity-highlight-inner">
@@ -146,8 +144,8 @@ export default function MemorialVideoShirts() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
+      </div>
+
     </div>
   );
 }
