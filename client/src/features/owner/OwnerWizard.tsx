@@ -12,7 +12,7 @@ import { useOwnerWizardNav } from "./useOwnerWizardNav";
 import { useOwnerWizardState } from "./useOwnerWizardState";
 
 export function OwnerWizard() {
-  const params = new URLSearchParams(window.location.search);
+  const params = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search);
   const rawType = params.get('type') || '';
   const isGuided = params.get('guided') === 'true';
   const TYPE_ALIASES: Record<string, string> = {

@@ -3,7 +3,7 @@
   "name_for_human": "QR Gear",
   "name_for_model": "qr_gear",
   "description_for_human": "Create custom QR code merchandise - shirts, hats, mugs, bags with scannable QR codes linking to your photos, videos, URLs, and more.",
-  "description_for_model": "QR Gear is a print-on-demand merchandise platform at qrgear.com that creates custom products (t-shirts, hoodies, hats, mugs, tote bags, phone cases) featuring QR codes. Five product tiers: (1) QR Basic - static QR encoding text/URL permanently, (2) QR Plus - dynamic QR linking to an updatable URL, (3) QR Canvas - dynamic QR displaying a custom image, (4) QR Play - dynamic QR playing a custom video, (5) QR Compose - dynamic QR rotating through a playlist of content on a schedule. USA manufacturing options available. Ideal for unique gifts, business promotion, faith-based merchandise, memorial tributes, event merchandise, musician merch, and medical alert products. Members can design and sell QR products through the creator program, earning per sale.",
+  "description_for_model": "QR Gear offers personalized merchandise with scannable QR codes. See https://qrgear.com/llms.txt for the current public pages, five QR types and published store products. Live product pages and checkout are authoritative for options, prices and availability.",
   "auth": {
     "type": "none"
   },

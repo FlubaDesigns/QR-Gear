@@ -359,6 +359,7 @@ export default function ShopProductPage() {
     <>
       <SEO
         title={`${product.name} | QR Gear`}
+        ogImage={product.imageUrl || undefined}
         description={product.description || `Custom QR merchandise - ${product.name}`}
       />
       <div className="row py-6">

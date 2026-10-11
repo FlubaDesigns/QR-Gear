@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import PageIntro from '@/components/PageIntro';
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
@@ -47,6 +48,7 @@ const funFacts = [
 export default function QRHistory() {
   return (
     <div className="row">
+      <SEO title="The History of QR Codes | QR Gear" description="Explore QR codes from factory tracking to wearable stories, personal gifts and interactive merchandise." />
 
       <section className="hero-section">
         <div className="row">

@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import { PageImage } from '@/components/PageIntro';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -91,6 +92,7 @@ export default function GiftShopPage() {
 
   return (
     <>
+      <SEO title="Personalized Gift Shop | QR Gear" description="Explore QR Gear gift packages and personalized QR apparel for businesses, events and meaningful gifts." />
     <div className="row py-8">
 <Button
         variant="ghost"

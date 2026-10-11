@@ -1,4 +1,8 @@
-import { useEffect } from "react";
+import { createContext, useContext, useEffect } from "react";
+import { useLocation } from "wouter";
+import { pageImages } from "@/data/pageImages";
+
+export const SEOCollector = createContext<((metadata: Record<string, string>) => void) | null>(null);
 
 interface SEOProps {
   title?: string;
@@ -14,11 +18,18 @@ export default function SEO({
   title = "QR Gear - Custom QR Code Merchandise",
   description = "Create custom QR code merchandise with QR Gear. Apparel, hats, mugs, and more featuring your personalized QR codes. USA-made options available.",
   keywords = "QR code merchandise, custom promotional products, QR gear",
-  ogImage = "/og-image.png",
+  ogImage,
   ogType = "website",
   ogUrl,
   canonical,
 }: SEOProps) {
+  const [location] = useLocation();
+  canonical = canonical || `https://qrgear.com${location === "/" ? "/" : location.replace(/\/$/, "")}`;
+  ogUrl = ogUrl || canonical;
+  ogImage = new URL(ogImage || pageImages[location]?.src || "/og-image.png", "https://qrgear.com").href;
+  const fullTitle = title.includes("QR Gear") ? title : `${title} | QR Gear`;
+  const collect = useContext(SEOCollector);
+  collect?.({ title: fullTitle, description, keywords, ogImage, ogType, ogUrl, canonical });
   useEffect(() => {
     document.title = title.includes("QR Gear") ? title : `${title} | QR Gear`;
     
@@ -46,6 +57,15 @@ export default function SEO({
       }
     };
 
+    let structured = document.getElementById("page-structured-data");
+    if (!structured) {
+      structured = document.createElement("script");
+      structured.id = "page-structured-data";
+      structured.setAttribute("type", "application/ld+json");
+      document.head.appendChild(structured);
+    }
+    structured.textContent = JSON.stringify({ "@context": "https://schema.org", "@type": "WebPage", name: fullTitle, description, url: canonical, isPartOf: { "@type": "WebSite", name: "QR Gear", url: "https://qrgear.com/" }, primaryImageOfPage: { "@type": "ImageObject", url: ogImage } });
+    updateMeta("robots", "index, follow, max-image-preview:large");
     updateMeta("description", description);
     updateMeta("keywords", keywords);
     updateOGMeta("og:title", title);
@@ -72,7 +92,7 @@ export default function SEO({
         document.head.appendChild(link);
       }
     }
-  }, [title, description, keywords, ogImage, ogType, canonical]);
+  }, [title, description, keywords, ogImage, ogType, ogUrl, canonical]);
 
   return null;
 }

@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 /**
  * ChannelHubView — renders a channel landing page (e.g. USA 250 hub).
  *
@@ -66,6 +67,7 @@ export function ChannelHubView({
 
   return (
     <>
+      <SEO title={`${label} | QR Gear`} description={channelConfig?.description || `Explore ${label} QR Gear.`} ogImage={channelHeaderImg} />
       {/* ── Channel hero header ───────────────────────────────────────────────── */}
       <div className="relative w-full overflow-hidden" style={{ minHeight: "360px" }}>
         <img

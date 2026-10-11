@@ -50,6 +50,23 @@
             "value": "public, max-age=31536000, immutable"
           }
         ]
+      },
+      {
+        "source": "/{admin{,/**},account{,/**},member{,s,s/**},login,register,dev-auth,cart,checkout{,/**},claim/**,my-item/**,renew/**,gift/redeem{,/**}}",
+        "headers": [
+          {
+            "key": "X-Robots-Tag",
+            "value": "noindex, nofollow"
+          }
+        ]
+      }
+    ],
+    "cleanUrls": true,
+    "redirects": [
+      {
+        "source": "/store",
+        "destination": "/shop/internal/qrgear",
+        "type": 301
       }
     ]
   },

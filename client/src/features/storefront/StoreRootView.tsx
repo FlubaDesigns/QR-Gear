@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 /**
  * StoreRootView — renders the QR Gear parent store landing page.
@@ -29,6 +30,7 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
 
   return (
     <>
+      <SEO title={`${storeConfig.label} Store | QR Gear`} description={storeConfig.description} ogImage={heroImg} />
       <BreadcrumbTrail />
       
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}

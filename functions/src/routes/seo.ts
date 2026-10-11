@@ -17,22 +17,8 @@ import { printfulClient } from '../services/printful';
   export function register(app: express.Express): void {
   // ============ SEO & SOCIAL SHARE ROUTES ============
 
-app.get('/sitemap.xml', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const productsSnap = await db.collection('products').where('isPublished', '==', true).get();
-    const baseUrl = 'https://qrgear-c1ffd.web.app';
-    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
-    xml += `  <url><loc>${baseUrl}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n`;
-    xml += `  <url><loc>${baseUrl}/store</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
-    productsSnap.docs.forEach(doc => {
-      const data = doc.data();
-      xml += `  <url><loc>${baseUrl}/product/${doc.id}</loc><lastmod>${data.updatedAt || new Date().toISOString()}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>\n`;
-    });
-    xml += '</urlset>';
-    res.set('Content-Type', 'application/xml');
-    res.set('Cache-Control', 'public, max-age=3600');
-    res.send(xml);
-  } catch (e: any) { res.status(500).send('Error generating sitemap'); }
+app.get('/sitemap.xml', (_req: Request, res: Response): void => {
+  res.redirect(301, 'https://qrgear.com/sitemap.xml');
 });
 
 app.get('/p/:packetId', async (req: Request, res: Response, next: NextFunction): Promise<void> => {

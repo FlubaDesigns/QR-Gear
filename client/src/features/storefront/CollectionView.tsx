@@ -1,3 +1,4 @@
+import SEO from "@/components/SEO";
 /**
  * CollectionView — renders a specific collection page under a channel.
  *
@@ -59,6 +60,7 @@ export function CollectionView({
 
   return (
     <>
+      <SEO title={`${collectionLabel} | ${channelLabel} | QR Gear`} description={collectionDescription} ogImage={heroImage} />
       {/* Collection hero image */}
       {heroImage ? (
         <div className="relative w-full overflow-hidden" style={{ minHeight: "280px" }}>
