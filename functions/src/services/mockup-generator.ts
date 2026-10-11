@@ -275,14 +275,13 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
         await new Promise(resolve => setTimeout(resolve, delayMs));
       }
       
-      // Request lifestyle/model shots alongside the flat mockup
-      const lifestyleOptionGroups = ["Men's Lifestyle", "Women's Lifestyle"];
+      // Option groups are product-specific. Let Printful return its supported
+      // default views; guessed lifestyle filters can exclude every valid variant.
       const task = await printfulClient.createMockupTask(
         printfulProductId,
         [variantId],
         mockupFiles,
-        'jpg',
-        lifestyleOptionGroups
+        'jpg'
       );
       
       // Wait for completion with longer timeout

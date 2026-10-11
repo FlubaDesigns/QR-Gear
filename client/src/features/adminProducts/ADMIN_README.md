@@ -1,9 +1,15 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 10, 2026
+Last updated: October 11, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
+
+## Member mockup compatibility — October 11, 2026
+
+AS Colour member previews failed because the shared Printful generator forced lifestyle groups that this product does not offer. The request now uses Printful’s supported default views. Returned images must still match the requested variant and placement. Publication continues through the existing QRG/GRF/BLD/Assembly pipeline. Acceptance requires a live AS Colour preview, save, and reopen after the Authorization Engine release.
+
+Files changed: `functions/src/services/mockup-generator.ts`, `functions/src/index.ts`, `README.md`, this guide, `MANIFEST.json`, and the source ZIP.
 
 ## Shared QRG product options — October 10, 2026
 

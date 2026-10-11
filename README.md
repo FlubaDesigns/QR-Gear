@@ -313,7 +313,7 @@ Seven React integration tests exercise the actual Products module and BuilderCon
 
 ### Authorization Engine browser sign-in
 
-The existing engine can approve a one-use browser request at `/login?engine=1`. The browser keeps its proof in an HttpOnly cookie; only the request ID is shared with the engine. The QR Gear target in Fluba's canonical authorization registry supplies the allowed origin and engine principal during deployment. A Google-signed engine identity approves the request, and the browser exchanges a Firebase custom token for the existing owner account. Normal Firebase and admin checks still apply; no admin role is created or bypassed. The handoff expires after 10 minutes and the browser session uses memory persistence (closing/reloading the page requires another sign-in). Never log or publish the cookie, identity token, or custom token.
+The existing engine can approve a one-use browser request at `/login?engine=1`. The browser keeps its proof in an HttpOnly cookie; only the request ID is shared with the engine. The QR Gear target in Fluba's canonical authorization registry supplies the allowed origin and engine principal during deployment. A Google-signed engine identity approves the request, and the browser exchanges a Firebase custom token for the existing owner account. Normal Firebase and admin checks still apply; no admin role is created or bypassed. The handoff expires after 10 minutes and the browser session uses Firebase browser-local persistence, matching email and Google sign-in; explicit sign-out clears it. Never log or publish the cookie, identity token, or custom token.
 
 Security coverage: origin and principal restrictions, browser proof binding, expiry, disabled owner, single consumption, missing configuration, and start-rate limiting.
 
@@ -849,3 +849,10 @@ Validation: direct behavior checks confirm no write on product selection, guest 
 The member route wrapper was canonical, but Super Simple, Simple and Advanced still rendered an independent full-page Card with a minimum-height body. They now compose one MemberWizardFrame from Master rows and the responsive split helper: build progress beside the working area on wider containers, stacked in smaller containers. Navigation belongs to the working column. Teaching screens use the canonical centered helper without a viewport-height spacer. Member product and tier choices opt into Master responsive columns and natural page scrolling instead of a fixed-height single-column list. Selection, authentication, pricing, label handling and publishing are unchanged in this layout release.
 
 Validation: TypeScript and frontend production build; production DOM verification of the shared frame, column sizes and product selection. Authenticated save/reopen remains a separate live acceptance check.
+
+
+## Member mockup compatibility — October 11, 2026
+
+The live AS Colour 5001 walkthrough reached preview and Printful rejected the hard-coded lifestyle option groups with “No variants to generate.” The shared mockup generator now requests the provider’s supported default views instead of applying product-independent lifestyle filters. Existing matching-variant/placement validation, canonical artwork, optional labels, pricing and saved packet identity remain unchanged.
+
+Acceptance: compile/build, deploy through the existing Authorization Engine, then generate the AS Colour mockup and save/reopen the new member product. A successful deployment alone is not this acceptance proof. No purchase or fulfillment order is part of the check.
