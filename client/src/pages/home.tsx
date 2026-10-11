@@ -165,10 +165,12 @@ function FeaturedStores() {
                   loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
-                <Badge variant="default" className="absolute top-3 right-3 gap-1">
-                  <Sparkles className="w-3 h-3" />
-                  {s.badge}
-                </Badge>
+                <div className="absolute top-3 right-3">
+                  <Badge variant="default" className="gap-1">
+                    <Sparkles className="w-3 h-3" />
+                    {s.badge}
+                  </Badge>
+                </div>
               </div>
               <CardContent className="p-6">
                 <div className="flex items-center gap-2 mb-1">
