@@ -434,13 +434,13 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ### October 11, 2026 — Narrow desktop product grid
 
-The homepage product grid now uses the existing Master layout__auto helper inside its canonical row. Master owns all column rules through its 16rem minimum card width. The homepage only sets the existing --col-gap variable to 1.5rem and caps the row at 56rem. Three columns fit from 51rem of available row width, including the narrow desktop view that previously fell below the split-3 helper’s 54rem cutoff. Smaller rows automatically fit two or one column. No homepage grid-template-columns overrides remain; Master and PageSkeleton are unchanged.
+The homepage product grid uses the existing Master layout__auto helper directly inside a full-parent-width row. Its columns and responsive gutter come entirely from unchanged Master rules. Removed the homepage product-row width cap, local --col-gap override, added horizontal section padding, custom section rhythm and hero grid gap. The existing stage and main surface now supply page geometry, and the Master helpers allocate the available width. No homepage grid-template-columns overrides remain. Verified against the upstream Fluba canonical Master and Page and Styles Contract.
 
 #### Files Changed
 | File | Change |
 |------|--------|
 | `client/src/components/FeaturedProducts.tsx` | Use the existing Master layout__auto helper. |
-| `client/src/styles/canonical/qrgear-site.css` | Set the existing gap variable and maximum row width; no column overrides. |
+| `client/src/styles/canonical/qrgear-site.css` | Remove local row width, gutter and section geometry overrides; inherit Master. |
 | `README.md`, this guide, `MANIFEST.json`, source ZIP | Document and package the correction. |
 
 

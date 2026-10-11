@@ -93,8 +93,7 @@
 }
 
 /* One homepage narrative. Canonical rows/splits remain the layout primitives. */
-.home-page { --home-space: clamp(1.25rem, 4vw, 4rem); color: var(--theme-text); }
-.home-page .home-section, .home-page .hero { padding: clamp(3rem, 6vw, 6rem) var(--home-space); }
+.home-page { color: var(--theme-text); }
 .home-page .kicker { font-family: var(--theme-font-body); font-size: .75rem; line-height: 1.5; letter-spacing: .17em; text-transform: uppercase; font-weight: 700; color: var(--ice-1); margin: 0 0 1.25rem; }
 .home-page .kicker::before { content: none; }
 .home-page h1, .home-page h2, .home-page h3 { text-transform: none; }
@@ -104,7 +103,7 @@
 .home-page .qr-btn svg, .home-page .btn svg, .home-page .home-text-link svg { width: 1.1rem; height: 1.1rem; flex-shrink: 0; }
 .home-page .home-text-link { justify-content: flex-start; color: var(--theme-text); }
 .home-page .hero { overflow: hidden; background: radial-gradient(ellipse at 85% 40%, rgba(86, 174, 200, .13), transparent 60%); }
-.home-page .hero > .row > .layout__split-2 { align-items: center; gap: clamp(2rem, 5vw, 5rem); }
+.home-page .hero > .row > .layout__split-2 { align-items: center; }
 .home-page .hero__text { padding-block: 1rem; gap: 1.25rem; }
 .home-page .hero__text .kicker { margin: 0; }
 .home-page .hero h1 { font-size: clamp(2.2rem, 3.9vw, 4.6rem); font-weight: 600; line-height: 1.12; letter-spacing: -.045em; max-width: 15ch; }
@@ -152,7 +151,6 @@
 .home-page .home-collection-media img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: center 36%; }
 .home-page .home-collection-media > span { position: absolute; inset: auto 0 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 2.5rem 1.25rem 1.25rem; background: linear-gradient(transparent,rgba(0,0,0,.85)); color: #fff; font-size: .9rem; }
 .home-page .home-collection-media svg { width: 1.2rem; flex-shrink: 0; }
-.home-page .home-featured-products > .row { --col-gap: 1.5rem; max-width: 56rem; margin-inline: auto; }
 .home-page .home-featured-products [data-testid^="card-product-"] { border: 0; background: transparent; box-shadow: none; border-radius: .75rem; }
 .home-page .home-featured-products [data-testid^="card-product-"] > div:first-child { border-radius: .75rem; }
 .home-page .home-featured-products [data-testid^="text-product-name-"] { font-family: var(--theme-font-body); font-size: 1rem; text-transform: none; letter-spacing: 0; line-height: 1.5; color: var(--theme-text); }
