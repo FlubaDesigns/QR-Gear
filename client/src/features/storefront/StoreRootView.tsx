@@ -9,7 +9,8 @@ import { ArrowRight, QrCode, ScanLine, Share2, ShoppingBag } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import StorefrontLayout from "@/components/StorefrontLayout";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
+import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import type { StoreConfig } from "@/data/shopHierarchy";
 import heroImg from "@assets/store_hero.png";
 
@@ -29,6 +30,7 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
 
   return (
     <StorefrontLayout>
+      <BreadcrumbTrail />
       {/* ── Hero ─────────────────────────────────────────────────────────────── */}
       <div className="relative w-full overflow-hidden" style={{ minHeight: "520px" }}>
         <img
@@ -83,12 +85,12 @@ export function StoreRootView({ storeConfig }: StoreRootViewProps) {
       </div>
 
       {/* ── How it works ─────────────────────────────────────────────────────── */}
-      <div className="container max-w-4xl py-16 px-4">
+      <div className="row py-16">
         <div className="text-center mb-10">
           <h2 className="text-2xl font-bold mb-2">More than apparel.</h2>
           <p className="text-muted-foreground">Each piece connects the physical to a digital experience — scan and discover.</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="layout__split-3">
           {HOW_IT_WORKS.map(({ icon: Icon, text }, i) => (
             <div key={i} className="flex flex-col items-center text-center gap-3">
               <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

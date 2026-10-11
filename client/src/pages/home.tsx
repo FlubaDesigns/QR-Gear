@@ -2,13 +2,14 @@ import { Link } from "wouter";
 import { PUBLIC_SHOP_PATH } from '@shared/navigation';
 import { useQuery } from "@tanstack/react-query";
 import { Shield, FlaskConical, Users, Store, Wand2, ArrowRight, Flag, Palette, DollarSign, Sparkles, CheckCircle, ScanLine } from "lucide-react";
-import Navbar from "@/components/Navbar";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import { QR_GEAR } from "@/data/shopHierarchy";
+import type { StoreResponse } from "@/features/storefront/types";
 import Hero from "@/components/Hero";
 import ActionCards, { QuickLinks } from "@/components/ActionCards";
 import HowItWorks from "@/components/HowItWorks";
 import MarketingMessage, { HistoryTeaser } from "@/components/MarketingMessage";
 import FeaturedProducts from "@/components/FeaturedProducts";
-import Footer from "@/components/Footer";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,11 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import usa250HeroImg from "@assets/generated_images/usa250_store_card_hero.png";
 import becomeMemberCreatorImg from "@assets/generated_images/become_member_creator.png";
 
-type Product = {
-  id: string;
-  name: string;
-  imageUrl?: string | null;
-};
+const featuredChannel = QR_GEAR.channels[0];
 
 function AdminQuickAccess() {
   const { isAdmin } = useAuth();
@@ -129,10 +126,10 @@ function BecomeMember() {
 function FeaturedStores() {
   const stores = [
     {
-      title: "USA 250",
-      tagline: "Wear the story of American history.",
-      collections: "Monuments · Armed Forces · Founding Fathers",
-      href: "/shop/internal/qrgear/usa-250",
+      title: featuredChannel.label,
+      tagline: featuredChannel.intro,
+      collections: featuredChannel.collections.map(collection => collection.label).join(' · '),
+      href: `${PUBLIC_SHOP_PATH}/${featuredChannel.slug}`,
       badge: "Now Available",
       icon: <Flag className="w-5 h-5" />,
       heroImage: usa250HeroImg,
@@ -142,7 +139,7 @@ function FeaturedStores() {
 
   return (
     <section className="px-4 md:px-6 lg:px-8 py-10">
-      <div className="max-w-6xl mx-auto">
+      <div className="row">
         <div className="flex items-end justify-between gap-4 flex-wrap mb-6">
           <div>
             <h2 className="text-2xl font-semibold text-foreground">Shop Featured Collections</h2>
@@ -157,7 +154,7 @@ function FeaturedStores() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="layout__split-3">
           {stores.map((s) => (
             <Card key={s.title} className="glass-card overflow-hidden">
               <div className="relative h-52">
@@ -195,73 +192,39 @@ function FeaturedStores() {
   );
 }
 
-function NoProductsYet() {
-  return (
-    <section className="px-4 md:px-6 lg:px-8 py-10">
-      <div className="max-w-6xl mx-auto">
-        <Card className="glass-card">
-          <CardContent className="p-8 md:p-10">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-              <div>
-                <h2 className="text-xl font-semibold text-foreground mb-2">New drops coming soon</h2>
-                <p className="text-muted-foreground">
-                  Our catalog is being stocked. In the meantime, explore featured collections
-                  like <span className="text-foreground font-medium">USA 250</span> or design your own custom QR gear.
-                </p>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                <Link href="/build">
-                  <Button className="w-full sm:w-auto" data-testid="button-home-build">
-                    Build Your QR Gear
-                    <Wand2 className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-
-                <Link href={PUBLIC_SHOP_PATH}>
-                  <Button variant="secondary" className="w-full sm:w-auto" data-testid="button-home-store">
-                    Browse Store
-                    <Store className="w-4 h-4 ml-2" />
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
-  );
-}
-
 export default function Home() {
-  const { data: products } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
+  const { data, isLoading, error, refetch } = useQuery<StoreResponse>({
+    queryKey: ["/api/store", QR_GEAR.storeType, QR_GEAR.storeName, featuredChannel.slug, null, featuredChannel.slug],
+    queryFn: async () => {
+      const res = await fetch(`/api/store/${QR_GEAR.storeType}/${QR_GEAR.storeName}?channel=${encodeURIComponent(featuredChannel.slug)}`);
+      if (!res.ok) throw new Error("The store catalog could not be loaded. Please try again.");
+      const catalog = await res.json();
+      if (!Array.isArray(catalog.products)) throw new Error("The store returned an invalid product list. Please try again.");
+      return catalog;
+    },
   });
 
-  const hasProducts = Array.isArray(products) && products.length > 0;
-
   return (
-    <div className="min-h-screen flex flex-col">
+    <PageSkeleton>
       <SEO
         title="QR Gear - Custom QR Code Merchandise | Promotional Products"
         description="Create custom QR code merchandise with QR Gear. Apparel, hats, mugs, bags and more featuring your personalized QR codes. USA-made options available. Perfect for businesses, events, and leave-behind marketing."
         keywords="QR code merchandise, custom promotional products, QR code shirts, QR code hats, business marketing"
       />
-      <Navbar />
 <AdminQuickAccess />
 
-      <main className="flex-1">
+      <div className="row">
         <Hero />
         <ActionCards />
         {/* Shop path — surface early so buyers get a direct route */}
         <FeaturedStores />
-        <div className="hidden md:block">
-          {hasProducts ? (
-            <FeaturedProducts />
-          ) : (
-            <NoProductsYet />
-          )}
-        </div>
+        <FeaturedProducts
+          products={data?.products}
+          isLoading={isLoading}
+          error={error}
+          onRetry={() => void refetch()}
+          collectionHref={`${PUBLIC_SHOP_PATH}/${featuredChannel.slug}`}
+        />
         <div className="hidden md:block">
           <MarketingMessage />
         </div>
@@ -275,9 +238,7 @@ export default function Home() {
           <HowItWorks />
         </div>
         <BecomeMember />
-      </main>
-
-      <Footer />
-    </div>
+      </div>
+    </PageSkeleton>
   );
 }

@@ -13,7 +13,7 @@
 
 import { QrCode } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import StorefrontLayout from "@/components/StorefrontLayout";
+import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import { StoreProductCard } from "./ProductCard";
 import { StorefrontBreadcrumb } from "./StorefrontBreadcrumb";
 import { getChannelConfig, getCollectionConfig } from "@/data/shopHierarchy";
@@ -91,7 +91,7 @@ export function CollectionView({
         </div>
       ) : null}
 
-      <div className="container max-w-6xl py-8 px-4">
+      <div className="row py-8">
         {/* Breadcrumb */}
         <StorefrontBreadcrumb
           crumbs={[
@@ -132,7 +132,7 @@ export function CollectionView({
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
+          <div className="layout__split-3">
             {products.map((product) => (
               <StoreProductCard key={product.id} product={product} />
             ))}

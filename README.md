@@ -897,3 +897,10 @@ Files: `client/src/features/shared/components/wizardSteps/PlacementSteps.tsx`, `
 ### Product-line landing pages — October 11, 2026
 
 The five homepage product-line destinations (Basics, Plus, Canvas, Play, and Dynamics) now use the established `PageSkeleton`, full-width rows, and responsive split helpers. Each breadcrumb appears once inside main content. QR Canvas consistently uses its correct product name in its heading, metadata, and Create button. Existing builder destinations and the canonical QRG/GRF/BLD/Assembly flow are unchanged; this is a frontend presentation correction.
+
+
+### Homepage featured catalog and store skeleton — October 11, 2026
+
+The homepage now reads the same channel-scoped store API and query cache as the USA 250 hub, using the canonical `StoreResponse` contract and shared `StoreProductCard`. Images, prices, product IDs, and destinations come from published catalog instances and saved packets; selectable options remain projected by the existing QRG resolver. The old `/api/products` gate and duplicate homepage quick-view/cart implementation are removed. Loading, genuine empty results, and retryable errors have distinct visible states; six store cards are available on mobile as well as desktop. Featured channel names, collection labels, and destinations use the existing store hierarchy.
+
+The homepage, store root, channel hub, and collection views compose the established `PageSkeleton` and Master row/split helpers. Store breadcrumbs appear once inside main content. Product detail, cart, gift, pricing, database, and fulfillment behavior are unchanged.

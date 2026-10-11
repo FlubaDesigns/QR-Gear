@@ -432,6 +432,22 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Homepage featured catalog and store skeleton — October 11, 2026
+
+The homepage now reads the same channel-scoped store API and query cache as the USA 250 hub, using the canonical `StoreResponse` contract and shared `StoreProductCard`. Images, prices, product IDs, and destinations come from published catalog instances and saved packets; selectable options remain projected by the existing QRG resolver. The old `/api/products` gate and duplicate homepage quick-view/cart implementation are removed. Loading, genuine empty results, and retryable errors have distinct visible states; six store cards are available on mobile as well as desktop. Featured channel names, collection labels, and destinations use the existing store hierarchy.
+
+The homepage, store root, channel hub, and collection views compose the established `PageSkeleton` and Master row/split helpers. Store breadcrumbs appear once inside main content. Product detail, cart, gift, pricing, database, and fulfillment behavior are unchanged.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/home.tsx` | Shared store catalog query, hierarchy data, and skeleton. |
+| `client/src/components/FeaturedProducts.tsx` | Shared product cards and explicit loading/error/empty states. |
+| `client/src/pages/shop-segment.tsx` | Skeleton for store loading, error, and generic views. |
+| `client/src/features/storefront/StoreRootView.tsx`, `ChannelHubView.tsx`, `CollectionView.tsx` | Skeleton and responsive rows. |
+| `client/src/App.tsx` | Suppress duplicate outer store breadcrumbs. |
+
+
 ### October 11, 2026 — Product-line landing page skeleton
 
 All five homepage product-line destinations now compose the established skeleton and responsive row helpers, with their breadcrumbs inside main content. The Canvas page now says QR Canvas throughout. Product types, pricing, data schema, and Create destinations are unchanged.

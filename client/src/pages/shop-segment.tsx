@@ -23,7 +23,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "wouter";
 import { Loader2, Store, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import StorefrontLayout from "@/components/StorefrontLayout";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
+import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import { getStoreConfig } from "@/data/shopHierarchy";
 import { StoreRootView } from "@/features/storefront/StoreRootView";
 import { ChannelHubView } from "@/features/storefront/ChannelHubView";
@@ -80,6 +81,7 @@ export default function ShopSegmentPage() {
   if (!storeName) {
     return (
       <StorefrontLayout>
+      <BreadcrumbTrail />
         <div className="container max-w-6xl py-16 px-4 text-center">
           <Store className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
           <h1 className="text-2xl font-bold mb-2">Store Not Found</h1>
@@ -172,6 +174,7 @@ function ShopDataFetcher({
   if (isLoading) {
     return (
       <StorefrontLayout>
+      <BreadcrumbTrail />
         <div className="container max-w-6xl py-8 px-4 flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-muted-foreground">Loading products...</span>
@@ -183,6 +186,7 @@ function ShopDataFetcher({
   if (error) {
     return (
       <StorefrontLayout>
+      <BreadcrumbTrail />
         <div className="container max-w-6xl py-16 px-4 text-center">
           <Store className="h-16 w-16 mx-auto mb-4 text-destructive" />
           <h1 className="text-2xl font-bold mb-2">Error Loading Store</h1>
@@ -230,7 +234,8 @@ function ShopDataFetcher({
 
   return (
     <StorefrontLayout>
-      <div className="container max-w-6xl py-8 px-4">
+      <BreadcrumbTrail />
+      <div className="row py-8">
         <Link href="/">
           <Button variant="ghost" className="mb-6" data-testid="button-back-home">
             <ArrowLeft className="mr-2 h-5 w-5" />
@@ -255,7 +260,7 @@ function ShopDataFetcher({
             No products available yet. Check back soon.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="layout__split-3">
             {products.map((p) => (
               <StoreProductCard key={p.id} product={p} />
             ))}

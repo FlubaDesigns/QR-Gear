@@ -15,7 +15,7 @@ import { Link } from "wouter";
 import { ArrowRight, QrCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import StorefrontLayout from "@/components/StorefrontLayout";
+import { PageSkeleton as StorefrontLayout } from "@/components/PageSkeleton";
 import { getChannelConfig } from "@/data/shopHierarchy";
 import { StorefrontBreadcrumb } from "./StorefrontBreadcrumb";
 import type { StoreResponse } from "./types";
@@ -92,7 +92,7 @@ export function ChannelHubView({
         </div>
       </div>
 
-      <div className="container max-w-5xl py-10 px-4">
+      <div className="row py-10">
         {/* Breadcrumb */}
         <StorefrontBreadcrumb
           crumbs={[
@@ -103,7 +103,7 @@ export function ChannelHubView({
 
         {/* Collection image-cards */}
         {collections.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="layout__split-3">
             {collections.map((col) => {
               const count = collectionCounts[col.segmentValue] || 0;
               const colImg = COLLECTION_IMAGES[col.slug];
