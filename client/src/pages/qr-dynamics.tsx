@@ -76,7 +76,7 @@ export default function QRDynamicsLanding() {
             Choose your Space Term (1 year / 3 year / 5 year) and manage content that lives, moves, and grows.
           </p>
 
-          <div className="glass-card premium vanity-features">
+          <div className="premium vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>
             <ul className="vanity-features-list">
               {features.map((feature, i) => (
@@ -88,7 +88,7 @@ export default function QRDynamicsLanding() {
             </ul>
           </div>
 
-          <div className="glass-card premium vanity-items">
+          <div className="premium vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
             <div className="layout__split-2">
               {popularUses.map((use, i) => (
@@ -111,14 +111,14 @@ export default function QRDynamicsLanding() {
             </div>
           </div>
 
-          <div className="glass-card vanity-highlight vanity-centered">
+          <div className="vanity-highlight vanity-centered">
             <p className="vanity-tagline">QR Dynamics™ isn't a link.</p>
             <p className="vanity-title-accent">It's space.</p>
           </div>
 
           <section className="section row" aria-labelledby="more-ideas-title">
             <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
-            <IdeaLinks typeHref="/qr-dynamics" exclude={popularUses.map(idea => idea.link)} />
+            <IdeaLinks compact typeHref="/qr-dynamics" exclude={popularUses.map(idea => idea.link)} />
           </section>
 
           <Link href="/build?type=compose">

@@ -64,7 +64,7 @@ export default function RealtorQRShirts() {
             Your wardrobe stays simple. Your listings stay fresh.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Sparkles />
               What you get:
@@ -79,7 +79,7 @@ export default function RealtorQRShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">How realtors use it:</h2>
             <div className="row"><div className="layout__split-2">
               {scenarios.map((scenario, i) => (
@@ -96,7 +96,7 @@ export default function RealtorQRShirts() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <MapPin />
@@ -120,26 +120,26 @@ export default function RealtorQRShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Building2 />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/business-qr-plus">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Business QR Plus</span>
                   <p>Professional with text prompts</p>
                 </div>
               </Link>
               <Link href="/networking-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Networking Shirts</span>
                   <p>Save contacts instantly</p>
                 </div>
               </Link>
               <Link href="/business-analytics-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Business Analytics QR</span>
                   <p>Track engagement and performance</p>
                 </div>

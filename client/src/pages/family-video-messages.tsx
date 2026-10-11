@@ -58,7 +58,7 @@ export default function FamilyVideoMessages() {
             Distance disappears. One scan and everyone is there.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Heart />
               What you get:
@@ -73,7 +73,7 @@ export default function FamilyVideoMessages() {
             </ul>
           </div>
 
-          <div className="row"><div className="glass-card vanity-scenarios row">
+          <div className="row"><div className="vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Users />
               Perfect for:
@@ -88,7 +88,7 @@ export default function FamilyVideoMessages() {
             </div>
           </div></div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <MessageCircle />
@@ -110,26 +110,26 @@ export default function FamilyVideoMessages() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Users />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/memorial-video-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Memorial Video Shirts</span>
                   <p>Keep loved ones close</p>
                 </div>
               </Link>
               <Link href="/video-time-capsule">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Video Time Capsule</span>
                   <p>Messages for the future</p>
                 </div>
               </Link>
               <Link href="/family-reunion-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Reunion Shirts</span>
                   <p>Photo memories for the family</p>
                 </div>

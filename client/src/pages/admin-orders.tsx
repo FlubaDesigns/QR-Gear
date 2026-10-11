@@ -508,44 +508,32 @@ export default function AdminOrdersPage() {
         }
       >
         <div className="row"><div className="layout__auto mb-4">
-          <Card>
-            <CardContent className="p-3 text-center">
+          <div className="py-3 text-center">
               <div className="text-xl font-bold" data-testid="text-stat-total">{stats.total}</div>
               <div className="text-[10px] text-muted-foreground">Total</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 text-center">
+            </div>
+          <div className="py-3 text-center">
               <div className="text-xl font-bold text-yellow-500">{stats.pending}</div>
               <div className="text-[10px] text-muted-foreground">Pending</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 text-center">
+            </div>
+          <div className="py-3 text-center">
               <div className="text-xl font-bold text-purple-500">{stats.inProduction}</div>
               <div className="text-[10px] text-muted-foreground">Production</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 text-center">
+            </div>
+          <div className="py-3 text-center">
               <div className="text-xl font-bold text-cyan-500">{stats.shipped}</div>
               <div className="text-[10px] text-muted-foreground">Shipped</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 text-center">
+            </div>
+          <div className="py-3 text-center">
               <div className="text-xl font-bold text-green-500">${stats.revenue.toFixed(0)}</div>
               <div className="text-[10px] text-muted-foreground">Revenue</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-3 text-center">
+            </div>
+          <div className="py-3 text-center">
               <div className={`text-xl font-bold ${stats.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
                 ${stats.profit.toFixed(0)}
               </div>
               <div className="text-[10px] text-muted-foreground">Profit</div>
-            </CardContent>
-          </Card>
+            </div>
         </div></div>
 
         <div className="flex flex-wrap gap-2 mb-4">

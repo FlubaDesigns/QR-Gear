@@ -60,7 +60,7 @@ export default function WeddingQRShirts() {
             "Years later, they scan and see the couple's first dance photo. Timeless."
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Sparkles />
               Why couples love this:
@@ -75,7 +75,7 @@ export default function WeddingQRShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">
               <Camera />
               Photo Ideas:
@@ -90,7 +90,7 @@ export default function WeddingQRShirts() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Gift />
@@ -113,26 +113,26 @@ export default function WeddingQRShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Users />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/family-reunion-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Reunion Shirts</span>
                   <p>Photo memories for the whole family</p>
                 </div>
               </Link>
               <Link href="/memorial-qr-gifts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Memorial Photo Gifts</span>
                   <p>Honor loved ones with lasting tributes</p>
                 </div>
               </Link>
               <Link href="/artist-qr-apparel">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Artist Portfolio Shirts</span>
                   <p>Turn your artwork into wearables</p>
                 </div>

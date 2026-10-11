@@ -789,9 +789,9 @@ html[data-theme="light"] .page-grid {
   margin-bottom: 2rem;
 }
 
-/* Feature List Card */
+/* Open feature list */
 .vanity-features {
-  padding: 1.5rem;
+  padding-block: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
@@ -832,9 +832,9 @@ html[data-theme="light"] .page-grid {
   flex-shrink: 0;
 }
 
-/* Items Grid Card */
+/* Open items section */
 .vanity-items {
-  padding: 1.5rem;
+  padding-block: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
@@ -910,7 +910,7 @@ html[data-theme="light"] .page-grid {
 
 /* Highlight Card */
 .vanity-highlight {
-  padding: 1.5rem;
+  padding-block: 1.5rem;
   margin-bottom: 2rem;
 }
 
@@ -1013,9 +1013,9 @@ html[data-theme="light"] .vanity-cta {
   box-shadow: 0 10px 24px rgba(0,0,0,0.15);
 }
 
-/* Related Ideas Card */
+/* Related ideas text links */
 .vanity-related {
-  padding: 1.5rem;
+  padding-block: 1.5rem;
   margin-top: 2rem;
 }
 
@@ -1039,14 +1039,14 @@ html[data-theme="light"] .vanity-cta {
 }
 
 .vanity-related-link {
-  padding: 0.75rem;
+  padding-block: 0.75rem;
+  min-height: 3rem;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .vanity-related-link:hover {
-  border-color: var(--accent) !important;
-  box-shadow: 0 0 12px rgba(255,122,26,0.4), 0 0 24px rgba(255,122,26,0.2);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
 .vanity-related-link span {
@@ -1127,6 +1127,8 @@ html[data-theme="light"] .vanity-highlight-icon {
 
 /* Scenarios (for office mug page) */
 .vanity-scenarios {
+  padding-block: 1.5rem;
+  margin-bottom: 1.5rem;
   gap: 1rem;
 }
 

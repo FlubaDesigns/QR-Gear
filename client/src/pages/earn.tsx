@@ -151,7 +151,7 @@ function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
   const panelId = `faq-panel-${index}`;
   const buttonId = `faq-button-${index}`;
   return (
-    <div className="border border-slate-700 rounded-lg overflow-hidden" data-testid={`faq-${index}`}>
+    <div className="border-b border-slate-700" data-testid={`faq-${index}`}>
       <button
         id={buttonId}
         onClick={() => setOpen(!open)}
@@ -235,8 +235,8 @@ export default function EarnPage() {
             </div>
             <div className="row space-y-8">
               {journeySteps.map((step, i) => (
-                <div key={step.phase} className={`rounded-xl border ${step.border} bg-gradient-to-r ${step.accent} overflow-hidden`} data-testid={`section-journey-${step.phase.toLowerCase().replace(/\s+/g, '-')}`}>
-                  <div className="p-6 sm:p-8 space-y-5">
+                <div key={step.phase} className="border-b border-slate-700" data-testid={`section-journey-${step.phase.toLowerCase().replace(/\s+/g, '-')}`}>
+                  <div className="py-6 space-y-5">
                     <div className="flex items-center gap-4 flex-wrap">
                       <div className="flex items-center justify-center w-10 h-10 rounded-full bg-slate-800 border border-slate-600">
                         <span className="text-white font-bold">{i + 1}</span>
@@ -275,7 +275,7 @@ export default function EarnPage() {
               {qrTypes.map((qt) => (
                 <div
                   key={qt.name}
-                  className={`rounded-xl p-5 border ${qt.bg} space-y-3`}
+                  className="py-3 space-y-3"
                   data-testid={`card-qr-type-${qt.name.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className="flex items-center gap-3 flex-wrap">
@@ -286,7 +286,7 @@ export default function EarnPage() {
                   <p className="text-slate-300 text-sm leading-relaxed">{qt.description}</p>
                 </div>
               ))}
-              <div className="rounded-xl p-5 border border-dashed border-slate-600 flex flex-col items-center justify-center text-center space-y-3">
+              <div className="py-3 flex flex-col items-center justify-center text-center space-y-3">
                 <Repeat className="w-7 h-7 text-slate-500" />
                 <p className="text-slate-400 text-sm">More product types and formats coming soon</p>
               </div>
@@ -398,7 +398,7 @@ export default function EarnPage() {
                 { icon: Package, title: "We Handle Fulfillment", desc: "Printing, packaging, shipping, returns — all handled. You create and promote. We take care of everything else.", color: "text-blue-400" },
                 { icon: TrendingUp, title: "Passive Income", desc: "Design it once, earn from it forever. Every product you publish is an asset that keeps paying you as long as it sells.", color: "text-purple-400" },
               ].map((item) => (
-                <div key={item.title} className="rounded-xl p-5 bg-slate-800/50 border border-slate-700 space-y-3" data-testid={`card-why-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
+                <div key={item.title} className="py-3 space-y-3" data-testid={`card-why-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
                   <item.icon className={`w-8 h-8 ${item.color}`} />
                   <h3 className="text-white font-bold">{item.title}</h3>
                   <p className="text-slate-300 text-sm leading-relaxed">{item.desc}</p>
@@ -419,7 +419,7 @@ export default function EarnPage() {
               </p>
             </div>
             <div className="row ">
-              <div className="rounded-xl border border-slate-700 bg-slate-800/30 overflow-hidden">
+              <div className="row">
                 <div className="p-6 sm:p-8 space-y-6">
                   <div className="row"><div className="layout__split-3 text-center">
                     <div className="space-y-2">

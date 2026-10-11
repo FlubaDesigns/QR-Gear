@@ -59,7 +59,7 @@ export default function OfficeQRMug() {
             Finally, a mug that can speak for itself.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Tag />
               What you get:
@@ -74,7 +74,7 @@ export default function OfficeQRMug() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">
               <Building />
               Office scenarios:
@@ -89,7 +89,7 @@ export default function OfficeQRMug() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Smile />
@@ -111,26 +111,26 @@ export default function OfficeQRMug() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Building />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/networking-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Networking Shirts</span>
                   <p>Skip the business card shuffle</p>
                 </div>
               </Link>
               <Link href="/website-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Website QR Shirts</span>
                   <p>Instant links to your site</p>
                 </div>
               </Link>
               <Link href="/personal-items-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Personal Items QR</span>
                   <p>Claim your gear with style</p>
                 </div>

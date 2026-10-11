@@ -67,7 +67,7 @@ export default function MusicianMerch() {
             "Album art that plays when scanned."
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Disc />
               QR Canvas — Album Art:
@@ -82,7 +82,7 @@ export default function MusicianMerch() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Play />
               QR Play — Video Content:
@@ -97,7 +97,7 @@ export default function MusicianMerch() {
             </ul>
           </div>
 
-          <div className="row"><div className="glass-card vanity-scenarios row">
+          <div className="row"><div className="vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Sparkles />
               Ideas for your drop:
@@ -112,7 +112,7 @@ export default function MusicianMerch() {
             </div>
           </div></div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Users />
@@ -142,26 +142,26 @@ export default function MusicianMerch() {
             </Link>
           </div>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Sparkles />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/artist-qr-apparel">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Artist Portfolio Shirts</span>
                   <p>Wearable gallery for visual artists</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Band Dynamic Merch</span>
                   <p>Updateable tour dates and setlists</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Event QR Shirts</span>
                   <p>Perfect for concerts and festivals</p>
                 </div>

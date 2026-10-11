@@ -69,7 +69,7 @@ export default function EventQRShirts() {
             No mystery. Just clarity.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Calendar />
               What you get:
@@ -84,7 +84,7 @@ export default function EventQRShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Perfect for:</h2>
             <div className="row"><div className="layout__split-2">
               {events.map((event, i) => (
@@ -101,7 +101,7 @@ export default function EventQRShirts() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Camera />
@@ -122,26 +122,26 @@ export default function EventQRShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Camera />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/family-reunion-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Reunion Shirts</span>
                   <p>Photo memories for the whole family</p>
                 </div>
               </Link>
               <Link href="/wedding-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Wedding QR Shirts</span>
                   <p>Wearable wedding favors</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Band Dynamic Merch</span>
                   <p>Updateable content for musicians</p>
                 </div>

@@ -59,7 +59,7 @@ export default function ArtistQRApparel() {
             "A portable gallery on every shirt."
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Sparkles />
               Why artists love this:
@@ -74,7 +74,7 @@ export default function ArtistQRApparel() {
             </ul>
           </div>
 
-          <div className="row"><div className="glass-card vanity-scenarios row">
+          <div className="row"><div className="vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Brush />
               Made for creatives:
@@ -89,7 +89,7 @@ export default function ArtistQRApparel() {
             </div>
           </div></div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Image />
@@ -111,26 +111,26 @@ export default function ArtistQRApparel() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Brush />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/musician-merch">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Musician Merch</span>
                   <p>Album art and video shirts for bands</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Band Dynamic Merch</span>
                   <p>Updateable tour dates and content</p>
                 </div>
               </Link>
               <Link href="/wedding-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Wedding Photo Shirts</span>
                   <p>Event photography on apparel</p>
                 </div>

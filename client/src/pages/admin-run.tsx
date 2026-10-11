@@ -101,8 +101,7 @@ function MetricCard({
   trendLabel?: string;
 }) {
   return (
-    <Card>
-      <CardContent className="p-3 sm:p-4">
+    <div className="p-3 sm:p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground">{title}</p>
@@ -128,15 +127,13 @@ function MetricCard({
             <Icon className="h-4 w-4 text-primary" />
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }
 
 function SkeletonCard() {
   return (
-    <Card>
-      <CardContent className="p-4">
+    <div className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <Skeleton className="h-3 w-20 mb-2" />
@@ -145,8 +142,7 @@ function SkeletonCard() {
           </div>
           <Skeleton className="h-8 w-8 rounded-lg" />
         </div>
-      </CardContent>
-    </Card>
+      </div>
   );
 }
 

@@ -255,7 +255,7 @@ export default function Account() {
         </div>
 
         <div className="row"><div className="layout__split-4">
-          <Card className="glass-card" data-testid="stat-total-orders">
+          <div className="py-3" data-testid="stat-total-orders">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
               <Package className="h-4 w-4 text-muted-foreground" />
@@ -263,9 +263,9 @@ export default function Account() {
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stats.totalOrders}</div>
             </CardContent>
-          </Card>
+          </div>
 
-          <Card className="glass-card" data-testid="stat-total-spent">
+          <div className="py-3" data-testid="stat-total-spent">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Total Spent</CardTitle>
               <DollarSign className="h-4 w-4 text-muted-foreground" />
@@ -273,9 +273,9 @@ export default function Account() {
             <CardContent>
               <div className="text-2xl font-bold text-foreground">${stats.totalSpent.toFixed(2)}</div>
             </CardContent>
-          </Card>
+          </div>
 
-          <Card className="glass-card" data-testid="stat-pending-shipments">
+          <div className="py-3" data-testid="stat-pending-shipments">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
               <Truck className="h-4 w-4 text-muted-foreground" />
@@ -283,9 +283,9 @@ export default function Account() {
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stats.pendingShipments}</div>
             </CardContent>
-          </Card>
+          </div>
 
-          <Card className="glass-card" data-testid="stat-cart-items">
+          <div className="py-3" data-testid="stat-cart-items">
             <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">In Cart</CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
@@ -293,7 +293,7 @@ export default function Account() {
             <CardContent>
               <div className="text-2xl font-bold text-foreground">{stats.cartItemsCount}</div>
             </CardContent>
-          </Card>
+          </div>
         </div></div>
 
         <Tabs defaultValue="orders" className="space-y-4">

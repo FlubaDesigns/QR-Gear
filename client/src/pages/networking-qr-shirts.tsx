@@ -59,7 +59,7 @@ export default function NetworkingQRShirts() {
             The business card you wear, not carry.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Zap />
               What you get:
@@ -74,7 +74,7 @@ export default function NetworkingQRShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">
               <Handshake />
               Perfect for:
@@ -89,7 +89,7 @@ export default function NetworkingQRShirts() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Smartphone />
@@ -111,26 +111,26 @@ export default function NetworkingQRShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Handshake />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/website-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Website QR Shirts</span>
                   <p>Link directly to your portfolio</p>
                 </div>
               </Link>
               <Link href="/business-qr-plus">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Business QR Plus</span>
                   <p>Add company branding text</p>
                 </div>
               </Link>
               <Link href="/realtor-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Realtor QR Shirts</span>
                   <p>Dynamic content for real estate</p>
                 </div>

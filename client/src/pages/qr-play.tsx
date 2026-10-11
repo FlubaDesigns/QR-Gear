@@ -80,7 +80,7 @@ export default function QRVideoLanding() {
             QR Play is built for real moments — messages, memories, and stories meant to be seen, heard, and felt.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>
             <ul className="vanity-features-list">
               {features.map((feature, i) => (
@@ -92,7 +92,7 @@ export default function QRVideoLanding() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
             <div className="layout__split-2">
               {personalUses.map((use, i) => (
@@ -115,7 +115,7 @@ export default function QRVideoLanding() {
             </div>
           </div>
 
-          <div className="glass-card vanity-items vanity-muted">
+          <div className="vanity-items vanity-muted">
             <h2 className="vanity-items-title">
               <Briefcase />
               Also great for business:
@@ -132,7 +132,7 @@ export default function QRVideoLanding() {
 
           <section className="section row" aria-labelledby="more-ideas-title">
             <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
-            <IdeaLinks typeHref="/qr-play" exclude={personalUses.map(idea => idea.link)} />
+            <IdeaLinks compact typeHref="/qr-play" exclude={personalUses.map(idea => idea.link)} />
           </section>
 
           <Link href="/build?type=play">

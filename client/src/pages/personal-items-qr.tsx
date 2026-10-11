@@ -64,7 +64,7 @@ export default function PersonalItemsQR() {
             ))}
           </div>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Tag />
               What you get:
@@ -79,7 +79,7 @@ export default function PersonalItemsQR() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Print on your gear:</h2>
             <div className="row"><div className="layout__split-2">
               {items.map((item, i) => (
@@ -103,26 +103,26 @@ export default function PersonalItemsQR() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Tag />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/lost-found-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Lost & Found QR</span>
                   <p>Tag bags and travel gear</p>
                 </div>
               </Link>
               <Link href="/everyday-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Everyday QR</span>
                   <p>Simple prompts for daily use</p>
                 </div>
               </Link>
               <Link href="/office-qr-mug">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Office QR Mug</span>
                   <p>Claim your mug at work</p>
                 </div>

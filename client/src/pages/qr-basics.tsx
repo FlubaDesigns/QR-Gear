@@ -80,7 +80,7 @@ export default function QRStaticLanding() {
             Best for: websites, contact info, lost & found, emergency info
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>
             <ul className="vanity-features-list">
               {features.map((feature, i) => (
@@ -92,7 +92,7 @@ export default function QRStaticLanding() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
             <div className="layout__split-2">
               {examples.map((example, i) => (
@@ -117,7 +117,7 @@ export default function QRStaticLanding() {
 
           <section className="section row" aria-labelledby="more-ideas-title">
             <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
-            <IdeaLinks typeHref="/qr-basics" exclude={examples.map(idea => idea.link)} />
+            <IdeaLinks compact typeHref="/qr-basics" exclude={examples.map(idea => idea.link)} />
           </section>
 
           <Link href="/build?type=basic">

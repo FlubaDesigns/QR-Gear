@@ -74,7 +74,7 @@ export default function EverydayQR() {
             ))}
           </div>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Lightbulb />
               What you get:
@@ -89,7 +89,7 @@ export default function EverydayQR() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Works for:</h2>
             <div className="row"><div className="layout__split-2">
               {uses.map((use, i) => (
@@ -113,26 +113,26 @@ export default function EverydayQR() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Lightbulb />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/personal-items-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Personal Items QR</span>
                   <p>Label your belongings</p>
                 </div>
               </Link>
               <Link href="/lost-found-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Lost & Found QR</span>
                   <p>Tag things that travel</p>
                 </div>
               </Link>
               <Link href="/office-qr-mug">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Office QR Mug</span>
                   <p>Stop the office mug thief</p>
                 </div>

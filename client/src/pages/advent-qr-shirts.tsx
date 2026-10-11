@@ -63,7 +63,7 @@ export default function AdventQRShirts() {
             Daily reveals without daily work.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Sparkles />
               What you get:
@@ -78,7 +78,7 @@ export default function AdventQRShirts() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Sequence ideas:</h2>
             <div className="row"><div className="layout__split-2">
               {ideas.map((idea, i) => (
@@ -95,7 +95,7 @@ export default function AdventQRShirts() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Gift />
@@ -117,26 +117,26 @@ export default function AdventQRShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Gift />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/video-time-capsule">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Video Time Capsule</span>
                   <p>Messages for the future</p>
                 </div>
               </Link>
               <Link href="/band-dynamic-merch">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Band Dynamic Merch</span>
                   <p>Updateable musician content</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Event QR Shirts</span>
                   <p>Perfect for gatherings</p>
                 </div>

@@ -61,7 +61,7 @@ export default function BusinessQRPlus() {
             they know exactly what to do.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Briefcase />
               What QR Plus adds:
@@ -76,7 +76,7 @@ export default function BusinessQRPlus() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Business applications:</h2>
             <div className="row"><div className="layout__split-2">
               {uses.map((use, i) => (
@@ -93,7 +93,7 @@ export default function BusinessQRPlus() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Store />
@@ -117,26 +117,26 @@ export default function BusinessQRPlus() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Store />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/networking-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Networking Shirts</span>
                   <p>Save contacts with vCard</p>
                 </div>
               </Link>
               <Link href="/website-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Website QR Shirts</span>
                   <p>Link to your portfolio</p>
                 </div>
               </Link>
               <Link href="/realtor-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Realtor QR Shirts</span>
                   <p>Updateable real estate links</p>
                 </div>

@@ -73,7 +73,7 @@ export default function QRHistory() {
 
           <div className="timeline-container">
             {timeline.map((item, index) => (
-              <div key={index} className="glass-card timeline-card" data-testid={`timeline-${index}`}>
+              <div key={index} className="timeline-card" data-testid={`timeline-${index}`}>
                 <div className="timeline-year">{item.year}</div>
                 <div className="timeline-content">
                   <div className="timeline-icon icon-bg-ice">
@@ -97,7 +97,7 @@ export default function QRHistory() {
 
           <div className="facts-grid">
             {funFacts.map((fact, index) => (
-              <div key={index} className="glass-card fact-card" data-testid={`fact-${index}`}>
+              <div key={index} className="fact-card" data-testid={`fact-${index}`}>
                 <span className="fact-number">{index + 1}</span>
                 <p>{fact}</p>
               </div>
@@ -108,7 +108,7 @@ export default function QRHistory() {
 
       <section className="home-section">
         <div className="row">
-          <div className="glass-card cta-card premium">
+          <div className="cta-card premium">
             <h2>Ready to Make History?</h2>
             <p>Join the next chapter of QR technology. Create custom gear that tells your story.</p>
             <Link href="/build">

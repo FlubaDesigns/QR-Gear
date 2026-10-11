@@ -74,24 +74,18 @@ function EarningsView({ memberId }: { memberId: string }) {
         ) : (
           <>
             <div className="layout__auto mb-6">
-              <Card className="bg-slate-700/50 border-slate-600">
-                <CardContent className="p-4 text-center">
+              <div className="py-4 text-center">
                   <p className="text-sm text-slate-400">Total Earnings</p>
                   <p className="text-2xl font-bold text-green-400">${summary.total.toFixed(2)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-700/50 border-slate-600">
-                <CardContent className="p-4 text-center">
+                </div>
+              <div className="py-4 text-center">
                   <p className="text-sm text-slate-400">Pending</p>
                   <p className="text-2xl font-bold text-yellow-400">${summary.pending.toFixed(2)}</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-slate-700/50 border-slate-600">
-                <CardContent className="p-4 text-center">
+                </div>
+              <div className="py-4 text-center">
                   <p className="text-sm text-slate-400">Profit Share</p>
                   <p className="text-2xl font-bold text-blue-400">{(summary.profitShare * 100).toFixed(0)}%</p>
-                </CardContent>
-              </Card>
+                </div>
             </div>
             
             {earnings.length === 0 ? (

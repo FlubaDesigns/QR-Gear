@@ -58,7 +58,7 @@ export default function MemorialVideoShirts() {
             Their voice. Their laugh. Their stories. Always with you.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Star />
               What you get:
@@ -73,7 +73,7 @@ export default function MemorialVideoShirts() {
             </ul>
           </div>
 
-          <div className="row"><div className="glass-card vanity-scenarios row">
+          <div className="row"><div className="vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Camera />
               Video ideas:
@@ -88,7 +88,7 @@ export default function MemorialVideoShirts() {
             </div>
           </div></div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Users />
@@ -110,26 +110,26 @@ export default function MemorialVideoShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Camera />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/memorial-qr-gifts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Memorial Photo Gifts</span>
                   <p>Photo-based remembrance shirts</p>
                 </div>
               </Link>
               <Link href="/family-video-messages">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Video Messages</span>
                   <p>Comfort for those far from home</p>
                 </div>
               </Link>
               <Link href="/video-time-capsule">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Video Time Capsule</span>
                   <p>Messages for the future</p>
                 </div>

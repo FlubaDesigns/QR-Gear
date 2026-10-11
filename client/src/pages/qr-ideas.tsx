@@ -26,9 +26,9 @@ export default function QRIdeas() {
       </section>
       <section className="section row" aria-labelledby="idea-examples-title">
         <h2 id="idea-examples-title">Make it your own</h2>
-        <div className="layout__split-2">
+        <div className="layout__split-2 mt-6">
           {detail.scenarios.map(scenario => (
-            <article key={scenario.title} className="glass-card action-card-inner">
+            <article key={scenario.title}>
               <h3>{scenario.title}</h3>
               <p>{scenario.description}</p>
             </article>
@@ -51,7 +51,7 @@ export default function QRIdeas() {
       </div>
       <section className="section row" aria-labelledby="more-ideas-title">
         <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
-        <IdeaLinks />
+        <IdeaLinks compact exclude={[idea.href]} />
       </section>
     </div>
   );

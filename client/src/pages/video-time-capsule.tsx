@@ -63,7 +63,7 @@ export default function VideoTimeCapsule() {
             The gift that gains meaning with time.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Clock />
               What you get:
@@ -78,7 +78,7 @@ export default function VideoTimeCapsule() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Time capsule ideas:</h2>
             <div className="row"><div className="layout__split-2">
               {ideas.map((idea, i) => (
@@ -95,7 +95,7 @@ export default function VideoTimeCapsule() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Gift />
@@ -117,26 +117,26 @@ export default function VideoTimeCapsule() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Gift />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/family-video-messages">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Video Messages</span>
                   <p>Home in their pocket</p>
                 </div>
               </Link>
               <Link href="/memorial-video-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Memorial Video Shirts</span>
                   <p>Keep voices alive</p>
                 </div>
               </Link>
               <Link href="/advent-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Advent QR Shirts</span>
                   <p>Daily reveals and countdowns</p>
                 </div>

@@ -59,7 +59,7 @@ export default function FamilyReunionShirts() {
             "Grandma scans the hoodie. Her screen fills with the family reunion photo. Tears guaranteed."
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Heart />
               What makes it special:
@@ -74,7 +74,7 @@ export default function FamilyReunionShirts() {
             </ul>
           </div>
 
-          <div className="row"><div className="glass-card vanity-scenarios row">
+          <div className="row"><div className="vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Home />
               Perfect for:
@@ -89,7 +89,7 @@ export default function FamilyReunionShirts() {
             </div>
           </div></div>
 
-          <div className="glass-card vanity-highlight vanity-highlight-blue">
+          <div className="vanity-highlight vanity-highlight-blue">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Gift />
@@ -111,26 +111,26 @@ export default function FamilyReunionShirts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Camera />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/wedding-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Wedding Photo Shirts</span>
                   <p>Wearable favors for your big day</p>
                 </div>
               </Link>
               <Link href="/memorial-qr-gifts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Memorial Photo Gifts</span>
                   <p>Honor loved ones with lasting tributes</p>
                 </div>
               </Link>
               <Link href="/event-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Event QR Shirts</span>
                   <p>Perfect for any gathering</p>
                 </div>

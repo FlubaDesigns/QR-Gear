@@ -133,3 +133,122 @@ Live verification is recorded with the deployment result. Source coverage includ
 Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.
 
 Footer inset correction: the footer content panel uses `padding-inline: var(--col-gap)` because Master rows fill their parent and column gap does not create an outer content inset. Headings align left with their links. Master itself remains unchanged.
+
+
+## Card-density review — October 11, 2026
+
+Reviewed all 107 route entries and their page sources for repeated informational panels. Homepage is excluded from changes. The five new occasion pages, 21 older use-case pages, five QR type pages, QR History and Earn now use open sections or compact links for informational content. Account summary, member earnings summary, Admin Run metrics, Admin Orders metrics and Orchestration Profit metrics no longer put each number in a separate card.
+
+Product/design galleries, independently selectable records, checkout/form groups, isolated status/error panels and workspace controls retain their functional grouping. This is a presentation review, not a claim of end-to-end authenticated or payment testing. All URLs, handlers, data reads and Master CSS are unchanged.
+
+### Route review disposition
+
+| Route | Card treatment |
+|---|---|
+| `/` | Homepage preserved |
+| `/build` | Functional product/record/form/status grouping retained; no global card override |
+| `/store` | Functional product/record/form/status grouping retained; no global card override |
+| `/gallery` | Functional product/record/form/status grouping retained; no global card override |
+| `/cart` | Functional product/record/form/status grouping retained; no global card override |
+| `/widget` | Functional product/record/form/status grouping retained; no global card override |
+| `/account` | Repeated decorative panels removed; functional controls retained |
+| `/members` | Repeated decorative panels removed; functional controls retained |
+| `/members/library` | Functional product/record/form/status grouping retained; no global card override |
+| `/member` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin` | Repeated decorative panels removed; functional controls retained |
+| `/admin/run` | Redirect; no page cards |
+| `/admin/dashboard` | Redirect; no page cards |
+| `/admin/ai-builder` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/products` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/pricing` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/library` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/videos` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/categories` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/tags` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/partners` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/orchestration` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/orders` | Repeated decorative panels removed; functional controls retained |
+| `/admin/gifts` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/coupons` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/health` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/customers` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/email-templates` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/manual` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/settings` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/sales/build` | Functional product/record/form/status grouping retained; no global card override |
+| `/build/success` | Functional product/record/form/status grouping retained; no global card override |
+| `/earn` | Repeated decorative panels removed; functional controls retained |
+| `/checkout` | Functional product/record/form/status grouping retained; no global card override |
+| `/customize` | Functional product/record/form/status grouping retained; no global card override |
+| `/checkout/success` | Functional product/record/form/status grouping retained; no global card override |
+| `/renew/:instanceId` | Functional product/record/form/status grouping retained; no global card override |
+| `/renew/:instanceId/success` | Functional product/record/form/status grouping retained; no global card override |
+| `/claim/:claimCode` | Functional product/record/form/status grouping retained; no global card override |
+| `/my-item/:instanceId` | Functional product/record/form/status grouping retained; no global card override |
+| `/view/:id` | Functional product/record/form/status grouping retained; no global card override |
+| `/dynamic/:slug` | Functional product/record/form/status grouping retained; no global card override |
+| `/customs/:id` | Functional product/record/form/status grouping retained; no global card override |
+| `/p/success` | Functional product/record/form/status grouping retained; no global card override |
+| `/p/:id` | Functional product/record/form/status grouping retained; no global card override |
+| `/play/:packetId` | Functional product/record/form/status grouping retained; no global card override |
+| `/QRG-:rest` | Functional product/record/form/status grouping retained; no global card override |
+| `/i/:slug` | Functional product/record/form/status grouping retained; no global card override |
+| `/e/:slug` | Functional product/record/form/status grouping retained; no global card override |
+| `/m/:slug` | Functional product/record/form/status grouping retained; no global card override |
+| `/gifts` | Functional product/record/form/status grouping retained; no global card override |
+| `/gift/redeem` | Functional product/record/form/status grouping retained; no global card override |
+| `/gift/redeem/:code` | Functional product/record/form/status grouping retained; no global card override |
+| `/creator/:creatorSlug/:channelId` | Functional product/record/form/status grouping retained; no global card override |
+| `/creator/:creatorSlug` | Functional product/record/form/status grouping retained; no global card override |
+| `/shop/product/:linkId` | Functional product/record/form/status grouping retained; no global card override |
+| `/shop/:storeType/:storeName/:channel/:collection` | Functional product/record/form/status grouping retained; no global card override |
+| `/shop/:storeType/:storeName/:segment` | Functional product/record/form/status grouping retained; no global card override |
+| `/shop/:storeType/:storeName` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/launch` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/blanks` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/marketplaces` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/external-sites` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/store-builder` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/store-library` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/ar-demo` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/fonts` | Functional product/record/form/status grouping retained; no global card override |
+| `/admin/schema-keys` | Functional product/record/form/status grouping retained; no global card override |
+| `/login` | Functional product/record/form/status grouping retained; no global card override |
+| `/register` | Functional product/record/form/status grouping retained; no global card override |
+| `/qr-basics` | Repeated decorative panels removed; functional controls retained |
+| `/qr-plus` | Repeated decorative panels removed; functional controls retained |
+| `/qr-canvas` | Repeated decorative panels removed; functional controls retained |
+| `/qr-play` | Repeated decorative panels removed; functional controls retained |
+| `/qr-dynamics` | Repeated decorative panels removed; functional controls retained |
+| `/corporate-get-togethers` | Repeated decorative panels removed; functional controls retained |
+| `/guerrilla-marketing` | Repeated decorative panels removed; functional controls retained |
+| `/unique-qr-gifts` | Repeated decorative panels removed; functional controls retained |
+| `/one-of-a-kind-qr-gifts` | Repeated decorative panels removed; functional controls retained |
+| `/christmas-qr-gifts` | Repeated decorative panels removed; functional controls retained |
+| `/qr-history` | Repeated decorative panels removed; functional controls retained |
+| `/wedding-qr-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/family-reunion-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/artist-qr-apparel` | Repeated decorative panels removed; functional controls retained |
+| `/memorial-qr-gifts` | Repeated decorative panels removed; functional controls retained |
+| `/musician-merch` | Repeated decorative panels removed; functional controls retained |
+| `/website-qr-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/office-qr-mug` | Repeated decorative panels removed; functional controls retained |
+| `/lost-found-qr` | Repeated decorative panels removed; functional controls retained |
+| `/networking-qr-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/medical-alert-qr` | Repeated decorative panels removed; functional controls retained |
+| `/personal-items-qr` | Repeated decorative panels removed; functional controls retained |
+| `/event-qr-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/everyday-qr` | Repeated decorative panels removed; functional controls retained |
+| `/business-qr-plus` | Repeated decorative panels removed; functional controls retained |
+| `/memorial-video-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/family-video-messages` | Repeated decorative panels removed; functional controls retained |
+| `/video-time-capsule` | Repeated decorative panels removed; functional controls retained |
+| `/advent-qr-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/band-dynamic-merch` | Repeated decorative panels removed; functional controls retained |
+| `/realtor-qr-shirts` | Repeated decorative panels removed; functional controls retained |
+| `/business-analytics-qr` | Repeated decorative panels removed; functional controls retained |
+| `/logo-preview` | Functional product/record/form/status grouping retained; no global card override |
+| `/privacy` | Text document; no repeated cards |
+| `/terms` | Text document; no repeated cards |
+| `/dev-auth` | Functional product/record/form/status grouping retained; no global card override |
+| `(not found)` | Functional product/record/form/status grouping retained; no global card override |

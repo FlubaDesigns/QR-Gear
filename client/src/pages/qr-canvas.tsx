@@ -77,7 +77,7 @@ export default function QRUrlLanding() {
             Optional header and footer text can be printed on the product.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>
             <ul className="vanity-features-list">
               {features.map((feature, i) => (
@@ -89,7 +89,7 @@ export default function QRUrlLanding() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
             <div className="layout__split-2">
               {popularUses.map((use, i) => (
@@ -114,7 +114,7 @@ export default function QRUrlLanding() {
 
           <section className="section row" aria-labelledby="more-ideas-title">
             <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
-            <IdeaLinks typeHref="/qr-canvas" exclude={popularUses.map(idea => idea.link)} />
+            <IdeaLinks compact typeHref="/qr-canvas" exclude={popularUses.map(idea => idea.link)} />
           </section>
 
           <Link href="/build?type=canvas">

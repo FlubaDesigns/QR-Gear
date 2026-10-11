@@ -64,7 +64,7 @@ export default function MedicalAlertQR() {
             Critical info, always on you, always accessible.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Shield />
               What you can encode:
@@ -79,7 +79,7 @@ export default function MedicalAlertQR() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Life-saving information:</h2>
             <div className="row"><div className="layout__split-2">
               {infoTypes.map((info, i) => (
@@ -96,7 +96,7 @@ export default function MedicalAlertQR() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <AlertTriangle />
@@ -118,26 +118,26 @@ export default function MedicalAlertQR() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Shield />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/lost-found-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Lost & Found QR</span>
                   <p>QR on your bags and gear</p>
                 </div>
               </Link>
               <Link href="/personal-items-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Personal Items QR</span>
                   <p>Label anything important</p>
                 </div>
               </Link>
               <Link href="/everyday-qr">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Everyday QR</span>
                   <p>Practical QR for daily use</p>
                 </div>

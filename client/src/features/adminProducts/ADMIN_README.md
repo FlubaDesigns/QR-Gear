@@ -432,6 +432,19 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Reduce cards on idea pages
+
+The review covers all 107 routes (see `docs/PAGE_LAYOUT_AUDIT.md`). Older use-case pages, QR type pages, QR History and Earn also use open sections. Account, member earnings, Admin Run, Admin Orders and Orchestration Profit summary numbers are unboxed. Occasion examples now use open text sections. QR types and related ideas use compact text links, with the current idea omitted from related links. Existing Master row/column helpers control layout; shared vanity presentation styles were simplified, with Master CSS, homepage, schema, builder, and products preserved.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/qr-ideas.tsx` | Open examples and compact related links |
+| `client/src/components/IdeaLinks.tsx` | Compact links, shared QR type list, current-page exclusion |
+| `README.md` and this guide | Record presentation correction |
+| `MANIFEST.json` and source ZIP | Refresh required source package |
+
+
 ### October 11, 2026 — Restore QR types and connect occasion pages
 
 Restored the five QR type cards on the homepage and QR Types in desktop/mobile navigation. Existing ActionCards supplies the shared type names and destinations. Cards use Master row/layout__auto, and all existing idea routes remain available. Canvas and Play now link to Musician Merch.
@@ -1673,3 +1686,48 @@ QR Basic and QR Plus now honor item-only, graphic-only, and both save choices. G
 Desktop footer follow-up (October 11, 2026): Footer.tsx now composes the Master row and split-4 helper inside the shared skeleton scope. Removed its old independent grid rules. Desktop footer presentation is quieter: reduced vertical padding, smaller labels/social icons, compact contact/partner details, and transparent background. Column gaps remain owned by Master CSS.
 
 Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.
+
+
+### Card-density correction files
+
+- `MANIFEST.json`
+- `README.md`
+- `client/src/components/IdeaLinks.tsx`
+- `client/src/features/adminProducts/ADMIN_README.md`
+- `client/src/features/members/MembersPage.tsx`
+- `client/src/pages/account.tsx`
+- `client/src/pages/admin-orders.tsx`
+- `client/src/pages/admin-run.tsx`
+- `client/src/pages/advent-qr-shirts.tsx`
+- `client/src/pages/artist-qr-apparel.tsx`
+- `client/src/pages/band-dynamic-merch.tsx`
+- `client/src/pages/business-analytics-qr.tsx`
+- `client/src/pages/business-qr-plus.tsx`
+- `client/src/pages/earn.tsx`
+- `client/src/pages/event-qr-shirts.tsx`
+- `client/src/pages/everyday-qr.tsx`
+- `client/src/pages/family-reunion-shirts.tsx`
+- `client/src/pages/family-video-messages.tsx`
+- `client/src/pages/lost-found-qr.tsx`
+- `client/src/pages/medical-alert-qr.tsx`
+- `client/src/pages/memorial-qr-gifts.tsx`
+- `client/src/pages/memorial-video-shirts.tsx`
+- `client/src/pages/musician-merch.tsx`
+- `client/src/pages/networking-qr-shirts.tsx`
+- `client/src/pages/office-qr-mug.tsx`
+- `client/src/pages/orchestration-profit-tab.tsx`
+- `client/src/pages/personal-items-qr.tsx`
+- `client/src/pages/qr-basics.tsx`
+- `client/src/pages/qr-canvas.tsx`
+- `client/src/pages/qr-dynamics.tsx`
+- `client/src/pages/qr-history.tsx`
+- `client/src/pages/qr-ideas.tsx`
+- `client/src/pages/qr-play.tsx`
+- `client/src/pages/qr-plus.tsx`
+- `client/src/pages/realtor-qr-shirts.tsx`
+- `client/src/pages/video-time-capsule.tsx`
+- `client/src/pages/website-qr-shirts.tsx`
+- `client/src/pages/wedding-qr-shirts.tsx`
+- `client/src/styles/theme.css`
+- `docs/PAGE_LAYOUT_AUDIT.md`
+- `downloads/QR_Gear_Full_Website.zip`

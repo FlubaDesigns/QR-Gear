@@ -63,7 +63,7 @@ export default function BandDynamicMerch() {
             Your music evolves. So should your merch.
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Sparkles />
               What you get:
@@ -78,7 +78,7 @@ export default function BandDynamicMerch() {
             </ul>
           </div>
 
-          <div className="glass-card vanity-items">
+          <div className="vanity-items">
             <h2 className="vanity-items-title">Keep it current:</h2>
             <div className="row"><div className="layout__split-2">
               {scenarios.map((scenario, i) => (
@@ -95,7 +95,7 @@ export default function BandDynamicMerch() {
             </div></div>
           </div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <TrendingUp />
@@ -117,26 +117,26 @@ export default function BandDynamicMerch() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Disc />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/musician-merch">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Musician Merch</span>
                   <p>Album art and video shirts</p>
                 </div>
               </Link>
               <Link href="/artist-qr-apparel">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Artist Portfolio Shirts</span>
                   <p>Wearable gallery for creatives</p>
                 </div>
               </Link>
               <Link href="/advent-qr-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Advent QR Shirts</span>
                   <p>Scheduled daily content</p>
                 </div>

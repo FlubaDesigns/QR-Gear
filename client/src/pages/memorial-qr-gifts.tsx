@@ -60,7 +60,7 @@ export default function MemorialQRGifts() {
             "Scan and relive it — instantly."
           </p>
 
-          <div className="glass-card vanity-features">
+          <div className="vanity-features">
             <h2 className="vanity-features-title">
               <Star />
               What you get:
@@ -75,7 +75,7 @@ export default function MemorialQRGifts() {
             </ul>
           </div>
 
-          <div className="row"><div className="glass-card vanity-scenarios row">
+          <div className="row"><div className="vanity-scenarios row">
             <h2 className="vanity-scenarios-title">
               <Camera />
               Ways to remember:
@@ -90,7 +90,7 @@ export default function MemorialQRGifts() {
             </div>
           </div></div>
 
-          <div className="glass-card vanity-highlight">
+          <div className="vanity-highlight">
             <div className="vanity-highlight-inner">
               <div className="vanity-highlight-icon">
                 <Users />
@@ -114,26 +114,26 @@ export default function MemorialQRGifts() {
             </button>
           </Link>
 
-          <div className="glass-card vanity-related">
+          <div className="vanity-related">
             <h2 className="vanity-related-title">
               <Camera />
               Related Ideas
             </h2>
-            <div className="vanity-related-grid">
+            <div className="layout__auto">
               <Link href="/memorial-video-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Memorial Video Shirts</span>
                   <p>Scan to watch video memories</p>
                 </div>
               </Link>
               <Link href="/family-video-messages">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Video Messages</span>
                   <p>Recorded moments that last forever</p>
                 </div>
               </Link>
               <Link href="/family-reunion-shirts">
-                <div className="glass-card vanity-related-link">
+                <div className="vanity-related-link">
                   <span>Family Reunion Shirts</span>
                   <p>Group photo memories for everyone</p>
                 </div>

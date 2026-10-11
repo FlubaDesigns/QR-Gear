@@ -963,3 +963,11 @@ Restored the five QR type cards on the homepage and QR Types in desktop/mobile n
 Nine homepage Ideas & Occasions cards use one editorial registry for titles, routes, breadcrumbs and relevant type connections. Small Business, Wedding Parties, Real Estate Agents and Memorial Gifts reuse their existing URLs/pages. Five dedicated routes cover Corporate Get-Togethers, Guerrilla Marketing, Unique Gifts, One-of-a-Kind Gifts and Christmas Gifts. Christmas includes gifts for people who have everything, personal Christmas gifts, and a link to the existing Advent page. Type pages link to applicable ideas without repeating their existing Popular Uses links; idea pages link back to their relevant types. New pages use the application skeleton and Master column helpers. No product, price, QRG/BLD/GRF/Assembly, checkout or backend changes.
 
 Validation: TypeScript, layout verification, production build and navigation checks; live checks follow the existing Authorization Engine release. Source-only checks do not establish a live release.
+
+
+## Idea pages without repeated cards — October 11, 2026
+
+The five shared occasion pages now present their examples as open text using the existing Master split layout. All nine ideas use compact QR-type links. Related ideas on the shared pages are simple text links, excluding the current page. Homepage discovery cards and all route/type connections remain available. Changed: `client/src/pages/qr-ideas.tsx`, `client/src/components/IdeaLinks.tsx`, this README, the Admin README, manifest, and source ZIP.
+
+
+The follow-up card review covers all 107 route entries, with per-route dispositions in `docs/PAGE_LAYOUT_AUDIT.md`. The 21 older use-case pages, five QR type pages, QR History, Earn, and selected repeated account/member/admin metrics were simplified as well. Homepage discovery cards remain unchanged. Product, record and form boundaries are retained.
