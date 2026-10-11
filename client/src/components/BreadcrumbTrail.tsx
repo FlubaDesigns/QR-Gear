@@ -1,4 +1,5 @@
 import { Link, useLocation } from "wouter";
+import { qrIdeas } from "@/data/qrIdeas";
 
 const routeLabels: Record<string, string> = {
   "store": "Shop",
@@ -73,7 +74,7 @@ export default function BreadcrumbTrail() {
   segments.forEach((seg, i) => {
     path += "/" + seg;
     if (skipSegments.has(seg)) return; // skip technical params
-    const label = routeLabels[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+    const label = qrIdeas.find(idea => idea.href === path)?.title || routeLabels[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
     const href = hrefOverrides[path] ?? path;
     crumbs.push({ label, href });
   });

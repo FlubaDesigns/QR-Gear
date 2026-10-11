@@ -1,6 +1,7 @@
 import { Building2, CheckCircle, Sparkles, Home, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import { IdeaTypes } from "@/components/IdeaLinks";
 
 const features = [
   "Update the listing link anytime",
@@ -37,7 +38,7 @@ export default function RealtorQRShirts() {
   return (
     <div className="row">
       <SEO 
-        title="Realtor QR Shirts | One Polo, Infinite Listings | QR Gear"
+        title="Real Estate Agents | One Polo, Infinite Listings | QR Gear"
         description="Create realtor shirts with QR codes you can update for every listing. Same polo, different property every week. Track scans and engagement. No reprinting needed."
         keywords="realtor QR shirt, real estate polo, listing QR code, open house shirt, agent merchandise, property QR"
       />
@@ -50,7 +51,7 @@ export default function RealtorQRShirts() {
             </div>
             <div className="vanity-header-text">
               <p className="vanity-category">QR Dynamics™</p>
-              <h1 className="vanity-title">Realtor QR Shirts</h1>
+              <h1 className="vanity-title">Real Estate Agents</h1>
             </div>
           </div>
 
@@ -109,6 +110,8 @@ export default function RealtorQRShirts() {
               </div>
             </div>
           </div>
+
+          <IdeaTypes href="/realtor-qr-shirts" />
 
           <Link href="/build?type=compose">
             <button className="vanity-cta" data-testid="button-create-realtor">

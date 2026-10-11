@@ -1,6 +1,7 @@
 import { Heart, CheckCircle, Sparkles, Camera, Users, Gift, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import { IdeaTypes } from "@/components/IdeaLinks";
 
 const features = [
   "Upload your favorite wedding photo",
@@ -33,7 +34,7 @@ export default function WeddingQRShirts() {
   return (
     <div className="row">
       <SEO 
-        title="Wedding QR Shirts | Custom Photo Favors Your Guests Will Keep | QR Gear"
+        title="Wedding Parties | Custom Photo Favors Your Guests Will Keep | QR Gear"
         description="Create unique wedding favor shirts with scannable QR codes. Guests scan to see your wedding photos. Personal, memorable, and they'll actually wear them. USA options available."
         keywords="wedding favors, wedding shirts, custom wedding gifts, QR wedding favors, photo wedding shirts, unique wedding ideas, personalized wedding gifts"
       />
@@ -46,7 +47,7 @@ export default function WeddingQRShirts() {
             </div>
             <div className="vanity-header-text">
               <p className="vanity-category">QR Canvas</p>
-              <h1 className="vanity-title">Wedding QR Shirts</h1>
+              <h1 className="vanity-title">Wedding Parties</h1>
             </div>
           </div>
 
@@ -102,6 +103,8 @@ export default function WeddingQRShirts() {
               </div>
             </div>
           </div>
+
+          <IdeaTypes href="/wedding-qr-shirts" />
 
           <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-wedding">

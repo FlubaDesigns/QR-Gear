@@ -1,6 +1,7 @@
-import { Play, CheckCircle, ArrowRight, Heart, Home, Clock, Briefcase } from "lucide-react";
+import { Play, CheckCircle, ArrowRight, Heart, Home, Clock, Briefcase, Music } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import IdeaLinks from "@/components/IdeaLinks";
 
 const features = [
   "Upload a video or point to your favorite video URL",
@@ -11,6 +12,13 @@ const features = [
 ];
 
 const personalUses = [
+  {
+    icon: Music,
+    title: "Music That Comes with the Merch",
+    description: "Fans scan your shirt to watch a music video or live performance.",
+    link: "/musician-merch",
+    linkText: "Musician Merch Ideas",
+  },
   {
     icon: Heart,
     title: "Grandpa Lives On",
@@ -121,6 +129,11 @@ export default function QRVideoLanding() {
               ))}
             </div>
           </div>
+
+          <section className="section row" aria-labelledby="more-ideas-title">
+            <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
+            <IdeaLinks typeHref="/qr-play" exclude={personalUses.map(idea => idea.link)} />
+          </section>
 
           <Link href="/build?type=play">
             <button className="vanity-cta" data-testid="button-create-video">

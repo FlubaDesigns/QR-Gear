@@ -1,6 +1,7 @@
 import { Sparkles, CheckCircle, ArrowRight, Calendar, Music, Building2, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import IdeaLinks from "@/components/IdeaLinks";
 
 const features = [
   "Your personal QR Space — hosted digital real estate",
@@ -114,6 +115,11 @@ export default function QRDynamicsLanding() {
             <p className="vanity-tagline">QR Dynamics™ isn't a link.</p>
             <p className="vanity-title-accent">It's space.</p>
           </div>
+
+          <section className="section row" aria-labelledby="more-ideas-title">
+            <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
+            <IdeaLinks typeHref="/qr-dynamics" exclude={popularUses.map(idea => idea.link)} />
+          </section>
 
           <Link href="/build?type=compose">
             <button className="vanity-cta" data-testid="button-create-dynamics">

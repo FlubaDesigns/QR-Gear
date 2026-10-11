@@ -1,0 +1,73 @@
+/** Public editorial ideas. Product choices and prices remain in the shared builder. */
+export const qrIdeas = [
+  { href: '/business-qr-plus', title: 'Small Business', summary: 'Turn everyday gear into a path to your menu, bookings, work, or story.', types: ['/qr-basics', '/qr-plus', '/qr-canvas', '/qr-play', '/qr-dynamics'] },
+  { href: '/wedding-qr-shirts', title: 'Wedding Parties', summary: 'Bring the wedding crew together with photos, memories, and personal keepsakes.', types: ['/qr-basics', '/qr-plus', '/qr-canvas', '/qr-play'] },
+  { href: '/realtor-qr-shirts', title: 'Real Estate Agents', summary: 'Connect an introduction to listings, open houses, and property stories.', types: ['/qr-basics', '/qr-plus', '/qr-canvas', '/qr-play', '/qr-dynamics'] },
+  { href: '/corporate-get-togethers', title: 'Corporate Get-Togethers', summary: 'Give retreats, team events, and company celebrations something worth scanning.', types: ['/qr-basics', '/qr-plus', '/qr-canvas', '/qr-play'],
+    detail: {
+      tagline: 'Make the event useful. Make the memory last.',
+      intro: 'Team gear can do more than display a company name. Give colleagues a quick way to find the plan, enjoy a shared moment, or revisit the event afterward.',
+      scenarios: [
+        { title: 'The agenda at a glance', description: 'Link to your event’s existing schedule, venue information, or team page. Keep any access restrictions on the destination site.' },
+        { title: 'A welcome from the team', description: 'Share a short welcome video for a retreat, orientation day, or annual gathering.' },
+        { title: 'Celebrate a milestone', description: 'Use a team photo or a custom graphic to mark an anniversary, launch, or project completion.' },
+        { title: 'A thank-you they can replay', description: 'Record a message recognizing the people who made the event or achievement possible.' },
+      ],
+      start: ['Pick one purpose: event information, a team image, or a video message.', 'Prepare content suitable for everyone who may scan the gear.', 'Choose the matching QR type and create your design.'],
+    },
+  },
+  { href: '/guerrilla-marketing', title: 'Guerrilla Marketing', summary: 'Spark curiosity with a memorable message and a scan that rewards it.', types: ['/qr-plus', '/qr-play', '/qr-dynamics'],
+    detail: {
+      tagline: 'A small surprise. A reason to scan.',
+      intro: 'Turn a street-team appearance, pop-up, or unexpected conversation into a memorable brand moment. The message on the gear earns attention; the destination should make that attention worthwhile.',
+      scenarios: [
+        { title: 'The reveal', description: 'Print a short teaser and let the scan open a video that delivers the answer, product reveal, or brand story.' },
+        { title: 'The moving invitation', description: 'Give your team a clear call to action leading to your pop-up details, launch page, or existing signup form.' },
+        { title: 'A campaign that changes', description: 'Use QR Dynamics for a campaign destination you can update as each stage of the launch unfolds.' },
+        { title: 'A message with personality', description: 'Pair an unexpected line with useful content people will want to share. Keep the scan invitation clear and the destination recognizable.' },
+      ],
+      start: ['Write a brief hook and decide what the scan delivers.', 'Prepare the destination before distributing your gear.', 'Choose your QR type, create the design, and check the scan experience.'],
+    },
+  },
+  { href: '/unique-qr-gifts', title: 'Unique Gifts', summary: 'Give a birthday, anniversary, or thank-you gift a story beyond its surface.', types: ['/qr-canvas', '/qr-play'],
+    detail: {
+      tagline: 'Give them something to discover.',
+      intro: 'A favorite photo or a recorded message can turn a useful gift into a personal experience. Start with what matters to the recipient, then make that the moment behind the scan.',
+      scenarios: [
+        { title: 'A birthday message', description: 'Record a greeting they can revisit, from one person or a group of friends.' },
+        { title: 'An anniversary memory', description: 'Choose a photo from a first trip, a favorite place, or a day that changed everything.' },
+        { title: 'A long-distance hello', description: 'Add a familiar face and voice to a gift for someone living far away.' },
+        { title: 'A thank-you with a story', description: 'Show the moment their help made possible, or record a personal note of appreciation.' },
+      ],
+      start: ['Choose a memory or message the recipient will recognize.', 'Use QR Canvas for an image or QR Play for a video.', 'Open the builder and choose from the available products.'],
+    },
+  },
+  { href: '/one-of-a-kind-qr-gifts', title: 'One-of-a-Kind Gifts', summary: 'Build around their own story, your artwork, and words meant just for them.', types: ['/qr-plus', '/qr-canvas', '/qr-play'],
+    detail: {
+      tagline: 'Their story is the starting point.',
+      intro: 'Make a gift personal through the content you choose: an original drawing, a shared joke, a handwritten message, or a moment only the two of you recognize. The design comes from your relationship with the recipient.',
+      scenarios: [
+        { title: 'Original artwork', description: 'Create an image from your own drawing or design and let the scan open the full piece.' },
+        { title: 'The story behind the photo', description: 'Pair a meaningful picture with a video explaining why that moment matters to you.' },
+        { title: 'An inside joke', description: 'Use a short printed prompt that leads to a personal image or message they will immediately understand.' },
+        { title: 'A message in your own voice', description: 'Record something specific to the recipient: a congratulations, a memory, or a promise for your next adventure.' },
+      ],
+      start: ['Start with original content that makes the gift personal.', 'Choose whether the scan opens an image, video, or existing link.', 'Create your design and review the content before ordering.'],
+    },
+  },
+  { href: '/christmas-qr-gifts', title: 'Christmas Gifts', summary: 'One-of-a-kind Christmas gifts for the people who already have everything.', types: ['/qr-canvas', '/qr-play', '/qr-dynamics'],
+    detail: {
+      tagline: 'For the person who has everything.',
+      intro: 'They may have all the things they need. What they do not have is this memory, this message, or this moment from you. Make a Christmas gift around a story only you can tell.',
+      scenarios: [
+        { title: 'One-of-a-kind Christmas gifts', description: 'Use your own artwork, a family saying, or a photo with a story behind it. Make the design unmistakably theirs.' },
+        { title: 'Gifts for people who have everything', description: 'Give a personal video: what you appreciate about them, your favorite shared memory, or a Christmas wish in your own words.' },
+        { title: 'Christmas across the miles', description: 'Record greetings from family and friends so someone far from home can see familiar faces and hear familiar voices.' },
+        { title: 'A little Christmas every day', description: 'Explore the existing Advent ideas for scheduled messages, memories, or seasonal surprises through QR Dynamics.' },
+      ],
+      start: ['Choose the person and the memory or message you want to share.', 'Use an image, a video greeting, or an Advent sequence to shape the experience.', 'Create your design and review the available product and delivery details before ordering.'],
+      related: [{ href: '/advent-qr-shirts', title: 'Advent & Christmas Countdown Ideas' }],
+    },
+  },
+  { href: '/memorial-qr-gifts', title: 'Memorial Gifts', summary: 'Keep a meaningful photo, tribute, or recorded memory close.', types: ['/qr-canvas', '/qr-play'] },
+];

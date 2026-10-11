@@ -1,6 +1,7 @@
 import { Briefcase, CheckCircle, UtensilsCrossed, HelpCircle, Phone, Store, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import { IdeaTypes } from "@/components/IdeaLinks";
 
 const features = [
   "Clear call-to-action above your QR",
@@ -37,7 +38,7 @@ export default function BusinessQRPlus() {
   return (
     <div className="row">
       <SEO 
-        title="Business QR Plus | Clear Calls-to-Action for Your Brand | QR Gear"
+        title="Small Business | Clear Calls-to-Action for Your Brand | QR Gear"
         description="Create professional QR products with clear prompts like 'SCAN FOR MENU' or 'NEED HELP? SCAN ME'. No confusion, no hesitation. USA options available."
         keywords="business QR, menu QR code, restaurant QR, service business QR, professional QR shirts, customer service QR"
       />
@@ -50,7 +51,7 @@ export default function BusinessQRPlus() {
             </div>
             <div className="vanity-header-text">
               <p className="vanity-category">QR Plus</p>
-              <h1 className="vanity-title">Business QR Plus</h1>
+              <h1 className="vanity-title">Small Business</h1>
             </div>
           </div>
 
@@ -63,7 +64,7 @@ export default function BusinessQRPlus() {
           <div className="glass-card vanity-features">
             <h2 className="vanity-features-title">
               <Briefcase />
-              What you get:
+              What QR Plus adds:
             </h2>
             <ul className="vanity-features-list">
               {features.map((feature, i) => (
@@ -106,6 +107,8 @@ export default function BusinessQRPlus() {
               </div>
             </div>
           </div>
+
+          <IdeaTypes href="/business-qr-plus" />
 
           <Link href="/build?type=plus">
             <button className="vanity-cta" data-testid="button-create-business">

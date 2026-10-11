@@ -1,6 +1,7 @@
-import { Palette, CheckCircle, Heart, Camera, Users, Sparkles, ArrowRight } from "lucide-react";
+import { Palette, CheckCircle, Heart, Camera, Users, Sparkles, ArrowRight, Music } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import IdeaLinks from "@/components/IdeaLinks";
 
 const features = [
   "Upload your own background image",
@@ -11,6 +12,13 @@ const features = [
 ];
 
 const popularUses = [
+  {
+    icon: Music,
+    title: "Album Art You Can Wear",
+    description: "Let fans scan your merch to explore your album artwork and music.",
+    link: "/musician-merch",
+    linkText: "Musician Merch Ideas",
+  },
   {
     icon: Heart,
     title: "The Gift That Keeps Giving",
@@ -103,6 +111,11 @@ export default function QRUrlLanding() {
               ))}
             </div>
           </div>
+
+          <section className="section row" aria-labelledby="more-ideas-title">
+            <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
+            <IdeaLinks typeHref="/qr-canvas" exclude={popularUses.map(idea => idea.link)} />
+          </section>
 
           <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-canvas">

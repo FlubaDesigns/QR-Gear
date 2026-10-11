@@ -1,6 +1,7 @@
 import { QrCode, CheckCircle, Link2, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import IdeaLinks from "@/components/IdeaLinks";
 
 const features = [
   "Encode any text, URL, or contact info",
@@ -113,6 +114,11 @@ export default function QRStaticLanding() {
               ))}
             </div>
           </div>
+
+          <section className="section row" aria-labelledby="more-ideas-title">
+            <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
+            <IdeaLinks typeHref="/qr-basics" exclude={examples.map(idea => idea.link)} />
+          </section>
 
           <Link href="/build?type=basic">
             <button className="vanity-cta" data-testid="button-create-static">

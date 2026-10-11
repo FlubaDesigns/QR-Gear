@@ -1,9 +1,9 @@
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
-import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield, Wand2, Users, Hammer } from "lucide-react";
+import { QrCode, Type, Palette, Upload, Sparkles, ShoppingBag, Shield, Wand2, Users, Hammer, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
-const actionCards = [
+export const actionCards = [
   {
     icon: QrCode,
     title: "QR Basics",
@@ -53,14 +53,15 @@ const actionCards = [
 
 export default function ActionCards() {
   return (
-    <section className="home-section">
-      <div className="container">
+    <section id="qr-types" className="home-section" aria-labelledby="qr-types-title">
+      <div className="row">
         <div className="section-header">
-          <h2>Choose Your QR Product Line</h2>
-          <p>Five ways to create custom QR merchandise for any purpose</p>
+          <p className="kicker">Find your inspiration</p>
+          <h2 id="qr-types-title">Explore QR Types &amp; Ideas</h2>
+          <p>Five ways to bring your ideas to life. Choose a type to explore its potential uses.</p>
         </div>
 
-        <div className="action-cards-grid">
+        <div className="layout__auto">
           {actionCards.map((card, index) => (
             <Link 
               key={index}
@@ -76,6 +77,7 @@ export default function ActionCards() {
                 <span className="action-card-state">{card.state}</span>
                 <p className="action-card-description">{card.description}</p>
                 <p className="action-card-tagline">{card.tagline}</p>
+                <span className="home-text-link">Explore uses &amp; ideas <ArrowRight aria-hidden="true" /></span>
               </div>
             </Link>
           ))}

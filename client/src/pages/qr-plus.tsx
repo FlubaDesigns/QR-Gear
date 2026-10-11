@@ -1,6 +1,7 @@
 import { Type, CheckCircle, ArrowRight, User, Calendar, Heart, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import IdeaLinks from "@/components/IdeaLinks";
 
 const features = [
   "Custom header text above your QR",
@@ -115,6 +116,11 @@ export default function QRStaticPlusLanding() {
               ))}
             </div>
           </div>
+
+          <section className="section row" aria-labelledby="more-ideas-title">
+            <h2 id="more-ideas-title">More ideas &amp; occasions</h2>
+            <IdeaLinks typeHref="/qr-plus" exclude={personalUses.map(idea => idea.link)} />
+          </section>
 
           <Link href="/build?type=plus">
             <button className="vanity-cta" data-testid="button-create-static-plus">

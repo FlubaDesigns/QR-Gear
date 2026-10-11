@@ -432,6 +432,25 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Restore QR types and connect occasion pages
+
+Restored the five QR type cards on the homepage and QR Types in desktop/mobile navigation. Existing ActionCards supplies the shared type names and destinations. Cards use Master row/layout__auto, and all existing idea routes remain available. Canvas and Play now link to Musician Merch.
+
+Nine homepage Ideas & Occasions cards use one editorial registry for titles, routes, breadcrumbs and relevant type connections. Small Business, Wedding Parties, Real Estate Agents and Memorial Gifts reuse their existing URLs/pages. Five dedicated routes cover Corporate Get-Togethers, Guerrilla Marketing, Unique Gifts, One-of-a-Kind Gifts and Christmas Gifts. Christmas includes gifts for people who have everything, personal Christmas gifts, and a link to the existing Advent page. Type pages link to applicable ideas without repeating their existing Popular Uses links; idea pages link back to their relevant types. New pages use the application skeleton and Master column helpers. No product, price, QRG/BLD/GRF/Assembly, checkout or backend changes.
+
+Validation: TypeScript, layout verification, production build and navigation checks; live checks follow the existing Authorization Engine release. Source-only checks do not establish a live release.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `client/src/pages/home.tsx`, `client/src/components/ActionCards.tsx`, `client/src/components/Navbar.tsx` | Homepage QR types and shared navigation destinations |
+| `client/src/data/qrIdeas.ts`, `client/src/components/IdeaLinks.tsx`, `client/src/pages/qr-ideas.tsx` | Nine ideas, reciprocal type connections and five new dedicated pages |
+| `client/src/App.tsx`, `client/src/components/BreadcrumbTrail.tsx` | Registered routes and shared editorial labels |
+| `client/src/pages/qr-{basics,plus,canvas,play,dynamics}.tsx` | Relevant idea links; Musician Merch connected from Canvas/Play |
+| `client/src/pages/{business-qr-plus,wedding-qr-shirts,realtor-qr-shirts,memorial-qr-gifts}.tsx` | Reused existing pages with relevant QR-type connections |
+| `README.md`, this guide, `docs/PAGE_LAYOUT_AUDIT.md`, `MANIFEST.json`, source ZIP | Release documentation and updated package |
+
+
 ### October 11, 2026 — Correct footer edge spacing and heading alignment
 
 The footer's content panel now uses Master `--col-gap` for its horizontal inset. Its existing row/split-4 structure, breakpoints and column gutters are preserved. Footer headings align with their link lists, and desktop heading/legal typography is 12px. The compact height and Powered by FlubaDesigns.com credit remain. This is a CSS presentation correction; no backend or data changes.

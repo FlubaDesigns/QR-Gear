@@ -954,3 +954,12 @@ Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns
 ## Footer inset correction — October 11, 2026
 
 The footer content panel now takes its horizontal inset from Master’s `--col-gap`, while the existing `.row` and `.layout__split-4` continue to own its width and columns. Footer headings align left with their links; desktop section labels and legal copy remain readable at 12px. The correction addresses the prior flush-to-panel text and centered headings. Master CSS, column breakpoints, header logo and the FlubaDesigns.com credit are unchanged.
+
+
+## Homepage QR types and connected ideas — October 11, 2026
+
+Restored the five QR type cards on the homepage and QR Types in desktop/mobile navigation. Existing ActionCards supplies the shared type names and destinations. Cards use Master row/layout__auto, and all existing idea routes remain available. Canvas and Play now link to Musician Merch.
+
+Nine homepage Ideas & Occasions cards use one editorial registry for titles, routes, breadcrumbs and relevant type connections. Small Business, Wedding Parties, Real Estate Agents and Memorial Gifts reuse their existing URLs/pages. Five dedicated routes cover Corporate Get-Togethers, Guerrilla Marketing, Unique Gifts, One-of-a-Kind Gifts and Christmas Gifts. Christmas includes gifts for people who have everything, personal Christmas gifts, and a link to the existing Advent page. Type pages link to applicable ideas without repeating their existing Popular Uses links; idea pages link back to their relevant types. New pages use the application skeleton and Master column helpers. No product, price, QRG/BLD/GRF/Assembly, checkout or backend changes.
+
+Validation: TypeScript, layout verification, production build and navigation checks; live checks follow the existing Authorization Engine release. Source-only checks do not establish a live release.

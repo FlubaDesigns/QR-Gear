@@ -1,6 +1,6 @@
 # Page layout audit — October 11, 2026
 
-All 102 route entries (including redirects and the not-found route) inherit the single `PageSkeleton` mounted around `Router` in `App.tsx`. Loading, denied-access and error states cannot bypass the skeleton.
+All 107 route entries (including redirects and the not-found route) inherit the single `PageSkeleton` mounted around `Router` in `App.tsx`. Loading, denied-access and error states cannot bypass the skeleton.
 
 ## CSS ownership
 
@@ -97,6 +97,11 @@ Live verification is recorded with the deployment result. Source coverage includ
 | `/qr-canvas` | `client/src/pages/qr-canvas.tsx` | Site header / footer |
 | `/qr-play` | `client/src/pages/qr-play.tsx` | Site header / footer |
 | `/qr-dynamics` | `client/src/pages/qr-dynamics.tsx` | Site header / footer |
+| `/corporate-get-togethers` | `client/src/pages/qr-ideas.tsx` | Site header / footer |
+| `/guerrilla-marketing` | `client/src/pages/qr-ideas.tsx` | Site header / footer |
+| `/unique-qr-gifts` | `client/src/pages/qr-ideas.tsx` | Site header / footer |
+| `/one-of-a-kind-qr-gifts` | `client/src/pages/qr-ideas.tsx` | Site header / footer |
+| `/christmas-qr-gifts` | `client/src/pages/qr-ideas.tsx` | Site header / footer |
 | `/qr-history` | `client/src/pages/qr-history.tsx` | Site header / footer |
 | `/wedding-qr-shirts` | `client/src/pages/wedding-qr-shirts.tsx` | Site header / footer |
 | `/family-reunion-shirts` | `client/src/pages/family-reunion-shirts.tsx` | Site header / footer |

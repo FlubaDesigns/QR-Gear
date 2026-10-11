@@ -6,6 +6,8 @@ import { QR_GEAR } from "@/data/shopHierarchy";
 import type { StoreResponse } from "@/features/storefront/types";
 import Hero from "@/components/Hero";
 import HowItWorks from "@/components/HowItWorks";
+import ActionCards from "@/components/ActionCards";
+import IdeaLinks from "@/components/IdeaLinks";
 import FeaturedProducts from "@/components/FeaturedProducts";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
@@ -111,6 +113,15 @@ export default function Home() {
       <div className="home-page row">
         <Hero product={featuredProduct} isLoading={isLoading} catalogError={error} />
         <HowItWorks />
+        <ActionCards />
+        <section id="qr-ideas" className="home-section" aria-labelledby="home-ideas-title">
+          <div className="section-header">
+            <p className="kicker">Made for your moment</p>
+            <h2 id="home-ideas-title">Ideas &amp; Occasions</h2>
+            <p>For your business, your people, or a gift with a story to tell.</p>
+          </div>
+          <IdeaLinks />
+        </section>
         <section className="home-section home-collection" aria-labelledby="featured-products-title">
           <FeaturedStores />
           <FeaturedProducts products={data?.products} isLoading={isLoading} error={error} onRetry={() => void refetch()} collectionHref={`${PUBLIC_SHOP_PATH}/${featuredChannel.slug}`} />

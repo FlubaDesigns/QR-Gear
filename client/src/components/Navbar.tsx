@@ -14,6 +14,8 @@ import { Slider } from "@/components/ui/slider";
 import { signOut } from "@/lib/firebase";
 import type { CartItem } from "@shared/schema";
 import logoPng from "@/assets/logo.png";
+import { actionCards } from "@/components/ActionCards";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
 export default function Navbar() {
   const [location, setLocation] = useLocation();
@@ -103,6 +105,18 @@ export default function Navbar() {
                 {link.label}
               </Link>
             ))}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="min-h-12 text-sm font-medium" data-testid="nav-qr-types">QR Types</Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                {actionCards.map(card => (
+                  <DropdownMenuItem key={card.href} asChild>
+                    <Link href={card.href} className="min-h-12" data-testid={`nav-type-${card.href.slice(1)}`}>{card.title}</Link>
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             {isAdmin && (
               <Link
                 href="/admin"
@@ -202,6 +216,13 @@ export default function Navbar() {
                   >
                     {link.label}
                   </Link>
+                ))}
+              </div>
+
+              <div className="md:hidden flex flex-col gap-1 border-t pt-4 pb-4">
+                <p className="px-4 text-sm font-semibold">QR Types &amp; Ideas</p>
+                {actionCards.map(card => (
+                  <Link key={card.href} href={card.href} className="min-h-12 flex items-center px-4 rounded-lg" onClick={() => setMenuOpen(false)} data-testid={`mobile-nav-type-${card.href.slice(1)}`}>{card.title}</Link>
                 ))}
               </div>
 

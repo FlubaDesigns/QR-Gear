@@ -1,6 +1,7 @@
 import { Heart, CheckCircle, Star, Camera, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
+import { IdeaTypes } from "@/components/IdeaLinks";
 
 const features = [
   "Upload their favorite photo",
@@ -33,7 +34,7 @@ export default function MemorialQRGifts() {
   return (
     <div className="row">
       <SEO 
-        title="Memorial QR Gifts | Remembrance Photo Shirts | QR Gear"
+        title="Memorial Gifts | Remembrance Photo Shirts | QR Gear"
         description="Create memorial shirts with scannable QR codes that show a photo of your loved one. A meaningful way to keep memories close. Perfect for remembrance and tribute. USA options available."
         keywords="memorial shirts, remembrance gifts, in memory of shirts, tribute apparel, pet memorial, loved one shirts, grief gifts, memorial QR"
       />
@@ -46,7 +47,7 @@ export default function MemorialQRGifts() {
             </div>
             <div className="vanity-header-text">
               <p className="vanity-category">QR Canvas</p>
-              <h1 className="vanity-title">Memorial QR Gifts</h1>
+              <h1 className="vanity-title">Memorial Gifts</h1>
             </div>
           </div>
 
@@ -103,6 +104,8 @@ export default function MemorialQRGifts() {
               </div>
             </div>
           </div>
+
+          <IdeaTypes href="/memorial-qr-gifts" />
 
           <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-memorial">
