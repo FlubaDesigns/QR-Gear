@@ -432,6 +432,18 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Narrow desktop product grid
+
+The homepage product grid now uses a scoped compact modifier on the existing Master split helper: two columns below a 40rem row width and three columns from 40rem, with a 56rem maximum row width. This fixes narrow desktop views that previously fell below the standard 54rem three-column breakpoint and displayed oversized single-column images. Master and PageSkeleton remain unchanged.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/components/FeaturedProducts.tsx` | Add homepage product-grid modifier to the canonical split helper. |
+| `client/src/styles/canonical/qrgear-site.css` | Two small-screen columns and three desktop columns from 40rem. |
+| `README.md`, this guide, `MANIFEST.json`, source ZIP | Document and package the correction. |
+
+
 ### October 11, 2026 — Compact store cards and accurate member invitation
 
 The homepage featured-product row is centered and capped at 56rem so desktop catalog images stay compact. Existing Master row/split helpers retain responsive columns and shared StoreProductCard behavior.

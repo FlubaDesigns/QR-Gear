@@ -929,3 +929,8 @@ Files: client/src/pages/home.tsx; client/src/components/Hero.tsx; client/src/com
 The featured-product row now has a centered 56rem maximum width. The existing Master row and layout__split-3 helpers still control responsive columns, while desktop product photos remain approximately 276px square instead of stretching across the full page. Shared card content, product data, mobile sizing and shopping destinations are unchanged.
 
 The closing member invitation now uses two text columns instead of the workbench photo. It clearly explains that members design and earn while production and direct-to-customer shipping are handled for them. The misleading image import and its unused presentation rules were removed.
+
+
+### Narrow desktop product grid — October 11, 2026
+
+The homepage product grid now uses a scoped compact modifier on the existing Master split helper: two columns below a 40rem row width and three columns from 40rem, with a 56rem maximum row width. This fixes narrow desktop views that previously fell below the standard 54rem three-column breakpoint and displayed oversized single-column images. Master and PageSkeleton remain unchanged.

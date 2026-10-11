@@ -22,7 +22,7 @@ export default function FeaturedProducts({ products, isLoading, error, onRetry, 
             <Button variant="outline" onClick={onRetry}>Retry loading products</Button>
           </div>
         ) : products?.length ? (
-          <div className="layout__split-3" data-testid="homepage-store-products">
+          <div className="layout__split-3 home-product-grid" data-testid="homepage-store-products">
             {products.slice(0, 6).map(product => <StoreProductCard key={product.id} product={product} />)}
           </div>
         ) : (
