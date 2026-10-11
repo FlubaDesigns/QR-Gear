@@ -215,14 +215,14 @@ export default function AdminPricing() {
             </Button>
             <p className="text-xs text-muted-foreground">
               {unsavedMarkup ? 'Save your pricing changes before previewing. ' : ''}
-              Recalculates saved products from their QRG provider costs, print content, hosting, labels and shipping, then applies your markup. Restores missing inside brand labels with the existing label artwork and verified print area. External marketplace prices are not published by this action.
+              Recalculates saved products from their QRG provider costs, print content, hosting, labels and shipping, then applies your markup. Uses inside branding where supported, otherwise outside branding. Products without either label area proceed without a label charge. External marketplace prices are not published by this action.
             </p>
             {markupPreview && <div data-testid="markup-preview" className="space-y-3">
               <p>Saved markup: {markupPreview.markupPercent}% + ${markupPreview.markupFixed.toFixed(2)}.
                 {' '}{markupPreview.productsToUpdate} products would be updated; {markupPreview.blocked.length} need attention.</p>
               <div className="overflow-auto max-h-80">
                 <table className="w-full text-sm"><thead><tr><th className="text-left">Product</th><th>Current price</th><th>Updated price</th></tr></thead>
-                  <tbody>{markupPreview.products.map((p: any) => <tr key={p.id}><td>{p.title}{p.restoreInsideLabel && <span className="block text-xs text-muted-foreground">Restore inside label</span>}</td><td className="text-center">${p.currentPrice.toFixed(2)}</td><td className="text-center">${p.customerPrice.toFixed(2)}</td></tr>)}</tbody>
+                  <tbody>{markupPreview.products.map((p: any) => <tr key={p.id}><td>{p.title}{p.restoreBrandLabel && <span className="block text-xs text-muted-foreground">Restore brand label</span>}</td><td className="text-center">${p.currentPrice.toFixed(2)}</td><td className="text-center">${p.customerPrice.toFixed(2)}</td></tr>)}</tbody>
                 </table>
               </div>
               {markupPreview.blocked.length > 0 && <div role="alert" className="text-destructive text-sm">
@@ -440,7 +440,7 @@ export default function AdminPricing() {
                 </Label>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                This saved preference does not replace the required inside brand label. The inside label is always retained, its provider-specific cost is included, and its artwork travels to fulfillment. An outside label is charged only when that placement is selected in the product build.
+                Branding uses a supported inside label, otherwise an outside label. Only the selected label is charged. Products without either area proceed without a label charge. Each purchased item receives its own label QR code and printed QRG number.
               </p>
             </div>
             <div className="bg-muted/50 rounded-md p-3 text-xs text-muted-foreground space-y-1">

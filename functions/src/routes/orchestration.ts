@@ -9,7 +9,7 @@ import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_I
 import { printfulClient } from '../services/printful';
   import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
   import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
+  import { calculateAuthoritativePrice, getAuthoritativePrice, validateBrandLabel } from '../services/pricing';
   import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
   import type { MockupRequest, MockupResult } from '../services/mockup-generator';
   import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
@@ -32,7 +32,12 @@ import Stripe from 'stripe';
       else {
         if (packet.ownerInstanceId !== item.id) issues.push('Packet ownership does not match this product.');
         if (packet.pricing?.customerPrice !== price || packet.pricing?.subtotal !== cost) issues.push('Packet and catalog pricing disagree.');
-        if (!packet.builderSnapshot?.layoutConfig?.selectedPlacements?.includes('label_inside') || !packet.placementGrfIds?.label_inside) issues.push('Required registered inside label is missing.');
+        try {
+          const masterId = packet.builderSnapshot?.metadata?.selectedProductDocId;
+          const master = masterId ? (await db.collection('master_catalog').doc(masterId).get()).data() : null;
+          validateBrandLabel(master, packet.builderSnapshot);
+          for (const label of ['label_inside', 'label_outside']) if (packet.builderSnapshot.layoutConfig.selectedPlacements.includes(label) && !packet.placementGrfIds?.[label]) issues.push('Registered brand label is missing.');
+        } catch (error: any) { issues.push(error.message); }
       }
       const validPrice = typeof price === 'number' && Number.isFinite(price) && price > 0;
       const validCost = typeof cost === 'number' && Number.isFinite(cost) && cost >= 0;

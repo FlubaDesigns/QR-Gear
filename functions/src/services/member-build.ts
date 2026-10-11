@@ -7,7 +7,7 @@ import { catalogSaleVariants, selectCatalogSaleVariant } from './catalog-sale-va
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { requireBuilderSnapshot, packetBuildFields, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
-import { priceNewPacket } from './pricing';
+import { priceNewPacket, brandLabelSpec } from './pricing';
 import { registerGrfAsset, registerPacketGrfAssets, registerMockupGrfAssets } from './grf-registrar';
 import { generateMockupFromPrintful } from './mockup-generator';
 import { GRF_PACKET_SLOTS } from '../../../shared/GRF_engine';
@@ -105,8 +105,8 @@ export async function prepareMemberBuild(memberId: string, input: any) {
   if (!title) fail('Give your product a title.');
   if (input.packetType === 'qr-canvas' && !input.background) fail('Choose your QR Canvas background.');
   if (input.packetType === 'qr-play' && !input.videoUrl) fail('Choose your QR Play video.');
-  const label = locations.find((p: any) => p.id === 'label_inside');
-  if (!label?.verifiedVariantIds?.includes(Number(variant.mapping.variantId))) fail('This variant does not support the required inside label.');
+  const label = brandLabelSpec(master, provider);
+  if (label && !label.verifiedVariantIds?.includes(Number(variant.mapping.variantId))) fail('This variant does not support the selected brand label.');
   const placementSizes = Object.fromEntries(selected.map((placement: string) => {
     const size = input.perPlacementSizes?.[placement] || input.graphicSize || 'medium';
     if (!['small', 'medium', 'large'].includes(size)) fail('Choose a valid graphic size.');
@@ -165,7 +165,7 @@ export async function saveMemberArtwork(memberId: string, id: string, placement:
   const { ref, packet } = await ownedMemberBuild(memberId, id);
   if (packet.status !== 'building') fail('Generate a new build before changing published artwork.');
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
-  if (!snapshot.layoutConfig.selectedPlacements.includes(placement) || placement === 'label_inside') fail('Choose a placement in this build.');
+  if (!snapshot.layoutConfig.selectedPlacements.includes(placement) || ['label_inside', 'label_outside'].includes(placement)) fail('Choose a placement in this build.');
   const image = decodeLibraryImage(data, 'image/png'), bytes = Buffer.from(image.imageData, 'base64');
   const dims = snapshot.layoutConfig.providerLayouts[placement]?.dimensions;
   if (bytes.length < 24 || bytes.readUInt32BE(16) !== dims?.widthPx || bytes.readUInt32BE(20) !== dims?.heightPx) fail('Rendered artwork dimensions do not match the saved QRG print area.');
@@ -195,7 +195,7 @@ export async function commitMemberBuild(memberId: string, id: string) {
   };
   await ref.update(publishedFields);
   packet = { ...packet, ...publishedFields };
-  const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => p !== 'label_inside');
+  const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => !['label_inside', 'label_outside'].includes(p));
   const compositeUrl = packet.placementGraphicUrls[primary];
   await ref.update({ compositeUrl, productGraphicUrl: compositeUrl });
   const grfs = await registerPacketGrfAssets({ ...packet, compositeUrl }, null, id);

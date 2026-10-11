@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'crypto';
-import { db } from '../core';
+import { db, QR_GEAR_BRANDED_TAG_URL } from '../core';
+import { renderUnitBrandLabel } from './brand-label-artwork';
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { allocateQrgInstance } from './qrg-instance-allocator';
 import { registerGrfAsset, registerPacketGrfAssets } from './grf-registrar';
@@ -90,12 +91,19 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
       if (instance.status === 'preparing') {
         const urls = { ...source.placementGraphicUrls };
         if (hosted) for (const placement of snapshot.layoutConfig.selectedPlacements) {
-          if (placement === 'label_inside') continue;
+          if (['label_inside', 'label_outside'].includes(placement)) continue;
           const imageData = await renderUnitArtwork(source, placement, packet.qrContent);
           const grf = await registerGrfAsset({ ...GRF_PACKET_SLOTS.qrComposite, imageData, mimeType: 'image/png', packetId: packetRef.id, createdBy: ownerId || 'paid-order' });
           urls[placement] = grf.publicUrl;
         }
-        const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => p !== 'label_inside');
+        for (const placement of snapshot.layoutConfig.selectedPlacements.filter((p: string) => ['label_inside', 'label_outside'].includes(p))) {
+          const image = await renderUnitBrandLabel(QR_GEAR_BRANDED_TAG_URL, snapshot.layoutConfig.providerLayouts[placement]?.dimensions,
+            `${resolveRuntimeConfig().origin}/api/qr/item/${instanceId}`, instance.qrgBaseCode);
+          const grf = await registerGrfAsset({ ...GRF_PACKET_SLOTS.qrComposite, imageData: image.toString('base64'), mimeType: 'image/png',
+            packetId: packetRef.id, createdBy: ownerId || 'paid-order', name: instance.qrgBaseCode });
+          urls[placement] = grf.publicUrl;
+        }
+        const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => !['label_inside', 'label_outside'].includes(p));
         await packetRef.update({ placementGraphicUrls: urls, compositeUrl: urls[primary], productGraphicUrl: urls[primary] });
         packet = (await packetRef.get()).data()!;
         const grfs = await registerPacketGrfAssets(packet, null, packetRef.id);

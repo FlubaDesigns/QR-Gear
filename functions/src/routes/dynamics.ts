@@ -312,6 +312,26 @@ app.put('/dynamics/instances/:instanceId/slots', requireAuth, async (req: Reques
   } catch (error: any) { console.error('[QR Dynamics] Update failed:', error.message); res.status(error.status || 500).json({ error: error.message }); }
 });
 
+// The label opens only the public item identity, never ownership, order or claim data.
+app.get('/qr/item/:instanceId', async (req: Request, res: Response) => {
+  res.set('Cache-Control', 'no-store');
+  try {
+    const id = req.params.instanceId;
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(id)) { res.status(404).type('text').send('Item not found.'); return; }
+    const item = (await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(id).get()).data();
+    if (!item || !['active', 'static'].includes(item.status) || !/^QRG-[1-6][1-9]\d{3}-O-\d{6}$/.test(item.qrgBaseCode || '')) {
+      res.status(404).type('text').send('Item not found.'); return;
+    }
+    const packet = (await db.collection(PRODUCT_PACKETS_COLLECTION).doc(item.packetId).get()).data();
+    if (!packet || packet.status !== 'published' || packet.qrgBaseCode !== item.qrgBaseCode || packet.composeInstanceId !== id) {
+      res.status(404).type('text').send('Item not found.'); return;
+    }
+    const link = item.status === 'active' ? `<p><a href="/qr/d/${encodeURIComponent(id)}">Open this item’s QR experience</a></p>` : '';
+    res.set('X-Robots-Tag', 'noindex');
+    res.type('html').send(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR Gear Item</title><style>body{margin:0;background:#0d1b29;color:#edf7ff;font:18px system-ui;min-height:100vh;display:grid;place-items:center}main{padding:32px;max-width:640px}img{width:180px;max-width:100%}h1{font-size:28px}code{display:block;padding:20px 0;font-size:clamp(16px,4vw,24px);color:#82d3ff}a{color:#82d3ff}</style></head><body><main><h1>QR Gear</h1><p>${escapeHtml(String(item.title || 'Your QR Gear item'))}</p><p>Individual item number</p><code>${escapeHtml(item.qrgBaseCode)}</code>${link}</main></body></html>`);
+  } catch (error: any) { console.error('[QR Item Label]', error.message); res.status(503).type('text').send('Item information is temporarily unavailable.'); }
+});
+
 app.get('/qr/d/:instanceId', async (req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   try {

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
-type PricingPreview = {dryRun:boolean; previewToken:string; productsUpdated:number; productsToUpdate:number; markupPercent:number; markupFixed:number; products:Array<{id:string;title:string;currentPrice:number;customerPrice:number;restoreInsideLabel:boolean}>; blocked:Array<{id:string;title:string;reason:string}>};
+type PricingPreview = {dryRun:boolean; previewToken:string; productsUpdated:number; productsToUpdate:number; markupPercent:number; markupFixed:number; products:Array<{id:string;title:string;currentPrice:number;customerPrice:number;restoreBrandLabel:string|null}>; blocked:Array<{id:string;title:string;reason:string}>};
 export function RepricingTabContent() {
   const [preview, setPreview] = useState<PricingPreview | null>(null);
   const [result, setResult] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export function RepricingTabContent() {
     {result && <p role="status">{result}</p>}
     {preview && <>
       <p>Saved markup: {preview.markupPercent}% + ${preview.markupFixed.toFixed(2)}. {preview.productsToUpdate} products would change; {preview.blocked.length} need attention.</p>
-      {preview.products.map(p => <Card key={p.id}><CardContent className="p-4"><h3 className="font-medium">{p.title}</h3><p>${p.currentPrice.toFixed(2)} → ${p.customerPrice.toFixed(2)}</p>{p.restoreInsideLabel && <p>Restore required inside label</p>}</CardContent></Card>)}
+      {preview.products.map(p => <Card key={p.id}><CardContent className="p-4"><h3 className="font-medium">{p.title}</h3><p>${p.currentPrice.toFixed(2)} → ${p.customerPrice.toFixed(2)}</p>{p.restoreBrandLabel && <p>Restore supported brand label</p>}</CardContent></Card>)}
       {preview.blocked.map(p => <p key={p.id} role="alert" className="text-destructive">{p.title}: {p.reason}</p>)}
       <Button className="min-h-12" disabled={run.isPending || preview.blocked.length > 0 || preview.productsToUpdate === 0} onClick={() => run.mutate(preview.previewToken)} data-testid="button-run-repricing">Apply Previewed Pricing</Button>
       <p className="text-sm text-muted-foreground">A changed product or pricing setting invalidates this preview. External marketplace prices are published separately.</p>

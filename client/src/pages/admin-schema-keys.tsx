@@ -689,7 +689,7 @@ export default function AdminSchemaKeys() {
               ["Content", "Slots reference published productPackets. Canvas/Play supply content; Compose selects a sequence. Basic/Plus preserve their direct QR payloads."],
               ["Playback", "Automatic rotation uses the shared epoch resolver. Scan to reveal advances once per browser visit using browser storage."],
               ["Ownership", "Authenticated owners may edit their own sequence. Purchased content is retained as an explicit entitlement. Other members’ uploads and Admin inputs are unavailable."],
-              ["Print output", "Quantity N produces N individual files and provider lines. Each hosted QR is decoded before and after replacement. Required inside labels remain included."],
+              ["Print output", "Quantity N produces N individual files and provider lines. Each hosted QR is decoded before and after replacement. Labels use a supported inside or outside area and carry each physical item’s unique QR code and QRG number. Products without either area need no label."],
               ["Assembly", "Reuse the existing BLD structure; register new QR/composite GRFs; bind the resulting files through Assembly. No second identity or layout system."],
               ["Claim", "A guest claim attaches the account to the existing purchased item, preserving its number and printed QR URL."],
               ["Hosting", "Use the saved 1-, 3- or 5-year term. Expired hosting returns an explicit unavailable response."],

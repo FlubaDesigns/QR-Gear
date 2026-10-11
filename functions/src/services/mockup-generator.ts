@@ -19,6 +19,7 @@ interface MockupRequest {
   hasCompositeGraphic?: boolean;
   printfulVariantId?: number;
   printArea?: { width: number; height: number; placement: string };
+  brandLabel?: { width: number; height: number; placement: string; artworkUrl: string } | null;
 }
 
 interface MockupResult {
@@ -136,7 +137,7 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
   const crypto = require('crypto');
   const artworkHash = crypto.createHash('sha256').update(JSON.stringify({ artworkUrl: request.artworkUrl,
     provider: fulfillmentProvider, variantId: request.printfulVariantId, placement: request.placement,
-    printMethod: request.printMethod, printArea: request.printArea })).digest('hex').substring(0, 24);
+    printMethod: request.printMethod, printArea: request.printArea, brandLabel: request.brandLabel })).digest('hex').substring(0, 24);
   const sizeSuffix = request.hasCompositeGraphic ? 'comp' : (request.qrSize || 'medium');
   const cacheKey = `${blueprintId}_${colorName.replace(/\s+/g, '_')}_${artworkVariant}_${artworkHash}_${sizeSuffix}`;
   const cacheDoc = await db.collection('mockup_cache').doc(cacheKey).get();
@@ -253,24 +254,13 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
     }
   }];
 
-  // Hardcoded label_inside for QR Gear branded neck tag
-  if (placement !== 'label_inside' && availPlacements.includes('label_inside')) {
-    const labelDims = getDimensionsForPlacement('label_inside');
-    mockupFiles.push({
-      placement: 'label_inside',
-      image_url: QR_GEAR_BRANDED_TAG_URL,
-      position: {
-        area_width: labelDims.width,
-        area_height: labelDims.height,
-        width: labelDims.width,
-        height: labelDims.height,
-        top: 0,
-        left: 0
-      }
-    });
-    console.log(`[Mockup] Auto-attaching branded tag to label_inside (${labelDims.width}x${labelDims.height})`);
+  // Canonical packets carry the exact label chosen from their verified QRG print areas.
+  if (request.brandLabel && request.brandLabel.placement !== placement) {
+    const label = request.brandLabel;
+    mockupFiles.push({ placement: label.placement, image_url: await toPublicUrl(label.artworkUrl),
+      position: { area_width: label.width, area_height: label.height, width: label.width, height: label.height, top: 0, left: 0 } });
   }
-  
+
   console.log('[Printful] Creating mockup with files:', JSON.stringify(mockupFiles));
   
   // Retry logic - short delays to stay under Cloud Function gateway timeout

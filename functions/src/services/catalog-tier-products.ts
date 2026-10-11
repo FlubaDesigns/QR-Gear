@@ -43,7 +43,7 @@ export async function catalogTierProducts(db: any, section: string) {
     }
     const mappings = raw.providerMappings;
     const mapping = Array.isArray(mappings) ? mappings.find((m: any) => m.provider === providerSetting) : mappings?.[providerSetting];
-    if (!printSpecsError && providerSetting === 'printful' && raw.qrgPrintSpecs?.printful?.locations?.some((p: any) => p.id === 'label_inside') &&
+    if (!printSpecsError && providerSetting === 'printful' && raw.qrgPrintSpecs?.printful?.locations?.length &&
         !(typeof mapping?.minPrice === 'number' && Number.isFinite(mapping.minPrice) && mapping.minPrice >= 0)) {
       try {
         const { refreshQrgProviderPricing } = await import('./master-catalog');

@@ -186,7 +186,13 @@ export function buildPacketMockupRequest(packet: Record<string, any>, master: Re
   }
   const artworkUrl = packet.placementGraphicUrls?.[placement];
   if (!artworkUrl) throw new Error('The saved placement has no generated print artwork');
+  const label = snapshot.layoutConfig.selectedPlacements.find((p: string) => ['label_inside', 'label_outside'].includes(p));
+  const labelLayout = label ? snapshot.layoutConfig.providerLayouts?.[label] : null;
+  const brandLabel = label ? { placement: labelLayout?.providerPlacementId, artworkUrl: packet.placementGraphicUrls?.[label],
+    width: labelLayout?.dimensions?.widthPx, height: labelLayout?.dimensions?.heightPx } : null;
+  if (brandLabel && (!brandLabel.artworkUrl || !brandLabel.placement || !(brandLabel.width > 0 && brandLabel.height > 0))) throw new Error('The saved brand label needs its print area and artwork.');
   return {
+    brandLabel,
     blueprintId: productId, printProviderId: 0, colorName: selectedColor,
     placement, artworkUrl, artworkVariant: 'black' as const, fulfillmentProvider: 'printful' as const,
     hasCompositeGraphic: true, printfulVariantId: variantId,

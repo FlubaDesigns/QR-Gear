@@ -89,7 +89,7 @@ const sections: ManualSection[] = [
     id: "products",
     title: "Fulfillment Providers",
     icon: Package,
-    content: <div className="space-y-4"><p>Choose the default provider in Admin Products → Tools. Each product can retain its own provider choice in the product builder.</p><p>Use System → Settings to inspect configured credentials and run a connection check. A saved key or a connected catalog does not prove a paid order can be printed.</p><p>Every product requires its inside label. Prices use the saved Admin Pricing settings and the selected provider's saved costs.</p></div>,
+    content: <div className="space-y-4"><p>Choose the default provider in Admin Products → Tools. Each product can retain its own provider choice in the product builder.</p><p>Use System → Settings to inspect configured credentials and run a connection check. A saved key or a connected catalog does not prove a paid order can be printed.</p><p>Branding uses an inside label where supported, otherwise an outside label. Products without either area proceed without a label charge. Every purchased label has the physical item’s unique QR code and QRG number. Prices use the saved Admin Pricing settings and the selected provider's saved costs.</p></div>,
   },
   {
     id: "orchestration",

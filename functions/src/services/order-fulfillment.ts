@@ -8,7 +8,7 @@ import { inspectGrfAsset } from '../../../shared/GRF_engine';
 import { detectPrintMethod } from '../../../shared/placements';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
-import { getCatalogInstancePrice, getSizeUpcharges } from './pricing';
+import { getCatalogInstancePrice, getSizeUpcharges, validateBrandLabel } from './pricing';
 import { dynamicsPrintSource, prepareDynamicsOrderItems } from './dynamics-order';
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 
@@ -29,7 +29,6 @@ export async function resolveSaleItem(cart: any) {
   if (memberPacketId && (packet.status !== 'published' || packet.memberId !== instance.memberId || packet.memberPacketId !== memberPacketId)) throw new Error('Member production ownership does not match.');
   await validatePacketComposition(db, packetId, packet);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
-  if (!snapshot.layoutConfig.selectedPlacements.includes('label_inside')) throw new Error('Restore the required inside brand label in Admin Pricing before selling this product.');
   const provider = requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider);
   if (packet.fulfillmentProvider !== provider) throw new Error('Saved product provider differs from its production packet.');
   // Adapter availability is a capability check, never a default or a reroute.
@@ -37,6 +36,7 @@ export async function resolveSaleItem(cart: any) {
   const masterId = snapshot.metadata.selectedProductDocId;
   const master = (await db.collection('master_catalog').doc(masterId).get()).data();
   if (!master || master.isActive === false) throw new Error('Product blank is unavailable.');
+  validateBrandLabel(master, snapshot);
   const size = c.productSize, color = c.productColor;
   if (typeof size !== 'string' || !size || typeof color !== 'string' || !color) throw new Error('Choose a size and color.');
   const { key: variantKey, mapping } = selectCatalogSaleVariant(memberPacketId ? { enabledColors: [packet.selectedColor], enabledSizes: [size] } : instance, master, provider, size, color);

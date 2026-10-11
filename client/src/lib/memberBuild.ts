@@ -6,7 +6,7 @@ import { renderProductGraphic, type RenderOptions } from '@/features/shared/grap
 export async function publishMemberBuild(memberId: string, input: Record<string, any>) {
   const build = await memberFetch<any>(`/${memberId}/builds`, { method: 'POST', json: input });
   for (const placement of build.builderSnapshot.layoutConfig.selectedPlacements) {
-    if (placement === 'label_inside') continue;
+    if (['label_inside', 'label_outside'].includes(placement)) continue;
     const imageData = await renderProductGraphic(productGraphicOptions(build.builderSnapshot, build.qrContent, placement) as RenderOptions);
     await memberFetch(`/${memberId}/builds/${build.packetId}/artwork`, { method: 'POST', json: { placement, imageData } });
   }

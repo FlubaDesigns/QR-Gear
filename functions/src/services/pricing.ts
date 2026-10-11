@@ -98,7 +98,7 @@ export function calculatePacketPricing(master: any, value: any, rawSettings: unk
   const placements: string[] = snapshot.layoutConfig.selectedPlacements;
   if (!placements.length || new Set(placements).size !== placements.length) throw new Error('Choose distinct print placements before pricing.');
   const labels = placements.filter(p => labelPlacements.includes(p));
-  if (!labels.includes('label_inside')) throw new Error('Regenerate this saved build with its required inside brand label before applying pricing.');
+  validateBrandLabel(master, snapshot);
   const productionPlacements = placements.filter(p => !labelPlacements.includes(p));
   if (!productionPlacements.length) throw new Error('Choose a product print placement.');
   const placementCost = money(Math.max(0, productionPlacements.length - 1) * settings.additionalPlacementCost);
@@ -115,7 +115,7 @@ export function calculatePacketPricing(master: any, value: any, rawSettings: unk
   const tier = hosted ? settings.hostingTiers.find(t => t.code === hostingTierCode) : null;
   if (hosted && !tier) throw new Error(`Hosting tier ${hostingTierCode || '(not selected)'} is not configured in Admin Pricing.`);
   const hostingCost = tier?.price ?? 0;
-  const brandLabelPosition = 'inside';
+  const brandLabelPosition = labels.includes('label_inside') ? 'inside' : labels.includes('label_outside') ? 'outside' : null;
   const brandLabelCosts = Object.fromEntries(labels.map(label => {
     const key = `${provider}${label === 'label_inside' ? 'Inside' : 'Outside'}` as keyof PricingSettings['brandLabelPricing'];
     return [label, settings.brandLabelPricing[key]];
@@ -131,19 +131,38 @@ export function calculatePacketPricing(master: any, value: any, rawSettings: unk
     pricingVersion: 3, sizeUpcharges: settings.sizeUpcharges };
 }
 
-/** New packets retain the mandatory inside brand label when QRG verifies that area.
- * The same saved placement and artwork then go through the ordinary GRF/print pipeline.
- */
-export function withInsideLabel(master: any, value: any) {
-  const snapshot = requireBuilderSnapshot(value);
-  const provider = requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider);
-  const label = 'label_inside';
-  const spec = master.qrgPrintSpecs?.[provider]?.locations?.find((p: any) => p.id === label);
-  if (!(spec?.dimensions?.widthPx > 0 && spec?.dimensions?.heightPx > 0 && spec.providerPlacementId && spec.provider === provider)) {
-    throw new Error('Refresh the QRG print areas: this product needs a verified inside label before it can be generated.');
+/** Verified absence is supported; missing print specifications still need an import. */
+export function brandLabelSpec(master: any, provider: string) {
+  const locations = master?.qrgPrintSpecs?.[provider]?.locations;
+  if (!Array.isArray(locations) || !locations.length) throw new Error('Refresh the QRG print areas before building this product.');
+  const spec = locations.find((p: any) => p.id === 'label_inside') || locations.find((p: any) => p.id === 'label_outside');
+  if (!spec) return null;
+  if (!(spec.dimensions?.widthPx > 0 && spec.dimensions?.heightPx > 0 && spec.providerPlacementId && spec.provider === provider)) {
+    throw new Error('Refresh the verified QRG brand-label print area.');
   }
-  if (!snapshot.layoutConfig.selectedPlacements.includes(label)) snapshot.layoutConfig.selectedPlacements.push(label);
-  snapshot.layoutConfig.providerLayouts = { ...snapshot.layoutConfig.providerLayouts, [label]: spec };
+  return spec;
+}
+
+/** Pricing and checkout apply the same product-specific label policy. */
+export function validateBrandLabel(master: any, value: any) {
+  const snapshot = requireBuilderSnapshot(value);
+  const spec = brandLabelSpec(master, requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider));
+  const selected = snapshot.layoutConfig.selectedPlacements.filter((p: string) => labelPlacements.includes(p));
+  if (spec && !selected.includes(spec.id)) throw new Error('Restore this product’s supported brand label before selling.');
+  if (selected.some((p: string) => p !== spec?.id)) throw new Error('Regenerate this product with its supported brand-label placement.');
+}
+
+/** Prefer inside branding, then outside branding; omit labels when neither area exists. */
+export function withBrandLabel(master: any, value: any) {
+  const snapshot = requireBuilderSnapshot(value);
+  const spec = brandLabelSpec(master, requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider));
+  snapshot.layoutConfig.selectedPlacements = snapshot.layoutConfig.selectedPlacements.filter((p: string) => !labelPlacements.includes(p));
+  snapshot.layoutConfig.providerLayouts = { ...snapshot.layoutConfig.providerLayouts };
+  for (const label of labelPlacements) delete snapshot.layoutConfig.providerLayouts[label];
+  if (spec) {
+    snapshot.layoutConfig.selectedPlacements.push(spec.id);
+    snapshot.layoutConfig.providerLayouts[spec.id] = spec;
+  }
   return snapshot;
 }
 
@@ -153,9 +172,13 @@ export async function priceNewPacket(database: any, value: any, brandedTagUrl: s
   const { refreshQrgProviderPricing } = await import('./master-catalog');
   const master = await refreshQrgProviderPricing(database, input.metadata.selectedProductDocId, provider);
   const settings = pricingSettingsSchema.parse((await database.collection('testSettings').doc('pricing').get()).data());
-  const snapshot = withInsideLabel(master, input);
-  if (!/^https:\/\//.test(brandedTagUrl)) throw new Error('The configured brand label artwork is unavailable.');
-  const placementGraphicUrls = { label_inside: brandedTagUrl };
+  const snapshot = withBrandLabel(master, input);
+  const placementGraphicUrls: Record<string, string> = {};
+  const label = snapshot.layoutConfig.selectedPlacements.find((p: string) => labelPlacements.includes(p));
+  if (label) {
+    if (!/^https:\/\//.test(brandedTagUrl)) throw new Error('The configured brand label artwork is unavailable.');
+    placementGraphicUrls[label] = brandedTagUrl;
+  }
   const pricing = calculatePacketPricing(master, snapshot, settings);
   return { builderSnapshot: snapshot, pricing, placementGraphicUrls };
 }
