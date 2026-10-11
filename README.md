@@ -856,3 +856,8 @@ Validation: TypeScript and frontend production build; production DOM verificatio
 The live AS Colour 5001 walkthrough reached preview and Printful rejected the hard-coded lifestyle option groups with “No variants to generate.” The shared mockup generator now requests the provider’s supported default views instead of applying product-independent lifestyle filters. Existing matching-variant/placement validation, canonical artwork, optional labels, pricing and saved packet identity remain unchanged.
 
 Acceptance: compile/build, deploy through the existing Authorization Engine, then generate the AS Colour mockup and save/reopen the new member product. A successful deployment alone is not this acceptance proof. No purchase or fulfillment order is part of the check.
+
+
+## Member builder labels — October 11, 2026
+
+The direct-destination step is shared by Basic and Plus. All three wizard progress badges now preserve the selected Plus label on that step. The underlying QR type and header were already retained. Product wording recognizes T-shirt/tee before the Canvas brand name, so Bella + Canvas apparel is called a shirt. These are display corrections; publication, artwork and pricing are unchanged.

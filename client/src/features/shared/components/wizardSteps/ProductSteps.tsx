@@ -26,6 +26,8 @@ export function getProductFriendlyName(title?: string | null): string {
     ['tank', 'tank top'],
     ['long sleeve', 'long sleeve'],
     ['polo', 'polo'],
+    ['t-shirt', 'shirt'],
+    ['tee', 'shirt'],
     ['jersey', 'jersey'],
     ['jacket', 'jacket'],
     ['cap', 'cap'],
@@ -50,8 +52,6 @@ export function getProductFriendlyName(title?: string | null): string {
     ['shorts', 'shorts'],
     ['jogger', 'joggers'],
     ['legging', 'leggings'],
-    ['t-shirt', 'shirt'],
-    ['tee', 'shirt'],
     ['shirt', 'shirt'],
   ];
   for (const [keyword, friendly] of keywords) {

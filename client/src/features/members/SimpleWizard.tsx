@@ -117,7 +117,9 @@ export function SimpleWizard() {
               return { label: 'QR Plus', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' };
             }
             if (['qr-basic-type', 'qr-basic-input', 'qr-basic-mockup', 'qr-basic-save-choice', 'qr-basic-confirm'].includes(simpleStep)) {
-              return { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
+              return qrType === 'qr-plus'
+                ? { label: 'QR Plus', color: 'text-orange-400 bg-orange-500/10 border-orange-500/20' }
+                : { label: 'QR Basic', color: 'text-slate-300 bg-slate-500/10 border-slate-500/20' };
             }
             if (['compose-pick-items', 'compose-mode', 'compose-durations', 'compose-order', 'compose-hosting', 'compose-mockup', 'compose-preview', 'compose-publish', 'compose-confirm'].includes(simpleStep)) {
               return { label: 'QR Compose', color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };

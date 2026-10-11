@@ -1498,3 +1498,8 @@ Validation: frontend TypeScript, backend compilation and production build; direc
 Product selection now updates only the wizard draft. Removed the obsolete packet-create/PATCH helpers from the shared member context and QR Basic navigation; production packets are created through the existing shared member build/publish path. QR Basic and Plus ask for sign-in before authenticated preview generation, retain the draft, and resume the pending step after authentication. Their save wrappers also reach the shared sign-in gate instead of silently returning. The post-sign-in component no longer duplicates channel creation or deferred uploads; the shared publish action owns both. Sign-in copy describes continuing to preview/save rather than promising immediate publication. Failed Basic/Plus mockups leave the input step visible with a retryable error, never a QR-only image presented as a shirt mockup.
 
 Validation: direct behavior checks confirm no write on product selection, guest preview/save gates, and Basic/Plus preview-error retention; frontend typecheck and production build; live walkthrough after the Authorization Engine release. Signed-in saving/reopening requires a member session and is not claimed by the guest walkthrough.
+
+
+## Member builder labels — October 11, 2026
+
+The direct-destination step is shared by Basic and Plus. All three wizard progress badges now preserve the selected Plus label on that step. The underlying QR type and header were already retained. Product wording recognizes T-shirt/tee before the Canvas brand name, so Bella + Canvas apparel is called a shirt. These are display corrections; publication, artwork and pricing are unchanged.
