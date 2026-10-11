@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Building2, CheckCircle, Sparkles, Home, MapPin, Calendar, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -45,6 +46,7 @@ export default function RealtorQRShirts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Building2 />
@@ -63,6 +65,8 @@ export default function RealtorQRShirts() {
           <p className="vanity-description vanity-italic">
             Your wardrobe stays simple. Your listings stay fresh.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

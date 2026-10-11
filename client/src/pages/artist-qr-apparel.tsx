@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Palette, CheckCircle, Brush, Image, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -40,6 +41,7 @@ export default function ArtistQRApparel() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Palette />
@@ -58,6 +60,8 @@ export default function ArtistQRApparel() {
           <p className="vanity-description vanity-italic">
             "A portable gallery on every shirt."
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

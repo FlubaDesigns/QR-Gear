@@ -432,6 +432,85 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Matching page imagery and alt text
+
+Added 19 generated editorial WebP photos across 37 public information, idea, QR-type, gift, sign-in and legal routes. `client/src/data/pageImages.ts` owns the route-to-image mapping and descriptive alt text; `PageIntro` uses the unchanged Master row and split-2 helpers. The legal, sign-in and gifts pages use a compact image. Product/store/member/admin workflows keep their existing real product and artwork imagery. Homepage presentation and QR-type/idea connections are unchanged.
+
+Reviewed all existing JSX image elements for missing or empty alt attributes and replaced empty/generic preview labels with descriptions based on existing item names. Images have intrinsic dimensions and compressed WebP assets. See `docs/PAGE_IMAGE_AUDIT.md` for coverage and asset provenance. TypeScript, canonical layout verification and production build passed; live verification follows the Authorization Engine release.
+
+Files changed in this image update:
+
+- `MANIFEST.json`
+- `README.md`
+- `client/src/assets/changing-content.webp`
+- `client/src/assets/christmas-gifts.webp`
+- `client/src/assets/corporate-gathering.webp`
+- `client/src/assets/creative-studio.webp`
+- `client/src/assets/everyday-belongings.webp`
+- `client/src/assets/family-reunion.webp`
+- `client/src/assets/family-video.webp`
+- `client/src/assets/guerrilla-marketing.webp`
+- `client/src/assets/live-music.webp`
+- `client/src/assets/medical-information.webp`
+- `client/src/assets/memorial-memories.webp`
+- `client/src/assets/networking.webp`
+- `client/src/assets/office-mug.webp`
+- `client/src/assets/personal-gifts.webp`
+- `client/src/assets/privacy-security.webp`
+- `client/src/assets/qr-history.webp`
+- `client/src/assets/real-estate.webp`
+- `client/src/assets/small-business.webp`
+- `client/src/assets/wedding-party.webp`
+- `client/src/components/PageIntro.tsx`
+- `client/src/data/pageImages.ts`
+- `client/src/features/adminProducts/ADMIN_README.md`
+- `client/src/features/members/StudioMode.tsx`
+- `client/src/features/shared/components/BackgroundLibraryPicker.tsx`
+- `client/src/features/shared/components/shapes/ModalView.tsx`
+- `client/src/features/shared/components/skins/TierCardSkin.tsx`
+- `client/src/features/shared/components/views/SingleView.tsx`
+- `client/src/features/shared/components/wizardSteps/CanvasSteps.tsx`
+- `client/src/features/shared/components/wizardSteps/ComposeSteps.tsx`
+- `client/src/features/shared/components/wizardSteps/PreviewAndPublishSteps.tsx`
+- `client/src/features/shared/components/wizardSteps/TextSteps.tsx`
+- `client/src/pages/advent-qr-shirts.tsx`
+- `client/src/pages/artist-qr-apparel.tsx`
+- `client/src/pages/band-dynamic-merch.tsx`
+- `client/src/pages/business-analytics-qr.tsx`
+- `client/src/pages/business-qr-plus.tsx`
+- `client/src/pages/earn.tsx`
+- `client/src/pages/event-qr-shirts.tsx`
+- `client/src/pages/everyday-qr.tsx`
+- `client/src/pages/family-reunion-shirts.tsx`
+- `client/src/pages/family-video-messages.tsx`
+- `client/src/pages/gift-shop.tsx`
+- `client/src/pages/login.tsx`
+- `client/src/pages/lost-found-qr.tsx`
+- `client/src/pages/medical-alert-qr.tsx`
+- `client/src/pages/memorial-qr-gifts.tsx`
+- `client/src/pages/memorial-video-shirts.tsx`
+- `client/src/pages/musician-merch.tsx`
+- `client/src/pages/networking-qr-shirts.tsx`
+- `client/src/pages/office-qr-mug.tsx`
+- `client/src/pages/personal-items-qr.tsx`
+- `client/src/pages/privacy.tsx`
+- `client/src/pages/qr-basics.tsx`
+- `client/src/pages/qr-canvas.tsx`
+- `client/src/pages/qr-dynamics.tsx`
+- `client/src/pages/qr-history.tsx`
+- `client/src/pages/qr-ideas.tsx`
+- `client/src/pages/qr-play.tsx`
+- `client/src/pages/qr-plus.tsx`
+- `client/src/pages/realtor-qr-shirts.tsx`
+- `client/src/pages/store-build-components.tsx`
+- `client/src/pages/store-build.tsx`
+- `client/src/pages/terms.tsx`
+- `client/src/pages/video-time-capsule.tsx`
+- `client/src/pages/website-qr-shirts.tsx`
+- `client/src/pages/wedding-qr-shirts.tsx`
+- `docs/PAGE_IMAGE_AUDIT.md`
+- `downloads/QR_Gear_Full_Website.zip`
+
 ### October 11, 2026 — Reduce cards on idea pages
 
 The review covers all 107 routes (see `docs/PAGE_LAYOUT_AUDIT.md`). Older use-case pages, QR type pages, QR History and Earn also use open sections. Account, member earnings, Admin Run, Admin Orders and Orchestration Profit summary numbers are unboxed. Occasion examples now use open text sections. QR types and related ideas use compact text links, with the current idea omitted from related links. Existing Master row/column helpers control layout; shared vanity presentation styles were simplified, with Master CSS, homepage, schema, builder, and products preserved.

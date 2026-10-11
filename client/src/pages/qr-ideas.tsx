@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Link, useLocation } from 'wouter';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import SEO from '@/components/SEO';
@@ -14,15 +15,17 @@ export default function QRIdeas() {
     <div className="row py-6">
       <SEO title={`${idea.title} | QR Gear Ideas`} description={idea.summary} />
       <section className="section row">
-        <div className="vanity-header">
-          <div className="vanity-header-icon"><Sparkles aria-hidden="true" /></div>
-          <div className="vanity-header-text">
-            <p className="vanity-category">Ideas &amp; Occasions</p>
-            <h1 className="vanity-title">{idea.title}</h1>
+        <PageIntro>
+          <div className="vanity-header">
+            <div className="vanity-header-icon"><Sparkles aria-hidden="true" /></div>
+            <div className="vanity-header-text">
+              <p className="vanity-category">Ideas &amp; Occasions</p>
+              <h1 className="vanity-title">{idea.title}</h1>
+            </div>
           </div>
-        </div>
-        <p className="vanity-tagline">{detail.tagline}</p>
-        <p className="vanity-description">{detail.intro}</p>
+          <p className="vanity-tagline">{detail.tagline}</p>
+          <p className="vanity-description">{detail.intro}</p>
+        </PageIntro>
       </section>
       <section className="section row" aria-labelledby="idea-examples-title">
         <h2 id="idea-examples-title">Make it your own</h2>

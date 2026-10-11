@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Home, CheckCircle, Heart, Users, MessageCircle, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -40,6 +41,7 @@ export default function FamilyVideoMessages() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Home />
@@ -57,6 +59,8 @@ export default function FamilyVideoMessages() {
           <p className="vanity-description vanity-italic">
             Distance disappears. One scan and everyone is there.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

@@ -1,3 +1,4 @@
+import { PageImage } from '@/components/PageIntro';
 import SEO from "@/components/SEO";
 
 export default function PrivacyPolicy() {
@@ -11,6 +12,8 @@ export default function PrivacyPolicy() {
       <div className="row"><div className="layout__center section">
         <h1 className="text-3xl font-bold mb-2" data-testid="text-privacy-title">Privacy Policy</h1>
         <p className="text-sm text-muted-foreground mb-8">Last updated: February 13, 2026</p>
+
+        <div className="row mb-8"><PageImage compact /></div>
 
         <div className="prose dark:prose-invert space-y-8">
           <section>

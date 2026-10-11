@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Lightbulb, CheckCircle, HelpCircle, BookOpen, Info, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -52,6 +53,7 @@ export default function EverydayQR() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Lightbulb />
@@ -73,6 +75,8 @@ export default function EverydayQR() {
               <span key={i} className="vanity-example-tag">{text}</span>
             ))}
           </div>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

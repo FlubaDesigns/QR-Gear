@@ -33,7 +33,7 @@ export function StudioMode() {
                 {selectedProduct ? (
                   <div className="flex items-center gap-3">
                     {selectedProduct.thumbnailUrl && (
-                      <img src={selectedProduct.thumbnailUrl} alt="" className="w-10 h-10 rounded object-cover" />
+                      <img src={selectedProduct.thumbnailUrl} alt={`Selected product: ${selectedProduct.name}`} className="w-10 h-10 rounded object-cover" />
                     )}
                     <span className="text-white text-sm truncate">{selectedProduct.name}</span>
                   </div>

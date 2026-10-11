@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Users, CheckCircle, Heart, Camera, Gift, Home, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -40,6 +41,7 @@ export default function FamilyReunionShirts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon vanity-icon-blue">
               <Users />
@@ -58,6 +60,8 @@ export default function FamilyReunionShirts() {
           <p className="vanity-description vanity-italic">
             "Grandma scans the hoodie. Her screen fills with the family reunion photo. Tears guaranteed."
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

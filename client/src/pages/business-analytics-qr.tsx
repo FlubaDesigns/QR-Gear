@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { TrendingUp, CheckCircle, Sparkles, BarChart3, RefreshCw, Target, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -44,6 +45,7 @@ export default function BusinessAnalyticsQR() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <TrendingUp />
@@ -62,6 +64,8 @@ export default function BusinessAnalyticsQR() {
           <p className="vanity-description vanity-italic">
             Marketing that measures itself.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Calendar, CheckCircle, Users, Camera, Music, PartyPopper, Heart, Footprints, GraduationCap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -53,6 +54,7 @@ export default function EventQRShirts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Calendar />
@@ -68,6 +70,8 @@ export default function EventQRShirts() {
             Header text like "Event Schedule" or "Photos from Today" tells guests exactly what they'll see when they scan. 
             No mystery. Just clarity.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

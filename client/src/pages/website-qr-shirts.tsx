@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Link2, CheckCircle, Globe, Smartphone, Zap, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -40,6 +41,7 @@ export default function WebsiteQRShirts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Link2 />
@@ -58,6 +60,8 @@ export default function WebsiteQRShirts() {
           <p className="vanity-description vanity-italic">
             The easiest business card you'll ever hand out.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

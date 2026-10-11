@@ -1,3 +1,4 @@
+import { PageImage } from '@/components/PageIntro';
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
@@ -93,6 +94,8 @@ export default function LoginPage() {
           <h1 className="qr-auth-title">Welcome Back</h1>
           <p className="qr-auth-subtitle">Sign in to your account</p>
         </div>
+
+        <div className="row mb-8"><PageImage compact /></div>
 
         <form className="qr-auth-form" onSubmit={handleSubmit} autoComplete="on">
           {error && <div className="qr-auth-error">{error}</div>}

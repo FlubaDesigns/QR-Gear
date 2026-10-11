@@ -75,7 +75,7 @@ export function TierCardSkin({ item, onSelect }: TierCardSkinProps) {
               <img
                 key={idx}
                 src={imgUrl}
-                alt=""
+                alt={`${item.displayName} product example ${idx + 1}`}
                 className="w-8 h-8 rounded-md object-cover bg-white border border-slate-600"
                 loading="lazy"
               />

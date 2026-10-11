@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Coffee, CheckCircle, Tag, Smile, Building, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -40,6 +41,7 @@ export default function OfficeQRMug() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Coffee />
@@ -58,6 +60,8 @@ export default function OfficeQRMug() {
           <p className="vanity-description vanity-italic">
             Finally, a mug that can speak for itself.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

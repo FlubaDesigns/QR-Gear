@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Heart, CheckCircle, Camera, Users, Star, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -40,6 +41,7 @@ export default function MemorialVideoShirts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -57,6 +59,8 @@ export default function MemorialVideoShirts() {
           <p className="vanity-description vanity-italic">
             Their voice. Their laugh. Their stories. Always with you.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

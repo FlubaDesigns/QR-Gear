@@ -117,7 +117,7 @@ export function ItemModalView({ item, open, onOpenChange, children }: ItemModalV
       <div className="relative">
         <img
           src={item.imageUrl}
-          alt=""
+          alt={`${item.name} — full-size preview`}
           className="w-full max-h-[60vh] object-contain bg-black"
           data-testid="img-modal-view"
         />

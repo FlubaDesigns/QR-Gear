@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Heart, CheckCircle, AlertTriangle, Pill, Phone, Shield, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -45,6 +46,7 @@ export default function MedicalAlertQR() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -63,6 +65,8 @@ export default function MedicalAlertQR() {
           <p className="vanity-description vanity-italic">
             Critical info, always on you, always accessible.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

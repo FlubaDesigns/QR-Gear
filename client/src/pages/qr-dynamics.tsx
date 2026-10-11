@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Sparkles, CheckCircle, ArrowRight, Calendar, Music, Building2, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -56,6 +57,7 @@ export default function QRDynamicsLanding() {
       <div className="row py-6">
 
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Sparkles />
@@ -75,6 +77,8 @@ export default function QRDynamicsLanding() {
           <p className="vanity-description">
             Choose your Space Term (1 year / 3 year / 5 year) and manage content that lives, moves, and grows.
           </p>
+
+          </PageIntro>
 
           <div className="premium vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>

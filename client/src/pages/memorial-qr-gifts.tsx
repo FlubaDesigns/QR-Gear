@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Heart, CheckCircle, Star, Camera, Users, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -41,6 +42,7 @@ export default function MemorialQRGifts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Heart />
@@ -59,6 +61,8 @@ export default function MemorialQRGifts() {
           <p className="vanity-description vanity-italic">
             "Scan and relive it — instantly."
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Link } from "wouter";
 import { DollarSign, Layers, Wand2, Crown, ShoppingCart, Sparkles, ArrowRight, ChevronRight, QrCode, Image, Film, LayoutGrid, Repeat, CheckCircle, Zap, TrendingUp, Shield, Package, HelpCircle, Lightbulb, Megaphone, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -187,7 +188,7 @@ export default function EarnPage() {
           <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-transparent to-green-900/20" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent" />
           <div className="row relative z-10">
-            <div className="row text-center space-y-6">
+            <PageIntro><div className="row text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm font-medium" data-testid="badge-creator-program">
                 <Crown className="w-4 h-4" />
                 QR Gear Creator Program
@@ -219,7 +220,7 @@ export default function EarnPage() {
                 <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-green-400" /> No design skills needed</span>
                 <span className="flex items-center gap-1.5"><CheckCircle className="w-4 h-4 text-green-400" /> Earn on every sale</span>
               </div>
-            </div>
+            </div></PageIntro>
           </div>
         </section>
 

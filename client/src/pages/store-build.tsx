@@ -535,7 +535,7 @@ export default function StoreBuildPage() {
                           className="flex items-center gap-4 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
                         >
                           {product.imageUrl && (
-                            <img src={product.imageUrl} alt="" className="w-12 h-12 rounded object-cover" />
+                            <img src={product.imageUrl} alt={`${product.name} product preview`} className="w-12 h-12 rounded object-cover" />
                           )}
                           <div className="flex-1">
                             <div className="font-medium">{product.name}</div>

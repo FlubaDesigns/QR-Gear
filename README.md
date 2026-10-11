@@ -971,3 +971,10 @@ The five shared occasion pages now present their examples as open text using the
 
 
 The follow-up card review covers all 107 route entries, with per-route dispositions in `docs/PAGE_LAYOUT_AUDIT.md`. The 21 older use-case pages, five QR type pages, QR History, Earn, and selected repeated account/member/admin metrics were simplified as well. Homepage discovery cards remain unchanged. Product, record and form boundaries are retained.
+
+
+## Matching page imagery and alt text — October 11, 2026
+
+Added 19 generated editorial WebP photos across 37 public information, idea, QR-type, gift, sign-in and legal routes. `client/src/data/pageImages.ts` owns the route-to-image mapping and descriptive alt text; `PageIntro` uses the unchanged Master row and split-2 helpers. The legal, sign-in and gifts pages use a compact image. Product/store/member/admin workflows keep their existing real product and artwork imagery. Homepage presentation and QR-type/idea connections are unchanged.
+
+Reviewed all existing JSX image elements for missing or empty alt attributes and replaced empty/generic preview labels with descriptions based on existing item names. Images have intrinsic dimensions and compressed WebP assets. See `docs/PAGE_IMAGE_AUDIT.md` for coverage and asset provenance. TypeScript, canonical layout verification and production build passed; live verification follows the Authorization Engine release.

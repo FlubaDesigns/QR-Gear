@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Briefcase, CheckCircle, UtensilsCrossed, HelpCircle, Phone, Store, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -45,6 +46,7 @@ export default function BusinessQRPlus() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Briefcase />
@@ -60,6 +62,8 @@ export default function BusinessQRPlus() {
             No confusion. No hesitation. When customers see "SCAN FOR MENU" or "NEED HELP? SCAN ME" - 
             they know exactly what to do.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

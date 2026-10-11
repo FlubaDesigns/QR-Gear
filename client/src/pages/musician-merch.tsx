@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Music, CheckCircle, Play, Disc, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -47,6 +48,7 @@ export default function MusicianMerch() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Music />
@@ -66,6 +68,8 @@ export default function MusicianMerch() {
           <p className="vanity-description vanity-italic">
             "Album art that plays when scanned."
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

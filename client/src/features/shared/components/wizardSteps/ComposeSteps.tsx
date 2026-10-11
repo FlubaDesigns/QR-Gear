@@ -510,7 +510,7 @@ export function ComposePreviewStep({
           <div key={item.packetId} className="flex items-center gap-2 p-2 bg-slate-800/30 rounded-lg">
             <span className="text-amber-400 text-xs font-bold w-5">{idx + 1}.</span>
             <div className="w-8 h-8 rounded overflow-hidden flex-shrink-0 bg-slate-700">
-              {item.thumbnailUrl && <img src={item.thumbnailUrl} alt="" className="w-full h-full object-cover" />}
+              {item.thumbnailUrl && <img src={item.thumbnailUrl} alt={`${item.name} — sequence item ${idx + 1}`} className="w-full h-full object-cover" />}
             </div>
             <span className="text-white text-sm flex-1 truncate">{item.name}</span>
             {!isScanMode && (

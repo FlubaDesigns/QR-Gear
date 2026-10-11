@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Clock, CheckCircle, Baby, Heart, GraduationCap, Gift, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -44,6 +45,7 @@ export default function VideoTimeCapsule() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Clock />
@@ -62,6 +64,8 @@ export default function VideoTimeCapsule() {
           <p className="vanity-description vanity-italic">
             The gift that gains meaning with time.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

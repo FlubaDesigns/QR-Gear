@@ -63,7 +63,7 @@ export function StoreBuildProductCard({
             >
               <img
                 src={product.imageUrl}
-                alt=""
+                alt={`${product.name} — enlarge product preview`}
                 className="w-28 h-28 rounded-lg object-cover flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity border-2 border-blue-400"
               />
             </button>

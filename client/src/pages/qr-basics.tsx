@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { QrCode, CheckCircle, Link2, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -59,6 +60,7 @@ export default function QRStaticLanding() {
       <div className="row py-6">
 
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <QrCode />
@@ -79,6 +81,8 @@ export default function QRStaticLanding() {
           <p className="vanity-description vanity-italic">
             Best for: websites, contact info, lost & found, emergency info
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>

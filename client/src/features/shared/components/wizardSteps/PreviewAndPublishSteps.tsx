@@ -317,7 +317,7 @@ export function PhoneMockupWithQR({
           {background && (
             <img 
               src={background} 
-              alt="Background" 
+              alt="Selected background artwork in the QR design preview" 
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}
@@ -405,7 +405,7 @@ export function PhoneMockup({
           {background && (
             <img 
               src={background} 
-              alt="Background" 
+              alt="Selected background artwork in the QR design preview" 
               className="absolute inset-0 w-full h-full object-cover"
             />
           )}

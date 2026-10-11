@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Music, CheckCircle, Sparkles, Disc, Radio, TrendingUp, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -44,6 +45,7 @@ export default function BandDynamicMerch() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Music />
@@ -62,6 +64,8 @@ export default function BandDynamicMerch() {
           <p className="vanity-description vanity-italic">
             Your music evolves. So should your merch.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

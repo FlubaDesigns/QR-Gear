@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Play, CheckCircle, ArrowRight, Heart, Home, Clock, Briefcase, Music } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -64,6 +65,7 @@ export default function QRVideoLanding() {
       <div className="row py-6">
 
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Play />
@@ -79,6 +81,8 @@ export default function QRVideoLanding() {
             Upload a video or point it at your favorite video URL — it plays instantly in your hosted QR Space when scanned. 
             QR Play is built for real moments — messages, memories, and stories meant to be seen, heard, and felt.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>

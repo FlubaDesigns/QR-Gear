@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Palette, CheckCircle, Heart, Camera, Users, Sparkles, ArrowRight, Music } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -60,6 +61,7 @@ export default function QRUrlLanding() {
       <div className="row py-6">
 
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Palette />
@@ -76,6 +78,8 @@ export default function QRUrlLanding() {
             showing a custom background image — a photo, artwork, memory, or moment. Upload your own or choose from templates.
             Optional header and footer text can be printed on the product.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">What you get:</h2>

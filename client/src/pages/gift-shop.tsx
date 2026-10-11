@@ -1,3 +1,4 @@
+import { PageImage } from '@/components/PageIntro';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -110,6 +111,8 @@ export default function GiftShopPage() {
           Give the gift of personalized QR apparel. Perfect for businesses, events, or anyone who loves unique tech-forward fashion.
         </p>
       </div>
+
+        <div className="row mb-8"><PageImage compact /></div>
 
       {packages.length === 0 ? (
         <Card className="max-w-md mx-auto">

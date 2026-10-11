@@ -215,7 +215,7 @@ export function BackgroundLibraryPicker({
                     onClick={() => handleGridSelect(item)}
                     data-testid={`card-grid-item-${item.id}`}
                   >
-                    <img src={item.imageUrl} alt="" className="w-full h-auto" />
+                    <img src={item.imageUrl} alt={`${item.name} background artwork`} className="w-full h-auto" />
                   </div>
                 )}
                 isLoading={loadingCommon}
@@ -257,7 +257,7 @@ export function BackgroundLibraryPicker({
                     onClick={() => handleGridSelect(item)}
                     data-testid={`card-grid-item-${item.id}`}
                   >
-                    <img src={item.imageUrl} alt="" className="w-full h-auto" />
+                    <img src={item.imageUrl} alt={`${item.name} background artwork`} className="w-full h-auto" />
                   </div>
                 )}
                 isLoading={loadingPersonal}

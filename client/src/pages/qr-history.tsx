@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Link } from "wouter";
 import { QRButton } from "@/components/QRButton";
 import { ArrowLeft, Calendar, Car, Smartphone, ShoppingBag, Sparkles } from "lucide-react";
@@ -55,12 +56,12 @@ export default function QRHistory() {
             </QRButton>
           </Link>
 
-          <div className="hero-content">
+          <PageIntro><div className="hero-content">
             <h1 className="hero-title">The Story Behind the Square</h1>
             <p className="hero-subtitle">
               From factory floors to fashion statements - how a simple pattern became the bridge between physical and digital worlds
             </p>
-          </div>
+          </div></PageIntro>
         </div>
       </section>
 

@@ -494,7 +494,7 @@ export function SimplePublishStep({
             {background ? (
               <img 
                 src={background} 
-                alt="Background" 
+                alt="Selected background artwork in the QR design preview" 
                 className="w-full h-full object-cover"
               />
             ) : (

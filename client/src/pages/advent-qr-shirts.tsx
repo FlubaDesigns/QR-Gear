@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Calendar, CheckCircle, Sparkles, Gift, Star, Church, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -44,6 +45,7 @@ export default function AdventQRShirts() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Calendar />
@@ -62,6 +64,8 @@ export default function AdventQRShirts() {
           <p className="vanity-description vanity-italic">
             Daily reveals without daily work.
           </p>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

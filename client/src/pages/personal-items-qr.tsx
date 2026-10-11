@@ -1,3 +1,4 @@
+import PageIntro from '@/components/PageIntro';
 import { Tag, CheckCircle, User, Shirt, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
 import SEO from "@/components/SEO";
@@ -42,6 +43,7 @@ export default function PersonalItemsQR() {
 
 <div className="section">
         <div className="row">
+          <PageIntro>
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Tag />
@@ -63,6 +65,8 @@ export default function PersonalItemsQR() {
               <span key={i} className="vanity-example-tag">{text}</span>
             ))}
           </div>
+
+          </PageIntro>
 
           <div className="vanity-features">
             <h2 className="vanity-features-title">

@@ -60,7 +60,7 @@ export function SingleView({
         ) : (
           <img
             src={backgroundUrl}
-            alt="Background"
+            alt="Selected background artwork in the QR design preview"
             className="absolute inset-0 w-full h-full object-cover"
           />
         )
