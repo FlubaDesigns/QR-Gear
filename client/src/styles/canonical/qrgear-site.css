@@ -174,6 +174,9 @@
 }
 
 
+/* Rows fill their parent; the footer panel uses the Master gutter for its inner inset. */
+.qrg-footer .footer__content { padding-inline: var(--col-gap); }
+.qrg-footer .footer__accordion-btn { text-align: left; }
 .qrg-footer .footer__powered a { color: inherit; }
 .qrg-footer .footer__powered a:hover { text-decoration: underline; }
 
@@ -186,7 +189,7 @@
   .qrg-footer .footer__brand { font-size: 1rem; }
   .qrg-footer .footer__brand > svg { width: 1.125rem; height: 1.125rem; }
   .qrg-footer .footer__tagline { font-size: .75rem; margin: 0; }
-  .qrg-footer .footer__heading { font-size: .625rem; letter-spacing: .06em; margin: 0; color: var(--theme-muted); }
+  .qrg-footer .footer__heading { font-size: .75rem; letter-spacing: .06em; margin: 0; color: var(--theme-muted); }
   .qrg-footer .footer__nav,
   .qrg-footer .footer__contact { gap: .25rem; }
   .qrg-footer .footer__link,
@@ -199,5 +202,5 @@
   .qrg-footer .footer__legal { align-items: center; gap: 1rem; }
   .qrg-footer .footer__legal,
   .qrg-footer .footer__legal .footer__link,
-  .qrg-footer .footer__powered { font-size: .6875rem; }
+  .qrg-footer .footer__powered { font-size: .75rem; }
 }

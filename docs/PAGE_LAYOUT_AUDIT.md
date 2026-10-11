@@ -126,3 +126,5 @@ Live verification is recorded with the deployment result. Source coverage includ
 | `(not found)` | `client/src/pages/not-found.tsx` | Site header / footer |
 
 Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.
+
+Footer inset correction: the footer content panel uses `padding-inline: var(--col-gap)` because Master rows fill their parent and column gap does not create an outer content inset. Headings align left with their links. Master itself remains unchanged.

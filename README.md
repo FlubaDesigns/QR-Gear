@@ -949,3 +949,8 @@ All routes now inherit one canonical PageSkeleton at the App routing boundary, i
 Desktop footer follow-up (October 11, 2026): Footer.tsx now composes the Master row and split-4 helper inside the shared skeleton scope. Removed its old independent grid rules. Desktop footer presentation is quieter: reduced vertical padding, smaller labels/social icons, compact contact/partner details, and transparent background. Column gaps remain owned by Master CSS.
 
 Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.
+
+
+## Footer inset correction — October 11, 2026
+
+The footer content panel now takes its horizontal inset from Master’s `--col-gap`, while the existing `.row` and `.layout__split-4` continue to own its width and columns. Footer headings align left with their links; desktop section labels and legal copy remain readable at 12px. The correction addresses the prior flush-to-panel text and centered headings. Master CSS, column breakpoints, header logo and the FlubaDesigns.com credit are unchanged.

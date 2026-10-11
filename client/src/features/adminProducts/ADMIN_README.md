@@ -432,6 +432,18 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Correct footer edge spacing and heading alignment
+
+The footer's content panel now uses Master `--col-gap` for its horizontal inset. Its existing row/split-4 structure, breakpoints and column gutters are preserved. Footer headings align with their link lists, and desktop heading/legal typography is 12px. The compact height and Powered by FlubaDesigns.com credit remain. This is a CSS presentation correction; no backend or data changes.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `client/src/styles/canonical/qrgear-site.css` | Master-token inset, left-aligned headings and readable secondary text |
+| `README.md`, this guide, `docs/PAGE_LAYOUT_AUDIT.md` | Record footer spacing ownership |
+| `MANIFEST.json`, `downloads/QR_Gear_Full_Website.zip` | Refresh manifest and changed-source export |
+
+
 ### October 11, 2026 — Canonical skeleton across every route
 
 All 102 route entries now inherit the shared application PageSkeleton. AdminShell is a content toolbar/row inside its canonical main, with the existing admin rail/bottom navigation preserved. Marketing, storefront, cart, account and admin page columns use Master helpers and gutters. The upstream Master stylesheet is unchanged. Loading, errors, sign-in and not-found states use the same shell; scan/embed routes keep purpose-specific presentation. The production build now runs the source layout guard. Full coverage and component-layout boundaries are documented in `docs/PAGE_LAYOUT_AUDIT.md`. No Firestore, QRG, pricing, checkout or authorization behavior changes.
