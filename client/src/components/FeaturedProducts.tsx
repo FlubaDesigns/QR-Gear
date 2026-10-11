@@ -11,12 +11,9 @@ export default function FeaturedProducts({ products, isLoading, error, onRetry, 
   collectionHref: string;
 }) {
   return (
-    <section className="home-section" aria-labelledby="featured-products-title">
+    <div className="home-featured-products">
       <div className="row">
-        <div className="section-header">
-          <h2 id="featured-products-title">Explore QR Gear</h2>
-          <p>Browse designs from our store. Choose a product to see its available colors and sizes.</p>
-        </div>
+
         {isLoading ? (
           <p role="status">Loading store products...</p>
         ) : error ? (
@@ -37,6 +34,6 @@ export default function FeaturedProducts({ products, isLoading, error, onRetry, 
           </Link>
         </div>
       </div>
-    </section>
+    </div>
   );
 }

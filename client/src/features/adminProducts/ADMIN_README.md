@@ -432,6 +432,17 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Homepage narrative and responsive rows — October 11, 2026
+
+The homepage now follows one visitor journey: a real catalog shirt paired with its saved QR destination artwork, three creation steps, one USA 250 shopping section, and a focused member invitation. Redundant product-line cards, quick-link tiles, history teaser and repeated marketing pitches are no longer mounted on the homepage; their existing routes and components remain available. The hero reads the same product-detail endpoint and cache as the storefront, resolves its saved-color photo through buildProductGallery, and reports loading/missing/error states. Product cards still use the shared StoreProductCard and canonical catalog response; no hardcoded prices, product IDs or supplier reads were added.
+
+Desktop composition uses the unchanged PageSkeleton, Master row, layout__split-2 and layout__split-3 helpers. Legacy hero/how-it-works grid classes are no longer applied, leaving responsive column counts to Master. Presentation rules stay scoped to home-page in the existing qrgear-site.css. Existing Navbar/Footer, creation routes, member workflows, QRG/BLD/GRF/Assembly, pricing, permissions and backend are unchanged.
+
+Validation: root TypeScript and production build passed. Live visual and navigation acceptance follows the existing Authorization Engine deployment.
+
+Files: client/src/pages/home.tsx; client/src/components/Hero.tsx; client/src/components/HowItWorks.tsx; client/src/components/FeaturedProducts.tsx; client/src/styles/canonical/qrgear-site.css; README.md; client/src/features/adminProducts/ADMIN_README.md; MANIFEST.json; downloads/QR_Gear_Full_Website.zip.
+
+
 ### Homepage message section — October 11, 2026
 
 Custom Gear That Sends a Message now leads with a large image, an offset frame and a floating scan label. Three supporting stories use overlapping image/copy panels, depth shadows and a staggered desktop arrangement. The existing PageSkeleton and Master row/split helpers provide the structure; presentation is scoped in the existing QR Gear site stylesheet. The section is visible on mobile, the Create link keeps its /build destination with a 48px minimum target, and hover motion respects reduced-motion preferences. The memory story uses the current QR Canvas product name. Existing images, data contracts and backend behavior are unchanged.
