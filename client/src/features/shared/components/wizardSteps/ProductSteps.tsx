@@ -93,7 +93,7 @@ export function ProductPickerStep({
 }) {
   const [detailProduct, setDetailProduct] = useState<AllowedProduct | null>(null);
   const mode = toWizardMode(context);
-  const sectionMap: Record<string, string> = { member: 'member', public: 'public', external: 'external', platform: 'platform' };
+  const sectionMap: Record<string, string> = { owner: 'public', member: 'member', public: 'public', external: 'external', platform: 'platform' };
   const sectionParam = sectionMap[context || ''] ? `?section=${sectionMap[context || '']}` : '';
   const {
     data: productsData,
@@ -497,7 +497,7 @@ export function TierPickerStep({
   const [detailProduct, setDetailProduct] = useState<AllowedProduct | null>(null);
   const mode = toWizardMode(context);
 
-  const sectionMap: Record<string, string> = { member: "member", public: "public", external: "external", platform: "platform", owner: "member" };
+  const sectionMap: Record<string, string> = { member: "member", public: "public", external: "external", platform: "platform", owner: "public" };
   const sectionParam = sectionMap[context] || "member";
   const { data: tierData, isLoading: loadingTiers, isError: tierError } = useQuery<TierProductsResponse>({
     queryKey: ["/api/members/tier-products", sectionParam],

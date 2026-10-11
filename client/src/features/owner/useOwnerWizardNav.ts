@@ -1,7 +1,6 @@
 import { useMemo, useCallback } from "react";
 import type { SimpleWizardStep, QRType, GraphicSize, PlacementOption, TextLayoutChoice, PlacementGraphicChoice } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS } from "@/features/shared/components/wizardSteps/wizardTypes";
-import { generateBrandedQRDataUrl } from "@/components/BrandedQR";
 import { GUIDED_CARDS } from "./OwnerWizardComponents";
 import type { TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 
@@ -54,7 +53,6 @@ interface NavSetters {
   setShowMemberPitch: (v: boolean) => void;
   setGuidedQueue: (v: string[] | ((prev: string[]) => string[])) => void;
   setPendingPostTypeStep: (v: string | null) => void;
-  updateTempPacket: (updates: Record<string, any>) => void;
   generateRealMockup: () => Promise<boolean>;
   handlePublicCheckout: () => void;
 }
@@ -74,7 +72,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
     setSimpleStep, setWantsHeaderFooter, setCurrentPlacementIndex, setGraphicSize,
     setPlacementGraphicChoice, setPerPlacementSizes, setIsGeneratingBasicMockup,
     setIsGeneratingPlusMockup, setQrBasicMockup, setQrPlusMockup, setShowCheckoutCard,
-    setShowMemberPitch, setGuidedQueue, setPendingPostTypeStep, updateTempPacket,
+    setShowMemberPitch, setGuidedQueue, setPendingPostTypeStep,
     generateRealMockup, handlePublicCheckout,
   } = setters;
 
@@ -95,14 +93,14 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       case 'shirt-preview': return true;
       case 'qr-basic-type': return !!qrBasicInputType;
       case 'qr-basic-input': return !!qrBasicContent.trim();
-      case 'qr-basic-mockup': return true;
-      case 'qr-plus-mockup': return true;
+      case 'qr-basic-mockup': return !!realMockupUrl && !!tempPacketId;
+      case 'qr-plus-mockup': return !!realMockupUrl && !!tempPacketId;
       case 'compose-explain' as SimpleWizardStep: return true;
       default: return false;
     }
   }, [simpleStep, selectedProductType, selectedColor, selectedShirtSize, qrType,
       selectedPlacements, graphicSize, wantsHeaderFooter, textLayoutChoice,
-      headerStyle, footerStyle, placementGraphicChoice, qrBasicInputType, qrBasicContent]);
+      headerStyle, footerStyle, placementGraphicChoice, qrBasicInputType, qrBasicContent, realMockupUrl, tempPacketId]);
 
   const getStepsArray = useCallback(() => {
     if (qrType === 'qr-basic') return OWNER_BASIC_STEPS;
@@ -116,12 +114,10 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
     if (simpleStep === 'product') { setSimpleStep('product-congrats'); return; }
     if (simpleStep === 'product-congrats') { setSimpleStep('color'); return; }
     if (simpleStep === 'color') {
-      updateTempPacket({ selectedColor });
       setSimpleStep('size');
       return;
     }
     if (simpleStep === 'size') {
-      updateTempPacket({ selectedShirtSize, sizeCost: sizeCostBonuses[selectedShirtSize] || 0 });
       if (preSelectedType) {
         if (qrType === 'qr-compose') { setSimpleStep('compose-explain' as SimpleWizardStep); }
         else { setSimpleStep('placement-count'); }
@@ -129,7 +125,6 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       return;
     }
     if (simpleStep === 'type') {
-      updateTempPacket({ qrType });
       if (qrType === 'qr-compose') {
         if (isGuided) { setGuidedQueue(['type-confirm-compose']); setPendingPostTypeStep('compose-explain'); return; }
         setSimpleStep('compose-explain' as SimpleWizardStep);
@@ -145,7 +140,6 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
     }
     if (simpleStep === ('compose-explain' as SimpleWizardStep)) { return; }
     if (simpleStep === 'placement-count') {
-      updateTempPacket({ selectedPlacements });
       setCurrentPlacementIndex(0);
       setGraphicSize('' as GraphicSize);
       setSimpleStep('graphic-size');
@@ -158,7 +152,6 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
         setGraphicSize('' as GraphicSize);
         return;
       }
-      updateTempPacket({ graphicSize });
       setSimpleStep('generate');
       return;
     }
@@ -186,37 +179,15 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       return;
     }
     if (simpleStep === 'shirt-preview') {
-      updateTempPacket({ headerStyle, footerStyle, textLayoutChoice });
-      setIsGeneratingPlusMockup(true);
-      setSimpleStep('qr-plus-mockup');
-      generateRealMockup().then(async (success) => {
-        setIsGeneratingPlusMockup(false);
-        if (!success) {
-          const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-          setQrPlusMockup(await generateBrandedQRDataUrl(previewUrl, 1000));
-        }
-      }).catch(async () => {
-        const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-        setQrPlusMockup(await generateBrandedQRDataUrl(previewUrl, 1000));
-        setIsGeneratingPlusMockup(false);
-      });
+      setSimpleStep('qr-basic-type');
       return;
     }
     if (simpleStep === 'qr-basic-input') {
-      updateTempPacket({ qrBasicInputType, qrBasicContent });
-      setIsGeneratingBasicMockup(true);
-      setSimpleStep('qr-basic-mockup');
-      generateRealMockup().then(async (success) => {
-        setIsGeneratingBasicMockup(false);
-        if (!success) { setQrBasicMockup(await generateBrandedQRDataUrl(qrBasicContent, 1000)); }
-      }).catch(async () => {
-        setQrBasicMockup(await generateBrandedQRDataUrl(qrBasicContent, 1000));
-        setIsGeneratingBasicMockup(false);
-      });
+      setSimpleStep(qrType === 'qr-plus' ? 'qr-plus-mockup' : 'qr-basic-mockup');
+      void generateRealMockup();
       return;
     }
     if (simpleStep === 'qr-basic-mockup' || simpleStep === 'qr-plus-mockup') {
-      updateTempPacket({ totalCost: runningCost, mockupUrl: realMockupUrl, lifestyleMockupUrl, readyForCheckout: true });
       if (isGuided) { setGuidedQueue(['checkout']); setShowCheckoutCard(true); }
       else { handlePublicCheckout(); }
       return;
@@ -230,7 +201,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       qrType, isGuided, selectedPlacements, currentPlacementIndex, currentPlacement,
       graphicSize, textLayoutChoice, headerStyle, footerStyle, qrBasicInputType,
       qrBasicContent, runningCost, realMockupUrl, lifestyleMockupUrl, tempPacketId,
-      updateTempPacket, generateRealMockup, handlePublicCheckout, getStepsArray,
+      generateRealMockup, handlePublicCheckout, getStepsArray,
       setSimpleStep, setCurrentPlacementIndex, setGraphicSize, setPerPlacementSizes,
       setPlacementGraphicChoice, setIsGeneratingBasicMockup, setIsGeneratingPlusMockup,
       setQrBasicMockup, setQrPlusMockup, setShowCheckoutCard, setGuidedQueue, setPendingPostTypeStep]);
@@ -268,7 +239,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       'shirt-preview': selectedPlacements.length > 1 ? 'placement-config' : (textLayoutChoice === 'both' ? 'text-edit-footer' : (textLayoutChoice === 'footer' ? 'text-edit-footer' : 'text-edit-header')),
       'qr-basic-input': 'qr-basic-type',
       'qr-basic-mockup': 'qr-basic-input',
-      'qr-plus-mockup': 'shirt-preview',
+      'qr-plus-mockup': 'qr-basic-input',
     };
 
     const prev = backMap[simpleStep];

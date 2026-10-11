@@ -206,7 +206,7 @@ export async function prepareCartOrder(userId: string, referrerId = '', selectio
 /** Caller must verify the webhook signature (or retrieve this session from Stripe). */
 export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
   const orderId = session.metadata?.orderId;
-  if (!orderId || !['direct_cart', 'packet_share'].includes(session.metadata?.source || '')) throw new Error('Checkout has no frozen order. Manual reconciliation required.');
+  if (!orderId || !['direct_cart', 'packet_share', 'public_wizard'].includes(session.metadata?.source || '')) throw new Error('Checkout has no frozen order. Manual reconciliation required.');
   if (session.payment_status !== 'paid') throw new Error('Payment is not complete.');
   const ref = db.collection('orders').doc(orderId);
   await db.runTransaction(async tx => {
@@ -238,13 +238,19 @@ export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
 
 /** Member sales use the same frozen production contract as catalog sales. */
 export async function prepareMemberOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string) {
-  const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: packetId, productSize: size, productColor: packet.selectedColor } });
+  return prepareProductOrder(packetId, packet, size, referrerId);
+}
+export async function prepareOwnerOrder(packetId: string, packet: Record<string, any>, ownerId: string) {
+  return prepareProductOrder(packetId, packet, packet.selectedShirtSize, '', ownerId);
+}
+async function prepareProductOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, ownerId?: string) {
+  const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: ownerId ? null : packetId, productSize: size, productColor: packet.selectedColor } }, ownerId ? { packetId, ownerId } : undefined);
   await verifyProviderItems([item]);
   const ref = db.collection('orders').doc(), now = new Date().toISOString();
   const batch = db.batch();
-  batch.create(ref, { userId: null, source: 'packet_share', sourceChannel: 'member', checkoutVersion: 1,
+  batch.create(ref, { userId: null, source: ownerId ? 'public_wizard' : 'packet_share', sourceChannel: ownerId ? 'owner' : 'member', checkoutVersion: 1,
     packetId, productTitle: item.productTitle, qrType: packet.packetType, selectedSize: size, selectedColor: packet.selectedColor,
-    mockupUrl: packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost,
+    mockupUrl: packet.mockupUrl || packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost,
     status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
     amountTotalCents: item.unitAmount, currency: 'usd', totalAmount: (item.unitAmount / 100).toFixed(2),
     referrerId, routedProvider: item.fulfillment.provider, createdAt: now, updatedAt: now });
@@ -255,14 +261,14 @@ export async function prepareMemberOrder(packetId: string, packet: Record<string
 
 /** The signed webhook and Stripe-retrieved return page converge on one durable order. */
 export async function finalizeMemberPayment(session: Stripe.Checkout.Session) {
-  if (session.metadata?.source !== 'packet_share') throw new Error('This is not a member checkout.');
+  if (!['packet_share', 'public_wizard'].includes(session.metadata?.source || '')) throw new Error('This is not a product checkout.');
   const { orderId, order } = await finalizeCartPayment(session);
   await fulfillOrder(orderId);
   const line = (await db.collection('orderItems').doc(`${orderId}_0`).get()).data();
   const instanceId = line?.dynamicsInstanceIds?.[0];
   const instance = instanceId ? (await db.collection('qr_dynamics_instances').doc(instanceId).get()).data() : null;
   if (!instance?.claimCode) throw new Error('Purchased item claim is not ready. Retry order verification.');
-  await writePayoutAttribution({ source: 'packet_share', orderId, orderTotal: order.amountTotalCents / 100,
+  if (session.metadata?.source === 'packet_share') await writePayoutAttribution({ source: 'packet_share', orderId, orderTotal: order.amountTotalCents / 100,
     productCost: order.productCost, creatorMemberId: order.creatorMemberId, referrerId: order.referrerId,
     buyerEmail: order.customerEmail, packetId: order.packetId,
     connectTransferApplied: session.metadata?.connectTransferApplied === 'true', connectAccountId: session.metadata?.connectAccountId });
@@ -271,7 +277,7 @@ export async function finalizeMemberPayment(session: Stripe.Checkout.Session) {
     qrType: order.qrType, selectedColor: order.selectedColor, selectedSize: order.selectedSize, totalAmount: order.amountTotalCents / 100,
     buyerEmail: order.customerEmail, buyerName: order.customerName, mockupUrl: order.mockupUrl,
     status: updated.status, claimCode: instance.claimCode, instanceId, qrgBaseCode: instance.qrgBaseCode,
-    createdAt: order.createdAt, source: 'packet_share' };
+    createdAt: order.createdAt, source: order.source };
   await db.collection('orders_public').doc(orderId).set(publicOrder, { merge: true });
   if (order.customerEmail && !updated.activationEmailSentAt) {
     const sent = await sendActivationEmail({ customerEmail: order.customerEmail, customerName: order.customerName || 'Customer',
@@ -320,7 +326,7 @@ async function createPacketOrder(input: CreateOrderInput, nowISO: string): Promi
     selectedSize: input.selectedSize || 'M',
     totalAmount: input.totalAmount,
     pricingSnapshot,
-    mockupUrl: packet.itemImage || null,
+    mockupUrl: packet.mockupUrl || packet.itemImage || null,
     creatorMemberId: input.creatorMemberId || '',
     referrerId: input.referrerId || '',
     source: 'packet_share',

@@ -1,3 +1,7 @@
+import { randomBytes, createHash } from 'crypto';
+import { prepareOwnerBuild, ownedMemberBuild, saveMemberArtwork, previewMemberBuild, commitOwnerBuild } from '../services/member-build';
+import { prepareOwnerOrder, finalizeMemberPayment } from '../services/order-service';
+import { resolveRuntimeConfig } from '../runtime-config';
 import { Request, Response, NextFunction } from 'express';
 import { ownedDynamicsInstance, updateDynamicsSlots, resolveDynamicsInstance } from '../services/qr-dynamics';
   import express from 'express';
@@ -344,125 +348,62 @@ app.get('/qr/d/:instanceId', async (req: Request, res: Response) => {
   } catch (error: any) { console.error('[QR Dynamics] Scan failed:', error.message); res.status(error.status || 500).type('text').send(error.message); }
 });
 
-// ============ TEMP PACKETS & PUBLIC WIZARD (Batch 5) ============
-
-app.post('/public/packets', async (req: Request, res: Response): Promise<void> => {
+// Public builders use the same production schema as member/admin builders.
+// The raw capability is returned only on creation; the saved ownerId is its digest.
+function ownerKey(req: Request) {
+  const token = req.header('X-QR-Build-Token');
+  if (!token || !/^[a-f0-9]{64}$/.test(token)) throw Object.assign(new Error('Reopen your build before continuing.'), { status: 403 });
+  return createHash('sha256').update(token).digest('hex');
+}
+function buildError(res: Response, error: any) {
+  console.error('[OwnerBuild]', error.message);
+  res.status(error.status || 400).json({ error: error.message });
+}
+app.post('/public/builds', async (req: Request, res: Response) => {
   try {
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-    const packetData = stripUndef({ status: 'building', ...req.body, createdAt: now.toISOString(), updatedAt: now.toISOString(), expiresAt: expiresAt.toISOString() });
-    if (packetData.headerStyle) packetData.headerStyle = sanitizeStyleForFirestore(packetData.headerStyle);
-    if (packetData.footerStyle) packetData.footerStyle = sanitizeStyleForFirestore(packetData.footerStyle);
-    const docRef = await db.collection('temp_packets').add(packetData);
-    res.json({ success: true, tempPacketId: docRef.id, expiresAt: expiresAt.toISOString() });
-  } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
+    const token = randomBytes(32).toString('hex');
+    const build = await prepareOwnerBuild(createHash('sha256').update(token).digest('hex'), req.body);
+    res.set('Cache-Control', 'no-store').json({ ...build, buildToken: token });
+  } catch (error) { buildError(res, error); }
 });
-
-app.patch('/public/packets/:tempPacketId', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { tempPacketId } = req.params;
-    const docRef = db.collection('temp_packets').doc(tempPacketId);
-    const doc = await docRef.get();
-    if (!doc.exists) { res.status(404).json({ success: false, error: "Temp packet not found" }); return; }
-    if (doc.data()?.status === 'completed') { res.status(400).json({ success: false, error: "Packet already completed" }); return; }
-    const tempClean = stripUndef({ ...req.body, updatedAt: new Date().toISOString() });
-    if (tempClean.headerStyle) tempClean.headerStyle = sanitizeStyleForFirestore(tempClean.headerStyle);
-    if (tempClean.footerStyle) tempClean.footerStyle = sanitizeStyleForFirestore(tempClean.footerStyle);
-    await docRef.update(tempClean);
-    res.json({ success: true, tempPacketId });
-  } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
+app.post('/public/builds/:packetId/artwork', async (req: Request, res: Response) => {
+  try { res.json(await saveMemberArtwork(ownerKey(req), req.params.packetId, req.body.placement, req.body.imageData, 'owner')); }
+  catch (error) { buildError(res, error); }
 });
-
-app.post('/public/packets/:tempPacketId/complete', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { tempPacketId } = req.params;
-    const docRef = db.collection('temp_packets').doc(tempPacketId);
-    const doc = await docRef.get();
-    if (!doc.exists) { res.status(404).json({ success: false, error: "Temp packet not found" }); return; }
-    await docRef.update({ status: 'completed', completedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    res.json({ success: true, tempPacketId });
-  } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
+app.post('/public/builds/:packetId/preview', async (req: Request, res: Response) => {
+  try { res.json(await previewMemberBuild(ownerKey(req), req.params.packetId, 'owner')); }
+  catch (error) { buildError(res, error); }
 });
-
-app.delete('/public/packets/cleanup/expired', async (_req: Request, res: Response): Promise<void> => {
+app.post('/public/checkout', async (req: Request, res: Response) => {
   try {
-    const now = new Date().toISOString();
-    const expiredQuery = await db.collection('temp_packets').where('status', '==', 'building').where('expiresAt', '<', now).limit(100).get();
-    let deletedCount = 0;
-    const batch = db.batch();
-    expiredQuery.docs.forEach(doc => { batch.delete(doc.ref); deletedCount++; });
-    if (deletedCount > 0) await batch.commit();
-    res.json({ success: true, deletedCount });
-  } catch (error: any) { res.status(500).json({ success: false, error: error.message }); }
-});
-
-app.post('/public/checkout', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { tempPacketId } = req.body;
-    if (!tempPacketId) { res.status(400).json({ error: "Missing tempPacketId" }); return; }
-    const packetDoc = await db.collection('temp_packets').doc(tempPacketId).get();
-    if (!packetDoc.exists) { res.status(404).json({ error: "Temp packet not found" }); return; }
-    const packet = packetDoc.data()!;
-    if (packet.status === 'completed') { res.status(400).json({ error: "Already purchased" }); return; }
-    const pricingDoc = await db.collection("testSettings").doc("pricing").get();
-    const ps = pricingDoc.exists ? pricingDoc.data() : null;
-    const defaultSU: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
-    const sizeUpcharges = ps?.sizeUpcharges || defaultSU;
-    const additionalPlacementCost = ps?.additionalPlacementCost ?? 4;
-    const textLineUpcharge = ps?.textLineUpcharge ?? 2;
-    const basePrice = parseFloat(packet.retailPrice) || ps?.baseRetailPrice || 29.99;
-    const selectedSize = packet.selectedShirtSize || packet.selectedSize || 'M';
-    const sizeUpcharge = sizeUpcharges[selectedSize] || 0;
-    const placements = packet.selectedPlacements || ['front'];
-    const placementCost = Math.max(0, placements.length - 1) * additionalPlacementCost;
-    const textLayout = packet.textLayoutChoice || '';
-    let textCostLines = 0;
-    if (textLayout === 'both') textCostLines = 2;
-    else if (textLayout === 'header' || textLayout === 'footer') textCostLines = 1;
-    const textCost = textCostLines * textLineUpcharge;
-    const serverTotal = Math.round((basePrice + sizeUpcharge + placementCost + textCost) * 100) / 100;
+    const ownerId = ownerKey(req), packetId = req.body.packetId;
+    await ownedMemberBuild(ownerId, packetId, 'owner');
     const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
+    if (!stripeKey) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
+    const packet = await commitOwnerBuild(ownerId, packetId);
+    const prepared = await prepareOwnerOrder(packetId, packet, ownerId);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
-    const productTitle = packet.productTitle || 'QR Gear Custom Product';
-    const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
-    const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: productTitle, images: packet.mockupUrl ? [packet.mockupUrl.startsWith('http') ? packet.mockupUrl : `${baseUrl}${packet.mockupUrl}`] : [] }, unit_amount: Math.round(serverTotal * 100) }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/build/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/build`, metadata: { tempPacketId, source: 'public_wizard', serverTotal: serverTotal.toString() }, customer_creation: 'if_required' });
-    await packetDoc.ref.update({ stripeSessionId: session.id, serverCalculatedTotal: serverTotal, checkoutCreatedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    res.json({ url: session.url, sessionId: session.id, total: serverTotal });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const origin = resolveRuntimeConfig().origin;
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'], mode: 'payment', customer_creation: 'if_required',
+      shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'] },
+      line_items: [{ price_data: { currency: 'usd', unit_amount: prepared.amount,
+        product_data: { name: packet.title, description: `${packet.selectedColor} / ${packet.selectedShirtSize}`, images: [packet.mockupUrl] } }, quantity: 1 }],
+      success_url: `${origin}/build/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${origin}/build`,
+      metadata: { source: 'public_wizard', orderId: prepared.orderId, packetId },
+    }, { idempotencyKey: `checkout-${prepared.orderId}` });
+    await db.collection('orders').doc(prepared.orderId).update({ stripeSessionId: session.id });
+    res.json({ url: session.url, total: prepared.amount / 100 });
+  } catch (error) { buildError(res, error); }
 });
-
-app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response): Promise<void> => {
+app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response) => {
   try {
-    const { sessionId } = req.params;
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
-    const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== 'paid') { res.status(400).json({ error: "Payment not completed" }); return; }
-    const tempPacketId = session.metadata?.tempPacketId;
-    if (!tempPacketId) { res.status(400).json({ error: "No packet linked" }); return; }
-    const existingOrderQuery = await db.collection('orders_public').where('stripeSessionId', '==', sessionId).limit(1).get();
-    if (!existingOrderQuery.empty) { const existingOrder = existingOrderQuery.docs[0].data(); res.json({ success: true, alreadyProcessed: true, order: { id: existingOrderQuery.docs[0].id, ...existingOrder } }); return; }
-    const packetDoc = await db.collection('temp_packets').doc(tempPacketId).get();
-    if (!packetDoc.exists) { res.status(404).json({ error: "Temp packet not found" }); return; }
-    const packet = packetDoc.data()!;
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let claimCode = '';
-    for (let i = 0; i < 8; i++) claimCode += chars.charAt(Math.floor(Math.random() * chars.length));
-    const buyerEmail = (session.customer_details as any)?.email || '';
-    const buyerName = (session.customer_details as any)?.name || '';
-    const now = new Date();
-    const realPacketData = { ...packet, status: 'purchased', source: 'public_wizard', buyerEmail, buyerName, stripeSessionId: sessionId, stripePaymentIntentId: session.payment_intent as string, purchasedAt: now.toISOString(), createdAt: packet.createdAt || now.toISOString(), updatedAt: now.toISOString() } as any;
-    delete realPacketData.expiresAt; delete realPacketData.checkoutCreatedAt; delete realPacketData.serverCalculatedTotal;
-    const realPacketRef = await db.collection('product_packets').add(realPacketData);
-    const serverTotal = parseFloat(packet.serverCalculatedTotal || (session as any).amount_total! / 100);
-    const orderData = { tempPacketId, realPacketId: realPacketRef.id, stripeSessionId: sessionId, stripePaymentIntentId: session.payment_intent as string, buyerEmail, buyerName, claimCode, productTitle: packet.productTitle || 'QR Gear Product', qrType: packet.qrType || 'qr-basic', selectedColor: packet.selectedColor || '', selectedSize: packet.selectedShirtSize || packet.selectedSize || 'M', totalAmount: serverTotal, mockupUrl: packet.mockupUrl || null, lifestyleMockupUrl: packet.lifestyleMockupUrl || null, status: 'paid', graphicRetainedUntil: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(), createdAt: now.toISOString(), updatedAt: now.toISOString() };
-    const orderRef = await db.collection('orders_public').add(orderData);
-    await packetDoc.ref.update({ status: 'completed', completedAt: now.toISOString(), realPacketId: realPacketRef.id, orderId: orderRef.id, updatedAt: now.toISOString() });
-    res.json({ success: true, order: { id: orderRef.id, ...orderData }, realPacketId: realPacketRef.id, claimCode });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
+    const session = await new Stripe(key, { apiVersion: '2023-10-16' as any }).checkout.sessions.retrieve(req.params.sessionId);
+    if (session.metadata?.source !== 'public_wizard' || !session.metadata.orderId) throw new Error('This session has no canonical owner order. Contact support to reconcile a legacy purchase.');
+    res.set('Cache-Control', 'no-store').json(await finalizeMemberPayment(session));
+  } catch (error) { buildError(res, error); }
 });
 
-
-  }
+}

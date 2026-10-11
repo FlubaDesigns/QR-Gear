@@ -222,7 +222,7 @@ export function OwnerCostSummary({ basePrice, sizeCost, placementCost, textCost,
     <div className="bg-slate-800/80 rounded-xl p-4 border border-slate-600 space-y-2">
       <h3 className="text-white font-bold text-sm mb-3">Cost Breakdown</h3>
       <div className="flex justify-between gap-2 text-sm">
-        <span className="text-slate-400">Base product</span>
+        <span className="text-slate-400">Product and selected options</span>
         <span className="text-white">${basePrice.toFixed(2)}</span>
       </div>
       {sizeCost > 0 && (

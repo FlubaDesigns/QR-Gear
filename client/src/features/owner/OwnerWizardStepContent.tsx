@@ -48,6 +48,7 @@ interface OwnerWizardStepContentProps {
   runningCost: number;
   wantsHeaderFooter: boolean | null;
   pricingSettings: any;
+  quotedPricing: any;
   placementCostExtra: number;
   textLineCost: number;
   sizeCostBonuses: Record<string, number>;
@@ -130,7 +131,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
           <div className="bg-slate-800/80 rounded-2xl p-6 border border-blue-500/30">
             <p className="text-slate-400 text-sm mb-2">Starting price</p>
             <div className="text-3xl font-bold text-blue-400" data-testid="text-starting-price">
-              ${(selectedProductType.retailPrice || pricingSettings?.baseRetailPrice || 29.99).toFixed(2)}
+              ${(selectedProductType.retailPrice || 0).toFixed(2)}
             </div>
             <p className="text-slate-500 text-xs mt-2">Final price may vary with options you choose</p>
           </div>
@@ -189,7 +190,7 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
                 return (
                   <button
                     key={type.id}
-                    onClick={() => setQrType(type.id)}
+                    onClick={() => type.requiresMember ? navigate(`/members?wizard=super-simple&type=${type.id}`) : setQrType(type.id)}
                     className={`p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
                       qrType === type.id
                         ? 'border-white bg-white/10'
@@ -541,32 +542,17 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
                 )}
               </div>
               {tempPacketId && (
-                <p className="text-center text-xs text-slate-500">Packet ID: {tempPacketId}</p>
+                <p className="text-center text-xs text-slate-500">Your design is ready</p>
               )}
             </div>
           ) : (
-            <QRBasicMockupStep
-              mockupUrl={qrBasicMockup || generateQRCodeUrl(qrBasicContent, 300)}
-              isLoading={false}
-              selectedColor={selectedColor}
-              selectedSize={selectedShirtSize}
-              inputType={qrBasicInputType}
-              content={qrBasicContent}
-              qrPositionX={qrPositionX}
-              qrPositionY={qrPositionY}
-              qrSizePercent={qrSizePercent}
-              onPositionXChange={setQrPositionX}
-              onPositionYChange={setQrPositionY}
-              onSizeChange={setQrSizePercent}
-              areaImageUrl={areaImageUrl}
-              onAreaImageUrlChange={setAreaImageUrl}
-            />
+            <p className="text-slate-300 text-center">Generate your product preview before continuing.</p>
           )}
           <OwnerCostSummary
-            basePrice={selectedProductType?.retailPrice || 0}
-            sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
-            placementCost={Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
-            textCost={textLines * textLineCost}
+            basePrice={props.quotedPricing?.customerPrice ?? selectedProductType?.retailPrice ?? 0}
+            sizeCost={props.quotedPricing?.sizeUpcharges?.[selectedShirtSize] ?? sizeCostBonuses[selectedShirtSize] ?? 0}
+            placementCost={props.quotedPricing ? 0 : Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
+            textCost={props.quotedPricing ? 0 : textLines * textLineCost}
             total={runningCost}
           />
         </div>
@@ -597,24 +583,17 @@ export function OwnerWizardStepContent(props: OwnerWizardStepContentProps) {
                 )}
               </div>
               {tempPacketId && (
-                <p className="text-center text-xs text-slate-500">Packet ID: {tempPacketId}</p>
+                <p className="text-center text-xs text-slate-500">Your design is ready</p>
               )}
             </div>
           ) : (
-            <QRPlusMockupStep
-              mockupUrl={qrPlusMockup}
-              isLoading={false}
-              selectedColor={selectedColor}
-              selectedSize={selectedShirtSize}
-              headerText={headerStyle.text}
-              footerText={footerStyle.text}
-            />
+            <p className="text-slate-300 text-center">Generate your product preview before continuing.</p>
           )}
           <OwnerCostSummary
-            basePrice={selectedProductType?.retailPrice || 0}
-            sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
-            placementCost={Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
-            textCost={textLines * textLineCost}
+            basePrice={props.quotedPricing?.customerPrice ?? selectedProductType?.retailPrice ?? 0}
+            sizeCost={props.quotedPricing?.sizeUpcharges?.[selectedShirtSize] ?? sizeCostBonuses[selectedShirtSize] ?? 0}
+            placementCost={props.quotedPricing ? 0 : Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
+            textCost={props.quotedPricing ? 0 : textLines * textLineCost}
             total={runningCost}
           />
         </div>

@@ -13,16 +13,17 @@ import { dynamicsPrintSource, prepareDynamicsOrderItems } from './dynamics-order
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 
 /** Freeze server-owned catalog data, never cart-supplied prices or provider IDs. */
-export async function resolveSaleItem(cart: any) {
+export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string; ownerId: string }) {
   const c = cart.customization || {};
   const memberPacketId = c.memberPacketId;
-  const instanceId = memberPacketId || c.instanceId || c.linkId || c.productId;
+  const instanceId = ownerBuild?.packetId || memberPacketId || c.instanceId || c.linkId || c.productId;
   if (typeof instanceId !== 'string' || !instanceId || instanceId.includes('/')) throw new Error('The cart item needs a saved catalog product.');
   if (!Number.isSafeInteger(cart.quantity) || cart.quantity <= 0) throw new Error('Choose a positive whole-number quantity.');
-  const instance = (await db.collection(memberPacketId ? 'member_packets' : 'admin_catalog_instances').doc(instanceId).get()).data();
+  const instance = (await db.collection(ownerBuild ? 'productPackets' : memberPacketId ? 'member_packets' : 'admin_catalog_instances').doc(instanceId).get()).data();
   if (!instance || instance.isVisible === false || instance.isActive === false || ['archived', 'deleted'].includes(instance.status)) throw new Error('This catalog product is unavailable.');
   if (memberPacketId && instance.status !== 'published') throw new Error('This member product is not published.');
-  const packetId = memberPacketId ? instance.productionPacketId : instance.currentPacketId;
+  if (ownerBuild && (instance.ownerType !== 'owner' || instance.ownerId !== ownerBuild.ownerId || instance.status !== 'ready')) throw new Error('This owner build is not ready for your checkout.');
+  const packetId = ownerBuild ? instanceId : memberPacketId ? instance.productionPacketId : instance.currentPacketId;
   if (!packetId) throw new Error('Product has no saved production packet.');
   const packet = (await db.collection('productPackets').doc(packetId).get()).data();
   if (!packet) throw new Error('Production packet is missing.');
@@ -39,7 +40,7 @@ export async function resolveSaleItem(cart: any) {
   validateBrandLabel(master, snapshot);
   const size = c.productSize, color = c.productColor;
   if (typeof size !== 'string' || !size || typeof color !== 'string' || !color) throw new Error('Choose a size and color.');
-  const { key: variantKey, mapping } = selectCatalogSaleVariant(memberPacketId ? { enabledColors: [packet.selectedColor], enabledSizes: [size] } : instance, master, provider, size, color);
+  const { key: variantKey, mapping } = selectCatalogSaleVariant(ownerBuild || memberPacketId ? { enabledColors: [packet.selectedColor], enabledSizes: [size] } : instance, master, provider, size, color);
   const files: PrintfulOrderFile[] = [];
   for (const placement of snapshot.layoutConfig.selectedPlacements) {
     const layout = snapshot.layoutConfig.providerLayouts?.[placement];
@@ -55,7 +56,8 @@ export async function resolveSaleItem(cart: any) {
     files.push({ type: spec.providerPlacementId, url, position: { area_width: target.widthPx, area_height: target.heightPx, width: target.widthPx, height: target.heightPx, top: 0, left: 0 } });
   }
   if (!files.length) throw new Error('Product has no production artwork.');
-  const price = memberPacketId ? Number(packet.pricing?.customerPrice) + ((await getSizeUpcharges())[size] ?? 0) : await getCatalogInstancePrice(instanceId, size);
+  if (ownerBuild && (size !== packet.selectedShirtSize || color !== packet.selectedColor)) throw new Error('Checkout must use the reviewed size and color.');
+  const price = ownerBuild ? Number(packet.pricing?.customerPrice) + Number(packet.pricing?.sizeUpcharges?.[size]) : memberPacketId ? Number(packet.pricing?.customerPrice) + ((await getSizeUpcharges())[size] ?? 0) : await getCatalogInstancePrice(instanceId, size);
   if (price === null || !Number.isFinite(price) || price <= 0) throw new Error('Product has no saved sale price.');
   const unitAmount = Math.round(price * 100);
   const productTitle = instance.resolved?.title || packet.adminCatalogTitle || packet.title;

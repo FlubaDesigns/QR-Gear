@@ -26,6 +26,10 @@ export function OwnerWizard() {
   const minTierIndex = TIER_ORDER.indexOf(minTier as QRType);
   const preSelectedType = (minTierIndex >= 0 ? minTier : '') as QRType;
 
+  useEffect(() => {
+    if (['qr-canvas', 'qr-play', 'qr-compose'].includes(preSelectedType)) navigate(`/members?wizard=super-simple&type=${preSelectedType}`);
+  }, [preSelectedType, navigate]);
+
   const state = useOwnerWizardState(preSelectedType, isGuided);
   const {
     simpleStep, setSimpleStep,
@@ -46,7 +50,7 @@ export function OwnerWizard() {
     pricingSettings,
     guidedQueue, setGuidedQueue, guidedSeenSteps, setGuidedSeenSteps,
     pendingPostTypeStep, setPendingPostTypeStep,
-    updateTempPacket, generateRealMockup, handlePublicCheckout, handleProductSelect,
+    generateRealMockup, handlePublicCheckout, handleProductSelect,
   } = state;
 
   useEffect(() => {
@@ -96,7 +100,7 @@ export function OwnerWizard() {
   const allTypeDefinitions = [
     { id: 'qr-basic' as QRType, label: 'QR Basic', description: 'Just the QR code - simple and clean', icon: QrCode, color: 'bg-slate-600', requiresMember: false },
     { id: 'qr-plus' as QRType, label: 'QR Plus', description: 'QR code with header and footer text', icon: Type, color: 'bg-blue-600', requiresMember: false },
-    { id: 'qr-canvas' as QRType, label: 'QR Compose', description: 'QR code with a custom background image', icon: ImagePlus, color: 'bg-purple-600', requiresMember: true },
+    { id: 'qr-canvas' as QRType, label: 'QR Canvas', description: 'QR code with a custom background image', icon: ImagePlus, color: 'bg-purple-600', requiresMember: true },
     { id: 'qr-play' as QRType, label: 'QR Play', description: 'QR code that opens a video', icon: Play, color: 'bg-rose-600', requiresMember: true },
     { id: 'qr-compose' as QRType, label: 'QR Compose', description: 'Build a rotating playlist', icon: Sparkles, color: 'bg-amber-600', requiresMember: true },
   ];
@@ -123,7 +127,7 @@ export function OwnerWizard() {
       setShowCheckoutCard: state.setShowCheckoutCard,
       setShowMemberPitch: state.setShowMemberPitch,
       setGuidedQueue, setPendingPostTypeStep,
-      updateTempPacket, generateRealMockup, handlePublicCheckout,
+      generateRealMockup, handlePublicCheckout,
     }
   );
 
@@ -151,10 +155,10 @@ export function OwnerWizard() {
         </CardHeader>
         <CardContent className="p-4 pt-1 space-y-4">
           <OwnerCostSummary
-            basePrice={selectedProductType?.retailPrice || 0}
-            sizeCost={sizeCostBonuses[selectedShirtSize] || 0}
-            placementCost={Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
-            textCost={textLines * textLineCost}
+            basePrice={state.quotedPricing?.customerPrice ?? selectedProductType?.retailPrice ?? 0}
+            sizeCost={state.quotedPricing?.sizeUpcharges?.[selectedShirtSize] ?? sizeCostBonuses[selectedShirtSize] ?? 0}
+            placementCost={state.quotedPricing ? 0 : Math.max(0, selectedPlacements.length - 1) * placementCostExtra}
+            textCost={state.quotedPricing ? 0 : textLines * textLineCost}
             total={runningCost}
           />
           <MemberConversionPitch
@@ -211,6 +215,10 @@ export function OwnerWizard() {
         </Button>
       </CardHeader>
       <CardContent className="p-4 pt-1">
+        {state.buildError && <div role="alert" className="mb-4 rounded-lg border border-red-500/50 p-3 text-red-300">
+          <p>{state.buildError}</p>
+          {isFinalStep && <Button variant="outline" onClick={() => void generateRealMockup()} disabled={isGeneratingRealMockup}>Retry preview</Button>}
+        </div>}
         {guidedQueue.length === 0 && (
           <>
             {tier && (
@@ -223,7 +231,7 @@ export function OwnerWizard() {
               <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-blue-500/10 border border-blue-500/20 mx-auto w-fit transition-all ${costPulse ? 'scale-110 border-blue-400/60 bg-blue-500/20' : ''}`} data-testid="badge-running-cost">
                 <Tag className="w-3.5 h-3.5 text-blue-400" />
                 <span className="text-blue-400 font-bold text-sm">
-                  ${runningCost.toFixed(2)} estimated cost
+                  ${runningCost.toFixed(2)} {state.quotedPricing ? 'total' : 'estimated cost'}
                 </span>
               </div>
             )}
@@ -271,6 +279,7 @@ export function OwnerWizard() {
               runningCost={runningCost}
               wantsHeaderFooter={wantsHeaderFooter}
               pricingSettings={pricingSettings}
+              quotedPricing={state.quotedPricing}
               placementCostExtra={placementCostExtra}
               textLineCost={textLineCost}
               sizeCostBonuses={sizeCostBonuses}
@@ -312,6 +321,7 @@ export function OwnerWizard() {
           <Button
             variant="outline"
             onClick={handleBack}
+            disabled={isGeneratingRealMockup || isCheckingOut}
             className="flex-1 min-w-[100px] sm:flex-none"
             data-testid="button-owner-back"
           >
@@ -323,7 +333,7 @@ export function OwnerWizard() {
           {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && simpleStep !== ('compose-explain' as SimpleWizardStep) && (
             <Button
               onClick={handleNext}
-              disabled={!canProceed}
+              disabled={!canProceed || isGeneratingRealMockup || isCheckingOut}
               className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
                 canProceed
                   ? isFinalStep
@@ -337,7 +347,7 @@ export function OwnerWizard() {
               {isFinalStep ? (
                 <>
                   <ShoppingCart className="w-4 h-4 mr-1" />
-                  Add to Cart
+                  Continue to Checkout
                 </>
               ) : (
                 <>

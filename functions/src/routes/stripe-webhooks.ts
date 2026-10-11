@@ -48,7 +48,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         
         if (session.payment_status !== 'paid') break;
         // Both callbacks resolve the same frozen order; a closed browser cannot strand a paid item.
-        if (source === 'packet_share') {
+        if (source === 'packet_share' || source === 'public_wizard') {
           if (session.metadata?.orderId) await finalizeMemberPayment(session);
           break;
         }

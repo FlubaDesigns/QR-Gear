@@ -87,3 +87,11 @@ export async function memberCatalogProducts(db: any) {
   const { readStoreProducts } = await import('./store-products');
   return (await readStoreProducts(db, 'member-products', 'member')).products;
 }
+
+/** Public builders resolve exactly the public picker assignment. */
+export async function publicCatalogProducts(db: any) {
+  const catalog = await catalogTierProducts(db, 'public');
+  if (catalog.hasTiers) return Object.values(catalog.tiers).flatMap(tiers => Object.values(tiers).flatMap((tier: any) => tier.products));
+  const { readStoreProducts } = await import('./store-products');
+  return (await readStoreProducts(db, 'member-products', 'public')).products;
+}

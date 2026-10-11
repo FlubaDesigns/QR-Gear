@@ -1,7 +1,7 @@
+import { productGraphicOptions } from '@shared/builderSnapshot';
+import { renderProductGraphic, type RenderOptions } from '@/features/shared/graphics/productGraphicRenderer';
 import { isAvailableProductVariant } from '@shared/storefrontTypes';
-import { getContrastQRColor } from "@/features/shared/components/ColorSwatchPicker";
-import { resolveColorHex } from '@shared/colorUtils';
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
 import type {
@@ -52,7 +52,10 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [realMockupUrl, setRealMockupUrl] = useState<string | null>(null);
   const [lifestyleMockupUrl, setLifestyleMockupUrl] = useState<string | null>(null);
   const [isGeneratingRealMockup, setIsGeneratingRealMockup] = useState(false);
-  const packetCreating = useRef(false);
+  const [buildError, setBuildError] = useState('');
+  const [quotedPricing, setQuotedPricing] = useState<any>(null);
+  const prepared = useRef<{ key: string; build: any; preview?: any } | null>(null);
+  const generating = useRef(false);
 
   const [guidedQueue, setGuidedQueue] = useState<string[]>(isGuided ? ['welcome', 'product'] : []);
   const [guidedSeenSteps, setGuidedSeenSteps] = useState<Set<string>>(new Set(isGuided ? ['product'] : []));
@@ -67,7 +70,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     document.body.scrollTop = 0;
   }, [simpleStep]);
 
-  const { data: pricingSettings } = useQuery<{
+  const { data: pricingSettings, error: pricingError } = useQuery<{
     memberProfitShare: number;
     additionalPlacementCost: number;
     textLineUpcharge: number;
@@ -79,13 +82,12 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   });
 
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front';
-  const placementCostExtra = pricingSettings?.additionalPlacementCost || 4;
-  const textLineCost = pricingSettings?.textLineUpcharge || 2;
+  const placementCostExtra = pricingSettings?.additionalPlacementCost ?? 0;
+  const textLineCost = pricingSettings?.textLineUpcharge ?? 0;
   const textLines = textLayoutChoice === 'both' ? 2 : (textLayoutChoice === 'header' || textLayoutChoice === 'footer') ? 1 : 0;
 
   const sizeCostBonuses = useMemo(() => {
-    const defaultUpcharges: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10 };
-    const upcharges = pricingSettings?.sizeUpcharges || defaultUpcharges;
+    const upcharges = pricingSettings?.sizeUpcharges || {};
     const bonuses: Record<string, number> = {};
     for (const size of selectedProductType?.availableSizes ?? []) {
       bonuses[size] = upcharges[size] || 0;
@@ -93,138 +95,88 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     return bonuses;
   }, [pricingSettings, selectedProductType]);
 
-  const createTempPacket = useCallback(async (product: AllowedProduct) => {
-    if (packetCreating.current || tempPacketId) return;
-    packetCreating.current = true;
+  const buildInput = {
+    boundProduct: selectedProductType,
+    title: selectedProductType?.title,
+    selectedColor, selectedShirtSize, selectedPlacements, graphicSize, perPlacementSizes,
+    packetType: qrType, qrBasicContent, qrBasicInputType,
+    headerStyle: { ...headerStyle, enabled: wantsHeaderFooter === true && ['header', 'both'].includes(textLayoutChoice) },
+    footerStyle: { ...footerStyle, enabled: wantsHeaderFooter === true && ['footer', 'both'].includes(textLayoutChoice) },
+    qrPositionX, qrPositionY, qrSizePercent, areaImageUrl, areaImageMode, graphicLayoutMode,
+  };
+  const inputKey = JSON.stringify(buildInput);
+  const latestKey = useRef(inputKey);
+  latestKey.current = inputKey;
+  useEffect(() => {
+    setRealMockupUrl(null); setLifestyleMockupUrl(null); setTempPacketId(null); setQuotedPricing(null); setBuildError('');
+  }, [inputKey]);
+
+  async function request(path: string, body?: any, token?: string) {
+    const res = await fetch(`/api/public/${path}`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...(token ? { 'X-QR-Build-Token': token } : {}) },
+      body: JSON.stringify(body || {}),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Your build could not be saved. Please try again.');
+    return data;
+  }
+  const generateRealMockup = async (): Promise<boolean> => {
+    if (generating.current) return false;
+    generating.current = true;
+    setIsGeneratingRealMockup(true); setBuildError(''); setRealMockupUrl(null);
     try {
-      const res = await fetch('/api/public/packets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wizardType: 'owner',
-          blueprintId: product.blueprintId,
-          printProviderId: product.printProviderId,
-          productTitle: product.title,
-          retailPrice: product.retailPrice,
-          fulfillmentProvider: product.fulfillmentProvider || 'printify',
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTempPacketId(data.tempPacketId);
+      let entry = prepared.current;
+      if (!entry || entry.key !== inputKey) {
+        const build = await request('builds', buildInput);
+        for (const placement of build.builderSnapshot.layoutConfig.selectedPlacements) {
+          if (['label_inside', 'label_outside'].includes(placement)) continue;
+          const imageData = await renderProductGraphic(productGraphicOptions(build.builderSnapshot, build.qrContent, placement) as RenderOptions);
+          await request(`builds/${build.packetId}/artwork`, { placement, imageData }, build.buildToken);
+        }
+        entry = { key: inputKey, build };
+        prepared.current = entry;
       }
-    } catch (err) {
-      console.warn('[OwnerWizard] Failed to create temp packet:', err);
-    } finally {
-      packetCreating.current = false;
-    }
-  }, [tempPacketId]);
-
-  const updateTempPacket = useCallback(async (updates: Record<string, any>) => {
-    if (!tempPacketId) return;
-    try {
-      await fetch(`/api/public/packets/${tempPacketId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates),
-      });
-    } catch (err) {
-      console.warn('[OwnerWizard] Failed to update temp packet:', err);
-    }
-  }, [tempPacketId]);
-
-  const generateRealMockup = useCallback(async (): Promise<boolean> => {
-    if (!selectedProductType) return false;
-    setIsGeneratingRealMockup(true);
-    try {
-      const qrContent = qrType === 'qr-basic'
-        ? qrBasicContent || 'https://example.com'
-        : `${window.location.origin}/preview/${Date.now()}`;
-
-      const res = await fetch('/api/public/generate-mockup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tempPacketId,
-          blueprintId: selectedProductType.blueprintId,
-          printProviderId: selectedProductType.printProviderId || 99,
-          colorName: selectedColor,
-          colorHex: resolveColorHex(selectedColor),
-          selectedPlacements: selectedPlacements.length > 0 ? selectedPlacements : ['front'],
-          qrSize: graphicSize || 'medium',
-          qrUrl: qrContent,
-          headerStyle,
-          footerStyle,
-          textLayoutChoice,
-          qrColor: getContrastQRColor(resolveColorHex(selectedColor)),
-          fulfillmentProvider: selectedProductType.fulfillmentProvider || 'printify',
-        }),
-      });
-      const data = await res.json();
-      if (data.success && data.mockupUrl) {
-        setRealMockupUrl(data.mockupUrl);
-        setLifestyleMockupUrl(data.lifestyleMockupUrl || null);
-        return true;
-      }
+      if (!entry.preview) entry.preview = await request(`builds/${entry.build.packetId}/preview`, {}, entry.build.buildToken);
+      if (latestKey.current !== inputKey) return false;
+      const { pricing } = entry.build;
+      const sizeCost = pricing.sizeUpcharges[selectedShirtSize];
+      if (!Number.isFinite(sizeCost) || !entry.preview.mockupUrl) throw new Error('Your build is missing its price or product preview.');
+      setQuotedPricing(pricing);
+      setRunningCost(Math.round((pricing.customerPrice + sizeCost) * 100) / 100);
+      setTempPacketId(entry.build.packetId);
+      setRealMockupUrl(entry.preview.mockupUrl);
+      setLifestyleMockupUrl(entry.preview.lifestyleMockupUrl || null);
+      return true;
+    } catch (err: any) {
+      console.error('[OwnerBuild] Preview failed:', err);
+      setBuildError(err.message);
       return false;
-    } catch (err) {
-      console.warn('[OwnerWizard] Mockup generation failed:', err);
-      return false;
-    } finally {
-      setIsGeneratingRealMockup(false);
-    }
-  }, [selectedProductType, selectedColor, qrType, qrBasicContent, selectedPlacements, graphicSize, headerStyle, footerStyle, textLayoutChoice, tempPacketId]);
+    } finally { generating.current = false; setIsGeneratingRealMockup(false); }
+  };
 
-  const handlePublicCheckout = useCallback(async () => {
-    if (!tempPacketId || isCheckingOut) return;
-    setIsCheckingOut(true);
+  const handlePublicCheckout = async () => {
+    if (isCheckingOut) return;
+    setIsCheckingOut(true); setBuildError('');
     try {
-      const resp = await fetch('/api/public/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tempPacketId }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) {
-        console.error('[OwnerWizard] Checkout error:', data.error);
-        setIsCheckingOut(false);
-        return;
-      }
-      if (data.url) {
-        window.location.href = data.url;
-      }
-    } catch (err) {
-      console.error('[OwnerWizard] Checkout failed:', err);
+      const entry = prepared.current;
+      if (!entry?.preview || entry.key !== inputKey || !realMockupUrl) throw new Error('Preview your current design before checkout.');
+      const data = await request('checkout', { packetId: entry.build.packetId }, entry.build.buildToken);
+      if (!data.url) throw new Error('Checkout did not return a payment page. Please try again.');
+      window.location.href = data.url;
+    } catch (err: any) {
+      console.error('[OwnerBuild] Checkout failed:', err);
+      setBuildError(err.message);
       setIsCheckingOut(false);
     }
-  }, [tempPacketId, isCheckingOut]);
+  };
 
   const handleProductSelect = (product: AllowedProduct) => {
     setSelectedProductType(product);
-    const basePrice = product.retailPrice || pricingSettings?.baseRetailPrice || 29.99;
-    setRunningCost(basePrice);
+    setSelectedColor(''); setSelectedShirtSize(''); setSelectedPlacements([]);
+    setPerPlacementSizes({}); setGraphicSize('');
+    setRunningCost(product.retailPrice || 0);
     setCostPulse(true);
     setTimeout(() => setCostPulse(false), 600);
-    createTempPacket(product);
-
-    if (!product.placements || product.placements.length === 0) {
-      const provider = product.fulfillmentProvider || 'printify';
-      const params = new URLSearchParams({ provider });
-      if (provider === 'printify') {
-        if (product.blueprintId) params.set('blueprintId', String(product.blueprintId));
-        if (product.printProviderId) params.set('printProviderId', String(product.printProviderId));
-      } else {
-        params.set('productId', String(product.blueprintId));
-      }
-      fetch(`/api/public/catalog/placements?${params}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.placements && data.placements.length > 0) {
-            setSelectedProductType(prev => prev ? { ...prev, placements: data.placements } : prev);
-          }
-        })
-        .catch(err => console.warn('[OwnerWizard] Failed to fetch placements:', err));
-    }
   };
 
   return {
@@ -273,8 +225,8 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     textLineCost,
     textLines,
     sizeCostBonuses,
-    createTempPacket,
-    updateTempPacket,
+    buildError: buildError || pricingError?.message,
+    quotedPricing,
     generateRealMockup,
     handlePublicCheckout,
     handleProductSelect,

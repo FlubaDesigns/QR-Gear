@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261011-main-member-canonical-preview';
+const _BUILD_ID = '20261011-main-owner-qrg-schema';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

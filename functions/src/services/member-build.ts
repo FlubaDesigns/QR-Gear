@@ -2,7 +2,7 @@ import { db, storage, QR_GEAR_BRANDED_TAG_URL } from '../core';
 import { createHash } from 'crypto';
 import { MEMBER_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { memberDynamicsSlots, dynamicsMode, dynamicsHostingExpiry } from './qr-dynamics';
-import { memberCatalogProducts } from './catalog-tier-products';
+import { memberCatalogProducts, publicCatalogProducts } from './catalog-tier-products';
 import { catalogSaleVariants, selectCatalogSaleVariant } from './catalog-sale-variants';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { requireBuilderSnapshot, packetBuildFields, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
@@ -65,27 +65,32 @@ async function publishMemberFileUrls(memberId: string, packetId: string, value: 
   fail('Your selected personal upload could not be found. Choose it again before publishing.', 404);
 }
 
-export async function ownedMemberBuild(memberId: string, id: string) {
+export async function ownedMemberBuild(memberId: string, id: string, ownerType: 'member' | 'owner' = 'member') {
   if (!id || id.includes('/')) fail('Choose a saved member build.');
   const ref = db.collection('productPackets').doc(id), doc = await ref.get();
   if (!doc.exists) fail('Member build not found.', 404);
   const packet = doc.data()!;
-  if (packet.ownerType !== 'member' || packet.memberId !== memberId) fail('This build belongs to another account.', 403);
+  if (packet.ownerType !== ownerType || (ownerType === 'member' ? packet.memberId : packet.ownerId) !== memberId) fail('This build belongs to another account.', 403);
   return { ref, packet };
 }
 
 /** Translate the member editor once; QRG, pricing, BLD, GRF and Assembly remain shared. */
-export async function prepareMemberBuild(memberId: string, input: any) {
+export async function prepareMemberBuild(memberId: string, input: any) { return prepareBuild(memberId, input, 'member'); }
+export async function prepareOwnerBuild(ownerId: string, input: any) {
+  if (!['qr-basic', 'qr-plus'].includes(input.packetType)) fail('Use the member builder for hosted QR experiences.');
+  return prepareBuild(ownerId, input, 'owner');
+}
+async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 'owner') {
   const sourceMasterId = input.boundProduct?.canonicalBlankKey;
   if (!isValidMasterCatalogDocId(sourceMasterId)) fail('Select a QRG product again before building.');
-  const choices = await memberCatalogProducts(db);
+  const choices = await (ownerType === 'member' ? memberCatalogProducts(db) : publicCatalogProducts(db));
   const product = choices.find((p: any) => p.canonicalBlankKey === sourceMasterId);
-  if (!product) fail('This product is not enabled in the member catalog.');
+  if (!product) fail('This product is not enabled in the assigned catalog.');
   const provider = requireFulfillmentProvider(product.fulfillmentProvider);
   const master = (await db.collection('master_catalog').doc(sourceMasterId).get()).data()!;
   const variant = selectCatalogSaleVariant({ enabledColors: product.availableColors, enabledSizes: product.availableSizes }, master, provider, input.selectedShirtSize, input.selectedColor);
-  const channel = input.channelId ? await db.collection('channels').doc(input.channelId).get() : null;
-  if (!channel?.exists || channel.data()?.ownerId !== memberId) fail('Choose one of your channels.');
+  const channel = ownerType === 'member' && input.channelId ? await db.collection('channels').doc(input.channelId).get() : null;
+  if (ownerType === 'member' && (!channel?.exists || channel.data()?.ownerId !== memberId)) fail('Choose one of your channels.');
   const mode = modes[input.packetType];
   if (!mode) fail('Choose a QR product type.');
   const compose = input.packetType === 'qr-compose';
@@ -121,26 +126,26 @@ export async function prepareMemberBuild(memberId: string, input: any) {
     } },
     qrConfig: { qrProductState: mode, selectedColor: product.availableColors.find((c: any) => c.name === variant.color) },
     layoutConfig: { selectedPlacements: selected, providerLayouts, placementSizes },
-    metadata: { selectedProductDocId: sourceMasterId, fulfillmentProvider: provider, selectedRole: 'member' },
+    metadata: { selectedProductDocId: sourceMasterId, fulfillmentProvider: provider, selectedRole: ownerType },
   });
   const priced = await priceNewPacket(db, rawSnapshot, QR_GEAR_BRANDED_TAG_URL);
   if (input.existingPacketId && (typeof input.existingPacketId !== 'string' || input.existingPacketId.includes('/'))) fail('Invalid member product.');
-  const memberPacketId = input.existingPacketId || db.collection(MEMBER_PACKETS_COLLECTION).doc().id;
-  const previous = await db.collection(MEMBER_PACKETS_COLLECTION).doc(memberPacketId).get();
-  if (previous.exists && previous.data()?.memberId !== memberId) fail('This product belongs to another member.', 403);
+  const memberPacketId = ownerType === 'member' ? (input.existingPacketId || db.collection(MEMBER_PACKETS_COLLECTION).doc().id) : null;
+  const previous = memberPacketId ? await db.collection(MEMBER_PACKETS_COLLECTION).doc(memberPacketId).get() : null;
+  if (previous?.exists && previous.data()?.memberId !== memberId) fail('This product belongs to another member.', 403);
   const ref = db.collection('productPackets').doc();
   const origin = resolveRuntimeConfig().origin;
   const hosted = ['qr-canvas', 'qr-play', 'qr-compose'].includes(input.packetType);
   const dynamicsRef = hosted ? db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc() : null;
-  const landingPageSlug = `member-${ref.id}`;
+  const landingPageSlug = `${ownerType}-${ref.id}`;
   const qrContent = dynamicsRef ? `${origin}/qr/d/${dynamicsRef.id}` : String(input.qrBasicContent || input.qrDestination || '').trim();
   if (!qrContent) fail('Enter the content for your QR code.');
-  const identity = await allocateQrgInstance({ qrgBlankId: master.qrgBlankId, context: 'M' });
+  const identity = await allocateQrgInstance({ qrgBlankId: master.qrgBlankId, context: ownerType === 'member' ? 'M' : 'O' });
   const now = new Date().toISOString();
-  const packet = { ...packetBuildFields(priced.builderSnapshot), ...identity, ownerType: 'member', memberId, memberPacketId,
+  const packet = { ...packetBuildFields(priced.builderSnapshot), ...identity, ownerType, memberId: ownerType === 'member' ? memberId : null, ownerId: ownerType === 'owner' ? memberId : null, memberPacketId,
     composeInstanceId: dynamicsRef?.id || null, composeMode, composeItems: composeSlots,
     sourceMasterId, qrgBlankId: master.qrgBlankId, fulfillmentProvider: provider,
-    storeId: null, channelId: null, memberChannelId: input.channelId,
+    storeId: null, channelId: null, memberChannelId: ownerType === 'member' ? input.channelId : null,
     title, description: String(input.description || ''), packetType: input.packetType, qrContent,
     selectedColor: variant.color, selectedShirtSize: variant.size, selectedVariantKey: variant.key,
     boundProduct: { canonicalBlankKey: sourceMasterId, title: product.title, imageUrl: product.imageUrl,
@@ -161,8 +166,8 @@ export async function prepareMemberBuild(memberId: string, input: any) {
   return { packetId: ref.id, memberPacketId, builderSnapshot: priced.builderSnapshot, qrContent, pricing: priced.pricing };
 }
 
-export async function saveMemberArtwork(memberId: string, id: string, placement: string, data: string) {
-  const { ref, packet } = await ownedMemberBuild(memberId, id);
+export async function saveMemberArtwork(memberId: string, id: string, placement: string, data: string, ownerType: 'member' | 'owner' = 'member') {
+  const { ref, packet } = await ownedMemberBuild(memberId, id, ownerType);
   if (packet.status !== 'building') fail('Generate a new build before changing published artwork.');
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   if (!snapshot.layoutConfig.selectedPlacements.includes(placement) || ['label_inside', 'label_outside'].includes(placement)) fail('Choose a placement in this build.');
@@ -175,8 +180,8 @@ export async function saveMemberArtwork(memberId: string, id: string, placement:
 }
 
 /** Owned drafts preview the exact artwork that commit will send to Printful. */
-export async function previewMemberBuild(memberId: string, id: string) {
-  const { packet } = await ownedMemberBuild(memberId, id);
+export async function previewMemberBuild(memberId: string, id: string, ownerType: 'member' | 'owner' = 'member') {
+  const { packet } = await ownedMemberBuild(memberId, id, ownerType);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => !['label_inside', 'label_outside'].includes(p));
   const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data()!;
@@ -207,24 +212,7 @@ export async function commitMemberBuild(memberId: string, id: string) {
   };
   await ref.update(publishedFields);
   packet = { ...packet, ...publishedFields };
-  const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => !['label_inside', 'label_outside'].includes(p));
-  const compositeUrl = packet.placementGraphicUrls[primary];
-  await ref.update({ compositeUrl, productGraphicUrl: compositeUrl });
-  const grfs = await registerPacketGrfAssets({ ...packet, compositeUrl }, null, id);
-  const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data()!;
-  const mapping = master.qrgVariants?.[packet.selectedVariantKey]?.providerVariants?.printful;
-  if (packet.fulfillmentProvider !== 'printful' || !mapping) fail('This saved build needs its QRG Printful mockup mapping.');
-  const mockup = await generateMockupFromPrintful({
-    ...buildPacketMockupRequest(packet, master, primary), printfulVariantId: Number(mapping.variantId),
-  });
-  const placementMockupUrls = { [primary]: mockup.mockupUrl };
-  const mockupGrfs = await registerMockupGrfAssets(id, mockup.lifestyleMockupUrl || null, placementMockupUrls);
-  await ref.update({ mockupUrl: mockup.mockupUrl, lifestyleMockupUrl: mockup.lifestyleMockupUrl || null,
-    placementMockupUrls, ...mockupGrfs });
-  const bld = await writeBldDefinition({ working: snapshot, packetId: id });
-  await writeAutoAssembly({ working: snapshot, qrgId: packet.qrgBlankId, bldId: bld.bldId, sourceSessionId: null, packetId: id, grfIds: { ...grfs, ...mockupGrfs } });
-  const built = (await ref.get()).data()!;
-  await validatePacketComposition(db, id, built);
+  const built = await finalizeBuildArtwork(id, packet);
   const identity = built.qrgBaseCode ? {} : await allocateQrgInstance({ qrgBlankId: packet.qrgBlankId, context: 'M' });
   const memberRef = db.collection(MEMBER_PACKETS_COLLECTION).doc(packet.memberPacketId);
   const now = new Date().toISOString();
@@ -262,4 +250,39 @@ export async function memberBuildProjection(id: string): Promise<Record<string, 
     thumbnailUrl: packet.mockupUrl || packet.compositeUrl,
     socialPacket: { title: packet.title, description: packet.description, retailPrice: price,
       itemImage: packet.mockupUrl || packet.compositeUrl, shareUrl: `${resolveRuntimeConfig().origin}/p/${id}` } };
+}
+
+/** Both builders finalize through the same GRF, BLD and Assembly engines. */
+async function finalizeBuildArtwork(id: string, packet: any) {
+  const ref = db.collection('productPackets').doc(id);
+  const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
+  for (const placement of snapshot.layoutConfig.selectedPlacements) if (!packet.placementGraphicUrls?.[placement]) fail(`Generate the ${placement} artwork before checkout.`);
+  const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => !['label_inside', 'label_outside'].includes(p));
+  const compositeUrl = packet.placementGraphicUrls[primary];
+  await ref.update({ compositeUrl, productGraphicUrl: compositeUrl });
+  const grfs = await registerPacketGrfAssets({ ...packet, compositeUrl }, null, id);
+  const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data()!;
+  const mapping = master.qrgVariants?.[packet.selectedVariantKey]?.providerVariants?.printful;
+  if (packet.fulfillmentProvider !== 'printful' || !mapping) fail('This saved build needs its QRG Printful mockup mapping.');
+  const mockup = await generateMockupFromPrintful({
+    ...buildPacketMockupRequest(packet, master, primary), printfulVariantId: Number(mapping.variantId),
+  });
+  const placementMockupUrls = { [primary]: mockup.mockupUrl };
+  const mockupGrfs = await registerMockupGrfAssets(id, mockup.lifestyleMockupUrl || null, placementMockupUrls);
+  await ref.update({ mockupUrl: mockup.mockupUrl, lifestyleMockupUrl: mockup.lifestyleMockupUrl || null,
+    placementMockupUrls, ...mockupGrfs });
+  const bld = await writeBldDefinition({ working: snapshot, packetId: id });
+  await writeAutoAssembly({ working: snapshot, qrgId: packet.qrgBlankId, bldId: bld.bldId, sourceSessionId: null, packetId: id, grfIds: { ...grfs, ...mockupGrfs } });
+  const built = (await ref.get()).data()!;
+  await validatePacketComposition(db, id, built);
+  return built;
+}
+
+export async function commitOwnerBuild(ownerId: string, id: string) {
+  const { ref, packet } = await ownedMemberBuild(ownerId, id, 'owner');
+  if (packet.status === 'ready') return packet;
+  if (packet.status !== 'building') fail('This build is not ready for checkout.');
+  const built = await finalizeBuildArtwork(id, packet);
+  await ref.update({ status: 'ready', updatedAt: new Date().toISOString() });
+  return { ...built, status: 'ready' };
 }

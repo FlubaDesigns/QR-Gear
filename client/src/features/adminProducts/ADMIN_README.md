@@ -432,6 +432,15 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Public Create Your QR Gear — October 11, 2026
+
+The owner builder now reads the assigned public catalog and creates canonical `productPackets` through the same QRG variant selection, captured builder snapshot, server pricing, GRF artwork registration, BLD definition, and Assembly validation used by member builds. Guest build writes require a private per-build capability whose digest is stored as owner identity. The browser renders each selected QRG print area from the saved snapshot and previews the exact saved artwork. QR Plus collects a real QR destination; preview failures are visible and cannot proceed to checkout. Changing inputs invalidates the reviewed preview. Hosted experiences continue through the member builder.
+
+Public checkout freezes the reviewed production packet into the existing `orders` and `orderItems` contract, using the saved price and selected-size surcharge. Stripe return and signed webhook share canonical fulfillment and per-unit QRG/label allocation. No new Firestore collections or alternate packet schema were introduced. Unsupported label areas remain optional under the shared label policy. Legacy public temporary-packet creation/mutation and parallel checkout writes were retired; historical unlinked payments require reconciliation rather than manufacturing an unverified packet.
+
+Validation: frontend type-check/build and Functions build passed. Existing snapshot/webhook tests pass. The four-suite run has 28 passing and 18 failing tests; the identical 18 pricing/fulfillment fixture failures reproduce on pre-change commit `5bfa348`, with no test files modified. Live owner preview and checkout handoff require verification after the Authorization Engine release; no paid purchase is part of this check.
+
+
 ### Member wizard skeleton correction — October 10, 2026
 
 The member route wrapper was canonical, but Super Simple, Simple and Advanced still rendered an independent full-page Card with a minimum-height body. They now compose one MemberWizardFrame from Master rows and the responsive split helper: build progress beside the working area on wider containers, stacked in smaller containers. Navigation belongs to the working column. Teaching screens use the canonical centered helper without a viewport-height spacer. Member product and tier choices opt into Master responsive columns and natural page scrolling instead of a fixed-height single-column list. Selection, authentication, pricing, label handling and publishing are unchanged in this layout release.
