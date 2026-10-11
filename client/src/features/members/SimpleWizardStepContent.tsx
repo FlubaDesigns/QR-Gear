@@ -1,3 +1,4 @@
+import { refreshMemberPreview } from './wizard-context-navigation';
 import { productSizesForColor } from '@shared/storefrontTypes';
 import { ChannelStep } from "@/features/shared/components/wizardSteps/ChannelStep";
 import { ProductCongratsStep, ColorPickerStep, SizePickerStep, getProductFriendlyName, TierPickerStep } from "@/features/shared/components/wizardSteps/ProductSteps";
@@ -29,6 +30,7 @@ export function SimpleWizardStepContent({
   onBackToDashboard: () => void;
   showContentRights?: boolean;
 }) {
+  const previewContext = useWizardContext();
   const {
     user,
     api,
@@ -240,6 +242,7 @@ export function SimpleWizardStepContent({
 
       {simpleStep === 'qr-basic-mockup' && (
         <QRBasicMockupStep
+          onRefresh={() => { void refreshMemberPreview(previewContext); }}
           mockupUrl={qrBasicMockup}
           isLoading={isGeneratingBasicMockup}
           selectedColor={selectedColor}
