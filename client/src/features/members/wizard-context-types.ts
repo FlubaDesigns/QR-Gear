@@ -18,6 +18,7 @@ export interface WizardContextType {
   startNewBuild: (tier: WizardTier) => void;
   capabilities: BuilderCapabilities;
   user: any;
+  toast: (options: any) => unknown;
   authLoading: boolean;
   isAuthenticated: boolean;
   api: ReturnType<typeof useMembersContext>['api'];

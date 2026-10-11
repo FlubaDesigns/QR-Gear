@@ -447,6 +447,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
   };
 
   const value: WizardContextType = {
+    toast,
     startNewBuild,
     capabilities,
     user, authLoading, isAuthenticated, api,
