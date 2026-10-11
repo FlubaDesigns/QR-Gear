@@ -30,15 +30,27 @@ export async function catalogTierProducts(db: any, section: string) {
     if (!['good', 'better', 'best'].includes(tier)) continue;
     if (!isValidMasterCatalogDocId(id)) { unavailableBlankIds.push(id); continue; }
     const doc = await db.collection('master_catalog').doc(id).get();
-    const raw = doc.data();
+    let raw = doc.data();
     if (!doc.exists || raw.isActive === false || raw.status === 'archived') { unavailableBlankIds.push(id); continue; }
     let printSpecsError: string | null = null;
-    if (providerSetting === 'printful') {
+    if (providerSetting === 'printful' && Object.values(raw.qrgVariants || {}).some((v: any) => Number(v.providerVariants?.printful?.variantId) > 0)) {
       try {
         await resolveQrgPrintSpecs(raw, doc.ref);
       } catch (error: any) {
         console.error(`[MemberCatalog] QRG print specifications unavailable for ${id}:`, error.message);
         printSpecsError = 'Product print areas are unavailable. Please try again later.';
+      }
+    }
+    const mappings = raw.providerMappings;
+    const mapping = Array.isArray(mappings) ? mappings.find((m: any) => m.provider === providerSetting) : mappings?.[providerSetting];
+    if (!printSpecsError && providerSetting === 'printful' && raw.qrgPrintSpecs?.printful?.locations?.some((p: any) => p.id === 'label_inside') &&
+        !(typeof mapping?.minPrice === 'number' && Number.isFinite(mapping.minPrice) && mapping.minPrice >= 0)) {
+      try {
+        const { refreshQrgProviderPricing } = await import('./master-catalog');
+        raw = await refreshQrgProviderPricing(db, id, providerSetting);
+      } catch (error: any) {
+        console.error(`[MemberCatalog] QRG production cost unavailable for ${id}:`, error.message);
+        printSpecsError = 'Product pricing is unavailable. Please try again later.';
       }
     }
     const master = masterCatalogProduct(id, raw);

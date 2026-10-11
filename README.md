@@ -824,3 +824,5 @@ Member-route breadcrumbs now render inside the existing PageSkeleton main conten
 
 Validation: TypeScript and production builds, followed by the live member catalog and page checks. No payment or supplier order is part of this verification.
 
+
+Live readiness follow-up: missing numeric production costs are imported through the existing QRG pricing importer only for mapped Printful products with verified inside-label support. Existing valid costs are reused. Products without size/color mappings or required inside branding remain unavailable with a direct customer-facing explanation rather than a repeated refresh instruction. The two AS Colour choices currently lack a shared verified inside-label area; this release does not bypass that requirement.

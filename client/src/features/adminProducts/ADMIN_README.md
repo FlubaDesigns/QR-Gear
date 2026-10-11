@@ -1467,3 +1467,5 @@ Validation: TypeScript and production builds, manifest and source ZIP verificati
 Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
 
 Purchased-copy allocation reads the blank identity from the validated Assembly/master relationship. It does not require a duplicate `qrgBlankId` field on the source packet; the approved Admin packets use that canonical relationship.
+
+Live readiness follow-up: missing numeric production costs are imported through the existing QRG pricing importer only for mapped Printful products with verified inside-label support. Existing valid costs are reused. Products without size/color mappings or required inside branding remain unavailable with a direct customer-facing explanation rather than a repeated refresh instruction. The two AS Colour choices currently lack a shared verified inside-label area; this release does not bypass that requirement.

@@ -13,8 +13,12 @@ export function memberProductOptions(master: any, item: any, providerValue: unkn
     variants.some(v => p.verifiedVariantIds?.includes(Number(v.mapping.variantId))));
   let pricing: any = null, pricingError: string | null = null;
   try {
+    if (!variants.length) throw new Error('No sizes and colors are currently available for this product. Choose another product.');
     const first = placements.find((p: any) => p.id === 'front') || placements[0];
     if (!first) throw new Error('QRG print areas need to be refreshed before building.');
+    if (!master.qrgPrintSpecs?.[provider]?.locations?.some((p: any) => p.id === 'label_inside')) {
+      throw new Error('This product is unavailable with the required inside branding. Choose another product.');
+    }
     const snapshot = withInsideLabel(master, { graphics: { content: { graphicLayoutMode: 'zone', qrSizePercent: 75 } }, qrConfig: { qrProductState: 'qr_basics' },
       layoutConfig: { selectedPlacements: [first.id], providerLayouts: { [first.id]: first } },
       metadata: { fulfillmentProvider: provider } });
