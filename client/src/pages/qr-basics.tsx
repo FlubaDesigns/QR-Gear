@@ -1,7 +1,7 @@
 import { QrCode, CheckCircle, Link2, Coffee, Dumbbell, Briefcase, Heart, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -51,15 +51,15 @@ const examples = [
 
 export default function QRStaticLanding() {
   return (
-    <div className="vanity-page">
+    <PageSkeleton>
       <SEO 
         title="QR Basics | Text & URL QR Code Products | QR Gear"
         description="Create QR Basics merchandise - encode text, URLs, or contact info directly into a permanent QR code. Perfect for business cards, contact info, and direct links. USA options available."
         keywords="QR Basics, simple QR code, basic QR products, text QR code, URL QR code, QR merchandise"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+      <div className="row py-6">
+        <BreadcrumbTrail />
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <QrCode />
@@ -95,7 +95,7 @@ export default function QRStaticLanding() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
-            <div className="vanity-use-cases-grid">
+            <div className="layout__split-2">
               {examples.map((example, i) => (
                 <div key={i} className="vanity-use-case">
                   <div className="vanity-use-case-icon">
@@ -124,8 +124,7 @@ export default function QRStaticLanding() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </PageSkeleton>
   );
 }

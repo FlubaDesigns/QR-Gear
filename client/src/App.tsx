@@ -240,6 +240,7 @@ function Router() {
 
 function App() {
   const [location] = useLocation();
+  const skeletonPageRoute = ['/build', '/qr-basics', '/qr-plus', '/qr-canvas', '/qr-play', '/qr-dynamics'].includes(location);
   const memberRoute = location === '/member' || location === '/members' || location.startsWith('/members/');
   return (
     <QueryClientProvider client={queryClient}>
@@ -247,7 +248,7 @@ function App() {
         <TooltipProvider>
           <ScrollToTop />
           <Toaster />
-          {!memberRoute && location !== '/build' && <BreadcrumbTrail />}
+          {!memberRoute && !skeletonPageRoute && <BreadcrumbTrail />}
           <Router />
         </TooltipProvider>
       </CartProvider>

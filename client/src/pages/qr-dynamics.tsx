@@ -1,7 +1,7 @@
 import { Sparkles, CheckCircle, ArrowRight, Calendar, Music, Building2, TrendingUp } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -48,15 +48,15 @@ const popularUses = [
 
 export default function QRDynamicsLanding() {
   return (
-    <div className="vanity-page">
+    <PageSkeleton>
       <SEO 
         title="QR Dynamics™ | Living QR Codes You Can Update Anytime"
         description="Create QR Dynamics - living QR codes that link to pages you control. Update content, schedule changes, rotate destinations, track engagement. Premium subscription QR merchandise."
         keywords="QR Dynamics, dynamic QR code, living QR code, updateable QR, subscription QR, scheduled QR, analytics QR"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+      <div className="row py-6">
+        <BreadcrumbTrail />
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Sparkles />
@@ -91,7 +91,7 @@ export default function QRDynamicsLanding() {
 
           <div className="glass-card premium vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
-            <div className="vanity-use-cases-grid">
+            <div className="layout__split-2">
               {popularUses.map((use, i) => (
                 <div key={i} className="vanity-use-case">
                   <div className="vanity-use-case-icon">
@@ -125,8 +125,7 @@ export default function QRDynamicsLanding() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </PageSkeleton>
   );
 }

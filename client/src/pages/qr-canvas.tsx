@@ -1,7 +1,7 @@
 import { Palette, CheckCircle, Heart, Camera, Users, Sparkles, ArrowRight } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -45,28 +45,28 @@ const popularUses = [
 
 export default function QRUrlLanding() {
   return (
-    <div className="vanity-page">
+    <PageSkeleton>
       <SEO 
-        title="QR Compose | Custom Background QR Products | QR Gear"
-        description="Create QR Compose merchandise - upload your own image that appears when people scan your QR. Perfect for weddings, family gifts, artists, and treasured memories. USA options available."
-        keywords="QR Compose, custom QR background, wedding QR shirts, family photo gifts, artist QR apparel, memorial QR gifts"
+        title="QR Canvas | Custom Background QR Products | QR Gear"
+        description="Create QR Canvas merchandise - upload your own image that appears when people scan your QR. Perfect for weddings, family gifts, artists, and treasured memories. USA options available."
+        keywords="QR Canvas, custom QR background, wedding QR shirts, family photo gifts, artist QR apparel, memorial QR gifts"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+      <div className="row py-6">
+        <BreadcrumbTrail />
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Palette />
             </div>
             <div className="vanity-header-text">
               <p className="vanity-category">State: Visual</p>
-              <h1 className="vanity-title">QR Compose</h1>
+              <h1 className="vanity-title">QR Canvas</h1>
             </div>
           </div>
           
           <p className="vanity-tagline">Design a custom image your QR opens to.</p>
           <p className="vanity-description">
-            Your creative compose for the scan experience. When someone scans your QR, they land on your hosted QR Space 
+            Your visual space for the scan experience. When someone scans your QR, they land on your hosted QR Space 
             showing a custom background image — a photo, artwork, memory, or moment. Upload your own or choose from templates.
             Optional header and footer text can be printed on the product.
           </p>
@@ -85,7 +85,7 @@ export default function QRUrlLanding() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
-            <div className="vanity-use-cases-grid">
+            <div className="layout__split-2">
               {popularUses.map((use, i) => (
                 <div key={i} className="vanity-use-case">
                   <div className="vanity-use-case-icon">
@@ -108,14 +108,13 @@ export default function QRUrlLanding() {
 
           <Link href="/build?type=canvas">
             <button className="vanity-cta" data-testid="button-create-canvas">
-              Create Your QR Compose
+              Create Your QR Canvas
               <ArrowRight />
             </button>
           </Link>
 
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </PageSkeleton>
   );
 }

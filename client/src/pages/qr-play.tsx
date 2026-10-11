@@ -1,7 +1,7 @@
 import { Play, CheckCircle, ArrowRight, Heart, Home, Clock, Briefcase } from "lucide-react";
 import { Link } from "wouter";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import { PageSkeleton } from "@/components/PageSkeleton";
+import BreadcrumbTrail from "@/components/BreadcrumbTrail";
 import SEO from "@/components/SEO";
 
 const features = [
@@ -49,15 +49,15 @@ const businessUses = [
 
 export default function QRVideoLanding() {
   return (
-    <div className="vanity-page">
+    <PageSkeleton>
       <SEO 
         title="QR Play | Video QR Code Products | QR Gear"
         description="Create QR Play merchandise - upload your video that plays instantly when scanned. Perfect for personal messages, memories, and stories meant to be seen, heard, and felt. USA options available."
         keywords="QR Play, video QR code, video message shirt, memorial video gift, personal video QR, scannable video merchandise"
       />
-      <Navbar />
-<main className="vanity-content">
-        <div className="vanity-container">
+      <div className="row py-6">
+        <BreadcrumbTrail />
+        <div className="row">
           <div className="vanity-header">
             <div className="vanity-header-icon">
               <Play />
@@ -88,7 +88,7 @@ export default function QRVideoLanding() {
 
           <div className="glass-card vanity-items">
             <h2 className="vanity-items-title">Popular Uses:</h2>
-            <div className="vanity-use-cases-grid">
+            <div className="layout__split-2">
               {personalUses.map((use, i) => (
                 <div key={i} className="vanity-use-case">
                   <div className="vanity-use-case-icon">
@@ -114,7 +114,7 @@ export default function QRVideoLanding() {
               <Briefcase />
               Also great for business:
             </h2>
-            <div className="vanity-scenarios-grid">
+            <div className="layout__split-2">
               {businessUses.map((use, i) => (
                 <div key={i} className="vanity-scenario">
                   <h3>{use.title}</h3>
@@ -132,8 +132,7 @@ export default function QRVideoLanding() {
           </Link>
 
         </div>
-      </main>
-      <Footer />
-    </div>
+      </div>
+    </PageSkeleton>
   );
 }
