@@ -81,11 +81,11 @@ export function WizardSignInGate({ onSuccess, onCancel }: { onSuccess: () => voi
       <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-emerald-600/20 flex items-center justify-center">
         <Sparkles className="w-6 h-6 text-emerald-400" />
       </div>
-      <h2 className="text-lg font-bold text-white">Your creation is ready!</h2>
+      <h2 className="text-lg font-bold text-white">Your design is ready to continue</h2>
       <p className="text-slate-400 text-sm">
         {mode === 'sign-up'
-          ? 'Create a free account to publish it. Your work is saved right here — just sign up and it goes live.'
-          : 'Sign in to publish your creation. Everything you built is right here waiting.'}
+          ? 'Create a free account to preview and save your product. Your design stays here while you sign up.'
+          : 'Sign in to preview and save your product. Everything you built is right here waiting.'}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-3 text-left">
@@ -137,7 +137,7 @@ export function WizardSignInGate({ onSuccess, onCancel }: { onSuccess: () => voi
           data-testid="button-wizard-auth-submit"
         >
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {mode === 'sign-up' ? 'Create Account & Publish' : 'Sign In & Publish'}
+          {mode === 'sign-up' ? 'Create Account & Continue' : 'Sign In & Continue'}
         </button>
       </form>
 

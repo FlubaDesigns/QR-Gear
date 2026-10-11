@@ -25,8 +25,6 @@ import { capabilitiesForTier } from "@/features/shared/builder-capabilities";
 import { computeCanSimpleProceed, computeCanProceed } from "./wizard-context-helpers";
 import {
   executeGeneratePreviewQrCode,
-  executeCreatePacketForProduct,
-  executeUpdatePacket,
   executeSimplePublish,
   executeSaveCanvasToLibrary,
   executeVideoFileUpload,
@@ -284,14 +282,6 @@ function WizardSession({ children, startTier, startNewBuild }: {
     return executeGeneratePreviewQrCode(actionCtx);
   };
 
-  const createPacketForProduct = async (product: AllowedProduct) => {
-    return executeCreatePacketForProduct(actionCtx, product);
-  };
-
-  const updatePacket = async (updates: Record<string, any>) => {
-    return executeUpdatePacket(actionCtx, updates);
-  };
-
   const handleSimplePublish = async () => {
     await executeSimplePublish(actionCtx);
   };
@@ -321,7 +311,6 @@ function WizardSession({ children, startTier, startNewBuild }: {
   };
 
   const saveQrBasicToPacket = async () => {
-    if (!user?.id) return false;
     setIsQrBasicSaving(true);
     try {
       return await executeSimplePublish(actionCtx);
@@ -331,10 +320,6 @@ function WizardSession({ children, startTier, startNewBuild }: {
   };
 
   const saveQrPlusToPacket = async () => {
-    if (!user?.id) {
-      console.error('[QR Plus Save] Missing user');
-      return false;
-    }
     setIsQrPlusSaving(true);
     try {
       return await executeSimplePublish(actionCtx);
@@ -402,7 +387,6 @@ function WizardSession({ children, startTier, startNewBuild }: {
     handleCanvasDone,
     generateProductMockupForType,
     fetchPublishedCanvasPlayItems,
-    updatePacket,
   };
 
   const handleSimpleNext = async () => {
@@ -534,7 +518,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
     currentPlacement,
     publishedBuild, pricingSettings, placementEarningsBonus, textLineEarningsBonus, sizeEarningsIncrement,
     unlockedTiers, incrementPublishCount,
-    generatePreviewQrCode, createPacketForProduct, updatePacket,
+    generatePreviewQrCode,
     saveQrBasicToPacket, saveQrPlusToPacket, saveCanvasToLibrary,
     handleVideoFileUpload, savePlayToLibrary, fetchPublishedCanvasPlayItems,
     handlePlayDone, handleCanvasDone, handleProductSelect,

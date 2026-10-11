@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261010-main-individual-brand-labels';
+const _BUILD_ID = '20261010-main-member-draft-flow';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

@@ -3,7 +3,6 @@ import {
   SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS, QR_PLAY_STEPS, QR_COMPOSE_STEPS,
   isQRPlusStep, isQRPlayStep,
 } from "@/features/shared/components/wizardSteps";
-import { executeUpdatePacket } from "./wizard-context-actions";
 
 export async function executeSimpleNext(ctx: any): Promise<void> {
   window.scrollTo({ top: 0, behavior: 'instant' });
@@ -14,97 +13,38 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'qr-basic-input') {
-    if (ctx.qrType === 'qr-plus') {
-      ctx.setIsGeneratingPlusMockup(true);
-      try {
-        const qrUrl = generateQRCodeUrl(ctx.qrBasicContent, 1000);
-        ctx.setQrGraphic(qrUrl);
+    if (!ctx.user?.id) {
+      ctx.setShowSignInToPublish(true);
+      return;
+    }
+    const plus = ctx.qrType === 'qr-plus';
+    const setGenerating = plus ? ctx.setIsGeneratingPlusMockup : ctx.setIsGeneratingBasicMockup;
+    setGenerating(true);
+    try {
+      const qrUrl = generateQRCodeUrl(ctx.qrBasicContent, 1000);
+      ctx.setQrGraphic(qrUrl);
+      let artworkUrl = qrUrl;
+      if (plus) {
         const graphic = await ctx.api.generateProductGraphic({ qrUrl: ctx.qrBasicContent,
           headerStyle: ctx.headerStyle, footerStyle: ctx.footerStyle,
           textLayoutChoice: ctx.textLayoutChoice, qrColor: 'black' });
         if (!graphic.success || !graphic.productGraphic) throw new Error('Could not generate the print artwork. Please retry.');
-        ctx.setProductGraphic(graphic.productGraphic);
-        const mockup = await ctx.api.generateMockup({ canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
-          blueprintId: ctx.selectedProductType?.blueprintId, printProviderId: ctx.selectedProductType?.printProviderId,
-          colorName: ctx.selectedColor, artworkUrl: graphic.productGraphic,
-          placement: ctx.selectedPlacements[0], qrSize: ctx.graphicSize,
-          fulfillmentProvider: ctx.selectedProductType?.fulfillmentProvider });
-        const mockupUrl = mockup.lifestyleMockupUrl || mockup.mockupUrl;
-        if (!mockup.success || !mockupUrl) throw new Error(mockup.error || 'Could not generate the product preview. Please retry.');
-        ctx.setQrPlusMockup(mockupUrl);
-        ctx.setSimpleStep('qr-plus-mockup');
-      } catch (error) {
-        ctx.toast({ title: 'Preview failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
-      } finally { ctx.setIsGeneratingPlusMockup(false); }
-      return;
-    }
-
-    ctx.setIsGeneratingBasicMockup(true);
-    try {
-      const qrContent = ctx.qrBasicContent;
-      const qrApiUrl = generateQRCodeUrl(qrContent, 1000);
-
-      if (ctx.currentPacketId) {
-        await executeUpdatePacket(ctx, {
-          urlContent: ctx.qrBasicInputType === 'url' ? qrContent : null,
-          graphicUrl: qrApiUrl,
-          textLayers: ctx.qrBasicInputType === 'text' ? [{ text: qrContent, type: 'content' }] : [],
-          'boundProduct.color': ctx.selectedColor,
-          'boundProduct.size': ctx.selectedShirtSize,
-          'boundProduct.blueprintId': ctx.selectedProductType?.blueprintId,
-          'boundProduct.printProviderId': ctx.selectedProductType?.printProviderId,
-          'metadata.inputType': ctx.qrBasicInputType,
-          'metadata.graphicSize': ctx.graphicSize,
-          'metadata.placements': ctx.selectedPlacements,
-          'metadata.perPlacementSizes': ctx.perPlacementSizes,
-          'metadata.qrPositionX': ctx.qrPositionX,
-          'metadata.qrPositionY': ctx.qrPositionY,
-          'metadata.qrSizePercent': ctx.qrSizePercent,
-          'metadata.areaImageUrl': ctx.areaImageUrl || null,
-          'metadata.areaImageMode': ctx.areaImageMode,
-          status: 'draft',
-        });
-        console.log('[QR Basic] Updated packet with QR content:', ctx.currentPacketId);
+        artworkUrl = graphic.productGraphic;
+        ctx.setProductGraphic(artworkUrl);
       }
-
-      const isPrintfulBasic = ctx.selectedProductType?.fulfillmentProvider === 'printful';
-      if (ctx.selectedProductType?.blueprintId && (ctx.selectedProductType?.printProviderId || isPrintfulBasic) && ctx.selectedColor) {
-        const effectiveQrSize = (ctx.graphicSize === 'small' || ctx.graphicSize === 'medium' || ctx.graphicSize === 'large') ? ctx.graphicSize : 'medium';
-        console.log('[QR Basic] Generating mockup with graphicSize:', ctx.graphicSize, '→ effectiveQrSize:', effectiveQrSize, 'provider:', isPrintfulBasic ? 'printful' : 'printify');
-        const mockupResult = await ctx.api.generateMockup({
-        canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
-          blueprintId: ctx.selectedProductType.blueprintId,
-          printProviderId: ctx.selectedProductType.printProviderId || 99,
-          colorName: ctx.selectedColor,
-          artworkUrl: qrApiUrl,
-          placement: 'front',
-          qrSize: effectiveQrSize,
-          fulfillmentProvider: isPrintfulBasic ? 'printful' : 'printify',
-        });
-
-        const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-        if (mockupResult.success && bestUrl) {
-          console.log('[QR Basic] Got mockup:', {
-            lifestyle: !!mockupResult.lifestyleMockupUrl,
-            flat: !!mockupResult.mockupUrl,
-            fromCache: mockupResult.fromCache
-          });
-          ctx.setQrBasicMockup(bestUrl);
-        } else {
-          console.warn('[QR Basic] Mockup fetch failed:', mockupResult.error);
-          ctx.setQrBasicMockup(qrApiUrl);
-        }
-      } else {
-        console.warn('[QR Basic] Missing product info for mockup - blueprintId:', ctx.selectedProductType?.blueprintId, 'printProviderId:', ctx.selectedProductType?.printProviderId, 'color:', ctx.selectedColor);
-        ctx.setQrBasicMockup(qrApiUrl);
-      }
+      const mockup = await ctx.api.generateMockup({ canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
+        blueprintId: ctx.selectedProductType?.blueprintId, printProviderId: ctx.selectedProductType?.printProviderId,
+        colorName: ctx.selectedColor, artworkUrl,
+        placement: ctx.selectedPlacements[0], qrSize: ctx.graphicSize,
+        fulfillmentProvider: ctx.selectedProductType?.fulfillmentProvider });
+      const mockupUrl = mockup.lifestyleMockupUrl || mockup.mockupUrl;
+      if (!mockup.success || !mockupUrl) throw new Error(mockup.error || 'Could not generate the product preview. Please retry.');
+      if (plus) ctx.setQrPlusMockup(mockupUrl);
+      else ctx.setQrBasicMockup(mockupUrl);
+      ctx.setSimpleStep(plus ? 'qr-plus-mockup' : 'qr-basic-mockup');
     } catch (error) {
-      console.error('[QR Basic] Error generating mockup:', error);
-      ctx.setQrBasicMockup(generateQRCodeUrl(ctx.qrBasicContent, 300));
-    } finally {
-      ctx.setIsGeneratingBasicMockup(false);
-    }
-    ctx.setSimpleStep('qr-basic-mockup');
+      ctx.toast({ title: 'Preview failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+    } finally { setGenerating(false); }
     return;
   }
   if (ctx.simpleStep === 'qr-basic-mockup') {

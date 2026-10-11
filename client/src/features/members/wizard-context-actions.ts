@@ -18,66 +18,6 @@ export function executeGeneratePreviewQrCode(ctx: any): string {
   return qrApiUrl;
 }
 
-export async function executeCreatePacketForProduct(ctx: any, product: AllowedProduct): Promise<string | null> {
-  try {
-    console.log('[Wizard] Creating packet for product:', {
-      blueprintId: product.blueprintId,
-      printProviderId: product.printProviderId,
-      title: product.title,
-      memberEarnings: product.memberEarnings,
-      retailPrice: product.retailPrice,
-      baseCost: product.baseCost,
-    });
-
-    const placeholderQrUrl = generateQRCodeUrl('placeholder', 200);
-
-    const packetPayload = {
-      memberId: ctx.user?.id,
-      kind: 'qr_basic',
-      background: { url: placeholderQrUrl },
-      boundProduct: {
-        ...wizardProductToPacketBoundProduct(normalizeWizardProduct(product, 'member')),
-      },
-      metadata: {},
-      source: { entryPoint: 'simple-wizard' },
-      status: 'building',
-    };
-
-    try {
-      const data = await memberFetch<any>(`/${ctx.user?.id}/packets`, {
-        method: 'POST',
-        json: packetPayload,
-      });
-      console.log('[Wizard] Created packet on product select:', data.packetId);
-      ctx.setCurrentPacketId(data.packetId);
-      return data.packetId;
-    } catch (packetErr) {
-      console.error('[Wizard] Packet creation failed:', packetErr);
-    }
-  } catch (error) {
-    console.error('[Wizard] Failed to create packet:', error);
-  }
-  return null;
-}
-
-export async function executeUpdatePacket(ctx: any, updates: Record<string, any>): Promise<boolean> {
-  if (!ctx.currentPacketId || !ctx.user?.id) {
-    console.warn('[Wizard] No packet or user to update');
-    return false;
-  }
-  try {
-    await memberFetch(`/${ctx.user.id}/packets/${ctx.currentPacketId}`, {
-      method: 'PATCH',
-      json: updates,
-    });
-    console.log('[Wizard] Updated packet:', ctx.currentPacketId, Object.keys(updates));
-    return true;
-  } catch (error) {
-    console.error('[Wizard] Failed to update packet:', error);
-    return false;
-  }
-}
-
 export async function executeSimplePublish(ctx: any): Promise<boolean> {
   if (!ctx.user?.id) {
     ctx.setShowSignInToPublish(true);
@@ -560,10 +500,7 @@ export async function executeHandleProductSelect(ctx: any, product: AllowedProdu
   if (!ctx.simpleDescription) {
     ctx.setSimpleDescription(getDefaultPacketDescription(product.title));
   }
-  const packetId = await executeCreatePacketForProduct(ctx, product);
-  if (!packetId) {
-    ctx.toast({ title: 'Packet creation failed', description: 'Could not initialize your product. Please try again.', variant: 'destructive' });
-  }
+  // Product selection stays in the local draft. The shared publish flow creates the packet.
 
   if (!product.placements || product.placements.length === 0) {
     const prov = product.fulfillmentProvider;

@@ -6,8 +6,6 @@ import {
   Loader2,
   ChevronLeft, ChevronRight
 } from "lucide-react";
-import { memberFetch } from "@/lib/memberFetch";
-import { useQueryClient } from "@tanstack/react-query";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { useWizardContext } from './WizardContext';
 import { BlackboardCard, BLACKBOARD_CONTENT, QRTypeBlackboard } from './wizard-blackboard';
@@ -21,7 +19,7 @@ export function SuperSimpleWizard() {
     capabilities, startNewBuild,
     user,
     simpleStep, setSimpleStep,
-    selectedChannel, setSelectedChannel,
+    selectedChannel,
     selectedProductType,
     selectedColor,
     selectedShirtSize,
@@ -42,8 +40,6 @@ export function SuperSimpleWizard() {
     runningEarnings,
     earningsPulse,
     showSignInToPublish, setShowSignInToPublish,
-    pendingVideoFile, setPendingVideoFile,
-    playVideoUrl, setPlayVideoUrl,
     simpleTitle, setSimpleTitle,
     simpleDescription, setSimpleDescription,
     contentRightsConfirmed,
@@ -56,7 +52,6 @@ export function SuperSimpleWizard() {
     setWizardTier,
   } = useWizardContext();
 
-  const queryClient = useQueryClient();
   const autoPublishTriggered = useRef(false);
 
   useEffect(() => {
@@ -64,36 +59,9 @@ export function SuperSimpleWizard() {
       autoPublishTriggered.current = true;
       setShowSignInToPublish(false);
 
-      (async () => {
-        try {
-          if (selectedChannel?.id === 'temp-channel') {
-            const channelData = await memberFetch<any>(`/${user.id}/channels`, {
-              method: 'POST',
-              json: { name: selectedChannel.name || 'My Products' },
-            });
-            const realId = channelData.id || channelData.channelId;
-            setSelectedChannel({ id: realId, name: selectedChannel.name || 'My Products' });
-          }
-
-          if (pendingVideoFile && playVideoUrl?.startsWith('blob:')) {
-            const formData = new FormData();
-            formData.append('file', pendingVideoFile);
-            formData.append('storeType', 'member');
-            const uploadData = await memberFetch<any>(`/${user.id}/videos/upload`, {
-              method: 'POST',
-              body: formData,
-            });
-            if (uploadData?.url) {
-              setPlayVideoUrl(uploadData.url);
-            }
-            setPendingVideoFile(null);
-          }
-        } catch (err) {
-          console.error('[Wizard] Post-auth setup error:', err);
-        }
-
-        handleSimpleNext();
-      })();
+      // Resume the pending step with the authenticated context. Channel creation and
+      // deferred uploads belong to the shared publish flow, so they happen once.
+      void handleSimpleNext();
     }
     if (!showSignInToPublish) {
       autoPublishTriggered.current = false;

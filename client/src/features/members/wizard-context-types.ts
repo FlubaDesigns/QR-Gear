@@ -258,8 +258,6 @@ export interface WizardContextType {
   incrementPublishCount: () => void;
 
   generatePreviewQrCode: () => Promise<string>;
-  createPacketForProduct: (product: AllowedProduct) => Promise<string | null>;
-  updatePacket: (updates: Record<string, any>) => Promise<boolean>;
   saveQrBasicToPacket: () => Promise<boolean>;
   saveQrPlusToPacket: () => Promise<boolean>;
   saveCanvasToLibrary: () => Promise<boolean>;
