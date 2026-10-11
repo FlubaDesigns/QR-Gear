@@ -231,6 +231,7 @@ export function QRBasicInputStep({
 }
 
 export function QRBasicMockupStep({
+  onRefresh,
   mockupUrl,
   isLoading,
   selectedColor,
@@ -246,6 +247,7 @@ export function QRBasicMockupStep({
   areaImageUrl,
   onAreaImageUrlChange,
 }: {
+  onRefresh?: () => void;
   mockupUrl: string;
   isLoading: boolean;
   selectedColor: string;
@@ -286,7 +288,7 @@ export function QRBasicMockupStep({
       <div>
         <h2 className="text-lg font-bold text-white mb-1">Your QR Shirt Preview</h2>
         <p className="text-slate-400 text-sm">
-          {showControls ? "Adjust position and size below" : "Here's how your shirt will look!"}
+          {showControls ? "Adjust position and size below, then refresh the preview" : "Here's how your shirt will look!"}
         </p>
       </div>
       
@@ -318,6 +320,8 @@ export function QRBasicMockupStep({
           </p>
         </div>
       )}
+
+      {onRefresh && <Button type="button" onClick={onRefresh} disabled={isLoading}>Refresh Preview</Button>}
 
       {showControls && (
         <div className="space-y-3 px-2 pt-2 max-w-sm mx-auto text-left">

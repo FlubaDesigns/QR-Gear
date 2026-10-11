@@ -1,5 +1,5 @@
 import { memberCatalogProducts } from '../services/catalog-tier-products';
-import { prepareMemberBuild, saveMemberArtwork, commitMemberBuild, memberBuildProjection } from '../services/member-build';
+import { prepareMemberBuild, previewMemberBuild, saveMemberArtwork, commitMemberBuild, memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -410,6 +410,13 @@ app.post('/members/:memberId/builds', async (req: Request, res: Response) => {
     const auth = await verifyMemberAuthCF(req, req.params.memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     res.json(await prepareMemberBuild(req.params.memberId, req.body));
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
+});
+app.post('/members/:memberId/builds/:id/preview', async (req: Request, res: Response) => {
+  try {
+    const auth = await verifyMemberAuthCF(req, req.params.memberId);
+    if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
+    res.json(await previewMemberBuild(req.params.memberId, req.params.id));
   } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
 });
 app.post('/members/:memberId/builds/:id/artwork', async (req: Request, res: Response) => {

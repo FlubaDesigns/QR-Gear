@@ -1,3 +1,5 @@
+import { previewMemberBuild } from '@/lib/memberBuild';
+import { memberBuildInput } from './wizard-context-actions';
 import {
   generateQRCodeUrl,
   SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS, QR_PLAY_STEPS, QR_COMPOSE_STEPS,
@@ -13,42 +15,12 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'qr-basic-input') {
-    if (!ctx.user?.id) {
-      ctx.setShowSignInToPublish(true);
-      return;
-    }
-    const plus = ctx.qrType === 'qr-plus';
-    const setGenerating = plus ? ctx.setIsGeneratingPlusMockup : ctx.setIsGeneratingBasicMockup;
-    setGenerating(true);
-    try {
-      const qrUrl = generateQRCodeUrl(ctx.qrBasicContent, 1000);
-      ctx.setQrGraphic(qrUrl);
-      let artworkUrl = qrUrl;
-      if (plus) {
-        const graphic = await ctx.api.generateProductGraphic({ qrUrl: ctx.qrBasicContent,
-          headerStyle: ctx.headerStyle, footerStyle: ctx.footerStyle,
-          textLayoutChoice: ctx.textLayoutChoice, qrColor: 'black' });
-        if (!graphic.success || !graphic.productGraphic) throw new Error('Could not generate the print artwork. Please retry.');
-        artworkUrl = graphic.productGraphic;
-        ctx.setProductGraphic(artworkUrl);
-      }
-      const mockup = await ctx.api.generateMockup({ canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
-        blueprintId: ctx.selectedProductType?.blueprintId, printProviderId: ctx.selectedProductType?.printProviderId,
-        colorName: ctx.selectedColor, artworkUrl,
-        placement: ctx.selectedPlacements[0], qrSize: ctx.graphicSize,
-        fulfillmentProvider: ctx.selectedProductType?.fulfillmentProvider });
-      const mockupUrl = mockup.lifestyleMockupUrl || mockup.mockupUrl;
-      if (!mockup.success || !mockupUrl) throw new Error(mockup.error || 'Could not generate the product preview. Please retry.');
-      if (plus) ctx.setQrPlusMockup(mockupUrl);
-      else ctx.setQrBasicMockup(mockupUrl);
-      ctx.setSimpleStep(plus ? 'qr-plus-mockup' : 'qr-basic-mockup');
-    } catch (error) {
-      ctx.toast({ title: 'Preview failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
-    } finally { setGenerating(false); }
+    if (await refreshMemberPreview(ctx)) ctx.setSimpleStep(ctx.qrType === 'qr-plus' ? 'qr-plus-mockup' : 'qr-basic-mockup');
     return;
   }
   if (ctx.simpleStep === 'qr-basic-mockup') {
-    ctx.setSimpleStep('qr-basic-save-choice');
+    const result = await refreshMemberPreview(ctx);
+    if (result && !result.changed) ctx.setSimpleStep('qr-basic-save-choice');
     return;
   }
   if (ctx.simpleStep === 'qr-basic-save-choice') {
@@ -67,7 +39,8 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
   }
 
   if (ctx.simpleStep === 'qr-plus-mockup') {
-    ctx.setSimpleStep('qr-plus-save-choice');
+    const result = await refreshMemberPreview(ctx);
+    if (result && !result.changed) ctx.setSimpleStep('qr-plus-save-choice');
     return;
   }
   if (ctx.simpleStep === 'qr-plus-save-choice') {
@@ -417,4 +390,30 @@ export function executeSimpleBack(ctx: any): void {
   if (currentIndex > 0) {
     ctx.setSimpleStep(stepsArray[currentIndex - 1].id);
   }
+}
+
+/** Preview and publish use the same QRG snapshot, artwork and supplier request. */
+export async function refreshMemberPreview(ctx: any) {
+  if (!ctx.user?.id) { ctx.setShowSignInToPublish(true); return null; }
+  const plus = ctx.qrType === 'qr-plus';
+  const setGenerating = plus ? ctx.setIsGeneratingPlusMockup : ctx.setIsGeneratingBasicMockup;
+  setGenerating(true);
+  try {
+    if (ctx.selectedChannel?.id === 'temp-channel') {
+      const channel = await ctx.api.createChannel(ctx.user.id, ctx.selectedChannel.name || 'My Products');
+      ctx.setSelectedChannel(channel);
+      ctx = { ...ctx, selectedChannel: channel };
+    }
+    const result = await previewMemberBuild(ctx.user.id, memberBuildInput(ctx));
+    const url = result.lifestyleMockupUrl || result.mockupUrl;
+    if (!url) throw new Error('Could not generate the product preview. Please retry.');
+    if (plus) ctx.setQrPlusMockup(url); else ctx.setQrBasicMockup(url);
+    ctx.setQrGraphic(generateQRCodeUrl(ctx.qrBasicContent, 1000));
+    ctx.setProductGraphic(result.productGraphic);
+    if (result.changed && ctx.simpleStep.endsWith('-mockup')) ctx.toast({ title: 'Preview updated', description: 'Review your updated design, then choose Next.' });
+    return result;
+  } catch (error) {
+    ctx.toast({ title: 'Preview failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+    return null;
+  } finally { setGenerating(false); }
 }

@@ -1,3 +1,4 @@
+import { refreshMemberPreview } from './wizard-context-navigation';
 import { productSizesForColor } from '@shared/storefrontTypes';
 import { useState } from "react";
 import { Slider } from "@/components/ui/slider";
@@ -17,6 +18,7 @@ import { getPrintAreaDims, GRAPHIC_CENTER, getPlacementLabel } from "@/features/
 import { useWizardContext } from './WizardContext';
 
 export function AdvancedWizardProductSteps() {
+  const previewContext = useWizardContext();
   const {
     capabilities, startNewBuild,
     user,
@@ -261,6 +263,7 @@ export function AdvancedWizardProductSteps() {
       
       {simpleStep === 'qr-basic-mockup' && (
         <QRBasicMockupStep
+          onRefresh={() => { void refreshMemberPreview(previewContext); }}
           mockupUrl={qrBasicMockup}
           isLoading={isGeneratingBasicMockup}
           selectedColor={selectedColor}

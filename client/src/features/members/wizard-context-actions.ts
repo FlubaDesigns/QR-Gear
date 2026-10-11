@@ -56,59 +56,7 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
       ctx.setPendingVideoFile(null);
     }
 
-    const packetData: Record<string, any> = {
-      packetType: ctx.qrType,
-      title: ctx.simpleTitle,
-      description: ctx.simpleDescription,
-      channelId: resolvedChannelId,
-      storeId: ctx.user.id,
-      status: 'published',
-      boundProduct: ctx.selectedProductType
-        ? wizardProductToPacketBoundProduct(normalizeWizardProduct(ctx.selectedProductType, 'member'))
-        : null,
-      selectedColor: ctx.selectedColor || null,
-      selectedShirtSize: ctx.selectedShirtSize || null,
-      selectedPlacements: ctx.selectedPlacements.length > 0 ? ctx.selectedPlacements : null,
-      perPlacementConfigs: Object.keys(ctx.perPlacementConfigs).length > 0 ? ctx.perPlacementConfigs : null,
-      perPlacementSizes: Object.keys(ctx.perPlacementSizes).length > 0 ? ctx.perPlacementSizes : null,
-      graphicSize: ctx.graphicSize || null,
-      textLayoutChoice: ctx.textLayoutChoice || null,
-      headerText: ctx.headerStyle.enabled ? ctx.headerStyle.text : null,
-      footerText: ctx.footerStyle.enabled ? ctx.footerStyle.text : null,
-      headerStyle: ctx.headerStyle.enabled ? ctx.headerStyle : null,
-      footerStyle: ctx.footerStyle.enabled ? ctx.footerStyle : null,
-      qrType: ctx.qrType || null,
-      qrDestination: ctx.qrDestination || null,
-      qrGraphic: ctx.qrGraphic || null,
-      productGraphic: ctx.productGraphic || null,
-      background: ctx.urlGraphic || null,
-      originalUrlGraphic: ctx.originalUrlGraphic || null,
-      videoUrl: ctx.qrType === 'qr-play' ? (resolvedVideoUrl || ctx.videoUrl) : null,
-      qrBasicInputType: ['qr-basic', 'qr-plus'].includes(ctx.qrType) ? (ctx.qrBasicInputType || null) : null,
-      qrBasicContent: ['qr-basic', 'qr-plus'].includes(ctx.qrType) ? (ctx.qrBasicContent || null) : null,
-      qrBasicMockup: ctx.qrType === 'qr-basic' ? (ctx.qrBasicMockup || null) : null,
-      qrBasicSaveChoice: ctx.qrType === 'qr-basic' ? (ctx.qrBasicSaveChoice || null) : null,
-      qrPlusMockup: ctx.qrType === 'qr-plus' ? (ctx.qrPlusMockup || null) : null,
-      qrPlusSaveChoice: ctx.qrType === 'qr-plus' ? (ctx.qrPlusSaveChoice || null) : null,
-      qrCanvasMockup: ctx.qrType === 'qr-canvas' ? (ctx.qrCanvasMockup || null) : null,
-      qrPlayMockup: ctx.qrType === 'qr-play' ? (ctx.qrPlayMockup || null) : null,
-      composeMockup: ctx.qrType === 'qr-compose' ? (ctx.composeMockup || null) : null,
-      composeItems: ctx.qrType === 'qr-compose' ? ctx.composeItems : null,
-      composeMode: ctx.qrType === 'qr-compose' ? (ctx.composeMode || 'auto-rotate') : null,
-      composeHostingTerm: ctx.qrType === 'qr-compose' ? (ctx.composeHostingTerm || null) : null,
-      qrPositionX: ctx.qrPositionX,
-      qrPositionY: ctx.qrPositionY,
-      qrSizePercent: ctx.qrSizePercent,
-      areaImageUrl: ctx.areaImageUrl || null,
-      areaImageMode: ctx.areaImageMode,
-      source: { entryPoint: 'simple-wizard' },
-      itemImage: ctx.qrType === 'qr-canvas' ? (ctx.qrCanvasMockup || ctx.productGraphic || null)
-        : ctx.qrType === 'qr-basic' ? (ctx.qrBasicMockup || ctx.productGraphic || null)
-        : ctx.qrType === 'qr-plus' ? (ctx.qrPlusMockup || ctx.productGraphic || null)
-        : ctx.qrType === 'qr-play' ? (ctx.qrPlayMockup || ctx.productGraphic || null)
-        : ctx.qrType === 'qr-compose' ? (ctx.composeMockup || ctx.productGraphic || null)
-        : (ctx.productGraphic || null),
-    };
+    const packetData = memberBuildInput(ctx, resolvedChannelId, resolvedVideoUrl);
 
     console.log('[UnifiedPublish] Publishing packet:', {
       existingPacketId: ctx.currentPacketId,
@@ -529,4 +477,63 @@ export async function executeHandlePublish(ctx: any): Promise<void> {
     return;
   }
   await executeSimplePublish(ctx);
+}
+
+export function memberBuildInput(ctx: any, resolvedChannelId = ctx.selectedChannel?.id, resolvedVideoUrl = ctx.playVideoUrl) {
+  const packetData: Record<string, any> = {
+      packetType: ctx.qrType,
+      title: ctx.simpleTitle,
+      description: ctx.simpleDescription,
+      channelId: resolvedChannelId,
+      storeId: ctx.user.id,
+      status: 'published',
+      boundProduct: ctx.selectedProductType
+        ? wizardProductToPacketBoundProduct(normalizeWizardProduct(ctx.selectedProductType, 'member'))
+        : null,
+      selectedColor: ctx.selectedColor || null,
+      selectedShirtSize: ctx.selectedShirtSize || null,
+      selectedPlacements: ctx.selectedPlacements.length > 0 ? ctx.selectedPlacements : null,
+      perPlacementConfigs: Object.keys(ctx.perPlacementConfigs).length > 0 ? ctx.perPlacementConfigs : null,
+      perPlacementSizes: Object.keys(ctx.perPlacementSizes).length > 0 ? ctx.perPlacementSizes : null,
+      graphicSize: ctx.graphicSize || null,
+      textLayoutChoice: ctx.textLayoutChoice || null,
+      headerText: ctx.headerStyle.enabled ? ctx.headerStyle.text : null,
+      footerText: ctx.footerStyle.enabled ? ctx.footerStyle.text : null,
+      headerStyle: ctx.headerStyle.enabled ? ctx.headerStyle : null,
+      footerStyle: ctx.footerStyle.enabled ? ctx.footerStyle : null,
+      qrType: ctx.qrType || null,
+      qrDestination: ctx.qrDestination || null,
+      qrGraphic: ctx.qrGraphic || null,
+      productGraphic: ctx.productGraphic || null,
+      background: ctx.urlGraphic || null,
+      originalUrlGraphic: ctx.originalUrlGraphic || null,
+      videoUrl: ctx.qrType === 'qr-play' ? (resolvedVideoUrl || ctx.videoUrl) : null,
+      qrBasicInputType: ['qr-basic', 'qr-plus'].includes(ctx.qrType) ? (ctx.qrBasicInputType || null) : null,
+      qrBasicContent: ['qr-basic', 'qr-plus'].includes(ctx.qrType) ? (ctx.qrBasicContent || null) : null,
+      qrBasicMockup: ctx.qrType === 'qr-basic' ? (ctx.qrBasicMockup || null) : null,
+      qrBasicSaveChoice: ctx.qrType === 'qr-basic' ? (ctx.qrBasicSaveChoice || null) : null,
+      qrPlusMockup: ctx.qrType === 'qr-plus' ? (ctx.qrPlusMockup || null) : null,
+      qrPlusSaveChoice: ctx.qrType === 'qr-plus' ? (ctx.qrPlusSaveChoice || null) : null,
+      qrCanvasMockup: ctx.qrType === 'qr-canvas' ? (ctx.qrCanvasMockup || null) : null,
+      qrPlayMockup: ctx.qrType === 'qr-play' ? (ctx.qrPlayMockup || null) : null,
+      composeMockup: ctx.qrType === 'qr-compose' ? (ctx.composeMockup || null) : null,
+      composeItems: ctx.qrType === 'qr-compose' ? ctx.composeItems : null,
+      composeMode: ctx.qrType === 'qr-compose' ? (ctx.composeMode || 'auto-rotate') : null,
+      composeHostingTerm: ctx.qrType === 'qr-compose' ? (ctx.composeHostingTerm || null) : null,
+      qrPositionX: ctx.qrPositionX,
+      qrPositionY: ctx.qrPositionY,
+      qrSizePercent: ctx.qrSizePercent,
+      areaImageUrl: ctx.areaImageUrl || null,
+      areaImageMode: ctx.areaImageMode,
+      source: { entryPoint: 'simple-wizard' },
+      itemImage: ctx.qrType === 'qr-canvas' ? (ctx.qrCanvasMockup || ctx.productGraphic || null)
+        : ctx.qrType === 'qr-basic' ? (ctx.qrBasicMockup || ctx.productGraphic || null)
+        : ctx.qrType === 'qr-plus' ? (ctx.qrPlusMockup || ctx.productGraphic || null)
+        : ctx.qrType === 'qr-play' ? (ctx.qrPlayMockup || ctx.productGraphic || null)
+        : ctx.qrType === 'qr-compose' ? (ctx.composeMockup || ctx.productGraphic || null)
+        : (ctx.productGraphic || null),
+    };
+  packetData.existingPacketId = ctx.currentPacketId;
+  packetData.graphicLayoutMode = ctx.graphicLayoutMode;
+  return packetData;
 }

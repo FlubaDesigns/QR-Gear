@@ -174,6 +174,18 @@ export async function saveMemberArtwork(memberId: string, id: string, placement:
   return { publicUrl: asset.publicUrl };
 }
 
+/** Owned drafts preview the exact artwork that commit will send to Printful. */
+export async function previewMemberBuild(memberId: string, id: string) {
+  const { packet } = await ownedMemberBuild(memberId, id);
+  const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
+  const primary = snapshot.layoutConfig.selectedPlacements.find((p: string) => !['label_inside', 'label_outside'].includes(p));
+  const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data()!;
+  const mapping = master.qrgVariants?.[packet.selectedVariantKey]?.providerVariants?.printful;
+  if (packet.fulfillmentProvider !== 'printful' || !mapping) fail('This saved build needs its QRG Printful mockup mapping.');
+  const result = await generateMockupFromPrintful({ ...buildPacketMockupRequest(packet, master, primary), printfulVariantId: Number(mapping.variantId) });
+  return { ...result, productGraphic: packet.placementGraphicUrls[primary] };
+}
+
 export async function commitMemberBuild(memberId: string, id: string) {
   const owned = await ownedMemberBuild(memberId, id);
   const ref = owned.ref;

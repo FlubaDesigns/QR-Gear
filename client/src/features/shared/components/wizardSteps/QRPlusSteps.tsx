@@ -33,11 +33,6 @@ export function QRPlusMockupStep({
         <p className="text-slate-400">Here's your shirt with the full graphic!</p>
       </div>
       
-      {/* Debug info */}
-      <div className="text-xs text-slate-500">
-        Loading: {isLoading ? 'Yes' : 'No'} | URL: {mockupUrl ? mockupUrl.substring(0, 40) + '...' : 'None'}
-      </div>
-      
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12">
           <Loader2 className="w-12 h-12 animate-spin text-blue-400 mb-4" />

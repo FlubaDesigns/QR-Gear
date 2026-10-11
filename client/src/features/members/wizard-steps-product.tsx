@@ -1,3 +1,4 @@
+import { refreshMemberPreview } from './wizard-context-navigation';
 import { productSizesForColor } from '@shared/storefrontTypes';
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ export function WizardProductSteps({
   onCreateAnother: () => void;
   onBackToDashboard: () => void;
 }) {
+  const previewContext = useWizardContext();
   const {
     user,
     simpleStep, setSimpleStep,
@@ -246,6 +248,7 @@ export function WizardProductSteps({
 
       {simpleStep === 'qr-basic-mockup' && (
         <QRBasicMockupStep
+          onRefresh={() => { void refreshMemberPreview(previewContext); }}
           mockupUrl={qrBasicMockup}
           isLoading={isGeneratingBasicMockup}
           selectedColor={selectedColor}

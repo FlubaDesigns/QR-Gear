@@ -861,3 +861,9 @@ Acceptance: compile/build, deploy through the existing Authorization Engine, the
 ## Member builder labels — October 11, 2026
 
 The direct-destination step is shared by Basic and Plus. All three wizard progress badges now preserve the selected Plus label on that step. The underlying QR type and header were already retained. Product wording recognizes T-shirt/tee before the Canvas brand name, so Bella + Canvas apparel is called a shirt. These are display corrections; publication, artwork and pricing are unchanged.
+
+### Canonical member previews — October 11, 2026
+
+QR Basic and QR Plus now prepare their preview through the same owned QRG build, shared product renderer, verified print area, and supplier variant used for publication. Preview artwork is reused on save when the design is unchanged. A changed position, size, or center image requires an updated preview before proceeding. The preview endpoint verifies member ownership; publishing retains the existing GRF, BLD, Assembly, and pricing checks. Removed developer URL output from the QR Plus preview.
+
+Validation: TypeScript, frontend build, and Functions build pass. Live verification is recorded separately from these build checks.
