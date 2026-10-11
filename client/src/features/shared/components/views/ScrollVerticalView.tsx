@@ -4,6 +4,7 @@ export interface ScrollVerticalViewProps<T extends { id: string | number }> {
   items: T[];
   renderItem: (item: T, index: number) => React.ReactNode;
   height?: string;
+  layout?: "vertical" | "responsive";
   maxItemWidth?: string;
   emptyMessage?: string;
   footer?: React.ReactNode;
@@ -14,6 +15,7 @@ export function ScrollVerticalView<T extends { id: string | number }>({
   items,
   renderItem,
   height,
+  layout = "vertical",
   maxItemWidth = "420px",
   emptyMessage = "No items available",
   footer,
@@ -28,7 +30,7 @@ export function ScrollVerticalView<T extends { id: string | number }>({
   }
 
   const grid = (
-    <div className="grid grid-cols-1 gap-4 py-2 px-1" data-testid="scroll-vertical-container">
+    <div className={layout === "responsive" ? "layout__auto py-2 px-1" : "grid grid-cols-1 gap-4 py-2 px-1"} data-testid="scroll-vertical-container">
       {items.map((item, index) => (
         <div key={item.id} className="mx-auto w-full" style={{ maxWidth: maxItemWidth }}>
           {renderItem(item, index)}
@@ -38,7 +40,7 @@ export function ScrollVerticalView<T extends { id: string | number }>({
   );
 
   return (
-    <div className={`relative ${className || ""}`}>
+    <div className={`${layout === "responsive" ? "row " : ""}relative ${className || ""}`}>
       {height ? (
         <ScrollArea style={{ height }} type="scroll" className="w-full">
           {grid}

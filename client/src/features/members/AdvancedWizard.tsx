@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MemberWizardFrame } from "./MemberWizardFrame";
 import { ChevronLeft, ChevronRight, Layers, DollarSign, X } from "lucide-react";
 import { SimpleWizardProgressBar } from "@/features/shared/components/wizardSteps/WizardProgressBars";
 import { useWizardContext } from './WizardContext';
@@ -55,8 +55,8 @@ export function AdvancedWizard() {
 
   if (capabilities.requiresAuth && !user) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-1 pt-3 flex flex-row-reverse flex-wrap items-center justify-between gap-2">
+      <MemberWizardFrame
+        header={<>
           <p className="text-xs text-slate-400 flex items-center gap-1">
             <Layers className="w-3 h-3" />
             {capabilities.label}
@@ -71,8 +71,8 @@ export function AdvancedWizard() {
           >
             <X className="w-4 h-4" />
           </Button>
-        </CardHeader>
-        <CardContent className="row p-4 pt-1 text-white/80">
+        </>}
+      >
           <p className="text-lg font-semibold text-white mb-2">Sign in required</p>
           <p className="text-sm text-white/70 mb-4">
             Advanced Builder needs your account so we can load your channels and save your setup.
@@ -80,16 +80,15 @@ export function AdvancedWizard() {
           <Button className="bg-blue-600 hover:bg-blue-500" onClick={() => setViewMode('index')} data-testid="advanced-back-to-home">
             Back to Home
           </Button>
-        </CardContent>
-      </Card>
+        </MemberWizardFrame>
     );
   }
 
   const canProceed = canSimpleProceed();
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="pb-1 pt-3 flex flex-row-reverse flex-wrap items-center justify-between gap-2">
+    <MemberWizardFrame
+        header={<>
         <p className="text-xs text-blue-400 flex items-center gap-1">
           <Layers className="w-3 h-3" />
           {capabilities.label}
@@ -104,8 +103,8 @@ export function AdvancedWizard() {
         >
           <X className="w-4 h-4" />
         </Button>
-      </CardHeader>
-      <CardContent className="row p-4 pt-1">
+      </>}
+        status={<>
         {(() => {
           const getTierInfo = () => {
             if (['play-upload', 'play-preview', 'play-save-choice'].includes(simpleStep)) {
@@ -134,7 +133,7 @@ export function AdvancedWizard() {
         })()}
         <SimpleWizardProgressBar currentStep={simpleStep} currentPlacement={currentPlacement} />
         {capabilities.showEarnings && runningEarnings > 0 && (
-          <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-green-400/60 bg-green-500/20' : ''}`} data-testid="badge-advanced-potential-earnings">
+          <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-green-500/10 border border-green-500/20 mx-auto w-fit max-w-full flex-wrap text-center animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-green-400/60 bg-green-500/20' : ''}`} data-testid="badge-advanced-potential-earnings">
             <DollarSign className="w-3.5 h-3.5 text-green-400" />
             <span className="text-green-400 font-bold text-sm">
               ${runningEarnings.toFixed(2)} potential earnings
@@ -142,15 +141,9 @@ export function AdvancedWizard() {
           </div>
         )}
 
-          <AdvancedWizardStepContent
-            sharePacketId={sharePacketId}
-            getShareKitData={getShareKitData}
-            onCreateAnother={handleCreateAnother}
-            onBackToDashboard={handleBackToDashboard}
-          />
-
-        {!FINAL_CONFIRM_STEPS.includes(simpleStep) && (
-          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-4 px-4 z-10 mt-4">
+          </>}
+        navigation={!FINAL_CONFIRM_STEPS.includes(simpleStep) && (
+          <>
             <Button
               variant="outline"
               onClick={handleSimpleBack}
@@ -178,9 +171,13 @@ export function AdvancedWizard() {
                 <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
             )}
-          </div>
+          </>
         )}
-      </CardContent>
-    </Card>
+      ><AdvancedWizardStepContent
+            sharePacketId={sharePacketId}
+            getShareKitData={getShareKitData}
+            onCreateAnother={handleCreateAnother}
+            onBackToDashboard={handleBackToDashboard}
+          /></MemberWizardFrame>
   );
 }

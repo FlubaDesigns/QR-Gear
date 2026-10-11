@@ -166,7 +166,8 @@ export function ProductPickerStep({
 
       <ScrollVerticalView
         items={productItems}
-        height="45vh"
+        height={mode === "member" ? undefined : "45vh"}
+        layout={mode === "member" ? "responsive" : "vertical"}
         maxItemWidth="100%"
         footer={null}
         renderItem={(item) => (
@@ -565,7 +566,8 @@ export function TierPickerStep({
 
         <ScrollVerticalView
           items={productItems}
-          height="45vh"
+          height={mode === "member" ? undefined : "45vh"}
+        layout={mode === "member" ? "responsive" : "vertical"}
           maxItemWidth="100%"
           footer={null}
           renderItem={(item) => (
@@ -626,7 +628,7 @@ export function TierPickerStep({
 
       <ScrollVerticalView
         items={tierItems}
-        height="auto"
+        layout={mode === "member" ? "responsive" : "vertical"}
         maxItemWidth="100%"
         footer={null}
         renderItem={(item) => (

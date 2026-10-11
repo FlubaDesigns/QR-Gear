@@ -117,11 +117,10 @@ export function BlackboardCard({
 }) {
   return (
     <div
-      className="flex flex-col items-center justify-center px-2 animate-in fade-in duration-500"
-      style={{ minHeight: 'calc(70vh - 80px)' }}
+      className="row animate-in fade-in duration-500"
       data-testid="tutorial-blackboard"
     >
-      <div className="w-full max-w-sm">
+      <div className="layout__center">
         <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-emerald-950/30 to-slate-900" />
           <div
@@ -259,11 +258,10 @@ export function QRTypeBlackboard({
 
   return (
     <div
-      className="flex flex-col items-center justify-center px-2 animate-in fade-in duration-500"
-      style={{ minHeight: 'calc(70vh - 80px)' }}
+      className="row animate-in fade-in duration-500"
       data-testid={`tutorial-qr-${card.type}`}
     >
-      <div className="w-full max-w-sm">
+      <div className="layout__center">
         <div className="relative overflow-hidden rounded-2xl border border-emerald-500/20">
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-emerald-950/30 to-slate-900" />
           <div

@@ -426,6 +426,13 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Member wizard skeleton correction — October 10, 2026
+
+The member route wrapper was canonical, but Super Simple, Simple and Advanced still rendered an independent full-page Card with a minimum-height body. They now compose one MemberWizardFrame from Master rows and the responsive split helper: build progress beside the working area on wider containers, stacked in smaller containers. Navigation belongs to the working column. Teaching screens use the canonical centered helper without a viewport-height spacer. Member product and tier choices opt into Master responsive columns and natural page scrolling instead of a fixed-height single-column list. Selection, authentication, pricing, label handling and publishing are unchanged in this layout release.
+
+Validation: TypeScript and frontend production build; production DOM verification of the shared frame, column sizes and product selection. Authenticated save/reopen remains a separate live acceptance check.
+
+
 ### Member page breadcrumb and QRG print readiness — October 10, 2026
 
 Member-route breadcrumbs now render inside the existing PageSkeleton main content, below the site header. Other route placement is unchanged. The member tier catalog requests verified print specifications through the existing QRG resolver before projecting product options. The resolver persists the verified result on master_catalog and updates the same in-memory record; later reads reuse its matching cache. Supplier access remains inside QRG table logic. Failed imports keep the product blocked and log the affected QRG identity. Required inside labels, canonical size/color identities and shared pricing remain enforced.

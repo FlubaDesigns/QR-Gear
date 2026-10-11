@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { MemberWizardFrame } from "./MemberWizardFrame";
 import {
   Sparkles, X, DollarSign,
   Loader2,
@@ -118,8 +118,8 @@ export function SuperSimpleWizard() {
 
   if (showFinishBlackboard) {
     return (
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader className="pb-1 pt-3 flex flex-row-reverse flex-wrap items-center justify-between gap-2">
+      <MemberWizardFrame
+        header={<>
           <p className="text-xs text-emerald-400 flex items-center gap-1">
             <Sparkles className="w-3 h-3" />
             {capabilities.label}
@@ -134,8 +134,8 @@ export function SuperSimpleWizard() {
           >
             <X className="w-4 h-4" />
           </Button>
-        </CardHeader>
-        <CardContent className="row p-4 pt-1">
+        </>}
+      >
           <BlackboardCard
             data={BLACKBOARD_CONTENT['bb-finish']}
             onContinue={() => {
@@ -143,16 +143,15 @@ export function SuperSimpleWizard() {
               setViewMode('index');
             }}
           />
-        </CardContent>
-      </Card>
+        </MemberWizardFrame>
     );
   }
 
   const canProceed = canSimpleProceed();
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader className="pb-1 pt-3 flex flex-row-reverse flex-wrap items-center justify-between gap-2">
+    <MemberWizardFrame
+        header={<>
         <p className="text-xs text-emerald-400 flex items-center gap-1">
           <Sparkles className="w-3 h-3" />
           {capabilities.label}
@@ -167,8 +166,8 @@ export function SuperSimpleWizard() {
         >
           <X className="w-4 h-4" />
         </Button>
-      </CardHeader>
-      <CardContent className="row p-4 pt-1">
+      </>}
+        status={!isShowingBlackboard && !showQrTypeCards && !showQrCongrats ? <>
         {(() => {
           const getTierInfo = () => {
             if (['play-upload', 'play-preview', 'play-save-choice'].includes(simpleStep)) {
@@ -201,7 +200,7 @@ export function SuperSimpleWizard() {
         )}
 
         {capabilities.showEarnings && !isShowingBlackboard && !showQrTypeCards && !showQrCongrats && runningEarnings > 0 && (
-          <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 mx-auto w-fit animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-emerald-400/60 bg-emerald-500/20' : ''}`} data-testid="badge-potential-earnings">
+          <div className={`flex items-center justify-center gap-2 mb-3 py-1.5 px-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 mx-auto w-fit max-w-full flex-wrap text-center animate-in fade-in duration-500 transition-all ${earningsPulse ? 'scale-110 border-emerald-400/60 bg-emerald-500/20' : ''}`} data-testid="badge-potential-earnings">
             <DollarSign className="w-3.5 h-3.5 text-emerald-400" />
             <span className="text-emerald-400 font-bold text-sm">
               ${runningEarnings.toFixed(2)} potential earnings
@@ -209,7 +208,39 @@ export function SuperSimpleWizard() {
           </div>
         )}
 
-        <div className="row min-h-[350px]" id="wizard-step-content">
+        </> : undefined}
+        navigation={!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && !showSignInToPublish && !FINAL_CONFIRM_STEPS.includes(simpleStep) && (
+          <>
+            <Button
+              variant="outline"
+              onClick={handleSimpleBack}
+              disabled={simpleStep === 'channel'}
+              className="flex-1 min-w-[100px] sm:flex-none"
+              data-testid="button-simple-back"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back
+            </Button>
+
+            {simpleStep !== 'url-publish' && (
+              <Button
+                onClick={handleSuperNext}
+                disabled={!canProceed}
+                className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
+                  canProceed
+                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/40"
+                    : "bg-slate-600"
+                }`}
+                style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
+                data-testid="button-simple-next"
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </Button>
+            )}
+          </>
+        )}
+      >
           {isShowingBlackboard && currentBlackboardId && (() => {
             const congratsData = getCongratsBlackboard(currentBlackboardId);
             if (congratsData) {
@@ -264,40 +295,6 @@ export function SuperSimpleWizard() {
               />
             </>
           )}
-        </div>
-
-        {!isShowingBlackboard && !showQrTypeCards && !showQrCongrats && !showSignInToPublish && !FINAL_CONFIRM_STEPS.includes(simpleStep) && (
-          <div className="sticky bottom-0 flex flex-wrap gap-3 justify-between pt-4 pb-2 border-t border-slate-700 bg-slate-800/95 backdrop-blur-sm -mx-4 px-4 z-10 mt-4">
-            <Button
-              variant="outline"
-              onClick={handleSimpleBack}
-              disabled={simpleStep === 'channel'}
-              className="flex-1 min-w-[100px] sm:flex-none"
-              data-testid="button-simple-back"
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Back
-            </Button>
-
-            {simpleStep !== 'url-publish' && (
-              <Button
-                onClick={handleSuperNext}
-                disabled={!canProceed}
-                className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
-                  canProceed
-                    ? "bg-emerald-500 hover:bg-emerald-600 shadow-lg shadow-emerald-500/40"
-                    : "bg-slate-600"
-                }`}
-                style={canProceed ? { animation: "glow 1.2s ease-in-out infinite" } : undefined}
-                data-testid="button-simple-next"
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+        </MemberWizardFrame>
   );
 }
