@@ -152,6 +152,7 @@
 .home-page .home-collection-media img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: center 36%; }
 .home-page .home-collection-media > span { position: absolute; inset: auto 0 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 2.5rem 1.25rem 1.25rem; background: linear-gradient(transparent,rgba(0,0,0,.85)); color: #fff; font-size: .9rem; }
 .home-page .home-collection-media svg { width: 1.2rem; flex-shrink: 0; }
+.home-page .home-featured-products > .row { max-width: 56rem; margin-inline: auto; }
 .home-page .home-featured-products [data-testid^="card-product-"] { border: 0; background: transparent; box-shadow: none; border-radius: .75rem; }
 .home-page .home-featured-products [data-testid^="card-product-"] > div:first-child { border-radius: .75rem; }
 .home-page .home-featured-products [data-testid^="text-product-name-"] { font-family: var(--theme-font-body); font-size: 1rem; text-transform: none; letter-spacing: 0; line-height: 1.5; color: var(--theme-text); }
@@ -159,17 +160,15 @@
 .home-page .home-featured-products .section-cta button { min-height: 3.25rem; padding-inline: 1.5rem; }
 .home-page .home-members { border-top: 1px solid var(--theme-border); background: radial-gradient(ellipse at 20% 50%,rgba(255,139,55,.09),transparent 60%); }
 .home-page .home-members > .row > .layout__split-2 { align-items: center; }
-.home-page .home-members-media img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 1rem; }
 .home-page .home-members-copy h2 { font-size: var(--font-h2); line-height: 1.2; margin-bottom: 1.5rem; }
 .home-page .home-members-copy > p { max-width: 42ch; }
-.home-page .home-members-copy ul { display: grid; gap: .85rem; list-style: none; padding: 0; margin: 1.75rem 0; }
-.home-page .home-members-copy li { display: flex; gap: .75rem; align-items: center; font-size: 1rem; }
-.home-page .home-members-copy li svg { width: 1.1rem; height: 1.1rem; color: var(--ice-1); }
+.home-page .home-members-details ul { display: grid; gap: 1rem; list-style: none; padding: 0; margin: 0 0 1.75rem; }
+.home-page .home-members-details li { display: flex; gap: .75rem; align-items: center; font-size: 1rem; }
+.home-page .home-members-details li svg { width: 1.1rem; height: 1.1rem; flex-shrink: 0; color: var(--ice-1); }
 @container (max-width: 40rem) {
   .home-page .hero__actions { align-items: stretch; }
   .home-page .hero__actions > a { flex: 1 1 10rem; }
   .home-page .hero__experience { max-width: 31rem; margin-inline: auto; }
-  .home-page .home-members-media { order: 1; }
 }
 @media (prefers-reduced-motion: no-preference) and (hover: hover) {
   .home-page .hero__phone { transition: transform .25s ease; }

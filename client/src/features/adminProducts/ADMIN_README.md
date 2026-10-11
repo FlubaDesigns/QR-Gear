@@ -432,6 +432,20 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Compact store cards and accurate member invitation
+
+The homepage featured-product row is centered and capped at 56rem so desktop catalog images stay compact. Existing Master row/split helpers retain responsive columns and shared StoreProductCard behavior.
+
+
+The closing member invitation now uses two text columns instead of the workbench photo. It clearly explains that members design and earn while production and direct-to-customer shipping are handled for them. The misleading image import and its unused presentation rules were removed.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/styles/canonical/qrgear-site.css` | Limit homepage product row width and simplify membership presentation. |
+| `client/src/pages/home.tsx` | Remove workbench image and explain automatic production and shipping. |
+| `README.md`, this guide, `MANIFEST.json`, source ZIP | Record and package the presentation correction. |
+
 ### Homepage narrative and responsive rows — October 11, 2026
 
 The homepage now follows one visitor journey: a real catalog shirt paired with its saved QR destination artwork, three creation steps, one USA 250 shopping section, and a focused member invitation. Redundant product-line cards, quick-link tiles, history teaser and repeated marketing pitches are no longer mounted on the homepage; their existing routes and components remain available. The hero reads the same product-detail endpoint and cache as the storefront, resolves its saved-color photo through buildProductGallery, and reports loading/missing/error states. Product cards still use the shared StoreProductCard and canonical catalog response; no hardcoded prices, product IDs or supplier reads were added.

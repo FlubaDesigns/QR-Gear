@@ -922,3 +922,10 @@ Desktop composition uses the unchanged PageSkeleton, Master row, layout__split-2
 Validation: root TypeScript and production build passed. Live visual and navigation acceptance follows the existing Authorization Engine deployment.
 
 Files: client/src/pages/home.tsx; client/src/components/Hero.tsx; client/src/components/HowItWorks.tsx; client/src/components/FeaturedProducts.tsx; client/src/styles/canonical/qrgear-site.css; README.md; client/src/features/adminProducts/ADMIN_README.md; MANIFEST.json; downloads/QR_Gear_Full_Website.zip.
+
+
+### Compact homepage store cards — October 11, 2026
+
+The featured-product row now has a centered 56rem maximum width. The existing Master row and layout__split-3 helpers still control responsive columns, while desktop product photos remain approximately 276px square instead of stretching across the full page. Shared card content, product data, mobile sizing and shopping destinations are unchanged.
+
+The closing member invitation now uses two text columns instead of the workbench photo. It clearly explains that members design and earn while production and direct-to-customer shipping are handled for them. The misleading image import and its unused presentation rules were removed.

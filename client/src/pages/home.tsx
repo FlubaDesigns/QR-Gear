@@ -11,7 +11,6 @@ import FeaturedProducts from "@/components/FeaturedProducts";
 import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import usa250HeroImg from "@assets/generated_images/usa250_store_card_hero.png";
-import becomeMemberCreatorImg from "@assets/generated_images/become_member_creator.png";
 
 const featuredChannel = QR_GEAR.channels[0];
 
@@ -47,15 +46,16 @@ function BecomeMember() {
     <section className="home-section home-members" aria-labelledby="home-members-title">
       <div className="row">
         <div className="layout__split-2">
-          <div className="home-members-media"><img src={becomeMemberCreatorImg} alt="Creator designing QR Gear in a home studio" loading="lazy" /></div>
           <div className="home-members-copy">
             <p className="kicker">For the creators</p>
-            <h2 id="home-members-title">Your ideas.<br />Your own QR Gear.</h2>
-            <p>Take your creativity further. Join as a member to design products, share your collection, and earn when your creations sell.</p>
+            <h2 id="home-members-title">You create.<br />We handle the rest.</h2>
+            <p>Design your own QR Gear, share your collection, and earn when your creations sell. Products are made to order and shipped directly to your customers.</p>
+          </div>
+          <div className="home-members-details">
             <ul>
-              <li><Check aria-hidden="true" /> Your own member studio</li>
-              <li><Check aria-hidden="true" /> Products made when they sell</li>
-              <li><Check aria-hidden="true" /> Free to join</li>
+              <li><Check aria-hidden="true" /> Free to join, with your own member studio</li>
+              <li><Check aria-hidden="true" /> Earn from every sale of your designs</li>
+              <li><Check aria-hidden="true" /> Production and shipping handled for you</li>
             </ul>
             <div className="btn-row">
               <Link href="/members" className="qr-btn qr-btn--accent" data-testid="button-become-member">Become a Member <ArrowRight aria-hidden="true" /></Link>
