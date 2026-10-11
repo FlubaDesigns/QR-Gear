@@ -26,6 +26,7 @@ import { computeCanSimpleProceed, computeCanProceed } from "./wizard-context-hel
 import {
   executeGeneratePreviewQrCode,
   executeSimplePublish,
+  executeSaveQrChoice,
   executeSaveCanvasToLibrary,
   executeVideoFileUpload,
   executeSavePlayToLibrary,
@@ -313,7 +314,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
   const saveQrBasicToPacket = async () => {
     setIsQrBasicSaving(true);
     try {
-      return await executeSimplePublish(actionCtx);
+      return await executeSaveQrChoice(actionCtx, false);
     } finally {
       setIsQrBasicSaving(false);
     }
@@ -322,7 +323,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
   const saveQrPlusToPacket = async () => {
     setIsQrPlusSaving(true);
     try {
-      return await executeSimplePublish(actionCtx);
+      return await executeSaveQrChoice(actionCtx, true);
     } finally {
       setIsQrPlusSaving(false);
     }

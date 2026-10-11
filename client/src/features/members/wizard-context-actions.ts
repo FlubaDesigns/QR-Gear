@@ -537,3 +537,32 @@ export function memberBuildInput(ctx: any, resolvedChannelId = ctx.selectedChann
   packetData.graphicLayoutMode = ctx.graphicLayoutMode;
   return packetData;
 }
+
+const savedMemberGraphics = new Set<string>();
+/** Respect the chosen save action; a graphic-only save never publishes an item. */
+export async function executeSaveQrChoice(ctx: any, plus: boolean): Promise<boolean> {
+  if (!ctx.user?.id) { ctx.setShowSignInToPublish(true); return false; }
+  const choice = plus ? ctx.qrPlusSaveChoice : ctx.qrBasicSaveChoice;
+  if (!['item', 'graphic', 'both'].includes(choice)) return false;
+  try {
+    if (choice === 'graphic' || choice === 'both') {
+      const publicUrl = ctx.productGraphic;
+      if (!publicUrl) throw new Error('Refresh your product preview before saving the graphic.');
+      const key = `${ctx.user.id}:${publicUrl}`;
+      if (!savedMemberGraphics.has(key)) {
+        const name = `${ctx.simpleTitle || 'QR Gear'} — ${plus ? 'QR Plus' : 'QR Basic'} graphic`;
+        await memberFetch(`/${ctx.user.id}/library`, { method: 'POST', json: {
+          publicUrl, storageUrl: publicUrl, assetType: 'graphic', mediaType: 'image', name,
+          fileName: `${plus ? 'qr-plus' : 'qr-basic'}-graphic.png`,
+        } });
+        savedMemberGraphics.add(key);
+      }
+    }
+    if (choice !== 'graphic') return await executeSimplePublish(ctx);
+    ctx.api.invalidateMembers();
+    return true;
+  } catch (error) {
+    ctx.toast({ title: 'Save failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+    return false;
+  }
+}

@@ -1509,3 +1509,7 @@ The direct-destination step is shared by Basic and Plus. All three wizard progre
 QR Basic and QR Plus now prepare their preview through the same owned QRG build, shared product renderer, verified print area, and supplier variant used for publication. Preview artwork is reused on save when the design is unchanged. A changed position, size, or center image requires an updated preview before proceeding. The preview endpoint verifies member ownership; publishing retains the existing GRF, BLD, Assembly, and pricing checks. Removed developer URL output from the QR Plus preview.
 
 Validation: TypeScript, frontend build, and Functions build pass. Live verification is recorded separately from these build checks.
+
+### Member save choices — October 11, 2026
+
+QR Basic and QR Plus now honor item-only, graphic-only, and both save choices. Graphics are registered in the member library using the rendered canonical artwork; graphic-only saves do not publish a product. A failed library save remains on the save step with an error instead of claiming completion.
