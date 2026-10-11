@@ -23,7 +23,7 @@ import {
   isBackPlacement,
   getPlacementZone,
 } from "./wizardTypes";
-import { isQrOnlyPlacement, isBrandingPlacement, buildPlacementOption } from "@/features/shared/placementTypes";
+import { isQrOnlyPlacement, isBrandingPlacement, hasValidPlacementSelection } from "@/features/shared/placementTypes";
 import { type TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 import { GraphicPreviewView } from "@/features/shared/components/skins/GraphicPreviewView";
 
@@ -232,9 +232,16 @@ export function PlacementCountStep({
           sizeLabel: p.widthInches && p.heightInches ? `${p.widthInches}×${p.heightInches}` : '',
         }))
     : [];
-  const displayPlacements = filteredPlacements.length > 0
-    ? filteredPlacements
-    : [buildPlacementOption('front'), buildPlacementOption('back')];
+  const displayPlacements = filteredPlacements;
+
+  if (displayPlacements.length === 0) {
+    return (
+      <div role="alert" className="text-center space-y-2">
+        <h2 className="text-xl font-bold text-white">Print areas are unavailable for this product</h2>
+        <p className="text-slate-400 text-sm">Go back and choose another product, or refresh and try again.</p>
+      </div>
+    );
+  }
   
   const ZONE_POSITIONS: Record<string, { x: number; y: number; size: number }> = {
     'front': { x: 90, y: 100, size: 24 },
@@ -389,6 +396,11 @@ export function PlacementCountStep({
       <p className="text-center text-slate-500 text-xs">
         {selected.length === 0 ? 'Select at least one placement' : `${selected.length} placement${selected.length > 1 ? 's' : ''} selected`}
       </p>
+      {selected.length > 0 && !hasValidPlacementSelection(selected, productPlacements) && (
+        <p role="alert" className="text-center text-red-400 text-sm">
+          A selected print area is no longer available. Go back and select your product again.
+        </p>
+      )}
     </div>
   );
 }

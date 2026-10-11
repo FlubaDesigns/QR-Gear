@@ -883,3 +883,17 @@ Validation: frontend type-check/build and Functions build passed. Existing snaps
 ### Public builder skeleton — October 11, 2026
 
 `/build` now composes the existing `PageSkeleton` and wizard frame. Header/footer, main-content slot, responsive rows, progress sidebar, and navigation use the established canonical helpers. The Create breadcrumb is inside the main area, with the old narrow gradient/card wrapper removed. Canonical stylesheet sources and member behavior are unchanged. Public option estimates include the saved markup, and Basic QR guidance correctly describes a fixed printed destination.
+
+
+### QRG-only wizard placements — October 11, 2026
+
+The shared public/member placement picker no longer substitutes Front and Back when the selected product has no QRG print areas. Missing, empty, and branding-only lists show a visible unavailable message. The shared selection validator blocks Continue for empty, branding, or stale selections absent from the selected product; the public Next handler also enforces that gate. Valid QRG choices retain their existing behavior. This is a frontend correction; QRG/BLD/GRF/Assembly identity, provider imports, pricing, and stored products are unchanged.
+
+Validation: root TypeScript and production build passed. Isolated rendering/selection checks passed for missing, empty, branding-only, supported and stale placement lists. Release uses the existing Authorization Engine; live deployment is verified separately.
+
+Files: `client/src/features/shared/components/wizardSteps/PlacementSteps.tsx`, `client/src/features/shared/placementTypes.ts`, `client/src/features/owner/useOwnerWizardNav.ts`, `client/src/features/members/wizard-context-helpers.ts`, both READMEs, manifest and source ZIP.
+
+
+### Product-line landing pages — October 11, 2026
+
+The five homepage product-line destinations (Basics, Plus, Canvas, Play, and Dynamics) now use the established `PageSkeleton`, full-width rows, and responsive split helpers. Each breadcrumb appears once inside main content. QR Canvas consistently uses its correct product name in its heading, metadata, and Create button. Existing builder destinations and the canonical QRG/GRF/BLD/Assembly flow are unchanged; this is a frontend presentation correction.

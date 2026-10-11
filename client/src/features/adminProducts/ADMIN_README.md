@@ -432,6 +432,25 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Product-line landing page skeleton
+
+All five homepage product-line destinations now compose the established skeleton and responsive row helpers, with their breadcrumbs inside main content. The Canvas page now says QR Canvas throughout. Product types, pricing, data schema, and Create destinations are unchanged.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/pages/qr-basics.tsx`, `qr-plus.tsx`, `qr-canvas.tsx`, `qr-play.tsx`, `qr-dynamics.tsx` | Reuse skeleton and rows; correct Canvas naming. |
+| `client/src/App.tsx` | Suppress the external breadcrumb on these skeleton pages. |
+
+
+### QRG-only wizard placements — October 11, 2026
+
+The shared public/member placement picker no longer substitutes Front and Back when the selected product has no QRG print areas. Missing, empty, and branding-only lists show a visible unavailable message. The shared selection validator blocks Continue for empty, branding, or stale selections absent from the selected product; the public Next handler also enforces that gate. Valid QRG choices retain their existing behavior. This is a frontend correction; QRG/BLD/GRF/Assembly identity, provider imports, pricing, and stored products are unchanged.
+
+Validation: root TypeScript and production build passed. Isolated rendering/selection checks passed for missing, empty, branding-only, supported and stale placement lists. Release uses the existing Authorization Engine; live deployment is verified separately.
+
+Files: `client/src/features/shared/components/wizardSteps/PlacementSteps.tsx`, `client/src/features/shared/placementTypes.ts`, `client/src/features/owner/useOwnerWizardNav.ts`, `client/src/features/members/wizard-context-helpers.ts`, both READMEs, manifest and source ZIP.
+
 ### Public Create Your QR Gear — October 11, 2026
 
 The owner builder now reads the assigned public catalog and creates canonical `productPackets` through the same QRG variant selection, captured builder snapshot, server pricing, GRF artwork registration, BLD definition, and Assembly validation used by member builds. Guest build writes require a private per-build capability whose digest is stored as owner identity. The browser renders each selected QRG print area from the saved snapshot and previews the exact saved artwork. QR Plus collects a real QR destination; preview failures are visible and cannot proceed to checkout. Changing inputs invalidates the reviewed preview. Hosted experiences continue through the member builder.

@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from "react";
+import { hasValidPlacementSelection } from "@/features/shared/placementTypes";
 import type { SimpleWizardStep, QRType, GraphicSize, PlacementOption, TextLayoutChoice, PlacementGraphicChoice } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { GUIDED_CARDS } from "./OwnerWizardComponents";
@@ -83,7 +84,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       case 'color': return !!selectedColor;
       case 'size': return !!selectedShirtSize;
       case 'type': return !!qrType;
-      case 'placement-count': return selectedPlacements.length > 0;
+      case 'placement-count': return hasValidPlacementSelection(selectedPlacements, selectedProductType?.placements);
       case 'graphic-size': return !!graphicSize;
       case 'generate': return wantsHeaderFooter !== null;
       case 'text-choice': return !!textLayoutChoice;
@@ -140,6 +141,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
     }
     if (simpleStep === ('compose-explain' as SimpleWizardStep)) { return; }
     if (simpleStep === 'placement-count') {
+      if (!canProceed) return;
       setCurrentPlacementIndex(0);
       setGraphicSize('' as GraphicSize);
       setSimpleStep('graphic-size');
@@ -197,7 +199,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
     if (currentIndex < stepsArray.length - 1) {
       setSimpleStep(stepsArray[currentIndex + 1].id);
     }
-  }, [simpleStep, selectedColor, selectedShirtSize, sizeCostBonuses, preSelectedType,
+  }, [simpleStep, canProceed, selectedColor, selectedShirtSize, sizeCostBonuses, preSelectedType,
       qrType, isGuided, selectedPlacements, currentPlacementIndex, currentPlacement,
       graphicSize, textLayoutChoice, headerStyle, footerStyle, qrBasicInputType,
       qrBasicContent, runningCost, realMockupUrl, lifestyleMockupUrl, tempPacketId,
