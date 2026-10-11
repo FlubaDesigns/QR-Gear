@@ -118,6 +118,12 @@ export function filterSelectablePlacements(placements: PlacementOption[]): Place
   return placements.filter(p => !isBrandingPlacement(p.id));
 }
 
+// The catalog's QRG projection is the only authority for selectable print areas.
+export function hasValidPlacementSelection(selected: string[], placements?: { id: string }[]): boolean {
+  return selected.length > 0 && selected.every(id =>
+    !isBrandingPlacement(id) && placements?.some(placement => placement.id === id));
+}
+
 // Size scaling for different placement areas (used by renderer)
 // Large areas get more dramatic size differences, small areas get gradual ones.
 export const PLACEMENT_SIZE_SCALES: Record<string, Record<PlacementSize, number>> = {

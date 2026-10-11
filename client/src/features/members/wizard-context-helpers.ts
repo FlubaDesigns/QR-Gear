@@ -10,6 +10,7 @@ import {
   isQRPlusStep, isQRPlayStep,
 } from "@/features/shared/components/wizardSteps";
 import type { ComposeMode } from "@/features/shared/components/wizardSteps/ComposeSteps";
+import { hasValidPlacementSelection } from "@/features/shared/placementTypes";
 
 export function computeCanSimpleProceed(
   simpleStep: SimpleWizardStep,
@@ -51,7 +52,7 @@ export function computeCanSimpleProceed(
     case 'graphic-size': return state.graphicSize !== '';
     case 'generate': return state.wantsHeaderFooter !== null;
     case 'text-choice': return state.textLayoutChoice !== '';
-    case 'placement-count': return state.selectedPlacements.length > 0;
+    case 'placement-count': return hasValidPlacementSelection(state.selectedPlacements, state.selectedProductType?.placements);
     case 'text-edit-header': return true;
     case 'text-edit-footer': return true;
     case 'placement-config': return state.placementGraphicChoice !== '';
