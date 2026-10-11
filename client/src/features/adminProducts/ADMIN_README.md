@@ -432,6 +432,17 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 11, 2026 — Desktop header logo
+
+Increased the shared header logo height from 48px to 55.2px (15%) inside its existing min-width:768px theme rule. The 40px mobile rule, aspect ratio, header structure and canonical Master files are unchanged.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `client/src/styles/theme.css` | Increase existing desktop logo height by 15%. |
+| `README.md`, this guide, `MANIFEST.json`, source ZIP | Record and package the change. |
+
+
 ### October 11, 2026 — Narrow desktop product grid
 
 The homepage product grid uses the existing Master layout__auto helper directly inside a full-parent-width row. Its columns and responsive gutter come entirely from unchanged Master rules. Removed the homepage product-row width cap, local --col-gap override, added horizontal section padding, custom section rhythm and hero grid gap. The existing stage and main surface now supply page geometry, and the Master helpers allocate the available width. No homepage grid-template-columns overrides remain. Verified against the upstream Fluba canonical Master and Page and Styles Contract.
