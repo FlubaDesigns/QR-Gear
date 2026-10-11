@@ -432,6 +432,12 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Homepage message section — October 11, 2026
+
+Custom Gear That Sends a Message now leads with a large image, an offset frame and a floating scan label. Three supporting stories use overlapping image/copy panels, depth shadows and a staggered desktop arrangement. The existing PageSkeleton and Master row/split helpers provide the structure; presentation is scoped in the existing QR Gear site stylesheet. The section is visible on mobile, the Create link keeps its /build destination with a 48px minimum target, and hover motion respects reduced-motion preferences. The memory story uses the current QR Canvas product name. Existing images, data contracts and backend behavior are unchanged.
+
+Files: `client/src/components/MarketingMessage.tsx`, `client/src/styles/canonical/qrgear-site.css`, `client/src/pages/home.tsx`, both READMEs, manifest and source ZIP. TypeScript and production build passed.
+
 ### Homepage featured catalog and store skeleton — October 11, 2026
 
 The homepage now reads the same channel-scoped store API and query cache as the USA 250 hub, using the canonical `StoreResponse` contract and shared `StoreProductCard`. Images, prices, product IDs, and destinations come from published catalog instances and saved packets; selectable options remain projected by the existing QRG resolver. The old `/api/products` gate and duplicate homepage quick-view/cart implementation are removed. Loading, genuine empty results, and retryable errors have distinct visible states; six store cards are available on mobile as well as desktop. Featured channel names, collection labels, and destinations use the existing store hierarchy. The featured collection badge is positioned by its image wrapper so the shared hover effect cannot move it into the title.
@@ -1415,6 +1421,12 @@ The existing Pricing Sync action now previews the saved percentage/fixed markup 
 The UI explicitly calls this saved-markup application. Rebuilding production, shipping, label and hosting cost components is separate work and remains open; this change does not claim that all pricing consumers are repaired. Main is unchanged.
 
 ## Recent Changes Log
+
+### Homepage message section — October 11, 2026
+
+Custom Gear That Sends a Message now leads with a large image, an offset frame and a floating scan label. Three supporting stories use overlapping image/copy panels, depth shadows and a staggered desktop arrangement. The existing PageSkeleton and Master row/split helpers provide the structure; presentation is scoped in the existing QR Gear site stylesheet. The section is visible on mobile, the Create link keeps its /build destination with a 48px minimum target, and hover motion respects reduced-motion preferences. The memory story uses the current QR Canvas product name. Existing images, data contracts and backend behavior are unchanged.
+
+Files: `client/src/components/MarketingMessage.tsx`, `client/src/styles/canonical/qrgear-site.css`, `client/src/pages/home.tsx`, both READMEs, manifest and source ZIP. TypeScript and production build passed.
 
 ### Saved production pricing and mandatory inside labels — sandbox, October 9, 2026
 

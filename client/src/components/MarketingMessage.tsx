@@ -1,6 +1,5 @@
 import { Link } from "wouter";
-import { QRButton } from "@/components/QRButton";
-import { ArrowRight, History } from "lucide-react";
+import { ArrowRight, History, ScanLine } from "lucide-react";
 import hiddenMessageImg from "@assets/generated_images/marketing_hidden_message.png";
 import preciousMomentsImg from "@assets/generated_images/marketing_precious_moments.png";
 import qrDynamicsImg from "@assets/generated_images/marketing_qr_dynamics.png";
@@ -20,7 +19,7 @@ const cards = [
     image: preciousMomentsImg,
     imageAlt: "Family wearing matching custom QR code shirts — scannable keepsake apparel for precious moments and memories",
     title: "Frame Your Precious Moments",
-    body: "QR Customs lets you design something truly yours. Combine today's technology with yesterday's memories. Create a wearable keepsake that tells your story.",
+    body: "QR Canvas lets you design something truly yours. Combine today's technology with yesterday's memories. Create a wearable keepsake that tells your story.",
     tagline: "Your design. Your moment. Forever scannable.",
   },
   {
@@ -43,44 +42,53 @@ const cards = [
 ];
 
 export default function MarketingMessage() {
-  return (
-    <section className="message-section">
-      <div className="container">
-        <div className="section-header">
-          <h2>Custom Gear That Sends a Message</h2>
-          <p>Your story. Your style. Scannable by anyone.</p>
-        </div>
+  const lead = cards[0];
 
-        <div className="message-grid">
-          {cards.map((card) => (
-            <div
+  return (
+    <section className="message-section row" aria-labelledby="message-heading">
+      <div className="row">
+        <header className="section-header">
+          <p className="kicker">More than what you wear</p>
+          <h2 id="message-heading">Custom Gear That Sends a Message</h2>
+          <p>Your story. Your style. Scannable by anyone.</p>
+        </header>
+
+        <article className="message-card layout__split-2" data-testid={lead.testId}>
+          <div className="message-media">
+            <img src={lead.image} alt={lead.imageAlt} loading="lazy" />
+            <div className="message-scan-label">
+              <ScanLine aria-hidden="true" />
+              <div><strong>A little mystery.</strong><span>A whole story behind it.</span></div>
+            </div>
+          </div>
+          <div className="message-copy">
+            <p className="kicker">Wear the conversation starter</p>
+            <h3>{lead.title}</h3>
+            <p>{lead.body}</p>
+            <p className="message-tagline">{lead.tagline}</p>
+            <Link href="/build" className="qr-btn qr-btn--accent" data-testid="button-create-your-gear">
+              Create Your Gear <ArrowRight aria-hidden="true" />
+            </Link>
+          </div>
+        </article>
+
+        <div className="message-grid layout__split-3">
+          {cards.slice(1).map((card) => (
+            <article
               key={card.testId}
-              className={`glass-card message-card overflow-hidden !p-0${card.premium ? " premium" : ""}`}
+              className={`message-card${card.premium ? " premium" : ""}`}
               data-testid={card.testId}
             >
-              <div className="w-full h-44 overflow-hidden">
-                <img
-                  src={card.image}
-                  alt={card.imageAlt}
-                  className="w-full h-full object-cover"
-                  loading="lazy"
-                />
+              <div className="message-media">
+                <img src={card.image} alt={card.imageAlt} loading="lazy" />
               </div>
-              <div className="p-8">
+              <div className="message-copy">
                 <h3>{card.title}</h3>
                 <p>{card.body}</p>
                 <p className="message-tagline">{card.tagline}</p>
               </div>
-            </div>
+            </article>
           ))}
-        </div>
-
-        <div className="section-cta">
-          <Link href="/build">
-            <QRButton variant="accent" size="default" data-testid="button-create-your-gear">
-              Create Your Gear
-            </QRButton>
-          </Link>
         </div>
       </div>
     </section>

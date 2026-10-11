@@ -12,3 +12,82 @@
 .product-detail__loading-media { min-height: 50svh; }
 .product-detail__loading-line { height: 2rem; }
 .product-detail__loading-controls { height: 8rem; }
+
+/* Homepage stories: presentation only; Master owns the row/column layout. */
+.message-section {
+  position: relative;
+  isolation: isolate;
+  padding: clamp(3rem, 6vw, 6rem) clamp(1rem, 3vw, 2rem);
+  background: radial-gradient(ellipse at 15% 28%, rgba(74, 164, 207, .12), transparent 55%);
+}
+.message-section .section-header { margin-bottom: clamp(2rem, 4vw, 4rem); }
+.message-section .section-header h2 { max-width: 24ch; margin-inline: auto; }
+.message-section .section-header .kicker { color: var(--ice-1); margin-bottom: 1rem; }
+.message-section .message-card { padding: 0; background: none; border: 0; }
+.message-section > .row > .message-card { align-items: center; gap: clamp(2rem, 5vw, 5rem); margin-bottom: 4rem; }
+.message-section .message-media { position: relative; isolation: isolate; }
+.message-section .message-media img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 1.25rem;
+  border: 1px solid rgba(160, 218, 248, .2);
+  box-shadow: 0 24px 50px -16px rgba(0, 0, 0, .8);
+}
+.message-section > .row > .message-card .message-media { margin: 1rem .5rem 1.5rem; }
+.message-section > .row > .message-card .message-media::before {
+  content: "";
+  position: absolute;
+  inset: -10px 8px 10px -8px;
+  z-index: -1;
+  border: 1px solid rgba(148, 216, 246, .3);
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, rgba(122, 197, 235, .17), rgba(10, 24, 42, .8));
+  transform: rotate(-3deg);
+}
+.message-section .message-scan-label {
+  position: absolute;
+  left: 1rem;
+  bottom: -1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  max-width: calc(100% - 2rem);
+  padding: 1rem 1.25rem;
+  border: 1px solid rgba(163, 222, 248, .4);
+  border-radius: 1rem;
+  background: rgba(12, 27, 42, .94);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, .4), inset 0 1px rgba(255, 255, 255, .1);
+  backdrop-filter: blur(12px);
+}
+.message-section .message-scan-label > svg { width: 2rem; height: 2rem; color: var(--ice-1); flex-shrink: 0; }
+.message-section .message-scan-label strong { display: block; color: #f3faff; font-size: .95rem; }
+.message-section .message-scan-label span { display: block; color: #b6c8d9; font-size: .8rem; }
+.message-section .message-copy { padding: 1rem 0; }
+.message-section .message-copy h3 { font-size: clamp(1.25rem, 2vw, 1.65rem); line-height: 1.3; }
+.message-section > .row > .message-card h3 { font-size: clamp(1.8rem, 3.2vw, 3rem); max-width: 16ch; }
+.message-section .message-copy p { margin-bottom: 1rem; }
+.message-section .message-copy .kicker { font-size: .75rem; color: var(--ice-1); }
+.message-section .message-copy .message-tagline { color: var(--ice-1); font-size: .95rem; font-style: normal; font-weight: 600; }
+.message-section .message-copy .qr-btn { display: inline-flex; gap: .75rem; min-height: 3rem; margin-top: .5rem; }
+.message-section .message-copy .qr-btn svg { width: 1.1rem; height: 1.1rem; }
+.message-section .message-grid { gap: clamp(1.5rem, 3vw, 3rem); align-items: start; }
+.message-section .message-grid .message-copy {
+  position: relative;
+  z-index: 1;
+  margin: -2rem .75rem 0;
+  padding: clamp(1.25rem, 2vw, 2rem);
+  border: 1px solid rgba(157, 206, 235, .2);
+  border-radius: 1rem;
+  background: linear-gradient(145deg, #182c40, #0b1523);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, .7), inset 0 1px rgba(255, 255, 255, .08);
+}
+.message-section .message-grid .premium .message-copy { border-top-color: var(--ice-1); }
+@container (min-width: 54rem) {
+  .message-section .message-grid > :nth-child(2) { margin-top: 2.5rem; }
+}
+@media (prefers-reduced-motion: no-preference) and (hover: hover) {
+  .message-section .message-grid .message-media { transition: transform .25s ease; }
+  .message-section .message-grid .message-card:hover .message-media { transform: translateY(-5px); }
+}

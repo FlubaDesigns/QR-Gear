@@ -227,9 +227,7 @@ export default function Home() {
           onRetry={() => void refetch()}
           collectionHref={`${PUBLIC_SHOP_PATH}/${featuredChannel.slug}`}
         />
-        <div className="hidden md:block">
-          <MarketingMessage />
-        </div>
+        <MarketingMessage />
         <div className="hidden md:block">
           <HistoryTeaser />
         </div>
