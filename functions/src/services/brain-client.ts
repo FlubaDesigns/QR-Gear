@@ -50,7 +50,7 @@ export function createBrainClient(appId: 'qr-gear' | 'pollsit', env: NodeJS.Proc
     });
     const data = await response.json().catch(() => ({})) as any;
     if (connectionProbe && response.status === 404 && data.error === 'Request not found' && status && data.requestId === input.requestId) {
-      return { connected: true, appId, checkedAt: new Date().toISOString() };
+      return { connected: true, appId, checkedAt: new Date().toISOString(), release: env.FLUBA_BRAIN_RELEASE || null };
     }
     if (!response.ok) throw new Error(`Brain request failed (${response.status}).`);
     if (connectionProbe) throw new Error('Unexpected Brain connection-check response.');
