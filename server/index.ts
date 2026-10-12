@@ -24,13 +24,6 @@ async function initStripe() {
     return;
   }
 
-  // Check if Stripe connector is available
-  const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME;
-  if (!hostname) {
-    console.log('Stripe connector not configured, skipping Stripe initialization');
-    console.log('(This is fine for testing - Stripe can be set up later)');
-    return;
-  }
 
   try {
     console.log('Initializing Stripe schema...');

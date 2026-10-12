@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../services/fluba-provider-keys';
 import { HealthMonitorService } from '../services/health-monitor';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -65,7 +66,7 @@ app.get('/admin/designs/:id/publish-status', requireAdmin, async (req: Request, 
 app.get('/admin/catalog/providers/:blueprintId/:providerId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { blueprintId, providerId } = req.params;
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     if (!PRINTIFY_API) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
     if (!resp.ok) { res.status(resp.status).json({ error: "Printify API error" }); return; }
@@ -76,7 +77,7 @@ app.get('/admin/catalog/providers/:blueprintId/:providerId', requireAdmin, async
 
 app.get('/admin/printify/blueprints', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     if (!PRINTIFY_API) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch('https://api.printify.com/v1/catalog/blueprints.json', { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
     if (!resp.ok) { res.status(resp.status).json({ error: "Printify API error" }); return; }
@@ -86,7 +87,7 @@ app.get('/admin/printify/blueprints', requireAdmin, async (req: Request, res: Re
 
 app.get('/admin/printify/blueprints/:id/providers', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     if (!PRINTIFY_API) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${req.params.id}/print_providers.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
     if (!resp.ok) { res.status(resp.status).json({ error: "Printify API error" }); return; }
@@ -96,7 +97,7 @@ app.get('/admin/printify/blueprints/:id/providers', requireAdmin, async (req: Re
 
 app.get('/admin/printify/blueprints/:blueprintId/providers/:providerId/variants', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     if (!PRINTIFY_API) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${req.params.blueprintId}/print_providers/${req.params.providerId}/variants.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
     if (!resp.ok) { res.status(resp.status).json({ error: "Printify API error" }); return; }
@@ -181,7 +182,7 @@ app.get('/printify/catalog/:blueprintId/variants', async (req: Request, res: Res
 
 app.get('/printify/products', async (req: Request, res: Response): Promise<void> => {
   try {
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
     if (!PRINTIFY_API || !SHOP_ID) { res.json([]); return; }
     const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/products.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
@@ -452,7 +453,7 @@ app.get('/mockups/lifestyle', async (req: Request, res: Response): Promise<void>
 
 app.post('/admin/products/from-printify', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
     if (!PRINTIFY_API || !SHOP_ID) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/products.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });

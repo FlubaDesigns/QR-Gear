@@ -876,7 +876,7 @@ export async function syncPrintifyToStaging(
   const { onProgress } = options;
   const log = (msg: string) => { console.log(msg); onProgress?.(msg); };
 
-  if (!printifyClient.isConfigured) throw new Error('Printify API key not configured');
+  if (!(await printifyClient.isConfigured)) throw new Error('Printify API key not configured');
 
   log('[Printify] Fetching blueprints from API...');
   const blueprints: any[] = await printifyClient.getCatalogBlueprints();
@@ -1158,7 +1158,7 @@ export async function enrichMasterCatalog(
     let positionsSet = false;
 
     // ── 1. Printify: providers → origin; variants → positions/colors/sizes/prices
-    if (pyBlueprintId && printifyClient.isConfigured) {
+    if (pyBlueprintId && (await printifyClient.isConfigured)) {
       try {
         // Step A: get print providers → origin country + provider id
         let originCountry: string | null = data.originCountry ?? null;

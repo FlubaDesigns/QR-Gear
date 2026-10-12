@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../fluba-provider-keys';
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAdmin } from "../firebaseAuth";
@@ -14,9 +15,9 @@ export function registerAdminRoutes(app: Express): void {
   // Admin: Get fulfillment provider status (which providers are configured)
   app.get("/api/admin/fulfillment-providers", isAdmin, async (req: any, res) => {
     try {
-      const printifyKey = process.env.PRINTIFY_API_KEY;
-      const printfulKey = process.env.PRINTFUL_API_KEY;
-      const apliiqKey = process.env.APLIIQ_API_KEY;
+      const printifyKey = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
+      const printfulKey = (await readFlubaProviderKey('PRINTFUL_API_KEY'));
+      const apliiqKey = (await readFlubaProviderKey('APLIIQ_API_KEY'));
       
       const providers = [
         { 

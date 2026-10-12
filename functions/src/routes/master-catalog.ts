@@ -212,7 +212,7 @@ export function register(app: express.Express): void {
         const update: Record<string, any> = { lastPlacementSyncAt: new Date().toISOString() };
 
         // ── Printify: extract positions + dimensions from variant placeholders ──
-        if (needsPy && printifyClient.isConfigured) {
+        if (needsPy && (await printifyClient.isConfigured)) {
           try {
             const variantData: any = await printifyClient.getVariants(blueprintId!, providerId!);
             const seen = new Map<string, any>();
@@ -662,7 +662,7 @@ export function register(app: express.Express): void {
           }
         } catch (_) { /* continue — live API fallback below */ }
       }
-      if (blueprintId !== null && !printProviderId && printifyClient.isConfigured) {
+      if (blueprintId !== null && !printProviderId && (await printifyClient.isConfigured)) {
         try {
           const liveProviders = await printifyClient.getPrintProviders(blueprintId);
           if (liveProviders && liveProviders.length > 0) {
@@ -922,7 +922,7 @@ export function register(app: express.Express): void {
       }
 
       // Tier 3: Printify live API fallback — only if Tier 2 also empty and we have Printify IDs
-      if (printLocations.length === 0 && requestedProvider === 'printify' && blueprintId !== null && printProviderId && printifyClient.isConfigured) {
+      if (printLocations.length === 0 && requestedProvider === 'printify' && blueprintId !== null && printProviderId && (await printifyClient.isConfigured)) {
         try {
           const variantData = await printifyClient.getVariants(blueprintId, printProviderId);
           const placementSet = new Set<string>();

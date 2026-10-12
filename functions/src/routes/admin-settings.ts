@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import Stripe from 'stripe';
 import {createCoupon,updateCoupon} from '../services/coupons';
 import { Request, Response, NextFunction } from 'express';
@@ -105,15 +106,15 @@ app.get('/admin/coupons', requireAdmin, async (_req: Request, res: Response): Pr
   }
 });
 
-const stripeClient=()=>process.env.STRIPE_SECRET_KEY?new Stripe(process.env.STRIPE_SECRET_KEY):undefined;
+const stripeClient=async()=>{const key=await readFlubaProviderKey('STRIPE_SECRET_KEY');return key?new Stripe(key):undefined;};
 app.post('/admin/coupons',requireAdmin,async(req:Request,res:Response)=>{
- try{res.json(await createCoupon(db,req.body,stripeClient()));}catch(e:any){console.error('[Coupons]',e.message);res.status(e.status||400).json({error:e.message});}
+ try{res.json(await createCoupon(db,req.body,await stripeClient()));}catch(e:any){console.error('[Coupons]',e.message);res.status(e.status||400).json({error:e.message});}
 });
 app.put('/admin/coupons/:id',requireAdmin,async(req:Request,res:Response)=>{
- try{res.json(await updateCoupon(db,req.params.id,req.body,stripeClient()));}catch(e:any){res.status(e.status||400).json({error:e.message});}
+ try{res.json(await updateCoupon(db,req.params.id,req.body,await stripeClient()));}catch(e:any){res.status(e.status||400).json({error:e.message});}
 });
 app.delete('/admin/coupons/:id',requireAdmin,async(req:Request,res:Response)=>{
- try{await updateCoupon(db,req.params.id,{isActive:false},stripeClient());await db.collection('coupons').doc(req.params.id).update({archived:true});res.json({success:true});}
+ try{await updateCoupon(db,req.params.id,{isActive:false},await stripeClient());await db.collection('coupons').doc(req.params.id).update({archived:true});res.json({success:true});}
  catch(e:any){res.status(e.status||400).json({error:e.message});}
 });
 }

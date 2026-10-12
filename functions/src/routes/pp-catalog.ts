@@ -193,7 +193,7 @@ app.get('/admin/catalog/sync-status', requireAdmin, async (req: Request, res: Re
 for (const provider of ['printify', 'printful'] as const) {
   app.post(provider === 'printful' ? '/admin/catalog/sync-printful' : '/admin/catalog/sync', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
-      if (provider === 'printify' && !printifyClient.isConfigured) { res.status(503).json({ error: 'Printify API not configured' }); return; }
+      if (provider === 'printify' && !(await printifyClient.isConfigured)) { res.status(503).json({ error: 'Printify API not configured' }); return; }
       const progress = await advanceCatalogSync(db, provider, req.body, {
         list: () => provider === 'printful' ? printfulClient.getCatalogProducts() : printifyClient.getCatalogBlueprints(),
         rebuild: () => syncMasterCatalog(),
@@ -273,7 +273,7 @@ app.get('/admin/catalog/printful', requireAdmin, async (req: Request, res: Respo
 app.get('/admin/catalog/printful/:productId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const productId = parseInt(req.params.productId);
-    if (!printfulClient.isConfigured) { res.status(503).json({ error: "Printful API not configured" }); return; }
+    if (!(await printfulClient.isConfigured)) { res.status(503).json({ error: "Printful API not configured" }); return; }
     const productData = await printfulClient.getProduct(productId);
     const printfileData = await printfulClient.getPrintfiles(productId).catch(() => null);
     const placements = printfileData?.available_placements ? Object.keys(printfileData.available_placements) : [];
@@ -338,7 +338,7 @@ app.get('/admin/catalog/placements', requireAdmin, async (req: Request, res: Res
 
     if (provider === 'printify') {
       if (!blueprintId) { res.status(400).json({ error: "blueprintId required for Printify" }); return; }
-      if (!printifyClient.isConfigured) { res.status(503).json({ error: "Printify API not configured" }); return; }
+      if (!(await printifyClient.isConfigured)) { res.status(503).json({ error: "Printify API not configured" }); return; }
 
       let resolvedProviderId = printProviderId;
 

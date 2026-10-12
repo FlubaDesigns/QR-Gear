@@ -18,7 +18,7 @@ export async function syncPrintifyCatalog(): Promise<void> {
   console.log('[Cron] Starting Printify catalog sync...');
   
   try {
-    if (!printify.isConfigured) {
+    if (!(await printify.isConfigured)) {
       console.log('[Cron] Printify not configured, skipping sync');
       return;
     }

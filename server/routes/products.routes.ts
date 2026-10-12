@@ -393,12 +393,17 @@ export function registerProductRoutes(app: Express): void {
 
   // Printify Catalog API
   app.get("/api/printify/status", async (req, res) => {
-    res.json({ 
-      configured: printify.isConfigured,
-      message: printify.isConfigured 
-        ? "Printify API is connected" 
-        : "Printify API key or Shop ID not configured"
-    });
+    try {
+      const configured = await printify.isConfigured;
+      res.json({
+        configured,
+        message: configured
+          ? "Printify API is connected"
+          : "Printify API key or Shop ID not configured"
+      });
+    } catch {
+      res.status(503).json({ configured: false, message: "Printify configuration is temporarily unavailable" });
+    }
   });
 
   app.get("/api/printify/catalog", async (req, res) => {
@@ -765,7 +770,7 @@ export function registerProductRoutes(app: Express): void {
 
   app.get("/api/printify/catalog/:blueprintId", async (req, res) => {
     try {
-      if (!printify.isConfigured) {
+      if (!(await printify.isConfigured)) {
         return res.status(503).json({ error: "Printify not configured" });
       }
       const blueprintId = parseInt(req.params.blueprintId);
@@ -782,7 +787,7 @@ export function registerProductRoutes(app: Express): void {
 
   app.get("/api/printify/catalog/:blueprintId/variants", async (req, res) => {
     try {
-      if (!printify.isConfigured) {
+      if (!(await printify.isConfigured)) {
         return res.status(503).json({ error: "Printify not configured" });
       }
       const blueprintId = parseInt(req.params.blueprintId);
@@ -802,7 +807,7 @@ export function registerProductRoutes(app: Express): void {
 
   app.get("/api/printify/products", async (req, res) => {
     try {
-      if (!printify.isConfigured) {
+      if (!(await printify.isConfigured)) {
         return res.status(503).json({ error: "Printify not configured" });
       }
       const products = await printify.getShopProducts();

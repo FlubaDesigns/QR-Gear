@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../../fluba-provider-keys';
 import {
   BasePrintProviderAdapter,
   PublishProductInput,
@@ -85,8 +86,8 @@ export class PrintfulAdapter extends BasePrintProviderAdapter {
   readonly providerType = "printful" as const;
   readonly displayName = "Printful";
 
-  private getApiKey(): string {
-    const key = process.env.PRINTFUL_API_KEY;
+  private async getApiKey(): Promise<string> {
+    const key = (await readFlubaProviderKey('PRINTFUL_API_KEY'));
     if (!key) throw new Error("PRINTFUL_API_KEY not configured");
     return key;
   }
@@ -98,7 +99,7 @@ export class PrintfulAdapter extends BasePrintProviderAdapter {
     const response = await fetch(`${PRINTFUL_API_BASE}${endpoint}`, {
       ...options,
       headers: {
-        "Authorization": `Bearer ${this.getApiKey()}`,
+        "Authorization": `Bearer ${await this.getApiKey()}`,
         "Content-Type": "application/json",
         ...options.headers,
       },

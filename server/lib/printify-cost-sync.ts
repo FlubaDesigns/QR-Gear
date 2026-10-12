@@ -31,7 +31,7 @@ export async function startCostSync(options: CostSyncOptions = {}): Promise<Prin
     return null;
   }
 
-  if (!printify.isConfigured) {
+  if (!(await printify.isConfigured)) {
     console.error("[Cost Sync] Printify API not configured");
     return null;
   }

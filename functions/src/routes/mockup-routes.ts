@@ -174,7 +174,7 @@ app.post('/storefront/generate-mockup', async (req: Request, res: Response): Pro
     }
     
     // Generate mockup via Printful if not cached
-    if (!printfulClient.isConfigured) {
+    if (!(await printfulClient.isConfigured)) {
       let fallbackUrl: string | null = null;
       try {
         const bpDoc = await db.collection('printify_blueprints').doc(String(product.blueprintId)).get();
@@ -306,7 +306,7 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
     }
     
     // Generate via Printful if not in cache
-    if (!printfulClient.isConfigured) {
+    if (!(await printfulClient.isConfigured)) {
       res.json({
         success: false,
         message: 'Mockup not in cache and Printful API key not configured.',
@@ -394,7 +394,7 @@ app.post('/admin/products/:id/regenerate-mockups', requireAdmin, async (req: Req
       return;
     }
     
-    if (!printfulClient.isConfigured) {
+    if (!(await printfulClient.isConfigured)) {
       res.status(500).json({ error: 'Printful API key not configured' });
       return;
     }
@@ -518,7 +518,7 @@ app.post('/admin/products/:id/generate-all-mockups', requireAdmin, async (req: R
       return;
     }
     
-    if (!printfulClient.isConfigured) {
+    if (!(await printfulClient.isConfigured)) {
       res.status(500).json({ error: 'Printful API key not configured' });
       return;
     }

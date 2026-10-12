@@ -20,12 +20,12 @@ import { printfulClient } from '../services/printful';
 app.post('/qr/generate', async (req: Request, res: Response): Promise<void> => {
   try {
     const { content, color, backgroundColor, size, format } = req.body;
-    
+
     if (!content) {
       res.status(400).json({ error: 'Content is required' });
       return;
     }
-    
+
     res.json({
       success: true,
       message: 'QR generation endpoint - use client-side QR library for immediate generation',
@@ -60,19 +60,19 @@ app.get('/gift-codes/:code', async (req: Request, res: Response): Promise<void> 
       .where('isRedeemed', '==', false)
       .limit(1)
       .get();
-    
+
     if (snapshot.empty) {
       res.status(404).json({ error: 'Gift code not found or already redeemed' });
       return;
     }
-    
+
     const giftCode = docToObject(snapshot.docs[0]);
-    
+
     if (giftCode.expiresAt && new Date(giftCode.expiresAt) < new Date()) {
       res.status(400).json({ error: 'Gift code has expired' });
       return;
     }
-    
+
     res.json(giftCode);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -84,10 +84,10 @@ app.get('/gift-codes/:code', async (req: Request, res: Response): Promise<void> 
 
 app.get('/printify/status', async (_req: Request, res: Response): Promise<void> => {
   try {
-    res.json({ 
-      connected: printifyClient.isConfigured, 
+    res.json({
+      connected: (await printifyClient.isConfigured),
       mode: 'firebase-functions',
-      message: printifyClient.isConfigured 
+      message: (await printifyClient.isConfigured)
         ? 'Printify integration is configured and ready'
         : 'Printify API key or Shop ID not configured'
     });
@@ -98,4 +98,4 @@ app.get('/printify/status', async (_req: Request, res: Response): Promise<void> 
 
 
   }
-  
+

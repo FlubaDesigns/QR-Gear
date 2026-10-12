@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../fluba-provider-keys';
 
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
@@ -91,10 +92,10 @@ export interface CreateOrderRequest {
 }
 
 class PrintifyClient {
-  private getApiKey(): string {
-    const key = (process.env.PRINTIFY_API_KEY || process.env.PRINTIFY_API_KEY_2 || '').trim().replace(/\s+/g, '');
+  private async getApiKey(): Promise<string> {
+    const key = (await readFlubaProviderKey('PRINTIFY_API_TOKEN')).trim().replace(/\s+/g, '');
     if (!key) {
-      console.error('[PrintifyClient] No PRINTIFY_API_KEY found in environment');
+      console.error('[PrintifyClient] Printify is not configured in Fluba');
     }
     return key;
   }
@@ -103,19 +104,20 @@ class PrintifyClient {
     return (process.env.PRINTIFY_SHOP_ID || '').trim().replace(/\s+/g, '');
   }
 
-  private get headers() {
+  private async getHeaders() {
     return {
-      'Authorization': `Bearer ${this.getApiKey()}`,
+      'Authorization': `Bearer ${await this.getApiKey()}`,
       'Content-Type': 'application/json',
     };
   }
 
-  get isConfigured(): boolean {
-    return Boolean(this.getApiKey() && this.getShopId());
+  get isConfigured(): Promise<boolean> { return this.checkConfigured(); }
+  private async checkConfigured(): Promise<boolean> {
+    return Boolean((await this.getApiKey()) && this.getShopId());
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}, retries = 3): Promise<T> {
-    if (!this.isConfigured) {
+    if (!(await this.isConfigured)) {
       throw new Error('Printify API not configured. Missing API key or Shop ID.');
     }
 
@@ -130,7 +132,7 @@ class PrintifyClient {
         const response = await fetch(url, {
           ...options,
           headers: {
-            ...this.headers,
+            ...await this.getHeaders(),
             ...options.headers,
           },
         });

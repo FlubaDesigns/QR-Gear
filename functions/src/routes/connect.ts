@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
@@ -7,8 +8,8 @@ import Stripe from 'stripe';
 const MEMBER_PROFILES = 'member_profiles';
 const PROFIT_SHARE_PERCENT = 0.25;
 
-function getStripe(): Stripe {
-  const key = process.env.STRIPE_SECRET_KEY;
+async function getStripe(): Promise<Stripe> {
+  const key = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
   if (!key) throw new Error('Stripe not configured');
   return new Stripe(key, { apiVersion: '2023-10-16' as any });
 }
@@ -27,7 +28,7 @@ export function register(app: express.Express): void {
       const entityId = (req as any).user?.uid;
       if (!entityId) { res.status(401).json({ error: 'Not authenticated' }); return; }
 
-      const stripe = getStripe();
+      const stripe = await getStripe();
       const base = getBaseUrl();
 
       // Fetch existing profile
@@ -81,7 +82,7 @@ export function register(app: express.Express): void {
   app.get('/connect/onboard/refresh/:entityId', async (req: Request, res: Response): Promise<void> => {
     try {
       const { entityId } = req.params;
-      const stripe = getStripe();
+      const stripe = await getStripe();
       const base = getBaseUrl();
 
       const profileDoc = await db.collection(MEMBER_PROFILES).doc(entityId).get();
@@ -127,7 +128,7 @@ export function register(app: express.Express): void {
       }
 
       // Fetch live status from Stripe to keep in sync
-      const stripe = getStripe();
+      const stripe = await getStripe();
       const account = await stripe.accounts.retrieve(accountId);
 
       const payoutsEnabled = account.payouts_enabled === true;
@@ -173,7 +174,7 @@ export function register(app: express.Express): void {
       if (!accountId) { res.status(400).json({ error: 'No connected account' }); return; }
       if (!profile.stripePayoutsEnabled) { res.status(400).json({ error: 'Account not fully onboarded' }); return; }
 
-      const stripe = getStripe();
+      const stripe = await getStripe();
       const loginLink = await stripe.accounts.createLoginLink(accountId);
 
       res.json({ url: loginLink.url });

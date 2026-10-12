@@ -1,13 +1,13 @@
+import { readFlubaProviderKey, ProviderSecretName } from './fluba-provider-keys';
 import { createHash } from 'node:crypto';
 export const HEALTH_PROVIDERS = ['printful','printify','stripe'] as const;
 export class HealthMonitorService {
   constructor(private db:any,private env:Record<string,string|undefined> = process.env,private request:typeof fetch = fetch) {}
   private async configuration(provider:string) {
     if(!HEALTH_PROVIDERS.includes(provider as any)) throw Object.assign(new Error('Unknown provider'),{status:400});
-    const saved=(await this.db.collection('system_config').doc('api_keys').get()).data()||{};
-    const key=provider==='printful' ? saved.printfulApiKey||this.env.PRINTFUL_API_KEY||'' : this.env[`${provider.toUpperCase()}_${provider==='stripe'?'SECRET':'API'}_KEY`]||'';
-    return {key,source:provider==='printful'&&saved.printfulApiKey?'dashboard':'env',updatedAt:saved[`${provider}UpdatedAt`]||null,
-      fingerprint:createHash('sha256').update(key).digest('hex')};
+    const names:Record<string,ProviderSecretName>={printful:'PRINTFUL_API_KEY',printify:'PRINTIFY_API_TOKEN',stripe:'STRIPE_SECRET_KEY'};
+    const key=await readFlubaProviderKey(names[provider]);
+    return {key,source:'fluba',updatedAt:null,fingerprint:createHash('sha256').update(key).digest('hex')};
   }
   async checkProvider(provider:string) {
     const config=await this.configuration(provider),start=Date.now();
@@ -57,7 +57,7 @@ export class HealthMonitorService {
     const dashboard=await this.getHealthDashboard();
     return Object.fromEntries(await Promise.all(['printful','printify'].map(async p=>{
       const config=await this.configuration(p),health=dashboard.providers.find(h=>h.providerType===p)!;
-      return [p,{masked:config.key?'••••'+config.key.slice(-4):'',source:config.source,updatedAt:config.updatedAt,
+      return [p,{masked:config.key?'Managed in Fluba':'',source:config.source,updatedAt:config.updatedAt,
         status:health.status==='healthy'?'valid':health.status==='down'?'invalid':health.status,lastCheck:health.lastCheck}];
     })));
   }

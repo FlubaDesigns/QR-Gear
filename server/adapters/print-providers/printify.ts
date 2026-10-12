@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../../fluba-provider-keys';
 import {
   BasePrintProviderAdapter,
   PublishProductInput,
@@ -17,8 +18,8 @@ export class PrintifyAdapter extends BasePrintProviderAdapter {
   readonly providerType = "printify" as const;
   readonly displayName = "Printify";
 
-  private getApiKey(): string {
-    const key = process.env.PRINTIFY_API_KEY;
+  private async getApiKey(): Promise<string> {
+    const key = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     if (!key) throw new Error("PRINTIFY_API_KEY not configured");
     return key;
   }
@@ -33,7 +34,7 @@ export class PrintifyAdapter extends BasePrintProviderAdapter {
     const response = await fetch(`${PRINTIFY_API_BASE}${endpoint}`, {
       ...options,
       headers: {
-        "Authorization": `Bearer ${this.getApiKey()}`,
+        "Authorization": `Bearer ${await this.getApiKey()}`,
         "Content-Type": "application/json",
         ...options.headers,
       },

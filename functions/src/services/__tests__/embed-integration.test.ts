@@ -1,3 +1,4 @@
+vi.mock('../fluba-provider-keys',()=>({readFlubaProviderKey:vi.fn(async(name:string)=> name==='RESEND_API_KEY' ? (process.env.QR_RESEND_API_KEY||'') : name==='PRINTFUL_API_KEY' ? 'central-printful-test-fixture' : process.env[name]||'')}));
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import express from 'express';
 import request from 'supertest';
