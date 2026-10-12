@@ -140,7 +140,6 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
 export const api = onRequest(
   {
     ...(isSandboxRuntime() ? { serviceAccount: 'qrgear-runtime@qr-gear-sandbox.iam.gserviceaccount.com' } : {}),
-    secrets: (process.env.QRGEAR_SECRET_NAMES || '').split(',').map(name => name.trim()).filter(Boolean),
     timeoutSeconds: 3600,
     memory: '1GiB',
     cors: true,

@@ -18,4 +18,5 @@ jobs:
       - run: npm run check
       - run: npm --prefix functions run build
       - run: node --import tsx --test tests/brain-connection.test.ts
-      - run: npx vitest run functions/src/services/__tests__/admin-access.test.ts functions/src/services/__tests__/authorization-engine-auth.test.ts
+      - run: npx vitest run src/services/__tests__/admin-access.test.ts src/services/__tests__/authorization-engine-auth.test.ts
+        working-directory: functions

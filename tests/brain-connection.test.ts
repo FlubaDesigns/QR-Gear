@@ -50,3 +50,21 @@ test('upstream error bodies are not exposed',async()=>{
  const client=createBrainClient('qr-gear',env,async()=>json({error:env.FLUBA_SITE_SECRET},500));
  await assert.rejects(client.request('token',{requestId:'fixture'}),error=>{assert(!String(error).includes(env.FLUBA_SITE_SECRET));return true;});
 });
+
+test('managed identity can read only its own pinned central secret',async()=>{
+ const resource='projects/flubadesigns-25482/secrets/BRAIN_SITE_SECRET__POLLSIT/versions/1';
+ const config={...env,FLUBA_SITE_SECRET:undefined,FLUBA_BRAIN_SECRET_RESOURCE:resource};
+ let secretReads=0;
+ const client=createBrainClient('pollsit',config,async(url,options)=>{
+  if(String(url).startsWith('https://secretmanager.googleapis.com/')) {
+   secretReads++;assert.equal(url,'https://secretmanager.googleapis.com/v1/'+resource+':access');
+   assert.equal((options?.headers as any).Authorization,'Bearer fixture-identity');
+   assert.equal(options?.redirect,'error');
+   return json({payload:{data:Buffer.from(env.FLUBA_SITE_SECRET).toString('base64')}});
+  }
+  const u=new URL(String(url));return json({error:'Request not found',requestId:u.searchParams.get('requestId')},404);
+ },async()=> 'fixture-identity');
+ await client.check('attestation');await client.check('attestation');assert.equal(secretReads,1);
+ const wrong=createBrainClient('qr-gear',config,async()=>{assert.fail('cross-site secret must not be read');},async()=> 'fixture');
+ await assert.rejects(wrong.check('attestation'),/Invalid Brain secret binding/);
+});
