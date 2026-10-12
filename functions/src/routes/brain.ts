@@ -4,10 +4,21 @@ import crypto from 'crypto';
 import { db } from '../core';
 import { requireAdmin } from '../middleware';
 import { ADMIN_BUILD_SESSIONS_COLLECTION } from '../constants';
-import { brainRequest } from '../services/brain-client';
+import { brainRequest, checkBrainConnection } from '../services/brain-client';
 import { aiProductContext, aiProductPrompt, validateAiProductProposal, type AiProductRequest } from '../../../shared/aiProductBuilder';
 
 export function register(app: Express): void {
+  const brainOwner = (req: Request, res: Response, next: () => void) => {
+    if (!process.env.BRAIN_OWNER_UID || (req as any).user?.uid !== process.env.BRAIN_OWNER_UID) {
+      res.status(403).json({ error: 'Brain access is restricted to the site owner.' }); return;
+    }
+    next();
+  };
+  app.use('/admin/build-sessions/:id/ai', requireAdmin, brainOwner);
+  app.get('/admin/brain/connection', requireAdmin, brainOwner, async (req: Request, res: Response) => {
+    try { res.json(await checkBrainConnection(String(req.headers['x-firebase-appcheck'] || ''))); }
+    catch { res.status(502).json({ error: 'The authenticated Brain connection could not be verified.' }); }
+  });
   app.get('/admin/ai-build-rules',requireAdmin,async(_req:Request,res:Response)=>{
     try{res.json(await readBuildRules(db));}catch(e:any){res.status(e.status||500).json({error:e.message});}
   });

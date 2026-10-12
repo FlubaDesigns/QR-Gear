@@ -280,15 +280,15 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
 
   // ── AI Brain ─────────────────────────────────────────────────────────────
   const brainUrl = env.FLUBA_BRAIN_URL || '';
-  const brainSecret = env.FLUBA_SITE_SECRET || '';
+  const brainSecret = env.FLUBA_BRAIN_SECRET_RESOURCE || env.FLUBA_SITE_SECRET || '';
   items.push({
     id: 'ai-brain',
     label: 'AI Brain Connection',
-    description: 'Connects the dashboard to your AI operator brain',
+    description: 'Brain connection settings; a live connection check verifies access',
     status: brainUrl && brainSecret ? 'ok' : brainUrl || brainSecret ? 'partial' : 'missing',
     action: !brainUrl && !brainSecret
-      ? 'Set FLUBA_BRAIN_URL and FLUBA_SITE_SECRET to enable AI monitoring'
-      : !brainUrl ? 'FLUBA_BRAIN_URL is missing' : 'FLUBA_SITE_SECRET is missing',
+      ? 'Configure the site connection through the Fluba Authorization Engine'
+      : !brainUrl ? 'Brain endpoint is missing' : !brainSecret ? 'Brain secret binding is missing' : 'Connection settings are configured',
     href: '/admin/settings',
     group: 'ai',
   });
