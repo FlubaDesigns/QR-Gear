@@ -280,7 +280,7 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
 
   // ── AI Brain ─────────────────────────────────────────────────────────────
   const brainUrl = env.FLUBA_BRAIN_URL || '';
-  const brainSecret = env.FLUBA_BRAIN_SECRET_RESOURCE || env.FLUBA_SITE_SECRET || '';
+  const brainSecret = env.FLUBA_BRAIN_SECRET_RESOURCE || '';
   items.push({
     id: 'ai-brain',
     label: 'AI Brain Connection',
