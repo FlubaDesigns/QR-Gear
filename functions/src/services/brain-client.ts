@@ -12,7 +12,7 @@ export function createBrainClient(appId: 'qr-gear' | 'pollsit', env: NodeJS.Proc
   let cached: { value: string; expires: number } | undefined;
   async function siteSecret() {
     const resource = env.FLUBA_BRAIN_SECRET_RESOURCE;
-    if (!resource) return env.FLUBA_SITE_SECRET;
+    if (!resource) throw new Error('Managed Brain connection is not configured.');
     const prefix = 'projects/flubadesigns-25482/secrets/BRAIN_SITE_SECRET__' + appId.toUpperCase().replace(/-/g, '_') + '/versions/';
     if (!resource.startsWith(prefix) || !/^[1-9][0-9]*$/.test(resource.slice(prefix.length))) throw new Error('Invalid Brain secret binding.');
     if (cached && cached.expires > Date.now()) return cached.value;
