@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261012-main-partner-api';
+const _BUILD_ID = '20261012-brain-connection';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';
@@ -140,6 +140,7 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction): void => {
 export const api = onRequest(
   {
     ...(isSandboxRuntime() ? { serviceAccount: 'qrgear-runtime@qr-gear-sandbox.iam.gserviceaccount.com' } : {}),
+    secrets: (process.env.QRGEAR_SECRET_NAMES || '').split(',').map(name => name.trim()).filter(Boolean),
     timeoutSeconds: 3600,
     memory: '1GiB',
     cors: true,
