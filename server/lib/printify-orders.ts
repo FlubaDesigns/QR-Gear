@@ -22,7 +22,7 @@ export async function submitOrderToPrintify(
   shippingAddress: ShippingAddress
 ): Promise<{ success: boolean; printifyOrderId?: string; error?: string }> {
   try {
-    if (!printify.isConfigured) {
+    if (!(await printify.isConfigured)) {
       return { success: false, error: 'Printify API not configured' };
     }
 

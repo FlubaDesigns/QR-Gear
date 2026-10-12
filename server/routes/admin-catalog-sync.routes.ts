@@ -32,7 +32,7 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
       if (latest.status === 'completed' && latest.errorMessage) {
         try { summary = JSON.parse(latest.errorMessage); } catch {}
       }
-      res.json({ ...latest, summary, totalBlueprints: (await storage.getPrintifyBlueprints()).length, isConfigured: printify?.isConfigured || false });
+      res.json({ ...latest, summary, totalBlueprints: (await storage.getPrintifyBlueprints()).length, isConfigured: (await printify.isConfigured) });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -295,7 +295,7 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
 
   app.post("/api/admin/catalog/sync-all-costs", isAdmin, async (req: any, res) => {
     try {
-      if (!printify.isConfigured) {
+      if (!(await printify.isConfigured)) {
         return res.status(503).json({ error: "Printify API not configured" });
       }
 
@@ -343,7 +343,7 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
 
   app.post("/api/admin/catalog/refresh-color-hex", isAdmin, async (req: any, res) => {
     try {
-      if (!printify.isConfigured) {
+      if (!(await printify.isConfigured)) {
         return res.status(503).json({ error: "Printify API not configured" });
       }
 

@@ -34,7 +34,7 @@ export function createFlubaProviderReader(token: () => Promise<string>, request:
     pending.set(name,operation);
     try { return await operation; } finally { pending.delete(name); }
   }
-  return {read, clear: () => cache.clear(), status: () => Object.fromEntries([...cache].map(([name,e])=>[name,{source:'fluba',projectId:FLUBA_PROVIDER_PROJECT,version:e.version,current:e.expires>now()}]))};
+  return {read, clear: () => cache.clear(), status: () => Object.fromEntries(Array.from(cache.entries()).map(([name,e])=>[name,{source:'fluba',projectId:FLUBA_PROVIDER_PROJECT,version:e.version,current:e.expires>now()}]))};
 }
 const reader = createFlubaProviderReader(async () => (await applicationDefault().getAccessToken()).access_token);
 export const readFlubaProviderKey = reader.read;
