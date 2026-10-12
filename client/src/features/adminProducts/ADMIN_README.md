@@ -1861,3 +1861,16 @@ Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns
 - `client/src/styles/theme.css`
 - `docs/PAGE_LAYOUT_AUDIT.md`
 - `downloads/QR_Gear_Full_Website.zip`
+
+
+## Partner API foundation — October 12, 2026
+
+Admin Partners (`/admin/partners`) now owns a usable per-partner API dialog: key generation/rotation, stable partner ID, server request instructions, and Check API setup. Partner creation, edits, detail reads and rotation share the existing `partnerStores` registry. Edits validate URLs, origins and unique slugs; clearing selected arrays persists. New keys use 256 random bits and rotation invalidates the previous key. Older weak-format keys must be regenerated before connection. Keys belong on partner servers and are excluded from public store-list/detail responses.
+
+`GET /api/partner/verify?partnerId=ID` and `GET /api/partner/products?partnerId=ID` accept that partner's `X-API-Key`, check active status, and enforce configured origins when an Origin header is present. The stable ID or unique saved slug identifies the site; a global widget key does not authorize these routes. Responses are not cached. Products come from that partner's visible saved `admin_catalog_instances`, linked production packets, and the shared QRG options/image/text projections. Optional `channelId` must belong to the same partner. `basePrice` is the saved base retail price, not a final size/shipping/tax quote; QR Gear checkout remains authoritative. Missing production data returns an explicit error instead of fabricated product details.
+
+The admin setup check verifies the saved key, active status and catalog projection inside QR Gear. Actual partner-server connectivity still needs a request from that server. The nonexistent widget.js embed example has been removed. Member storefront provisioning, verified partner-to-member account linking, product imports/builds and partner checkout handoffs are not implemented by this release. A partner ID is not a member or store-owner ID; the product route rejects unbound member/store requests. Existing legacy widget routes are separate and are not certified by this work.
+
+Validation: 29 focused backend checks cover credential isolation, rotation, inactive/origin rejection, shared persistence, public redaction, canonical product projection and existing store/channel behavior. TypeScript and frontend/Functions production builds are release gates. Live partner connection and signed-in Admin acceptance are distinct checks, not established by these fixtures.
+
+Files changed: `client/src/pages/admin-partners.tsx`; `functions/src/services/partner-api.ts`; `functions/src/services/__tests__/partner-api.test.ts`; `functions/src/routes/{admin-stores,am-sync,partner,public,core-routes}.ts`; `functions/src/index.ts`; Functions package/version lock; both READMEs; `MANIFEST.json`; source ZIP. Deployment uses the established Authorization Engine release workflow.

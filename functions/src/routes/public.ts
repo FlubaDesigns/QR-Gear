@@ -1,3 +1,4 @@
+import { publicPartner } from '../services/partner-api';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -43,7 +44,7 @@ app.get('/stores', async (_req: Request, res: Response): Promise<void> => {
     const snapshot = await db.collection('partnerStores')
       .where('isActive', '==', true)
       .get();
-    res.json(docsToArray(snapshot));
+    res.json(docsToArray(snapshot).map(publicPartner));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

@@ -1,3 +1,4 @@
+import { savePartner } from '../services/partner-api';
 import { registerStoreAdminRoutes } from '../services/store-admin';
 import { createStore, createStoreChannel, deleteStore, deleteStoreChannel } from '../services/store-channels';
 import { Request, Response, NextFunction } from 'express';
@@ -74,6 +75,7 @@ app.get('/admin/stores/by-id/:storeId', requireAdmin, async (req: Request, res: 
 
 app.get('/admin/partner-stores', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
+    res.set('Cache-Control', 'private, no-store');
     const snapshot = await db.collection('partnerStores').get();
     res.json(docsToArray(snapshot));
   } catch (error: any) {
@@ -83,24 +85,17 @@ app.get('/admin/partner-stores', requireAdmin, async (_req: Request, res: Respon
 
 app.post('/admin/partner-stores', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const docRef = await db.collection('partnerStores').add({
-      ...req.body,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    const doc = await docRef.get();
-    res.json(docToObject(doc));
+    res.json(await savePartner(db, req.body));
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
 app.put('/admin/partner-stores/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('partnerStores').doc(req.params.id).update(req.body);
-    const doc = await db.collection('partnerStores').doc(req.params.id).get();
-    res.json(docToObject(doc));
+    res.json(await savePartner(db, req.body, req.params.id));
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

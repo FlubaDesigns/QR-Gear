@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, getQueryFn } from "@/lib/queryClient";
 import { Plus, Edit, Trash2, Store, Copy, RefreshCw, ExternalLink, Key, Globe, Loader2 } from "lucide-react";
 import type { PartnerStore } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
@@ -58,8 +58,9 @@ export default function AdminPartners() {
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [viewingStore, setViewingStore] = useState<PartnerStore | null>(null);
 
-  const { data: stores = [], isLoading } = useQuery<PartnerStore[]>({
+  const { data: stores = [], isLoading, error, refetch } = useQuery<PartnerStore[]>({
     queryKey: ["/api/admin/partner-stores"],
+    queryFn: getQueryFn({ on401: "throw" }),
   });
 
   const createMutation = useMutation({
@@ -114,13 +115,23 @@ export default function AdminPartners() {
       const res = await apiRequest("POST", `/api/admin/partner-stores/${id}/regenerate-key`, {});
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data, id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/partner-stores"] });
-      toast({ title: "API key regenerated", description: "New key: " + data.apiKey.substring(0, 20) + "..." });
+      setViewingStore(current => current?.id === id ? { ...current, apiKey: data.apiKey } : current);
+      toast({ title: "API key regenerated", description: "Copy the new key below. The previous key is no longer valid." });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
+  });
+
+  const testApiMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("POST", `/api/admin/partner-stores/${id}/test`, {});
+      return response.json();
+    },
+    onSuccess: data => toast({ title: "API setup verified", description: `${data.partner.name}: valid key, active partner, ${data.productCount} saved products. Partner-site connectivity is checked from its server.` }),
+    onError: (error: Error) => toast({ title: "API check failed", description: error.message, variant: "destructive" }),
   });
 
   const handleOpenDialog = (store?: PartnerStore) => {
@@ -171,13 +182,8 @@ export default function AdminPartners() {
       isActive: formData.isActive,
     };
 
-    // Only include arrays if they have values (avoids Zod rejecting empty arrays)
-    if (allowedOriginsArr.length > 0) {
-      data.allowedOrigins = allowedOriginsArr;
-    }
-    if (availableSegmentsArr.length > 0) {
-      data.availableSegments = availableSegmentsArr;
-    }
+    data.allowedOrigins = allowedOriginsArr;
+    data.availableSegments = availableSegmentsArr;
 
     if (editingStore) {
       updateMutation.mutate({ id: editingStore.id, data });
@@ -186,15 +192,18 @@ export default function AdminPartners() {
     }
   };
 
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: `${label} copied to clipboard` });
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({ title: `${label} copied to clipboard` });
+    } catch {
+      toast({ title: "Copy failed", description: "Select and copy the value manually.", variant: "destructive" });
+    }
   };
 
   const copyUserId = () => {
     if (user?.id) {
-      navigator.clipboard.writeText(user.id);
-      toast({ title: "User ID copied to clipboard" });
+      void copyToClipboard(user.id, "User ID");
     }
   };
 
@@ -236,7 +245,12 @@ export default function AdminPartners() {
             </Button>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
+            {error ? (
+              <div role="alert" className="space-y-3 py-6">
+                <p>Partners could not be loaded: {error.message}</p>
+                <Button onClick={() => refetch()} className="h-12">Retry</Button>
+              </div>
+            ) : isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
@@ -276,7 +290,7 @@ export default function AdminPartners() {
                               {store.websiteUrl && (
                                 <a href={store.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:underline flex items-center gap-1">
                                   <Globe className="h-3 w-3" />
-                                  {new URL(store.websiteUrl).hostname}
+                                  {store.websiteUrl}
                                 </a>
                               )}
                             </div>
@@ -300,15 +314,14 @@ export default function AdminPartners() {
                           <div className="flex items-center justify-end gap-2">
                             <Button
                               variant="ghost"
-                              size="icon"
-                              className="h-10 w-10"
+                              className="h-12 px-3"
                               onClick={() => {
                                 setViewingStore(store);
                                 setShowApiKeyDialog(true);
                               }}
                               data-testid={`button-view-key-${store.id}`}
                             >
-                              <Key className="h-4 w-4" />
+                              <Key className="h-4 w-4 mr-2" /> API
                             </Button>
                             <Button
                               variant="ghost"
@@ -366,8 +379,8 @@ export default function AdminPartners() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-4 py-4">
+            <div className="row layout__split-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Store Name</Label>
                 <Input
@@ -403,7 +416,7 @@ export default function AdminPartners() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="row layout__split-2">
               <div className="space-y-2">
                 <Label htmlFor="logoUrl">Logo URL</Label>
                 <Input
@@ -451,10 +464,10 @@ export default function AdminPartners() {
                 className="h-12"
                 data-testid="input-allowed-origins"
               />
-              <p className="text-xs text-muted-foreground">Comma-separated list of origins allowed to embed the widget</p>
+              <p className="text-xs text-muted-foreground">Comma-separated HTTPS origins, without paths or trailing slashes. API keys stay on the partner server.</p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="row layout__split-3">
               <div className="space-y-2">
                 <Label htmlFor="primaryColor">Primary Color</Label>
                 <div className="flex gap-2">
@@ -558,11 +571,11 @@ export default function AdminPartners() {
       </Dialog>
 
       <Dialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>API Key for {viewingStore?.name}</DialogTitle>
+            <DialogTitle>Partner API — {viewingStore?.name}</DialogTitle>
             <DialogDescription>
-              Use this key for widget authentication
+              Keep this key on the partner server. Generate a new key before first connection; older keys are not accepted by the partner API. Never put the key in webpage or embed code.
             </DialogDescription>
           </DialogHeader>
 
@@ -571,7 +584,7 @@ export default function AdminPartners() {
               <Label>API Key</Label>
               <div className="flex gap-2">
                 <Input
-                  value={viewingStore?.apiKey || ""}
+                  value={viewingStore?.apiKey || "Generate a key to connect this partner"}
                   readOnly
                   className="font-mono text-sm h-12"
                 />
@@ -579,6 +592,7 @@ export default function AdminPartners() {
                   variant="outline"
                   size="icon"
                   className="h-12 w-12"
+                  disabled={!viewingStore?.apiKey || regenerateKeyMutation.isPending}
                   onClick={() => copyToClipboard(viewingStore?.apiKey || "", "API Key")}
                   data-testid="button-copy-api-key"
                 >
@@ -588,23 +602,18 @@ export default function AdminPartners() {
             </div>
 
             <div className="space-y-2">
-              <Label>Widget Embed Code</Label>
-              <Textarea
-                readOnly
-                value={`<script src="${window.location.origin}/widget.js" data-partner="${viewingStore?.slug}"></script>`}
-                className="font-mono text-xs"
-                rows={3}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-10"
-                onClick={() => copyToClipboard(`<script src="${window.location.origin}/widget.js" data-partner="${viewingStore?.slug}"></script>`, "Embed code")}
-                data-testid="button-copy-embed"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Copy Embed Code
-              </Button>
+              <Label>Partner ID</Label>
+              <Input readOnly value={viewingStore?.id || ""} className="font-mono h-12" />
+              <p className="text-sm text-muted-foreground">Identifies the partner site. Each member keeps a separate member ID and store destination.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Server API request</Label>
+              <Textarea readOnly rows={4} className="font-mono text-xs" value={`GET ${window.location.origin}/api/partner/products?partnerId=${encodeURIComponent(viewingStore?.id || "")}
+X-API-Key: YOUR_PARTNER_API_KEY`} />
+              <p className="text-sm text-muted-foreground">Returns this partner's saved catalog products with QRG options. Optional channelId must belong to this partner. Empty results mean no products have been placed there yet.</p>
+              <p className="text-sm text-muted-foreground">Use /api/partner/verify with the same header and partnerId to verify credentials. Member storefront provisioning and imports are not connected yet.</p>
+              <Button className="h-12" variant="outline" disabled={testApiMutation.isPending || regenerateKeyMutation.isPending || !viewingStore} onClick={() => viewingStore && testApiMutation.mutate(viewingStore.id)}>{testApiMutation.isPending ? "Checking…" : "Check API setup"}</Button>
+              <Link href="/admin/external-sites"><Button variant="outline" className="h-12">Website setup</Button></Link>
             </div>
           </div>
 

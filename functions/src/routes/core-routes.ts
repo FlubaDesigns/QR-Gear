@@ -1,3 +1,4 @@
+import { publicPartner } from '../services/partner-api';
 import { resolveColorHex } from '../../../shared/colorUtils';
 import { catalogProductOptions, CatalogSelectionError } from '../services/catalog-sale-variants';
 import { resolveSaleItem } from '../services/order-fulfillment';
@@ -234,7 +235,7 @@ app.get('/stores/:slug', async (req: Request, res: Response): Promise<void> => {
       res.status(404).json({ error: 'Store not found' });
       return;
     }
-    res.json(docToObject(snapshot.docs[0]));
+    res.json(publicPartner(docToObject(snapshot.docs[0])));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

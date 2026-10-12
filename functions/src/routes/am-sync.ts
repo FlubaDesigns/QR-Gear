@@ -1,3 +1,4 @@
+import { savePartner, rotatePartnerKey, authenticatePartner, partnerProducts } from '../services/partner-api';
 import {readHostingTiers,changeHostingTier} from '../services/hosting-tiers';
 import { HealthMonitorService } from '../services/health-monitor';
 import { registerFontRoutes } from '../services/font-settings';
@@ -532,26 +533,37 @@ app.get('/store/products', async (_req: Request, res: Response): Promise<void> =
 
 app.get('/admin/partner-stores/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('partner_stores').doc(req.params.id).get();
+    const doc = await db.collection('partnerStores').doc(req.params.id).get();
     if (!doc.exists) { res.status(404).json({ error: 'Partner store not found' }); return; }
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ ...doc.data(), id: doc.id });
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.patch('/admin/partner-stores/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('partner_stores').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    const doc = await db.collection('partner_stores').doc(req.params.id).get();
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    res.json(await savePartner(db, req.body, req.params.id));
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/admin/partner-stores/:id/regenerate-key', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const newKey = `psk-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 12)}`;
-    await db.collection('partner_stores').doc(req.params.id).update({ apiKey: newKey, updatedAt: new Date().toISOString() });
-    res.json({ success: true, apiKey: newKey });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    res.json(await rotatePartnerKey(db, req.params.id));
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+});
+
+app.post('/admin/partner-stores/:id/test', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const doc = await db.collection('partnerStores').doc(req.params.id).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Partner not found' }); return; }
+    const partner = await authenticatePartner(db, { query: { partnerId: doc.id }, headers: { 'x-api-key': doc.data()?.apiKey } });
+    const result = await partnerProducts(db, partner, {});
+    res.json({ ok: true, partner: result.store, productCount: result.count });
+  } catch (error: any) {
+    console.error('[Partner API check]', error.status || 500, error.message);
+    res.status(error.status || 500).json({ error: error.status ? error.message : 'Partner setup check failed' });
+  }
 });
 
 app.get('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
