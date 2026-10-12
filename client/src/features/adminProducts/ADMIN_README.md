@@ -432,6 +432,17 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+## Preserve reviewed designs through checkout — October 11, 2026
+
+The public QR Basic/Plus wizard saves its reviewed selection, exact preview and existing guest build capability in tab-scoped session storage before leaving for Stripe. Returning to /build restores the preview with the selected product, color and size, Continue to Checkout, and Edit design. Guided mode does not restart its introduction. Browser history restoration re-enables checkout. Editing a restored design invalidates its prior preview; checkout still requires a matching reviewed packet and the existing server-side price/ownership checks.
+
+Storage failure keeps the current design visible and blocks navigation with an explicit message. A verified successful-payment response clears only its matching saved checkout; it continues through the existing order confirmation and membership invitation. This change does not treat a cancelled payment as paid, create an account, change Stripe mode, or alter fulfillment. The success route was traced in code; a completed payment and member signup remain separate live acceptance checks.
+
+Validation: seven focused React/storage regressions cover Basic and Plus reloads, checkout retry, edited artwork, browser Back, blocked storage, matching paid-return cleanup, and invalid storage. TypeScript and the production layout/discovery build are release gates. Live cancel/return acceptance follows the Authorization Engine deployment.
+
+Files: client/src/features/owner/useOwnerWizardState.ts; client/src/features/owner/OwnerWizard.tsx; client/src/lib/ownerCheckoutDraft.ts; client/src/lib/ownerCheckoutDraft.test.ts; client/src/pages/build-success.tsx; README.md; client/src/features/adminProducts/ADMIN_README.md; MANIFEST.json; downloads/QR_Gear_Full_Website.zip.
+
+
 ### Public search and AI discovery — October 11, 2026
 
 The production build now renders the existing public React pages and catalog into crawler-readable HTML: all informational/idea/type pages, homepage, gallery, gifts, public builder, store/channel/collections and the 22 currently published products (66 URLs). It resolves route components from App.tsx, uses shopHierarchy/actionCards and reads the existing public store API; no parallel product or QR-type registry is introduced. Rendering does not execute checkout or authenticated mutations. A build fails if catalog reads or discovery validation fail.

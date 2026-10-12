@@ -989,3 +989,14 @@ Every output has page-specific canonical, description, Open Graph/Twitter metada
 Robots rules use one group for ordinary and named AI crawlers, including OAI-SearchBot, so the same private/workflow exclusions apply to all. Existing public/training crawl permissions remain allowed. Firebase serves clean public HTML URLs, permanently redirects /store to the current store, and applies noindex headers to account/admin/checkout workflows. Express uses the same generated sitemap; the older Functions sitemap redirects to the canonical one. Authentication and API permissions are unchanged.
 
 Validation: TypeScript, canonical layout verification, production build, Functions compilation and discovery:verify. The verification checks content headings, canonical uniqueness, structured data, asset existence and parity between 66 pages, sitemap and AI guide. Crawlers choose when to revisit; these changes do not guarantee indexing, recommendations or ranking. Sources: OpenAI crawler documentation (https://developers.openai.com/api/docs/bots) and Google AI features guidance (https://developers.google.com/search/docs/appearance/ai-features).
+
+
+## Preserve reviewed designs through checkout — October 11, 2026
+
+The public QR Basic/Plus wizard saves its reviewed selection, exact preview and existing guest build capability in tab-scoped session storage before leaving for Stripe. Returning to /build restores the preview with the selected product, color and size, Continue to Checkout, and Edit design. Guided mode does not restart its introduction. Browser history restoration re-enables checkout. Editing a restored design invalidates its prior preview; checkout still requires a matching reviewed packet and the existing server-side price/ownership checks.
+
+Storage failure keeps the current design visible and blocks navigation with an explicit message. A verified successful-payment response clears only its matching saved checkout; it continues through the existing order confirmation and membership invitation. This change does not treat a cancelled payment as paid, create an account, change Stripe mode, or alter fulfillment. The success route was traced in code; a completed payment and member signup remain separate live acceptance checks.
+
+Validation: seven focused React/storage regressions cover Basic and Plus reloads, checkout retry, edited artwork, browser Back, blocked storage, matching paid-return cleanup, and invalid storage. TypeScript and the production layout/discovery build are release gates. Live cancel/return acceptance follows the Authorization Engine deployment.
+
+Files: client/src/features/owner/useOwnerWizardState.ts; client/src/features/owner/OwnerWizard.tsx; client/src/lib/ownerCheckoutDraft.ts; client/src/lib/ownerCheckoutDraft.test.ts; client/src/pages/build-success.tsx; README.md; client/src/features/adminProducts/ADMIN_README.md; MANIFEST.json; downloads/QR_Gear_Full_Website.zip.

@@ -1,3 +1,4 @@
+import { clearOwnerCheckoutDraft } from '@/lib/ownerCheckoutDraft';
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,8 @@ export default function BuildSuccess() {
         setIsLoading(false);
         return;
       }
+      try { clearOwnerCheckoutDraft(sid); }
+      catch (storageError) { console.error('[OwnerBuild] Paid checkout cleanup failed:', storageError); }
       setOrder(data.order);
       setClaimCode(data.claimCode || data.order?.claimCode || "");
       setAlreadyProcessed(!!data.alreadyProcessed);

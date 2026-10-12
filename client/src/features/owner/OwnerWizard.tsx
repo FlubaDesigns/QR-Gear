@@ -244,7 +244,7 @@ export function OwnerWizard() {
             data-testid="button-owner-back"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
-            Back
+            {isFinalStep ? 'Edit design' : 'Back'}
           </Button>
           )}
 
@@ -279,6 +279,13 @@ export function OwnerWizard() {
         )}
       >
       <div className="row">
+        {state.checkoutRestored && isFinalStep && (
+          <div role="status" className="mb-4 space-y-2">
+            <h2>Your design is ready to continue</h2>
+            <p>{selectedProductType?.title} · {selectedColor} · {selectedShirtSize}</p>
+            <p>Continue to checkout below, or edit your design. After payment, you can create your free member account.</p>
+          </div>
+        )}
         {state.buildError && <div role="alert" className="mb-4 rounded-lg border border-red-500/50 p-3 text-red-300">
           <p>{state.buildError}</p>
           {isFinalStep && <Button variant="outline" onClick={() => void generateRealMockup()} disabled={isGeneratingRealMockup}>Retry preview</Button>}
