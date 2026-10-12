@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
@@ -32,7 +33,7 @@ async function buildQueue(): Promise<QueueItem[]> {
   const settled = await Promise.allSettled([
     // 1. Stripe Connect — check if live secret key is set
     (async () => {
-      const key = process.env.STRIPE_SECRET_KEY || '';
+      const key = (await readFlubaProviderKey('STRIPE_SECRET_KEY')) || '';
       const publicKey = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY || '';
       if (!/^(sk|rk)_live_/.test(key) || !publicKey.startsWith('pk_live_') || !process.env.STRIPE_WEBHOOK_SECRET) {
         items.push({
@@ -48,7 +49,7 @@ async function buildQueue(): Promise<QueueItem[]> {
 
     // 2. Transactional email configuration
     (async () => {
-      if (!getResendClient()) {
+      if (!await getResendClient()) {
         items.push({
           id: 'email-not-configured',
           title: 'Email not configured',
@@ -246,13 +247,13 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
   const env = process.env;
 
   // ── Payments ──────────────────────────────────────────────────────────────
-  const stripeKey = env.STRIPE_SECRET_KEY || '';
+  const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY')) || '';
   items.push({
     id: 'stripe-key',
     label: 'Stripe Secret Key',
     description: 'Required for payment processing',
     status: !stripeKey ? 'missing' : stripeKey.startsWith('sk_live_') ? 'ok' : 'warning',
-    action: !stripeKey ? 'Add STRIPE_SECRET_KEY to environment' : stripeKey.startsWith('sk_test_') ? 'Switch from test key to live key before accepting real payments' : undefined,
+    action: !stripeKey ? 'Configure Stripe in Fluba Cortex' : stripeKey.startsWith('sk_test_') ? 'Switch from test key to live key before accepting real payments' : undefined,
     href: '/admin/settings',
     group: 'payments',
   });
@@ -272,8 +273,8 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
     id: 'resend-key',
     label: 'Resend API Key',
     description: 'Required for all transactional emails (orders, shipping, members)',
-    status: env.QR_RESEND_API_KEY ? 'ok' : 'missing',
-    action: 'Get API key from resend.com and add as QR_RESEND_API_KEY',
+    status: (await readFlubaProviderKey('RESEND_API_KEY')) ? 'ok' : 'missing',
+    action: 'Manage Resend in Fluba Cortex',
     href: '/admin/settings',
     group: 'email',
   });
@@ -298,8 +299,8 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
     id: 'printify-key',
     label: 'Printify API Key',
     description: 'Required for product sync and order fulfillment via Printify',
-    status: env.PRINTIFY_API_KEY ? 'ok' : 'warning',
-    action: env.PRINTIFY_API_KEY ? undefined : 'PRINTIFY_API_KEY not set — using fallback key, set your own for production',
+    status: (await readFlubaProviderKey('PRINTIFY_API_TOKEN')) ? 'ok' : 'warning',
+    action: (await readFlubaProviderKey('PRINTIFY_API_TOKEN')) ? undefined : 'Configure Printify in Fluba Cortex',
     href: '/admin/settings',
     group: 'fulfillment',
   });
@@ -308,8 +309,8 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
     id: 'printful-key',
     label: 'Printful API Key',
     description: 'Required for Printful fulfillment and mockup generation',
-    status: env.PRINTFUL_API_KEY ? 'ok' : 'missing',
-    action: 'Get API key from printful.com/dashboard and add as PRINTFUL_API_KEY',
+    status: (await readFlubaProviderKey('PRINTFUL_API_KEY')) ? 'ok' : 'missing',
+    action: 'Manage Printful in Fluba Cortex',
     href: '/admin/settings',
     group: 'fulfillment',
   });

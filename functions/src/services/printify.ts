@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from './fluba-provider-keys';
 import { isSandboxRuntime, requireLiveCommerce } from '../runtime-config';
 import { admin, db } from '../core';
 
@@ -6,9 +7,9 @@ import { admin, db } from '../core';
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 
 // Get Printify API key - fallback for Cloud Functions environment
-function getPrintifyApiKey(): string {
+async function getPrintifyApiKey(): Promise<string> {
   if (isSandboxRuntime()) return '';
-  return process.env.PRINTIFY_API_KEY || '';
+  return (await readFlubaProviderKey('PRINTIFY_API_TOKEN')) || '';
 }
 
 // Get Printify Shop ID - fallback for Cloud Functions environment
@@ -46,15 +47,17 @@ interface CreatePrintifyOrderRequest {
 }
 
 class PrintifyClient {
-  private get headers() {
+  private async getHeaders() {
     return {
-      'Authorization': `Bearer ${getPrintifyApiKey()}`,
+      'Authorization': `Bearer ${await getPrintifyApiKey()}`,
       'Content-Type': 'application/json',
     };
   }
 
-  get isConfigured(): boolean {
-    const key = getPrintifyApiKey();
+  get isConfigured(): Promise<boolean> { return this.checkConfigured(); }
+
+  private async checkConfigured(): Promise<boolean> {
+    const key = await getPrintifyApiKey();
     const shopId = getPrintifyShopId();
     return !!key && key.length > 10 && !!shopId;
   }
@@ -64,7 +67,7 @@ class PrintifyClient {
     const url = `${PRINTIFY_API_BASE}${endpoint}`;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const options: RequestInit = { method, headers: this.headers, signal: controller.signal };
+    const options: RequestInit = { method, headers: await this.getHeaders(), signal: controller.signal };
     if (body) options.body = JSON.stringify(body);
     try {
       const response = await fetch(url, options);
@@ -198,7 +201,7 @@ async function submitOrderToPrintify(
   shippingAddress: ShippingAddress
 ): Promise<{ success: boolean; printifyOrderId?: string; error?: string }> {
   try {
-    if (!printifyClient.isConfigured) {
+    if (!(await printifyClient.isConfigured)) {
       return { success: false, error: 'Printify API not configured (missing API key or shop ID)' };
     }
 
@@ -305,7 +308,7 @@ async function checkPrintifyOrderStatus(printifyOrderId: string): Promise<{
   carrier?: string;
 } | null> {
   try {
-    if (!printifyClient.isConfigured) {
+    if (!(await printifyClient.isConfigured)) {
       return null;
     }
 

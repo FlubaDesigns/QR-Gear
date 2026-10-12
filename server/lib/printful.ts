@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../fluba-provider-keys';
 /**
  * Printful API Client
  * Used specifically for mockup generation since Printify cannot render mockups for unpublished products.
@@ -69,17 +70,17 @@ interface PrintfulPlacement {
 }
 
 class PrintfulClient {
-  private getApiKey(): string {
-    return (process.env.PRINTFUL_API_KEY || '').trim();
+  private async getApiKey(): Promise<string> {
+    return ((await readFlubaProviderKey('PRINTFUL_API_KEY')) || '').trim();
   }
 
   private getStoreId(): string {
     return (process.env.PRINTFUL_STORE_ID || '').trim();
   }
 
-  private get headers() {
+  private async getHeaders() {
     const headers: Record<string, string> = {
-      'Authorization': `Bearer ${this.getApiKey()}`,
+      'Authorization': `Bearer ${await this.getApiKey()}`,
       'Content-Type': 'application/json',
     };
     
@@ -92,8 +93,9 @@ class PrintfulClient {
     return headers;
   }
 
-  get isConfigured(): boolean {
-    const key = this.getApiKey();
+  get isConfigured(): Promise<boolean> { return this.checkConfigured(); }
+  private async checkConfigured(): Promise<boolean> {
+    const key = await this.getApiKey();
     return !!key && key.length > 10;
   }
 
@@ -102,7 +104,7 @@ class PrintfulClient {
     
     const options: RequestInit = {
       method,
-      headers: this.headers,
+      headers: await this.getHeaders(),
     };
 
     if (body) {
@@ -216,7 +218,7 @@ class PrintfulClient {
     placement: string = 'front',
     format: 'jpg' | 'png' = 'jpg'
   ): Promise<PrintfulMockupResult[]> {
-    if (!this.isConfigured) {
+    if (!(await this.isConfigured)) {
       throw new Error('Printful API key not configured');
     }
 
@@ -578,7 +580,7 @@ export async function syncPrintfulCatalog(options?: { productIds?: number[] }): 
     errors: [] as string[],
   };
 
-  if (!printfulClient.isConfigured) {
+  if (!(await printfulClient.isConfigured)) {
     result.errors.push('Printful API key not configured');
     return result;
   }

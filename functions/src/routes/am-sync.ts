@@ -461,29 +461,8 @@ app.get('/admin/api-keys', requireAdmin, async (_req: Request, res: Response): P
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/admin/api-keys', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { provider, apiKey } = req.body;
-    if (!provider || !apiKey) { res.status(400).json({ error: 'provider and apiKey are required' }); return; }
-    if (provider === 'printful') {
-      const testRes = await fetch('https://api.printful.com/stores', {
-        headers: { 'Authorization': `Bearer ${apiKey}` },
-      });
-      if (!testRes.ok) {
-        const errText = await testRes.text();
-        res.status(400).json({ error: `Printful API key validation failed (${testRes.status}): ${errText}` }); return;
-      }
-      await db.collection('system_config').doc('api_keys').set({
-        printfulApiKey: apiKey,
-        printfulUpdatedAt: new Date().toISOString(),
-      }, { merge: true });
-      updatePrintfulKeyCache(apiKey);
-      console.log('[Admin] Printful API key updated via dashboard');
-      res.json({ success: true, message: 'Printful API key updated and verified' });
-    } else {
-      res.status(400).json({ error: `Unsupported provider: ${provider}` });
-    }
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+app.post('/admin/api-keys', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
+  res.status(409).json({error:'Manage provider keys in Fluba Cortex.',url:'https://flubadesigns.com/admin/cortex'});
 });
 
 app.post('/admin/api-keys/test', requireAdmin, async (req: Request, res: Response): Promise<void> => {

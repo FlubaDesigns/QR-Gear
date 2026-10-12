@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../fluba-provider-keys';
 const PRINTIFY_API_BASE = 'https://api.printify.com/v1';
 const PLACEHOLDER_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/280px-PNG_transparency_demonstration_1.png';
 
@@ -12,17 +13,17 @@ export interface PrintifyCostData {
   printProviderId: number;
 }
 
-function getApiKey(): string {
-  return (process.env.PRINTIFY_API_KEY || '').trim().replace(/\s+/g, '');
+async function getApiKey(): Promise<string> {
+  return ((await readFlubaProviderKey('PRINTIFY_API_TOKEN')) || '').trim().replace(/\s+/g, '');
 }
 
 function getShopId(): string {
   return (process.env.PRINTIFY_SHOP_ID || '').trim().replace(/\s+/g, '');
 }
 
-function headers(): Record<string, string> {
+async function headers(): Promise<Record<string, string>> {
   return {
-    'Authorization': `Bearer ${getApiKey()}`,
+    'Authorization': `Bearer ${await getApiKey()}`,
     'Content-Type': 'application/json',
   };
 }
@@ -31,7 +32,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const url = endpoint.startsWith('http') ? endpoint : `${PRINTIFY_API_BASE}${endpoint}`;
   const response = await fetch(url, {
     ...options,
-    headers: { ...headers(), ...(options.headers as Record<string, string> || {}) },
+    headers: { ...await headers(), ...(options.headers as Record<string, string> || {}) },
   });
   if (!response.ok) {
     const errorText = await response.text();
@@ -63,7 +64,7 @@ function extractSizeFromTitle(title: string): string | null {
 }
 
 export async function lookupPrintifyCosts(blueprintId: number, printProviderId: number): Promise<PrintifyCostData> {
-  const apiKey = getApiKey();
+  const apiKey = await getApiKey();
   const shopId = getShopId();
   if (!apiKey || !shopId) {
     throw new Error('[PrintifyCostLookup] Missing PRINTIFY_API_KEY or PRINTIFY_SHOP_ID');

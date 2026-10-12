@@ -131,7 +131,7 @@ export function registerAdminCatalogImportRoutes(app: Express): void {
       
       if (provider === 'printful') {
         const { syncPrintfulCatalog, printfulClient } = await import("../lib/printful");
-        if (!printfulClient.isConfigured) {
+        if (!(await printfulClient.isConfigured)) {
           return res.status(503).json({ error: "Printful API key not configured" });
         }
         res.json({ status: 'started', message: 'Printful smart sync started in background' });

@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
@@ -254,7 +255,7 @@ app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Respo
     const unitPrice = pricingSnapshot.displaySalePrice;
     const qty = quantity || 1;
 
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: 'Payment not configured' }); return; }
     const stripe = new Stripe(stripeKey);
 

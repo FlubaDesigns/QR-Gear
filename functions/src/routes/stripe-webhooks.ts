@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
   import express from 'express';
   import { db } from '../core';
@@ -18,7 +19,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       return;
     }
     
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    const stripeSecretKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeSecretKey) {
       res.status(500).json({ error: 'Stripe not configured' });
       return;

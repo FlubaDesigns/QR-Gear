@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { catalogProductOptions } from '../services/catalog-sale-variants';
 import { resolveColorHex } from '../../../shared/colorUtils';
 import {validateCoupon} from '../services/coupons';
@@ -32,7 +33,7 @@ app.post('/checkout/quote', requireAuth, async (req: Request, res: Response) => 
 for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' : '/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
   let orderId: string | undefined;
   try {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: 'Stripe not configured' }); return; }
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
@@ -59,7 +60,7 @@ for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' :
 
 app.get('/checkout/session-status', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) {
       res.status(500).json({ error: 'Stripe not configured' });
       return;
@@ -88,7 +89,7 @@ app.get('/checkout/session-status', requireAuth, async (req: Request, res: Respo
 
 app.get('/checkout/verify/:sessionId', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) {
       res.status(500).json({ error: 'Stripe not configured' });
       return;

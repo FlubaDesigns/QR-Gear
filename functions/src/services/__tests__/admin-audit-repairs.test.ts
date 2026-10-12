@@ -1,3 +1,5 @@
+vi.mock('../fluba-provider-keys',()=>({readFlubaProviderKey:vi.fn(async()=> '')}));
+import { readFlubaProviderKey } from '../fluba-provider-keys';
 import {expect,it,vi} from 'vitest';
 import {database} from './composition-fixture';
 import {QrAnalyticsService} from '../qr-analytics';
@@ -23,9 +25,12 @@ it('reports absent credentials and unmeasured health without invented success',a
 });
 it('records real check results and invalidates stale credential results',async()=>{
  const {db,store}=database({'system_config/api_keys':{printfulApiKey:'private-test-value'}});const request=vi.fn().mockResolvedValue({ok:true,json:async()=>({result:[{}]})});
+ vi.mocked(readFlubaProviderKey).mockResolvedValue('central-first-test-fixture');
  const service=new HealthMonitorService(db,{},request);await service.checkProvider('printful');
  expect((await service.getKeyStatus()).printful.status).toBe('valid');expect(JSON.stringify(await service.getOverview())).not.toContain('private-test-value');
- store.set('system_config/api_keys',{printfulApiKey:'replacement-value'});expect((await service.getKeyStatus()).printful.status).toBe('not_checked');
+ store.set('system_config/api_keys',{printfulApiKey:'revoked-value'});
+ expect((await service.getKeyStatus()).printful.status).toBe('valid');
+ vi.mocked(readFlubaProviderKey).mockResolvedValue('central-replacement-test-fixture');expect((await service.getKeyStatus()).printful.status).toBe('not_checked');
  request.mockResolvedValue({ok:false,status:401});expect(await service.checkProvider('printful')).toMatchObject({status:'down',isHealthy:false});
 });
 it('migrates existing AI rules once and saves with conflict protection',async()=>{

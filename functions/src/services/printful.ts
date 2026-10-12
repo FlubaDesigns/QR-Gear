@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from './fluba-provider-keys';
 import { isSandboxRuntime, requireLiveCommerce } from '../runtime-config';
 import { db } from '../core';
 
@@ -5,48 +6,18 @@ import { db } from '../core';
 
 const PRINTFUL_API_BASE = 'https://api.printful.com';
 
-let _cachedPrintfulKey: string | null = null;
 let _cachedPrintfulStoreId: string | null = null;
-let _printfulKeyLastFetch = 0;
 const PRINTFUL_KEY_CACHE_TTL = 60000;
-
-async function getPrintfulApiKeyFromFirestore(mockupOnly = false): Promise<string | null> {
-  if (!mockupOnly) requireLiveCommerce('Printful requests');
-  const now = Date.now();
-  if (_cachedPrintfulKey && (now - _printfulKeyLastFetch) < PRINTFUL_KEY_CACHE_TTL) {
-    return _cachedPrintfulKey;
-  }
-  try {
-    const doc = await db.collection('system_config').doc('api_keys').get();
-    if (doc.exists) {
-      const data = doc.data()!;
-      if (data.printfulApiKey && data.printfulApiKey.length > 10) {
-        _cachedPrintfulKey = data.printfulApiKey;
-        _cachedPrintfulStoreId = data.printfulStoreId ? String(data.printfulStoreId) : null;
-        _printfulKeyLastFetch = now;
-        return _cachedPrintfulKey;
-      }
-    }
-  } catch (e) {}
-  return null;
-}
-
-function getPrintfulApiKey(): string {
-  requireLiveCommerce('Printful requests');
-  if (_cachedPrintfulKey) return _cachedPrintfulKey;
-  const key = process.env.PRINTFUL_API_KEY;
-  if (!key) throw Object.assign(new Error('PRINTFUL_API_KEY not configured'), {status:503});
-  return key;
-}
-
 async function getPrintfulApiKeyAsync(mockupOnly = false): Promise<string> {
   if (!mockupOnly) requireLiveCommerce('Printful requests');
-  const firestoreKey = await getPrintfulApiKeyFromFirestore(mockupOnly);
-  if (firestoreKey) return firestoreKey;
-  const key = process.env.PRINTFUL_API_KEY;
-  if (!key) throw Object.assign(new Error('PRINTFUL_API_KEY not configured'), {status:503});
+  const key = await readFlubaProviderKey('PRINTFUL_API_KEY');
+  if (!key) throw Object.assign(new Error('Printful is not configured in Fluba'), {status:503});
+  const doc = await db.collection('system_config').doc('api_keys').get();
+  _cachedPrintfulStoreId = doc.data()?.printfulStoreId ? String(doc.data()!.printfulStoreId) : null;
   return key;
 }
+const getPrintfulApiKey = getPrintfulApiKeyAsync;
+const getPrintfulApiKeyFromFirestore = getPrintfulApiKeyAsync;
 
 // Get Printful Store ID - fallback for Cloud Functions environment
 function getPrintfulStoreId(): string {
@@ -94,13 +65,11 @@ class PrintfulClient {
     };
   }
 
-  get isConfigured(): boolean {
+  get isConfigured(): Promise<boolean> { return this.checkConfigured(); }
+
+  private async checkConfigured(): Promise<boolean> {
     if (isSandboxRuntime()) return false;
-    try {
-      if (_cachedPrintfulKey) return true;
-      const key = process.env.PRINTFUL_API_KEY;
-      return !!key && key.length > 10;
-    } catch { return false; }
+    return !!(await readFlubaProviderKey('PRINTFUL_API_KEY'));
   }
 
   private async request<T>(method: string, endpoint: string, body?: any): Promise<T> {
@@ -217,9 +186,8 @@ class PrintfulClient {
 const printfulClient = new PrintfulClient();
 
 
-export function updatePrintfulKeyCache(apiKey: string): void {
-  _cachedPrintfulKey = apiKey;
-  _printfulKeyLastFetch = Date.now();
+export function updatePrintfulKeyCache(_apiKey: string): never {
+  throw Object.assign(new Error('Manage provider keys in Fluba Cortex.'), {status:409});
 }
 
 export { printfulClient, PrintfulClient, getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulApiKeyFromFirestore, getPrintfulStoreId, PRINTFUL_API_BASE, PRINTFUL_KEY_CACHE_TTL };

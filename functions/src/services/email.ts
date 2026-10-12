@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from './fluba-provider-keys';
 import { requireLiveCommerce } from '../runtime-config';
 import { Resend } from 'resend';
 import type { Firestore } from 'firebase-admin/firestore';
@@ -5,13 +6,13 @@ import { createHash, randomUUID } from 'crypto';
 
   // ============ EMAIL SERVICE (QR Gear - Separate from KC) ============
 
-function getResendApiKey(): string {
-  return process.env.QR_RESEND_API_KEY || '';
+async function getResendApiKey(): Promise<string> {
+  return (await readFlubaProviderKey('RESEND_API_KEY')) || '';
 }
 
-function getResendClient(): Resend | null {
+async function getResendClient(): Promise<Resend | null> {
   requireLiveCommerce('Outbound email');
-  const apiKey = getResendApiKey();
+  const apiKey = await getResendApiKey();
   if (!apiKey || apiKey.length < 10) {
     return null;
   }
@@ -60,7 +61,7 @@ interface ActivationEmailData {
 
 async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> {
   const { customerEmail, customerName, activationCode, productName, previewImageUrl, orderId } = data;
-  const client = getResendClient();
+  const client = await getResendClient();
   if (!client) {
     console.warn('[Email] Resend client not configured — skipping activation email');
     return false;
@@ -169,7 +170,7 @@ async function sendOrderEmail(
     const html = template?.htmlContent
       ? render(template.htmlContent, true)
       : `<div style="font-family:Arial,sans-serif;max-width:600px;margin:auto"><h1>QR Gear</h1><div style="white-space:pre-wrap">${escapeEmailHtml(text)}</div></div>`;
-    const client = getResendClient();
+    const client = await getResendClient();
     if (!client) throw new Error('Resend is not configured');
     const idempotencyKey = options.resend ? `manual-${randomUUID()}` : createHash('sha256').update(`${trigger}:${orderId}:${eventKey}`).digest('hex');
     const { data, error } = await client.emails.send({ from: QR_GEAR_FROM_EMAIL, to: recipientEmail, subject, html, text }, { idempotencyKey });

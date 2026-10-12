@@ -447,7 +447,7 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
     try {
       const { syncPrintfulCatalog, printfulClient } = await import("../lib/printful");
       
-      if (!printfulClient.isConfigured) {
+      if (!(await printfulClient.isConfigured)) {
         return res.status(503).json({ error: "Printful API key not configured" });
       }
 
@@ -479,7 +479,7 @@ export function registerAdminCatalogSyncRoutes(app: Express): void {
       const productCountNum = await fsCount('printful_products');
       const variantCountNum = await fsCount('printful_variants');
       
-      const isConfigured = printfulClient.isConfigured;
+      const isConfigured = (await printfulClient.isConfigured);
       console.log('[Printful Status] isConfigured:', isConfigured);
       
       res.json({

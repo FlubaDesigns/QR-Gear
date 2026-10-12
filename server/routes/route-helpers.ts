@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../fluba-provider-keys';
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import Stripe from "stripe";
@@ -51,7 +52,7 @@ export interface ProviderHealthResult {
 export async function checkProviderHealth(): Promise<ProviderHealthResult> {
   const providers: { name: string; status: ProviderStatus; configured: boolean }[] = [];
   
-  const printifyKey = process.env.PRINTIFY_API_KEY;
+  const printifyKey = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
   if (printifyKey) {
     try {
       const response = await fetch("https://api.printify.com/v1/shops.json", {
@@ -68,7 +69,7 @@ export async function checkProviderHealth(): Promise<ProviderHealthResult> {
     }
   }
 
-  const printfulKey = process.env.PRINTFUL_API_KEY;
+  const printfulKey = (await readFlubaProviderKey('PRINTFUL_API_KEY'));
   if (printfulKey) {
     try {
       const response = await fetch("https://api.printful.com/stores", {
@@ -85,7 +86,7 @@ export async function checkProviderHealth(): Promise<ProviderHealthResult> {
     }
   }
 
-  const apliiqKey = process.env.APLIIQ_API_KEY;
+  const apliiqKey = (await readFlubaProviderKey('APLIIQ_API_KEY'));
   if (apliiqKey) {
     providers.push({ name: "Apliiq", status: "healthy", configured: true });
   }
@@ -95,7 +96,7 @@ export async function checkProviderHealth(): Promise<ProviderHealthResult> {
   }
 
   let stripeStatus: ProviderStatus = "not_configured";
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
   if (stripeKey) {
     try {
       const stripe = new Stripe(stripeKey);

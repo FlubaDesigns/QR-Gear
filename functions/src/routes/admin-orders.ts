@@ -1,3 +1,4 @@
+import {readFlubaProviderKey} from '../services/fluba-provider-keys';
 import { fulfillOrder, syncFulfillment } from '../services/order-fulfillment';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -520,7 +521,7 @@ app.post('/admin/orders-unified/:id/sync-printify', requireAdmin, async (req: Re
     if (!doc.exists) { res.status(404).json({ error: "Order not found" }); return; }
     const order = doc.data() as any;
     if (!order.providerOrderId || order.routedProvider !== 'printify') { res.status(400).json({ error: "Not a Printify order" }); return; }
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     const SHOP_ID = process.env.PRINTIFY_SHOP_ID;
     if (!PRINTIFY_API || !SHOP_ID) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch(`https://api.printify.com/v1/shops/${SHOP_ID}/orders/${order.providerOrderId}.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
@@ -590,7 +591,7 @@ app.post('/admin/catalog/fetch-costs', requireAdmin, async (req: Request, res: R
   try {
     const { blueprintId, providerId } = req.body;
     if (!blueprintId || !providerId) { res.status(400).json({ error: "blueprintId and providerId required" }); return; }
-    const PRINTIFY_API = process.env.PRINTIFY_API_TOKEN;
+    const PRINTIFY_API = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
     if (!PRINTIFY_API) { res.status(500).json({ error: "Printify not configured" }); return; }
     const resp = await fetch(`https://api.printify.com/v1/catalog/blueprints/${blueprintId}/print_providers/${providerId}/variants.json`, { headers: { 'Authorization': `Bearer ${PRINTIFY_API}` } });
     if (!resp.ok) { res.status(resp.status).json({ error: "Printify API error" }); return; }

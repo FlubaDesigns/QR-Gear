@@ -54,7 +54,7 @@ app.get('/public/catalog/placements', async (req: Request, res: Response): Promi
         console.warn('[Placements] master_catalog check failed, falling back to live Printify API:', mcErr.message);
       }
 
-      if (!printifyClient.isConfigured) { res.status(503).json({ error: "Printify API not configured" }); return; }
+      if (!(await printifyClient.isConfigured)) { res.status(503).json({ error: "Printify API not configured" }); return; }
       try {
         const variantData = await printifyClient.getVariants(blueprintId, printProviderId);
         const placementSet = new Set<string>();
@@ -344,7 +344,7 @@ app.get('/admin/printify/catalog', requireAdmin, async (req: Request, res: Respo
 
 app.get('/admin/printify/catalog/:blueprintId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!printifyClient.isConfigured) { res.status(503).json({ error: "Printify API not configured" }); return; }
+    if (!(await printifyClient.isConfigured)) { res.status(503).json({ error: "Printify API not configured" }); return; }
     const blueprintId = parseInt(req.params.blueprintId);
     const [blueprint, providers] = await Promise.all([
       printifyClient.getBlueprintDetails(blueprintId),
@@ -359,7 +359,7 @@ app.get('/admin/printify/catalog/:blueprintId', requireAdmin, async (req: Reques
 
 app.post('/admin/printify/catalog/batch-details', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    if (!printifyClient.isConfigured) { res.status(503).json({ error: "Printify API not configured" }); return; }
+    if (!(await printifyClient.isConfigured)) { res.status(503).json({ error: "Printify API not configured" }); return; }
     const { blueprintIds } = req.body;
     if (!Array.isArray(blueprintIds) || blueprintIds.length === 0) { res.status(400).json({ error: "blueprintIds array required" }); return; }
     const limitedIds = blueprintIds.slice(0, 20);
@@ -433,7 +433,7 @@ app.get('/admin/catalog/printful-status', requireAdmin, async (_req: Request, re
     const productsSnapshot = await db.collection("printful_products").get();
     const variantsSnapshot = await db.collection("printful_variants").get();
     res.json({
-      isConfigured: printfulClient.isConfigured,
+      isConfigured: (await printfulClient.isConfigured),
       productCount: productsSnapshot.size,
       variantCount: variantsSnapshot.size,
     });

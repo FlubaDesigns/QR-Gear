@@ -245,7 +245,7 @@ app.post('/members/:memberId/social-schedule/send-reminders', async (req: Reques
       }
     }
     if (dueItems.length === 0) { res.json({ success: true, sent: false, message: 'No items due for posting' }); return; }
-    const resend = getResendClient();
+    const resend = await getResendClient();
     if (!resend) { res.status(500).json({ error: 'Email service not configured' }); return; }
     const platformLabels: Record<string, string> = { instagram: 'Instagram', tiktok: 'TikTok', x: 'X (Twitter)', facebook: 'Facebook', youtube: 'YouTube', linkedin: 'LinkedIn' };
     const itemsHtml = dueItems.map(item => `

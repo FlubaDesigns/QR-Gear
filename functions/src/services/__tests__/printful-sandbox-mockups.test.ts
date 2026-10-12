@@ -1,3 +1,4 @@
+vi.mock('../fluba-provider-keys',()=>({readFlubaProviderKey:vi.fn(async(name:string)=> name==='RESEND_API_KEY' ? (process.env.QR_RESEND_API_KEY||'') : name==='PRINTFUL_API_KEY' ? 'central-printful-test-fixture' : process.env[name]||'')}));
 import { afterEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../core', () => ({ db: { collection: () => ({ doc: () => ({ get: async () => ({ exists: true, data: () => ({ printfulApiKey: 'test-only-not-a-real-credential' }) }) }) }) } }));
 import { PrintfulClient, getPrintfulApiKeyAsync } from '../printful';

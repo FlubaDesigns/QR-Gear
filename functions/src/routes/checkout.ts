@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { memberBuildProjection } from '../services/member-build';
 import { Request, Response } from 'express';
   import express from 'express';
@@ -32,7 +33,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     const prepared = await prepareMemberOrder(packetId, packet, size, referrerId);
     const serverTotal = prepared.amount / 100;
 
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
 
@@ -119,7 +120,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
 app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
 

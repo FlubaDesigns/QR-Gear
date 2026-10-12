@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { randomBytes, createHash } from 'crypto';
 import { prepareOwnerBuild, ownedMemberBuild, saveMemberArtwork, previewMemberBuild, commitOwnerBuild } from '../services/member-build';
 import { prepareOwnerOrder, finalizeMemberPayment } from '../services/order-service';
@@ -74,7 +75,7 @@ app.post('/buyer/instances/:instanceId/renew', async (req: Request, res: Respons
     const doc = await db.collection('buyer_instances').doc(instanceId).get();
     if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
     const instance = doc.data() as any;
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
@@ -87,7 +88,7 @@ app.post('/buyer/instances/:instanceId/verify-renewal', async (req: Request, res
   try {
     const { instanceId } = req.params;
     const { sessionId } = req.body;
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const session = await stripe.checkout.sessions.retrieve(sessionId);
@@ -378,7 +379,7 @@ app.post('/public/checkout', async (req: Request, res: Response) => {
   try {
     const ownerId = ownerKey(req), packetId = req.body.packetId;
     await ownedMemberBuild(ownerId, packetId, 'owner');
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
+    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
     const packet = await commitOwnerBuild(ownerId, packetId);
     const prepared = await prepareOwnerOrder(packetId, packet, ownerId);
@@ -398,7 +399,7 @@ app.post('/public/checkout', async (req: Request, res: Response) => {
 });
 app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response) => {
   try {
-    const key = process.env.STRIPE_SECRET_KEY;
+    const key = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!key) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
     const session = await new Stripe(key, { apiVersion: '2023-10-16' as any }).checkout.sessions.retrieve(req.params.sessionId);
     if (session.metadata?.source !== 'public_wizard' || !session.metadata.orderId) throw new Error('This session has no canonical owner order. Contact support to reconcile a legacy purchase.');

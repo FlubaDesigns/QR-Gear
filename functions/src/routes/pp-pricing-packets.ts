@@ -1,3 +1,4 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { priceNewPacket } from '../services/pricing';
 import { syncCatalogMarkup } from '../services/catalog-instance-update';
 import { pricingSettingsSchema } from '../../../shared/schema-orders';
@@ -27,9 +28,9 @@ import { printfulClient } from '../services/printful';
 app.get('/admin/fulfillment-providers', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const config = (await db.collection('system_config').doc('api_keys').get()).data() || {};
-    const printifyKey = process.env.PRINTIFY_API_KEY;
-    const printfulKey = config.printfulApiKey || process.env.PRINTFUL_API_KEY;
-    const apliiqKey = process.env.APLIIQ_API_KEY;
+    const printifyKey = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
+    const printfulKey = await readFlubaProviderKey('PRINTFUL_API_KEY');
+    const apliiqKey = (await readFlubaProviderKey('APLIIQ_API_KEY'));
     const providers = [
       { id: "printify", name: "Printify", configured: !!printifyKey && printifyKey.length > 10 && !!process.env.PRINTIFY_SHOP_ID, role: "fulfillment", description: "Print-on-demand fulfillment via Printify network" },
       { id: "printful", name: "Printful", configured: !!printfulKey && printfulKey.length > 10, role: "fulfillment", description: "Print-on-demand fulfillment via Printful" },
