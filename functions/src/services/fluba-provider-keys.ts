@@ -2,7 +2,7 @@ import { applicationDefault } from 'firebase-admin/app';
 
 // Server-only reads from the owner's one authoritative provider vault.
 export const FLUBA_PROVIDER_PROJECT = 'flubadesigns-25482';
-export const PROVIDER_SECRET_NAMES = ['OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','XAI_API_KEY','DEEPSEEK_API_KEY','PRINTFUL_API_KEY','PRINTIFY_API_TOKEN','SQUARE_ACCESS_TOKEN','RESEND_API_KEY','STRIPE_SECRET_KEY','APLIIQ_API_KEY'] as const;
+export const PROVIDER_SECRET_NAMES = ['OPENAI_API_KEY','ANTHROPIC_API_KEY','GEMINI_API_KEY','XAI_API_KEY','DEEPSEEK_API_KEY','PRINTFUL_API_KEY','PRINTIFY_API_TOKEN','SQUARE_ACCESS_TOKEN','RESEND_API_KEY','STRIPE_SECRET_KEY'] as const;
 export type ProviderSecretName = typeof PROVIDER_SECRET_NAMES[number];
 type Entry = { value: string; version: string; expires: number };
 export function createFlubaProviderReader(token: () => Promise<string>, request: typeof fetch = fetch, now: () => number = Date.now) {

@@ -17,7 +17,6 @@ interface VariantInfo {
 const CHANNEL_CODES: Record<ChannelType, string> = {
   printify: "PY",
   printful: "PF",
-  apliiq: "AQ",
   etsy: "ET",
   ebay: "EB",
   amazon: "AZ",
