@@ -1013,3 +1013,7 @@ The admin setup check verifies the saved key, active status and catalog projecti
 Validation: 29 focused backend checks cover credential isolation, rotation, inactive/origin rejection, shared persistence, public redaction, canonical product projection and existing store/channel behavior. TypeScript and frontend/Functions production builds are release gates. Live partner connection and signed-in Admin acceptance are distinct checks, not established by these fixtures.
 
 Files changed: `client/src/pages/admin-partners.tsx`; `functions/src/services/partner-api.ts`; `functions/src/services/__tests__/partner-api.test.ts`; `functions/src/routes/{admin-stores,am-sync,partner,public,core-routes}.ts`; `functions/src/index.ts`; Functions package/version lock; both READMEs; `MANIFEST.json`; source ZIP. Deployment uses the established Authorization Engine release workflow.
+
+## Retired Apliiq integration — October 12, 2026
+
+Apliiq has been removed from provider choices, adapter registration, provider health, and credential lookup. Printify and Printful remain the supported fulfillment providers. The admin provider endpoint reads the Fluba keys directly and no longer reads the obsolete site-local key document. Existing catalog/order records are preserved. Focused tests exercise the authenticated provider list and rejected retired-key reads. Deployment and live acceptance use the existing Authorization Engine.
