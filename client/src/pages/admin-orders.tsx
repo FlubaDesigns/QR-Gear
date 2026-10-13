@@ -88,7 +88,6 @@ const CHANNEL_CONFIG: Record<string, { label: string; color: string }> = {
 const PROVIDER_CONFIG: Record<string, { label: string; color: string }> = {
   printify: { label: "Printify", color: "bg-green-500/10 text-green-600" },
   printful: { label: "Printful", color: "bg-blue-500/10 text-blue-600" },
-  apliiq: { label: "Apliiq", color: "bg-purple-500/10 text-purple-600" },
 };
 
 const orderTabs: AdminTab[] = [

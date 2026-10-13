@@ -24,7 +24,7 @@ Required env vars: `FIREBASE_SERVICE_ACCOUNT_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_
 - **Auth:** Firebase Auth + Replit Auth (`isAdmin` middleware)
 - **Payments:** Stripe
 - **Email:** Resend
-- **Print providers:** Printify, Printful, Apliiq
+- **Print providers:** Printify, Printful
 
 ## Where things live
 
@@ -78,7 +78,7 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 - Product graphic builder with QR code placement and sizing
 - Blank catalog curation (admin-blanks page) with catalog assignment, tier/title/description overlays
 - Store builder to configure storefronts and assign products
-- Order management, pricing, fulfillment routing (Printify/Printful/Apliiq)
+- Order management, pricing, fulfillment routing (Printify/Printful)
 - Transactional emails via the existing Resend service
 
 ## User preferences

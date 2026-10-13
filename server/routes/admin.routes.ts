@@ -17,7 +17,7 @@ export function registerAdminRoutes(app: Express): void {
     try {
       const printifyKey = (await readFlubaProviderKey('PRINTIFY_API_TOKEN'));
       const printfulKey = (await readFlubaProviderKey('PRINTFUL_API_KEY'));
-      const apliiqKey = (await readFlubaProviderKey('APLIIQ_API_KEY'));
+
       
       const providers = [
         { 
@@ -33,13 +33,6 @@ export function registerAdminRoutes(app: Express): void {
           configured: !!printfulKey && printfulKey.length > 10,
           role: "fulfillment",
           description: "Print-on-demand fulfillment via Printful"
-        },
-        { 
-          id: "apliiq", 
-          name: "Apliiq", 
-          configured: !!apliiqKey && apliiqKey.length > 10,
-          role: "fulfillment",
-          description: "Custom apparel via Apliiq"
         },
       ];
       

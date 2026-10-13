@@ -26,5 +26,6 @@ it('does not turn a missing shared key into a local fallback or allow arbitrary 
  vi.stubEnv('OPENAI_API_KEY','revoked-local-placeholder');
  expect(await reader.read('OPENAI_API_KEY')).toBe('');
  await expect(reader.read('DATABASE_PASSWORD' as any)).rejects.toThrow('Unsupported');
+ await expect(reader.read('APLIIQ_API_KEY' as any)).rejects.toThrow('Unsupported');
  expect(request).toHaveBeenCalledTimes(1);
 });

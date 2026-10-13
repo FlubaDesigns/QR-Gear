@@ -69,7 +69,7 @@ export interface WebhookPayload {
 }
 
 export abstract class BasePrintProviderAdapter {
-  abstract readonly providerType: "printify" | "printful" | "apliiq";
+  abstract readonly providerType: "printify" | "printful";
   abstract readonly displayName: string;
 
   abstract publishProduct(input: PublishProductInput): Promise<PublishProductResult>;
@@ -112,6 +112,6 @@ export abstract class BaseMarketplaceAdapter {
   abstract parseWebhook(payload: unknown): WebhookPayload | null;
 }
 
-export type PrintProviderType = "printify" | "printful" | "apliiq";
+export type PrintProviderType = "printify" | "printful";
 export type MarketplaceType = "etsy" | "ebay" | "amazon";
 export type ChannelType = PrintProviderType | MarketplaceType;

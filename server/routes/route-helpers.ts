@@ -86,11 +86,6 @@ export async function checkProviderHealth(): Promise<ProviderHealthResult> {
     }
   }
 
-  const apliiqKey = (await readFlubaProviderKey('APLIIQ_API_KEY'));
-  if (apliiqKey) {
-    providers.push({ name: "Apliiq", status: "healthy", configured: true });
-  }
-
   if (providers.length === 0) {
     providers.push({ name: "No POD providers", status: "not_configured", configured: false });
   }

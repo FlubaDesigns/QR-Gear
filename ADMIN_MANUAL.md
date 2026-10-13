@@ -139,7 +139,7 @@ Navigate to `/admin/orchestration` or click "Orchestration" in the admin menu.
 ### Dashboard Overview
 
 The dashboard shows:
-- **Provider Health** - Real-time status of all print providers (Printify, Printful, Apliiq)
+- **Provider Health** - Real-time status of all print providers (Printify, Printful)
 - **Channel Status** - Connection status for each marketplace (Etsy, eBay, Amazon)
 - **Recent Orders** - Unified view of orders from all channels
 - **Publishing Queue** - Products waiting to be published
