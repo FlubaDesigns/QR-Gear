@@ -2,6 +2,8 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 const m = vi.hoisted(() => ({ record: {} as any, set: vi.fn(), sync: vi.fn() }));
+vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: vi.fn(async () => '') }));
+import { readFlubaProviderKey } from '../fluba-provider-keys';
 vi.mock('../../core', () => ({
   db: { collection: (name: string) => { if (name !== 'testSettings') throw Error('Unexpected collection'); return { doc: (id: string) => { if (id !== 'pricing') throw Error('Unexpected document'); return { get: async () => ({ exists: !!m.record, data: () => m.record }), set: m.set }; } }; } },
   admin: { firestore: { FieldValue: { serverTimestamp: () => 'server-time' } } },
@@ -57,4 +59,13 @@ it('protects both Sync aliases and uses the same catalog preview/apply service',
     expect(m.sync.mock.calls[m.sync.mock.calls.length - 1]?.slice(1)).toEqual(['server-time','owner',token]);
   }
   expect(m.sync).toHaveBeenCalledTimes(4);
+});
+
+it('lists only current fulfillment providers without reading retired credentials or local overrides', async () => {
+  expect((await request(app).get('/admin/fulfillment-providers')).status).toBe(401);
+  expect(readFlubaProviderKey).not.toHaveBeenCalled();
+  const result = await request(app).get('/admin/fulfillment-providers').set('Authorization', 'Bearer owner');
+  expect(result.status).toBe(200);
+  expect(result.body.map((provider: any) => provider.id)).toEqual(['printify', 'printful']);
+  expect(vi.mocked(readFlubaProviderKey).mock.calls.map(([name]) => name)).toEqual(['PRINTIFY_API_TOKEN', 'PRINTFUL_API_KEY']);
 });

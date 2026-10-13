@@ -11,7 +11,7 @@
  * - Priority mode: cost, speed, or balanced
  * 
  * Note: This routes between Printify's production facilities (e.g., Monster Digital,
- * SwiftPOD, The Print Bar). Multi-POD-platform routing (Printify vs Printful vs Apliiq)
+ * SwiftPOD, The Print Bar). Multi-POD-platform routing (Printify vs Printful)
  * is handled at the adapter level when those integrations have cost data.
  */
 

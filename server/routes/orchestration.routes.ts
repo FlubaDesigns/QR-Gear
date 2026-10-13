@@ -423,8 +423,8 @@ export async function registerOrchestrationRoutes(app: Express): Promise<void> {
       if (typeof shippingCost !== "number" || !isFinite(shippingCost) || shippingCost < 0) {
         return res.status(400).json({ error: "shippingCost must be a non-negative number" });
       }
-      if (typeof channel !== "string" || !["direct", "etsy", "ebay", "amazon", "printify", "printful", "apliiq"].includes(channel.toLowerCase())) {
-        return res.status(400).json({ error: "channel must be one of: direct, etsy, ebay, amazon, printify, printful, apliiq" });
+      if (typeof channel !== "string" || !["direct", "etsy", "ebay", "amazon", "printify", "printful"].includes(channel.toLowerCase())) {
+        return res.status(400).json({ error: "channel must be one of: direct, etsy, ebay, amazon, printify, printful" });
       }
       
       const breakdown = profitCalculator.calculateOrderProfit(

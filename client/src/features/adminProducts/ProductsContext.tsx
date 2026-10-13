@@ -21,7 +21,6 @@ const ProductsContext = createContext<ProductsContextValue | null>(null);
 const FALLBACK_PROVIDERS: FulfillmentProvider[] = [
   { id: "printful", name: "Printful", configured: false, role: "fulfillment" },
   { id: "printify", name: "Printify", configured: false, role: "fulfillment" },
-  { id: "apliiq", name: "Apliiq", configured: false, role: "fulfillment" },
 ];
 
 const DEFAULT_ROLES: Role[] = STORE_ROLES.map(role => ({ ...role }));

@@ -432,6 +432,11 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### Retired Apliiq integration — October 12, 2026
+
+Apliiq has been removed from provider choices, adapter registration, provider health, and credential lookup. Printify and Printful remain the supported fulfillment providers. The admin provider endpoint reads the Fluba keys directly and no longer reads the obsolete site-local key document. Existing catalog/order records are preserved. Focused tests exercise the authenticated provider list and rejected retired-key reads. Deployment and live acceptance use the existing Authorization Engine.
+
+
 ## Preserve reviewed designs through checkout — October 11, 2026
 
 The public QR Basic/Plus wizard saves its reviewed selection, exact preview and existing guest build capability in tab-scoped session storage before leaving for Stripe. Returning to /build restores the preview with the selected product, color and size, Continue to Checkout, and Edit design. Guided mode does not restart its introduction. Browser history restoration re-enables checkout. Editing a restored design invalidates its prior preview; checkout still requires a matching reviewed packet and the existing server-side price/ownership checks.

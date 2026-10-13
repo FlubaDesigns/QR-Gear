@@ -58,12 +58,6 @@ export async function initializeAdapters(): Promise<void> {
     console.log("[AdapterRegistry] Printful adapter not yet implemented");
   }
 
-  try {
-    const { ApliiqAdapter } = await import("./print-providers/apliiq");
-    adapterRegistry.registerPrintProvider(new ApliiqAdapter());
-  } catch (e) {
-    console.log("[AdapterRegistry] Apliiq adapter not yet implemented");
-  }
 
   try {
     const { EtsyAdapter } = await import("./marketplaces/etsy");

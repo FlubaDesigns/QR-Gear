@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261012-brain-connection';
+const _BUILD_ID = '20261013-retired-apliiq';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

@@ -93,7 +93,6 @@ const PLATFORM_FEES: Record<string, number> = {
   amazon: 0.15,        // ~15% referral fee
   printify: 0,         // Printify doesn't charge marketplace fees
   printful: 0,
-  apliiq: 0,
 };
 
 // Payment processing fee (Stripe)
@@ -212,7 +211,7 @@ class ProfitCalculator {
       let channelType: "direct" | "marketplace" | "print_provider" = "direct";
       if (["etsy", "ebay", "amazon"].includes(channel.toLowerCase())) {
         channelType = "marketplace";
-      } else if (["printify", "printful", "apliiq"].includes(channel.toLowerCase())) {
+      } else if (["printify", "printful"].includes(channel.toLowerCase())) {
         channelType = "print_provider";
       }
 

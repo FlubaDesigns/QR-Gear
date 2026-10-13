@@ -405,7 +405,7 @@ export const miscMethods = {
   },
 
   async getAllLatestProviderHealth(this: any): Promise<ProviderHealthLog[]> {
-    const providerTypes = ['printify', 'printful', 'apliiq'];
+    const providerTypes = ['printify', 'printful'];
     const results: ProviderHealthLog[] = [];
     for (const type of providerTypes) {
       const latest = await this.getLatestProviderHealth(type);

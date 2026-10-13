@@ -213,8 +213,6 @@ export class BulkPublisher {
           return await import("../adapters/print-providers/printify");
         case "printful":
           return await import("../adapters/print-providers/printful");
-        case "apliiq":
-          return await import("../adapters/print-providers/apliiq");
         case "etsy":
           return await import("../adapters/marketplaces/etsy");
         case "ebay":
