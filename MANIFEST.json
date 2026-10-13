@@ -16,7 +16,7 @@
     "SYSTEM_KEYS.md"
   ],
   "files": {
-    "ADMIN_MANUAL.md": "6e5f5478d5efc21badff4c1794f880d6b52527455d80b0fdc40b102f37e44d75",
+    "ADMIN_MANUAL.md": "02729cf7f1d132296ba198cfffa6cc8bf8c0aea51e5b54156223505cad708b14",
     "ARCHITECTURE_IDENTITY.md": "d6345fd84b65c292f641e7c2dbdf0a66f3fc84cd41e4066fc01ff853ef357194",
     "ARCHITECTURE_VIEWER.md": "d6d3d866486530ae389d8e9c75b83c1bf5d265574bc5a5076a41c193ce4227b3",
     "ASSEMBLY.md": "2138cf65205f1eba7d9ec27a5e89c81df25b5486c592a67306f55b79e5eae3d7",
@@ -34,5 +34,6 @@
     "SYSTEM_KEYS.md": "5e8ef1dcd1bdf25f804f3ad788be836da3321cb95fcd50f5d0aafaaa0f36e4b5",
     "design_guidelines.md": "e066eeece9e47e40c8956c1876d32582e0b23507ef5c1167c7a51006cf81e15b"
   },
-  "packageHash": "9ab090a462c94d12ef891daeec1a50964c9bf89247e93f89659d6db65d25eada"
+  "packageHash": "712341c8e331ff4a7794e09404cd62f953a3e5dbc422aac731685aec3cc2f4dc"
 }
+
