@@ -399,174 +399,14 @@ October 7, 2026 navigation update: Partners now has its own main admin tab, alon
 
 A final pass traced Placement, product choices, store/channel setup, collection destinations, saved selections and the Store Products handoff. Closing product choices now uses one editor-owned action: reopening the panel cannot silently discard edits, Close warns only for unsaved changes, and Close is blocked during Save. Move ignores duplicate rapid taps and gives each collection suggestion list its own ID. Saved prices represented as strings no longer crash the shared product card; long titles and paths wrap. Destination validation uses the same active-record policy as collection listing, so archived collection IDs are rejected and reusing a name cannot reattach the deleted definition. The QRG/BLD/GRF/Assembly authority files are unchanged.
 
-Validation: 185 client tests, 250 backend tests, TypeScript and both builds passed. Seven new regression cases cover close/save behavior, duplicate moves, old prices and deleted collections. Tests use fixtures; mobile sizing was source-checked, not rendered in a phone browser. Sandbox source only; no Main or hosting deployment.
+Validation: 185 client tests, 250 backend tests, TypeScript and both builds passed. Seven new regression cases cover close/save behavior, duplicate moves, old prices and delete…64931 tokens truncated…overage, invalid dimensions, or differing physical templates with no shared placement fail visibly rather than stretching one file across incompatible sizes. This deliberately leaves incompatible size groups unresolved rather than falsely labeling them supported. The sandbox permits only the additional read-only print-file metadata endpoint; orders, product catalog calls and commerce remain disabled.
 
+Verification: focused sizing/import cases cover a 10 × 13.33 inch composition inside 12 × 16 inches, 150-DPI metadata, safe-area limits, missing variants and incompatible size templates. Existing mockup handoff and sandbox boundaries are checked separately. Live deployment and physical sample scanning must be reported independently.
 
-## Placement consolidation — sandbox, October 7, 2026
 
-Place no longer has a separate Store Products tab. Finished products are managed in Store Builder → Placement through the existing catalog-instance query, cards and writers. Search, manual Refresh, all-channel browsing and Printify publication status/retry now live there. The retired `/admin/store-library` route redirects with the original store/channel parameters; old channel names resolve to canonical IDs, failed destinations show errors, and delayed lookups cannot override manual selections. Duplicate screen components were removed. Store Builder → Products still controls member blank choices; Build → Library remains graphics/templates/assets.
+### QR Play product phone preview — October 8, 2026
 
-Validation: 186 client tests, TypeScript and production build passed. Shared schemas, provider tables and QRG/BLD/GRF/Assembly authority files are unchanged. No live mutations or device-browser verification. Saved on `sandbox/products-fulfillment`, not Main or live hosting.
-
-
-## Partner member integration foundation — sandbox, October 7, 2026
-
-The dedicated [Partner Member Storefronts and Builders](FIREBASE_SCHEMA.md#partner-member-storefronts-and-builders--planned) section records the owner's planned partner-site → individual-member → mini storefront/builder relationship. Both partner and authenticated member identity are required context; existing store, builder, product and asset references remain the source of truth. This is documentation, not runtime provisioning or a migration. Website integration and the expanded member experience belong to the second push; the current tab review is limited to schema consistency and wiring defects. No navigation redesign or external-site implementation is included.
-
-
-## Dashboard To-Do List — sandbox, October 7, 2026
-
-The current `/admin` Run dashboard now has a full-width, 72px-minimum To-Do List button above the metrics. It expands the existing authenticated Priority Queue, previously stranded on the unused older dashboard page. `AdminPriorityQueue.tsx` is the shared renderer; the older page imports it rather than retaining a duplicate implementation. Task cards and Refresh have large tap targets. Read failures and malformed responses show an explicit error with Retry, and opening the list uses the existing query cache without scheduled polling.
-
-The existing queue includes the owner's **Connect to surfaces** reminder, linked to Marketplaces. It is a persistent code-backed reminder, not a newly introduced task collection or completion editor. No marketplace account was connected or listing published by adding it. QRG/BLD/GRF/Assembly schemas are unchanged. Held in sandbox for the combined release.
-
-
-## Marketplace item fees and seller connections — sandbox, October 7, 2026
-
-Marketplace fees now belong to `marketplaceListings/{id}.fees`, keyed to the existing item/QRG, surface and seller account. Account-wide `feePercent` inputs, defaults and displays were removed; old stored values are ignored and account write APIs reject that input. Shared `MarketplaceFees`, account and listing types in `shared/surfaces.ts` are used by the UI. Publishing, fee requests and display use the same sale-price selector, including the eBay override.
-
-Amazon Product Fees API estimates are requested for the selected seller's SKU, current item price/currency and US marketplace with seller fulfillment. The listing saves source, amount, component breakdown, timestamp and context fingerprint. The UI derives the effective item percentage from that response and uses the shared pricing engine with canonical builder pricing subtotal for the estimated margin before shipping/tax. Missing costs/fees or currency mismatches produce no margin. Price, category/policy, SKU, product or account changes invalidate the displayed estimate. A transaction rejects responses for a context changed in flight. Explicit Refresh item fees and successful Amazon publishing refresh the estimate; no fee polling is added.
-
-eBay captures its offer ID and queries fees for that single unpublished offer before publishing. These are **partial listing charges**, not per-sale/final-value fees, and are never substituted into a complete sale margin. Etsy pre-sale estimates are **unavailable**; payment/ledger fee ingestion is not implemented. Provider failures store unavailable with a null amount, not zero. These limitations are visible on the item cards. Shipping charges, actual settlement reconciliation and multi-variant fee estimates remain outside this implementation.
-
-Account cards and Add Account platform choices provide official seller signup links for Amazon, eBay and Etsy. Connect navigates in the same tab to avoid blocked mobile popups. One shared OAuth implementation replaces three divergent callbacks: admin-only start, configuration/callback checks, random single-use expiring state, browser binding, Etsy PKCE, full token validation and mandatory seller/shop lookup before connected status is saved. It returns to the originating approved QR Gear admin URL. The browser cookie uses Firebase Hosting's forwarded `__session` name scoped to `/api/marketplace`, separate from Authorization Engine's `/api/auth/engine` scope. Pending attempts are invalidated by disconnect, and account changes during authorization are rejected. API responses never include refresh tokens or pending OAuth state. Incomplete older connections display disconnected. Etsy v3 requests now use the required keystring/shared-secret header and verified token user ID for shop lookup.
-
-New draft listings now expose the existing Publish action. Accounts and Listings show query failures instead of an empty state. Cards wrap their controls for mobile use, with 48px minimum action heights.
-
-**Remaining publishing gaps:** Amazon/Etsy size/color variation publishing, remote delisting, complete Amazon category/Etsy processing-profile requirements, automated marketplace status reconciliation and live seller acceptance tests remain incomplete. eBay manual status and withdrawal are covered by the selling-flow update below. Stored setup fields not consumed by adapters also remain. These are review findings, not a claim that all selling paths are production-ready. The navigation consolidation below supersedes the original recommendation to combine the tabs.
-
-Validation uses mocked provider HTTP, Firestore fixtures and rendered React interactions. No real marketplace account was authorized, no item was published, and production app credential configuration was not inspected. Sandbox source only; Main/live hosting are unchanged.
-
-
-## Marketplace navigation consolidation — sandbox, October 7, 2026
-
-Marketplace now has **Accounts, Listings and Activity**. Accounts retains seller signup and verified connection actions. Listings owns Add Product → Item Setup → Choose Account, using the existing built-product generator, surface detail/update APIs and listing writer. Existing item setup opens from each listing or an unlisted product card. Marketplace selection filters active accounts by the item's enabled platforms. Readiness checks and removal of unlisted setup remain available. Removing setup does not remove the built product.
-
-The standalone Surfaces screen, manual empty-surface creation form and redundant Amazon/eBay push dialogs were removed. Their listing Publish/Sync actions continue through the existing job service. Etsy's required publishing options stay in a dialog bound to that listing's seller account; saved options are retained. Item setup keeps unsaved edits on a failed save and asks before discarding them. Saving invalidates the existing surface and listing/fee queries. Newly generated items load by ID rather than waiting for the product list to refresh. Item setup and account-choice dialogs have left-side close controls and large actions.
-
-Activity shows publishing jobs and retries, with authenticated detailed logs available behind an expandable control. Failed item/job reads have visible error and Retry states. Existing records, canonical identities, provider adapters and backend services are unchanged; no alternate persistence or fee logic was added. This consolidation does not implement the remaining provider publishing gaps listed above.
-
-Validation: 13 Marketplace React interaction tests cover navigation, generated product setup, item saves and failed-save recovery, account filtering, item fees, signup/connection actions, Etsy seller binding and Activity retry/log behavior. All 202 client tests, TypeScript and the production build pass. No live seller authorization, marketplace publication or Main/live deployment was performed.
-
-
-## eBay selling flow — sandbox, October 7, 2026
-
-Listings now provides **eBay Setup**, **Check eBay status**, and **End eBay listing**. Setup retrieves the connected seller's shipping/payment/return policies and inventory locations, searches eBay categories and loads current required item specifics. Optional specifics are collapsed by default. A seller can explicitly create a warehouse location using its name, postal code and country; a deterministic external location key makes an uncertain creation response safe to retry. Setup saves common category/item details on the existing surface and seller-specific policy/location choices on `MarketplaceListing.publishOptions.ebay`. The old surface policy/handling-time form writers and generated defaults were removed; the eBay fulfillment policy owns handling time. No account-wide defaults are substituted.
-
-Publishing resolves the product's saved colors/sizes against actual `master_catalog.qrgVariants` rows. It does not construct a Cartesian product or consult provider tables. Missing, ambiguous, unavailable and supplier-unmapped selections fail visibly. Explicit eBay size/color label mappings live with the seller settings; they do not change product selections or canonical identities. The eBay child SKU is an external mapping key (`existing product QRG base:existing variant key`), **not a newly minted QRG code**. Existing QRG, BLD, GRF and Assembly definitions are unchanged. Legacy surface-variant overrides and additional unsupported option dimensions still require reconciliation rather than being silently dropped.
-
-The existing job/publisher path validates seller policies, inventory location and current category requirements before external item writes. It creates one inventory item/offer per saved combination and publishes a variation group as one listing. Offer identities are stored before publication and recovered by SKU after uncertain outcomes. Updates reuse published offers rather than calling Publish again. Best Offer uses the proper policy field; zero quantity is retained and quantity is explicitly per variation. This connection supports eBay US fixed-price offers. Removing variants requires ending the existing listing first; prior unpublished offers remain identifiable in job history.
-
-Successful publication is followed by a remote offer read. Only eBay's confirmed active state displays Active. Manual status checks and remote withdrawal use the same locked job and log records; checks are not automatically polled. Ending a variation listing withdraws its group and verifies the result, retaining product and listing history. A failed or ambiguous response does not become a successful delist. Status checks and ending do not require still-valid product selections. Item setup is blocked while its publication job is running. Local draft deletion is separate and disabled for records tracking external offers.
-
-Single-offer eBay listing fees are still captured before publishing and remain explicitly partial. A variation-group estimate is unavailable here; one variant's fee is never presented as the whole item's fee or a complete sale margin. Seller settlement/final-value fee ingestion is still outstanding.
-
-Validation: the 315-test backend suite and 205-test client suite passed, followed by the additional explicit-size-mapping regression (22 publishing tests). Root TypeScript, Cloud Functions compilation and the frontend production build passed. Provider HTTP and Firestore were mocked; React interactions verified the controls. A real connected-seller publication/withdrawal test and rendered phone acceptance remain necessary. No live account was authorized, no external listing/location was created, and Main/live hosting were not changed. Amazon/Etsy variations, remaining provider-specific requirements, remote status and delisting remain separate work.
-
-Primary API references checked: [eBay publishing requirements](https://developer.ebay.com/api-docs/sell/static/inventory/publishing-offers.html), [inventory groups](https://developer.ebay.com/api-docs/sell/static/inventory/inventory-item-groups.html), [listing management](https://developer.ebay.com/develop/guides/sell/listing-management), [inventory locations](https://developer.ebay.com/api-docs/sell/static/inventory/managing-inventory-locations.html), and [current Inventory API release notes](https://www.developer.ebay.com/develop/api/inventory-api/release-notes).
-
-## Amazon selling flow — sandbox, October 7, 2026
-
-Listings now provides **Amazon Setup**, **Check Amazon status**, and **Remove from Amazon**, with 48px controls and a left-side close button. Setup searches Amazon product types and downloads checksum-verified, current seller-specific Product Type Definitions for standalone, parent and child listings. Nested attributes use labelled inputs and native selections rather than a JSON editor. Save preserves an incomplete draft; Check requirements calls Amazon VALIDATION_PREVIEW without publishing. Publishing repeats validation for the complete family before the first submission. Conditional requirements remain Amazon's responsibility, not a hand-maintained local category schema. Unrenderable schema references stop at a visible Seller Central handoff; exotic category schemas and phone rendering need live acceptance testing.
-
-The existing shared resolver supplies actual saved master-catalog combinations. Amazon child SKUs reuse the external `existing QRG base:existing variant key` mapping; no new QRG identity, provider scrape or Cartesian variant matrix is introduced. Seller details are saved only on the existing listing's `publishOptions.amazon`; item identity, title, description, images and sale price still come from the canonical product/surface. Amazon size/color attributes and valid variation theme are explicit seller choices. Parent details are separate and the parent carries no price or stock. Quantity is explicit, defaults to zero, and applies to each sellable variation. This flow supports Amazon US, USD and seller fulfillment; it does not guess a marketplace or default the product type to SHIRT.
-
-Every intended SKU is saved before external writes. Submission is parent-first and ACCEPTED remains Pending. Retries reuse the same SKUs after failures or unknown outcomes; removed selections cannot abandon existing children. Check status reads each SKU's summaries/issues and marks the family Active only when all sellable children are BUYABLE. Removal records intent, deletes children before the parent, and remains Pending until every tracked SKU returns not found. Products and job history remain. Status/removal continue to work when product selections change or the selling channel is disabled. Local deletion is blocked for records holding Amazon identities. Requests use the selected seller token, bounded timeouts and limited retry on explicit throttling, with no automatic polling or retry of ambiguous writes.
-
-Product Fees API estimates are stored separately for each sellable child SKU, with size/color labels and the marketplace-derived percentage on the listing card. Parent and sibling estimates are never added into a fictitious per-sale group fee. Partial child failures remain unavailable, and price/account/setup changes invalidate the child estimates. Group margin remains unavailable; shipping, actual settlements and differing per-variant costs are not inferred.
-
-Validation: **330 backend tests and 208 client tests passed**, including mocked Amazon schema/HTTP, validation failures, identity persistence, async status/removal, fee ownership and rendered control interactions. Root TypeScript, Functions compilation and frontend production build passed. No real seller account was authorized, listing submitted/removed, or Main/live hosting changed. This is sandbox source, pending a real connected-seller test and device acceptance. Etsy variations, processing-profile requirements and remote status/removal remain outstanding; the existing Marketplace Expansion roadmap is updated.
-
-Primary references: [Product Type Definitions](https://developer-docs.amazon.com/sp-api/lang-en_EN/docs/retrieve-a-product-type-definition), [listing submissions and variations](https://developer-docs.amazon/sp-api/lang-en_US/docs/submit-listings-data), [Listings Items PUT/preview](https://developer-docs.amazon/sp-api/reference/putlistingsitem), [listing management/status](https://developer-docs.amazon.com/sp-api/lang-en_EN/docs/manage-product-listings-guide), and [listing deletion](https://developer-docs.amazon/sp-api/docs/delete-a-listing). These supersede the earlier Amazon gap notes above.
-
-## Persistent isolated sandbox — October 8, 2026
-
-The current admin/tab, marketplace and AI Builder working changes are carried forward
-on `sandbox/products-fulfillment`. The isolated Firebase deployment targets
-`qr-gear-sandbox`, with its own Auth, Firestore, Storage and runtime account. Runtime
-configuration rejects cross-project storage and a sandbox pointed at Main. Sandbox
-build sessions have no age-based expiry; explicit deletion remains available.
-Supplier requests, marketplace publishing and outbound email are disabled there.
-The embedded Printify credential fallback was removed; Main requires its configured
-credential when this change is eventually promoted. No Main deployment is authorized
-by this sandbox update. The Functions Firebase Admin SDK is aligned with the root project at 13.6 to support keyless deployment credentials. Sandbox deployment and browser acceptance remain pending.
-
-### Sandbox runtime update — October 8, 2026
-
-Functions now target Node.js 22 with Canvas 3.2.3 and Firebase Admin 13.6 (aligned with the application). The backend compile, focused regression checks and a real transparent PNG render exercise the update. Frontend build tooling remains on Node.js 20. Deployment uses the existing dedicated sandbox runtime identity. Navy is the first acceptance build; rebuilding Army is deferred until the owner reviews Navy. Main is unchanged.
-
-### AI build authority — October 8, 2026
-
-The AI Builder has an AI Build Rules tab using the same shared rules supplied to every AI prompt. Product facts come only from QRG tables. Direct Printify/Printful table or API lookup is forbidden, including fallback. Missing QRG information may be requested through QRG table logic, which owns provider-table imports. The AI reads the result from QRG and never reads provider tables directly. Switching to Rules keeps the active build mounted. This records the owner’s explicit QRG-only requirement; the AI proposal fields remain limited to the existing reviewed edits.
-
-### Isolated backend startup — October 8, 2026
-
-Functions explicitly include the existing shared-schema runtime dependencies (Drizzle and Zod). The application boot is checked outside the repository so root dependencies cannot mask missing deployment packages. Authorization Engine project validation uses the central runtime resolver, including FIREBASE_CONFIG deployments. Seventeen affected validation/authentication/configuration checks passed.
-
-### Canonical QRG options — October 8, 2026
-
-The product-options route now uses the existing shared QRG color/size projection instead of a duplicate seven-digit parser. This restores actual labels for canonical four-digit SSCC variant rows such as the saved Navy combinations. No provider-table reads are added.
-
-
-
-### Navy typography in sandbox
-
-Product and landing-page canvas previews and exports now preserve saved font weights and letter spacing. Oswald loads its available weights before drawing; spacing scales with export dimensions and resets between text blocks. Navy's supplied design values remain in its saved builder snapshot. Reopened working drafts can regenerate even when they retain their previous packet reference. Focused coverage: `client/src/lib/__tests__/navyTypography.test.ts`.
-### Subject-aware build layout — October 8, 2026
-
-`shared/aiProductBuilder.ts` remains the single source for the AI Build Rules screen and AI prompts. Owner-supplied typography, scale and position values are starting suggestions unless explicitly locked. Adapt them to each subject and its actual artwork, retain the intended wording and hierarchy, and keep content readable, inside its boundaries and clear of important visual details. Review the rendered shirt graphic and QR landing page separately at phone viewing size before the existing Products Generate workflow. Numeric checks alone are not visual verification. This updates build guidance; it does not introduce an automatic layout engine or broaden the AI proposal fields.
-
-
-### QR zone clearance — October 8, 2026
-
-The shared shirt layout now measures the top zone against the QR background edge and reserves the rendered CTA line height below it. This keeps top artwork clear even at its lowest allowed position and prevents larger CTA text from rising into the QR border. Preview and export use the same geometry; the QR size and center remain unchanged.
-
-
-### Generated product galleries — October 8, 2026
-
-Built-product galleries now contain only the linked packet's generated mockups, artwork, QR image, and landing proof. Blank catalog photos are neither appended nor used when generation is unavailable; original catalog selections remain intact for blank browsing. All store gallery images and thumbnails preserve their full aspect ratio, including portrait QR landing images. An empty product gallery explicitly reports generated images unavailable.
-
-
-### One Products build path — October 8, 2026
-
-All AI product work must read and follow `AI_BUILD_RULES` in `shared/aiProductBuilder.ts`; that same rulebook feeds the admin Rules tab and prompts. Resume the existing build and trace the existing implementation before proposing changes. Reuse its QRG/BLD/GRF/Assembly pipeline and Generate action. A returned, verified provider shirt mockup is required before claiming the physical preview is complete.
-
-Returned mockups are saved in the packet's existing color/placement map using the captured build color. The store initially selects that generated color, so a Navy build opens with its Navy proof instead of the first catalog color. Missing sandbox placement records are initialized only through the existing placement-table seed route; no new sizing formula is introduced.
-
-Admin graphic preview now receives `productGraphicOptions(buildWorkingSnapshot(...))`, the same projection used by Generate, including the selected print dimensions, QR color and styling. Existing QR sizing math is preserved. Priority mockups read the persisted packet's placement artwork, dimensions and selected color and resolve the supplier variant from QRG. They no longer discard placement or conceal provider errors. Sandbox permits only Printful mockup task creation/status; catalog and commerce calls remain blocked. Its existing credential store is connected securely through the Authorization Engine without logging keys, copying unrelated credentials, changing IAM or deploying Main.
-
-The store detail and collection cards read QR product type from the linked generated packet. They no longer invent a QR Basics label when a QR Canvas build is saved.
-
-### Complete generated galleries — October 8, 2026
-
-The shared storefront gallery combines selected-color mockups with the linked packet’s full generated image list. Shirt artwork, standalone QR and landing proof remain visible after mockups arrive. Duplicate and other-color mockups are excluded; generation and packet ownership are unchanged.
-
-
-### Reference builds and visible product metadata — October 8, 2026
-
-The shared AI Build Rules now cover Save as New versus Resume, destination verification, Library/Cropped asset selection in the target environment, preserving supplied wording and baked-in titles, and verifying the complete generated gallery. Output exposes the existing product title and description setters even when no catalog card is loaded. Generate derives a new landing slug from the captured product title, preventing a cloned reference title from naming the new subject URL. Existing draft, QRG, BLD, GRF, Assembly and packet storage remain the source of truth.
-
-
-## Storefront color mockups — sandbox, October 8, 2026
-
-Storefront color changes and Products priority mockups now use the same saved-packet request resolver. It uses the packet's exact placement artwork and print dimensions plus the selected color's canonical QRG Printful variant. The storefront no longer relies on legacy blueprint/artwork fallbacks or provider catalog lookups for this request. Cache entries remain scoped to the existing packet and color, and Heather colors remain distinct. Failed previews show a retry control; superseded requests cannot replace the current selection. Product cards show complete names and consistently frame mockup photos. Prices, QR destinations, generated proofs and product identities are unchanged.
-
-
-## Armed Forces build methodology — October 8, 2026
-
-The shared AI Build Rules retain the owner's reusable content order: establishment date (`EST. MONTH DAY, YEAR`), `UNITED STATES / BRANCH NAME`, motto, translation or meaning, role/purpose, and legacy. This guides future builds and AI prompts; it does not insert placeholder wording into existing products or individual pages.
-
-
-## QR Play storefront preview — sandbox, October 8, 2026
-
-The product detail response now projects the linked packet’s existing `playMediaUrl`. `PhoneMockupCard` displays YouTube/Vimeo sources as embedded players and direct media as native video, with a correctly sized phone screen, muted autoplay while visible, playback controls, and a Watch full video link. Direct files and YouTube previews stop after 15 seconds; Vimeo retains its own controls. Missing or failed direct media is explicit. Non-video destination images retain their existing behavior. No product, QR, BLD, GRF, QRG or Assembly records are rewritten. Focused API and React regressions cover the saved source, playable media selection, offscreen cleanup, errors and image products.
-
-
-## QR Gear branding and QR Play gallery — sandbox, October 8, 2026
-
-Public store product titles and descriptions use QR Gear branding instead of the blank manufacturer and its 3001 model number. The saved supplier/QRG configuration stays internal and unchanged. The shared AI Build Rules require this customer-facing branding for future builds.
-
-For QR Play products, the shared gallery replaces the linked packet's exact landing snapshot slot with its existing video. Model photos, artwork and QR order are retained. Native videos show a paused frame with playback controls; YouTube entries show the video's thumbnail before an explicit Play action. If that external thumbnail fails, the same packet's artwork remains visible with an Artwork preview label and Play control. Main gallery, thumbnails and lightbox share one media renderer. Failed direct media shows a source link. Non-video products retain their landing proof. Future AI builds must verify both the gallery video and phone preview.
+The storefront uses the current linked packet’s `playMediaUrl` for its phone preview. YouTube and Vimeo use their players; direct media uses the browser video player. The phone screen has an explicit flex height and room for embedded controls. Previews start muted when visible and motion preferences allow autoplay; direct and YouTube previews stop at 15 seconds. Watch full video opens the saved source. Direct playback errors and missing sources are visible. Saved media, shirt graphics and all canonical identities are unchanged. Seven focused API/React regressions cover this path.
 
 
 ## Fresh storefront releases — sandbox, October 8, 2026
@@ -584,24 +424,6 @@ The selected gallery video slide and the phone preview now open the actual saved
 
 Regression coverage checks immediate embeds, no excerpt end parameter, full uploaded-file playback, persistent phone playback, reduced-motion manual controls, and inactive thumbnails.
 
-## Existing admin fulfillment controls and paid-order handoff — October 9, 2026
-
-Admin → Build → Products already contained the Fulfillment selector. It is reused, with an explicit **Use for new builds** action writing the existing `settings/admin.defaultFulfillmentProvider` field. No second settings selector was added. Missing preferences no longer silently choose Printify or Printful, including the product catalog's browsing indicator. Restoring a build preserves its saved provider, and new builds use the saved preference. The owner can select a different provider on the product screen without changing the saved default. Provider configuration reads the existing credential record without throwing because another provider is unconfigured. Each setting has one authoritative saved source; displays and consumers derive from that source rather than maintaining competing defaults.
-
-Admin catalog checkout now resolves the saved catalog instance, production packet, Assembly, QRG size/color mapping, registered placement GRFs, verified print dimensions, saved retail price and size upcharge before creating payment. It checks current Printful variant/placement availability, freezes `orders` and `orderItems`, and verifies the Stripe signature, order identity, buyer, currency, total and paid status before production. Cart edits after checkout cannot change a paid order. A failed or repeated notification resumes the same order. Unsupported/missing mappings stop checkout; they never choose another provider or artwork.
-
-The Printful adapter creates a draft with the canonical order's external ID, persists the remote ID and confirms it. A transaction lease and external-ID recovery prevent duplicate creates on retry. Failures remain visible. The existing Admin Orders screen shows canonical items/totals and offers **Retry production submission** and **Refresh shipping status**, including provider tracking and the existing deduplicated shipping email. Server-verified order fields cannot be overwritten by customer writes or manual admin status patches. Duplicate order routes and the raw customer Printify submission path were removed/retired.
-
-Validation: 43 focused React checks and 41 backend checks passed (mocked Stripe, Printful and Firestore), root TypeScript, Functions compilation and the frontend production build passed. No real payment, printer charge or email was sent. Sandbox commerce guards remain enabled. Live Printful account/store confirmation, a controlled paid production order, refund/cancellation behavior, shipping policy configuration and direct-sale referral accounting still require review before Main. Referral identity is retained with `payoutState: needs_review`; it is not silently credited using a hardcoded percentage. Existing member packet verification and partner embed attribution flows are unchanged and deferred. Partners are websites whose identified users receive stores; Members are a separate model. This pass does not close the broader Admin Audit findings.
-
-## Sandbox admin access and navigation — October 9, 2026
-
-Public shopping links and legacy `/store` now use the canonical public shop destination; the legacy duplicate admin builder was removed from `/store`. All `/admin` API paths have a namespace-level server guard as well as their existing route guards. Admin policy requires a verified, non-revoked Firebase identity plus an explicit configured owner or strict saved `users.isAdmin === true` grant. Empty owner configuration grants nobody access. Browser UID allowlists and environment bypass shortcuts were removed. Profile queries are identity-scoped, reject mismatched identities, disable cached admin access on verification errors and use non-cacheable server responses. The development adapter uses the same policy. Existing configured owner access is retained; no new admin grants were created. Repeated Products route registrations were removed, retaining their canonical products-page registrar. Partners and members remain deferred.
-
-## Admin Pricing saved values — sandbox, October 9, 2026
-
-Reuses the existing Pricing screen and `testSettings/pricing` record. One shared schema validates the existing amount fields without hardcoded business defaults. Zero markup, charges, shipping, hosting and profit share survive save/reload. Both save URLs use the same protected handler; the duplicate save handler in members-library was removed. Public reads report invalid/missing configuration rather than inventing prices; authenticated admin reads keep it editable. The development adapter uses the same validation. Nested pricing maps replace their previous values while unrelated legacy metadata is preserved. Load failures are visible and cannot submit defaults. Existing Sync/repricing work is still open; this change does not claim those actions are repaired.
-
 
 ## Catalog markup preview and apply — sandbox, October 9, 2026
 
@@ -609,7 +431,15 @@ The existing Pricing Sync action now previews the saved percentage/fixed markup 
 
 The UI explicitly calls this saved-markup application. Rebuilding production, shipping, label and hosting cost components is separate work and remains open; this change does not claim that all pricing consumers are repaired. Main is unchanged.
 
-## Saved production pricing and mandatory inside labels — sandbox, October 9, 2026
+## Recent Changes Log
+
+### Homepage message section — October 11, 2026
+
+Custom Gear That Sends a Message now leads with a large image, an offset frame and a floating scan label. Three supporting stories use overlapping image/copy panels, depth shadows and a staggered desktop arrangement. The existing PageSkeleton and Master row/split helpers provide the structure; presentation is scoped in the existing QR Gear site stylesheet. The section is visible on mobile, the Create link keeps its /build destination with a 48px minimum target, and hover motion respects reduced-motion preferences. The memory story uses the current QR Canvas product name. Existing images, data contracts and backend behavior are unchanged.
+
+Files: `client/src/components/MarketingMessage.tsx`, `client/src/styles/canonical/qrgear-site.css`, `client/src/pages/home.tsx`, both READMEs, manifest and source ZIP. TypeScript and production build passed.
+
+### Saved production pricing and mandatory inside labels — sandbox, October 9, 2026
 
 The existing Admin Pricing preview/apply flow and new packet creation now use one server calculation. QRG imports costs for the product's chosen provider from its existing provider catalog. Saved placement, header/footer, center graphic, hosting, label, shipping and markup settings determine the base retail price. Size increments are added once at checkout. Zero remains valid; missing configuration fails visibly. Member profit share remains a separate saved setting and does not discount admin product prices.
 
@@ -619,45 +449,25 @@ Admin Compose hosting choices now read the saved pricing tiers. Packet commits u
 
 Candidate evidence: 67 focused backend checks and five React pricing checks passed, including inside-label restoration, provider-specific costs, stale previews, zero values, size-once checkout and the mocked Printful label handoff. TypeScript and client/Functions builds passed. Live sandbox verification is recorded separately after deployment; these checks do not establish a real paid print order.
 
+#### Files Changed
+| Files | Change |
+|---|---|
+| `functions/src/services/pricing.ts`, `master-catalog.ts`, `catalog-instance-update.ts` | Shared saved pricing and inside-label restoration |
+| `functions/src/services/order-fulfillment.ts`, `mockup-generator.ts` | Preserve the inside-label print and mockup handoff |
+| Packet and build-session routes, `composition-links.ts` | Server-owned generated packet pricing |
+| `client/src/pages/admin-pricing.tsx`, builder modules/types and shared Compose step | Existing controls, complete breakdown and saved hosting options |
+| Pricing, packet-route, catalog and checkout tests | Pricing and label regressions |
+
 ### Sandbox catalog cost import follow-up
 
 Live pricing preview found all 22 seeded products lacked valid Printful lookup costs. Smart Sync then exposed an existing sandbox guard that labeled catalog reads as unconfigured. The Printful client now explicitly permits only GET /products and GET /products/:id alongside existing mockups in sandbox; order lookup, creation and production confirmation remain blocked. Smart Sync uses this same client. The QRG pricing importer reads missing costs from the mapped Printful product once and saves them on that provider mapping; later previews reuse the canonical range until a supplier lookup refresh replaces it. No hardcoded price is substituted.
 
 Live field verification: every one of the 22 configured numeric controls saved zero and retained it after reload; XS stayed unconfigured. All 23 field values then matched their original values after restoration and a second reload. No zero-price catalog apply occurred. The follow-up's 46 targeted tests passed, including catalog-read permission, blocked sandbox orders, QRG cost import/cache, labels and checkout. Live full-cost apply remains pending this follow-up deployment.
 
-## Admin audit release candidate — October 9, 2026
-
-User authorized promotion to Main with remaining wiring defects tracked for follow-up. This batch shares recorded analytics and provider-health services across adapters; saves versioned owner AI instructions; consolidates coupon/hosting handlers and the coupon editor; derives channel counts from catalog instances; surfaces customer read failures; labels saved template prices; and removes 23 unreachable UI files. Existing browser-local sign-in persistence is preserved. Required inside labels and canonical pricing remain intact.
-
-Unconnected orchestration publishing, automatic provider selection, rule execution and profit forecasting now fail explicitly instead of returning fabricated success. They are not implemented by this release. Legacy BLD-SZ10-004 / ASM-000002 remain invalid and must not be blindly promoted. Partner/member workflows and controlled sale/printing verification remain follow-up work. Code deployment does not automatically copy sandbox Firestore records or artwork to Main.
-
-Candidate validation: 267 frontend and 422 backend tests pass; frontend/Functions type checks pass. Acceptance: frontend/Functions builds; complete configured regression suites including authentication and immutable checkout/fulfillment; exact Main Hosting/API markers; unauthenticated admin rejection; visible production admin checks. The release remains unverified until the production workflow and live checks complete.
-
-## Main admin emergency repair — October 9, 2026
-
-Supplier sync history selects the newest matching provider job using an equality-only read and normalized timestamps, so it does not fail while a composite index is absent. Orchestration lists the same saved catalog instances as Store Builder; QRG supplier blanks are no longer presented as sellable products or deletable through that screen. Saved-build links and the existing Graphics/BLD/Assembly Library remain available.
-
-Profit now reads paid store-order revenue and all saved product price/cost estimates. Unrecorded settlement costs and fees remain unknown; estimated contribution is explicitly separate from realized profit. Routing shows each saved packet/provider/price/inside-label relationship and links to the existing paid-order fulfillment controls. The disconnected supplier-scoring form is removed. Repricing uses the existing Admin Pricing preview/apply transaction, including stale-preview rejection and mandatory label protection. The obsolete rule-run controls are replaced by this working saved-settings flow; no scheduled rule engine is claimed. Marketplace publishing and channel management open their existing authoritative screens instead of the disconnected bulk worker. No external publication or order submission occurs from these changes.
-
-Registry comparison found every displayed sandbox Graphics, BLD and Assembly ID on Main. The protected 22 products and their canonical dependencies are retained. Cleanup is a separate dependency-reviewed operation; this code does not delete registry or product records.
-
-Acceptance: provider history loads; Orchestration shows the 22 saved products; Profit and Routing show recorded data; Repricing displays a real canonical preview; anonymous admin access remains rejected; Main Hosting/API markers match the released source. Local checks and live verification must be reported separately.
-
 
 ### Main cleanup dependency scan — 2026-10-09
 
 The shared build-deletion service now limits concurrent database RPCs to eight, discovers nested website references without holding parent slots, and sorts records before generating the review token. A scan that cannot finish within 45 seconds returns an explicit 503 error; incomplete scans never authorize deletion. Reference tokens and owned file paths are extracted once per record to avoid repeated parsing of supplier histories for each asset. The deletion dialog cancels abandoned preview requests and shows the first failure without silently repeating long scans. Existing shared-asset retention and transaction-time impact revalidation remain required. Focused tests cover concurrency bounds, stable tokens, nested reference failures, timeouts, cancellation, and existing deletion protections. No bulk cleanup or payment-mode change is implied by deploying this code.
-
-Main To-Do List: the existing Stripe warning is now the requested **Fix Stripe** task, with a direct Stripe API-keys link and QR Gear account / live keys / checkout webhook / checkout verification instructions. It remains visible while the live server key, live browser key, or webhook signing configuration is missing. External task links open in a new tab; internal tasks retain app navigation. Live Stripe activation is deferred at the owner’s request.
-
-
-## Main admin smoke-test repairs — October 9, 2026
-
-Committed destinations now include the channel parent store ID. The editor restores legacy snapshots whose nested channel omitted that ID, while retaining rejection of explicit cross-store selections. Output takes its provider from the saved packet: Printful products link to the existing Orders fulfillment path; Printify publishing is offered only for Printify packets; an unknown provider is reported visibly.
-
-Bundles use the same finished catalog instances as Store Builder and Orchestration, with visible titles and saved prices. The backend validates product references, membership, quantity and discount/pick limits, writes parent/items atomically, includes new bundles in sorted listings and calculates current saved prices in cents. Blank-based legacy bundles fail explicitly. At this earlier repair checkpoint, saved bundle discounts were not consumed by storefront checkout. The subsequent Bundle checkout pricing section below supersedes that limitation in the release candidate. No product price is changed by bundle configuration.
-
-Template cards project the linked packet's current saved name, image and price, while retaining the reusable builder snapshot and printed QR content. Categories displays required-name and save errors inside its dialog. Supplier history reports unfinished jobs past the existing 30-minute timeout instead of displaying them as still running indefinitely. Members and Partners are deferred, and Stripe activation remains on the existing to-do list. Code deployment does not itself delete old registry data.
 
 
 ### Main catalog browsing follow-up — 2026-10-09
@@ -697,7 +507,7 @@ The current sandbox comparison confirms that Main contains every commit in sandb
 
 Checkout now takes the actual provider placement and print-area coordinates from QRG. It checks that the saved artwork covers the same physical inches at sufficient resolution; a 300-DPI file for the same 12-by-16-inch area is not rejected merely because QRG's printer template uses 150 DPI. The saved artwork is unchanged. Size upcharges and retail price are resolved once through getCatalogInstancePrice; the duplicate pricing-settings read is removed. No new automated tests are added, per owner instruction. Live QRG refresh, cart and checkout behavior remain required after release.
 
-Release compatibility: QRG variant collections use Array.from so both the root compiler and Functions compiler accept the same canonical supplier selection.
+The QRG cart correction is validated with the root TypeScript compiler as well as the Functions build before deployment.
 
 Live cart correction: memberProfitShare is creator earnings, not a purchase discount. The cart now totals the saved server-priced line items without deducting that share; checkout continues to use the shared server quote and any explicit bundle offer. Army M Black and 2XL Black add successfully in Main.
 
@@ -705,41 +515,6 @@ Live cart correction: memberProfitShare is creator earnings, not a purchase disc
 ## Actual Printful base pricing — October 9, 2026
 
 Emergency Main pricing repair: the canonical packet calculator uses the QRG provider minimum/base cost instead of the most expensive supplier size. Admin size surcharges remain in the shared pricing settings and are applied once by the product/cart resolver. The QRG pricing import now refreshes Printful costs from the existing live connection before saving its provider range, so a populated but stale lookup range cannot prevent refresh. Supplier data enters through QRG table logic; storefront and cart continue to read saved packet prices. The mandatory inside label and other saved pricing settings remain in force. Existing catalog items are repriced through Admin Pricing's preview/apply transaction; deployment alone does not change their saved prices. No automated test suite was added.
-
-## Main emergency cart variant repair — October 10, 2026
-
-The live Asphalt / XS failure exposed a storefront projection bug: independent color and size lists offered a Printify-only QRG row on a Printful build. Product detail and the sale resolver now share the enabled QRG variant/provider intersection. The storefront disables unavailable sizes per color, clears an incompatible selected size with an explanation, and never substitutes a size or provider. Both Add to Cart and Buy Now validate the same saved production packet before adding an item, including guest carts. Invalid combinations return an actionable 400 instead of a retrying 500. Existing QRG identities, artwork, inside labels and shared retail pricing remain authoritative.
-
-Acceptance: Asphalt XS/5XL must be unavailable for these Printful builds; Asphalt S must persist through each cart button at the unchanged retail price; Black XS remains available; checkout must agree with the cart. The earlier two-variant smoke check did not cover provider-specific size availability. No new test suite was added.
-
-
-
-## Member shared build path — October 11, 2026
-
-Member publishing now resolves the selected blank, supplier variants and print areas through QRG, prices the captured build through the shared packet calculator, registers print assets through GRF, and commits the shared BLD and Assembly before marking the product published. The member listing stores ownership and a reference to its production packet; dashboard and public share reads project that saved packet. Member color/size choices use the QRG/provider intersection. Mockup requests resolve provider identity from the QRG member selection. Failed Basic/Plus publishing no longer advances to a success screen.
-
-Acceptance for this batch: select a verified Printful blank in Members, publish QR Basic with a valid color/size, reopen the saved product, and verify its QRG member identity, BLD, GRF, Assembly, saved price and public share display. Main deployment and authenticated live persistence must be checked separately from compilation. No new automated test suite was added.
-
-Scope: the member product creation/listing path. QR Compose sequence publishing remains unavailable until its content sequence is connected to the shared build; legacy member products are not silently migrated. This batch does not claim payout, paid member fulfillment or every Members tab verified.
-
-Live catalog alignment: the member picker is populated from the assigned tier catalog while the older `member-products` allowlist is explicitly empty. Build preparation, QRG options and mockup resolution now consume that same assigned tier catalog, falling back to the allowed-products list only when the picker has no tier catalog. This avoids showing a selectable blank and then rejecting it as unassigned.
-
-Member read freshness: authenticated member fetches explicitly bypass the browser cache, and member routes emit private/no-store responses. A cached retired 410 product-list response and a stale empty channel response must not survive a source release or a successful member write.
-
-
-## Member dashboard and three builder experiences — October 11, 2026
-
-Dashboard totals, channel items, and publish progress now use the same authenticated member packet projection. Published progress counts saved production-backed packets instead of a browser/profile counter. Loading and request failures remain visible. Returning members stay on the dashboard after authentication settles. New builds and Create Another remount the shared draft state so a previous packet, mockup or selection cannot leak into a new product. Super Simple retains its teaching cards, Simple its guided flow, and Advanced its detailed controls.
-
-The Members workspace now uses PageSkeleton, Master rows and responsive split helpers. Progress bars retain labels without step counts; a QR badge appears only after a type is selected. Channels offer a direct saved-product link. Earnings reads use the server summary envelope, and member requests reject non-JSON responses instead of treating them as empty data.
-
-Validation before release: root TypeScript and production build passed. Authenticated Main walkthroughs of all three experiences are the release acceptance step; no payment or supplier order is authorized by that check. QR Compose's previously documented shared-sequence limitation remains open.
-
-Super Simple records tutorial completion when the shared build actually returns a published packet. The old completion handler was behind a Next button hidden on confirmation screens, so returning creators repeatedly saw the first-time guide. Progress read/write failures are now visible.
-
-Payouts consumes the same earnings summary envelope as the dashboard. A failed Connect status read now shows a retry instead of incorrectly reporting an unconnected bank account. No bank connection, payment or payout was performed during this repair.
-
-Completed Super Simple tutorials bypass both introductory and post-selection teaching cards; the quiet returning-member flow still uses the same builder progression.
 
 
 ## Member add-ons and Admin Pricing — October 11, 2026
@@ -763,67 +538,15 @@ padding, and close buttons sit on the left. Product, schema, pricing, auth,
 and publication behavior are unchanged.
 
 
-## Member uploads and shared starter assets — October 10, 2026
-
-My Library now presents members' own private uploads separately from the shared starting collection. Members upload their own images or videos, use shared backgrounds in the builder, and populate their own stores. The shared endpoint reads only explicit commonLibrary membership and projects the referenced GRF files; it never scans admin Source or personal uploads. The obsolete admin push-to-member route and assigned-product library registration are removed. Existing records and member products are retained.
-
-Both personal file proxies require the matching Firebase identity before looking up storage. Private responses use no-store, and Storage rules exclude member files from the public library rule. Encoded path segments cannot escape through public filename proxies. Native image/video/canvas/download requests use an HttpOnly, Secure, SameSite=Strict __session cookie established with a verified Bearer token before protected pages render; it expires with that token, refreshes with the profile check, and is cleared on sign-out. Only private file reads accept this cookie; mutations still require Bearer authentication. Firebase Hosting's documented cookie forwarding requires that name: https://firebase.google.com/docs/hosting/manage-cache#using_cookies.
-
-At a member's explicit Publish action, selected personal asset references are validated against that member and copied to product output storage. Shared inputs are reused. Personal originals stay private, while the resulting published product can show its selected background/media. The existing QRG/BLD/GRF/Assembly commit uses that publication snapshot. This is not automatic sharing of the personal library. Previously downloaded copies cannot be recalled by changing server access rules.
-
-Validation: frontend and Functions type checks/builds, existing authentication and schema checks, then live owner/anonymous/cross-member file access, shared-source loading and upload/download UI verification. Deployment remains through the existing Authorization Engine; its release step now includes Storage rules.
-
-Publication preserves member titles/descriptions, pricing and store/channel metadata; only selected asset references change. The library uses the exact Master `layout__split-2` helper.
-
-
-## Explicit shared starter library — October 10, 2026
-
-The owner corrected the earlier assumption: general admin Source assets are not member starter assets. The common-library endpoint now reads only the existing commonLibrary sharing list, with file identities and URLs resolved through GRF. An admin-only multi-file upload control on My Library registers validated originals through the canonical GRF registrar and adds explicit membership. Repeated identical uploads reuse their identity and membership. Members can preview shared images and full videos for use within QR Gear; background pickers receive images only. Private uploads and product records are unaffected. The provided batch is 18 JPEG photos and 2 MP4 videos. All 20 files were uploaded and verified against their original bytes.
-
-
-Library simplicity correction: neither personal nor shared cards provide Download, and video controls request `nodownload`. Personal files have upload and preview; shared copy describes use within QR Gear. This removes the offered download controls; browser-visible media URLs are not a DRM boundary. The shared GRF files and builder selection endpoint are unchanged.
-
-
 ## Shared starter backgrounds — October 10, 2026
 
 The owner clarified that the two shared videos were accidental. The shared starter API now returns only image GRFs for every query, including `all`; the 18 uploaded photos remain available. Existing video originals and registry references are preserved but excluded from member shared selections. Shared uploads now accept images only, with server validation and matching page labels. Personal media uploads remain separate. Both library sections retain preview-only cards without Download controls.
 
 Validation: TypeScript and production builds, manifest and source ZIP verification, then live release markers and shared background counts. Member post-creation review remains a separate read-only follow-up.
 
-
-## QR Dynamics and individual purchased copies — October 10, 2026
-
-The existing QR Dynamics resolver now binds hosted member builds and purchased copies to canonical QRG identities. Members manage only their own sequences. Each purchased physical copy receives its own O identity, QR URL, registered graphics and Assembly; fulfillment retries reuse that identity. Member share checkout now joins the frozen-order/provider path, and guest claims preserve the already-printed item identity. Basic/Plus retain direct QR payload semantics.
-
-Admin → Schema Keys has a dedicated QR Dynamics section. See `docs/QR_DYNAMICS_SPEC.md`, `FIREBASE_SCHEMA.md` and `docs/QR_DYNAMICS_AUDIT.md`. The audit identifies all 22 approved products and verifies their original and regenerated QR images. No paid order or physical print was performed during validation.
-
 Publication compatibility: all 22 approved Admin packets have no packet-level status field. Public landing access therefore verifies their bound, active and visible canonical catalog instance. Member/owner packets require their explicit published status. Draft packets do not inherit public access.
 
 Purchased-copy allocation reads the blank identity from the validated Assembly/master relationship. It does not require a duplicate `qrgBlankId` field on the source packet; the approved Admin packets use that canonical relationship.
-
-## Storefront color-change crash — October 10, 2026
-
-The shared product image gallery now keys its selection and zoom state to the complete ordered media URL list. Changing shirt color resets to the new gallery's first image before rendering, including when the list shrinks or its lead image stays the same. This removes the stale-index `url` crash in Monuments and all other storefronts using this gallery. Pending mobile long-press timers are cleared when the gallery changes.
-
-Verification: reproduced the production crash on Statue of Liberty by selecting its last gallery image and changing Navy to White. Release validation includes TypeScript/build checks and repeating that interaction on the deployed storefront.
-
-
-## Shared QRG product options — October 10, 2026
-
-Active Admin Builder (including replacement lead photos), partner-store default display, member/owner wizard, storefront detail and featured-product color controls now use the existing shared ColorSwatchPicker. Selection is keyed by canonical color name, not display hex; swatches wrap into rows. The old six-color and generic-size wizard fallback lists are removed. Shared variant helpers clear invalid sizes after color changes, and the shared color map supplies appearance only.
-
-The existing catalogSaleVariants resolver projects selectable options from master_catalog QRG variants, narrowed by saved catalog choices and valid provider mappings. Admin options, storefront listings/detail, and legacy product endpoints reuse this resolver; missing QRG references expose an explicit options error and no invented choices. Member options already use this resolver. No new collection or schema is introduced. QRG numbering, artwork, pricing, inside labels and member/admin permissions remain unchanged.
-
-Validation: frontend TypeScript, backend compilation and production build passed. Deployment and live UI checks are recorded in the release workflow and task report.
-
-
-
-## Member page breadcrumb and QRG print readiness — October 10, 2026
-
-Member-route breadcrumbs now render inside the existing PageSkeleton main content, below the site header. Other route placement is unchanged. The member tier catalog requests verified print specifications through the existing QRG resolver before projecting product options. The resolver persists the verified result on master_catalog and updates the same in-memory record; later reads reuse its matching cache. Supplier access remains inside QRG table logic. Failed imports keep the product blocked and log the affected QRG identity. Required inside labels, canonical size/color identities and shared pricing remain enforced.
-
-Validation: TypeScript and production builds, followed by the live member catalog and page checks. No payment or supplier order is part of this verification.
-
 
 Live readiness follow-up: missing numeric production costs are imported through the existing QRG pricing importer only for mapped Printful products with verified inside-label support. Existing valid costs are reused. Products without size/color mappings or required inside branding remain unavailable with a direct customer-facing explanation rather than a repeated refresh instruction. The two AS Colour choices currently lack a shared verified inside-label area; this release does not bypass that requirement.
 
@@ -844,20 +567,6 @@ Product selection now updates only the wizard draft. Removed the obsolete packet
 Validation: direct behavior checks confirm no write on product selection, guest preview/save gates, and Basic/Plus preview-error retention; frontend typecheck and production build; live walkthrough after the Authorization Engine release. Signed-in saving/reopening requires a member session and is not claimed by the guest walkthrough.
 
 
-## Member wizard skeleton correction — October 10, 2026
-
-The member route wrapper was canonical, but Super Simple, Simple and Advanced still rendered an independent full-page Card with a minimum-height body. They now compose one MemberWizardFrame from Master rows and the responsive split helper: build progress beside the working area on wider containers, stacked in smaller containers. Navigation belongs to the working column. Teaching screens use the canonical centered helper without a viewport-height spacer. Member product and tier choices opt into Master responsive columns and natural page scrolling instead of a fixed-height single-column list. Selection, authentication, pricing, label handling and publishing are unchanged in this layout release.
-
-Validation: TypeScript and frontend production build; production DOM verification of the shared frame, column sizes and product selection. Authenticated save/reopen remains a separate live acceptance check.
-
-
-## Member mockup compatibility — October 11, 2026
-
-The live AS Colour 5001 walkthrough reached preview and Printful rejected the hard-coded lifestyle option groups with “No variants to generate.” The shared mockup generator now requests the provider’s supported default views instead of applying product-independent lifestyle filters. Existing matching-variant/placement validation, canonical artwork, optional labels, pricing and saved packet identity remain unchanged.
-
-Acceptance: compile/build, deploy through the existing Authorization Engine, then generate the AS Colour mockup and save/reopen the new member product. A successful deployment alone is not this acceptance proof. No purchase or fulfillment order is part of the check.
-
-
 ## Member builder labels — October 11, 2026
 
 The direct-destination step is shared by Basic and Plus. All three wizard progress badges now preserve the selected Plus label on that step. The underlying QR type and header were already retained. Product wording recognizes T-shirt/tee before the Canvas brand name, so Bella + Canvas apparel is called a shirt. These are display corrections; publication, artwork and pricing are unchanged.
@@ -872,78 +581,9 @@ Validation: TypeScript, frontend build, and Functions build pass. Live verificat
 
 QR Basic and QR Plus now honor item-only, graphic-only, and both save choices. Graphics are registered in the member library using the rendered canonical artwork; graphic-only saves do not publish a product. A failed library save remains on the save step with an error instead of claiming completion.
 
-## Public Create Your QR Gear — October 11, 2026
-
-The owner builder now reads the assigned public catalog and creates canonical `productPackets` through the same QRG variant selection, captured builder snapshot, server pricing, GRF artwork registration, BLD definition, and Assembly validation used by member builds. Guest build writes require a private per-build capability whose digest is stored as owner identity. The browser renders each selected QRG print area from the saved snapshot and previews the exact saved artwork. QR Plus collects a real QR destination; preview failures are visible and cannot proceed to checkout. Changing inputs invalidates the reviewed preview. Hosted experiences continue through the member builder.
-
-Public checkout freezes the reviewed production packet into the existing `orders` and `orderItems` contract, using the saved price and selected-size surcharge. Stripe return and signed webhook share canonical fulfillment and per-unit QRG/label allocation. No new Firestore collections or alternate packet schema were introduced. Unsupported label areas remain optional under the shared label policy. Legacy public temporary-packet creation/mutation and parallel checkout writes were retired; historical unlinked payments require reconciliation rather than manufacturing an unverified packet.
-
-Validation: frontend type-check/build and Functions build passed. Existing snapshot/webhook tests pass. The four-suite run has 28 passing and 18 failing tests; the identical 18 pricing/fulfillment fixture failures reproduce on pre-change commit `5bfa348`, with no test files modified. Live owner preview and checkout handoff require verification after the Authorization Engine release; no paid purchase is part of this check.
-
 ### Public builder skeleton — October 11, 2026
 
 `/build` now composes the existing `PageSkeleton` and wizard frame. Header/footer, main-content slot, responsive rows, progress sidebar, and navigation use the established canonical helpers. The Create breadcrumb is inside the main area, with the old narrow gradient/card wrapper removed. Canonical stylesheet sources and member behavior are unchanged. Public option estimates include the saved markup, and Basic QR guidance correctly describes a fixed printed destination.
-
-
-### QRG-only wizard placements — October 11, 2026
-
-The shared public/member placement picker no longer substitutes Front and Back when the selected product has no QRG print areas. Missing, empty, and branding-only lists show a visible unavailable message. The shared selection validator blocks Continue for empty, branding, or stale selections absent from the selected product; the public Next handler also enforces that gate. Valid QRG choices retain their existing behavior. This is a frontend correction; QRG/BLD/GRF/Assembly identity, provider imports, pricing, and stored products are unchanged.
-
-Validation: root TypeScript and production build passed. Isolated rendering/selection checks passed for missing, empty, branding-only, supported and stale placement lists. Release uses the existing Authorization Engine; live deployment is verified separately.
-
-Files: `client/src/features/shared/components/wizardSteps/PlacementSteps.tsx`, `client/src/features/shared/placementTypes.ts`, `client/src/features/owner/useOwnerWizardNav.ts`, `client/src/features/members/wizard-context-helpers.ts`, both READMEs, manifest and source ZIP.
-
-
-### Product-line landing pages — October 11, 2026
-
-The five homepage product-line destinations (Basics, Plus, Canvas, Play, and Dynamics) now use the established `PageSkeleton`, full-width rows, and responsive split helpers. Each breadcrumb appears once inside main content. QR Canvas consistently uses its correct product name in its heading, metadata, and Create button. Existing builder destinations and the canonical QRG/GRF/BLD/Assembly flow are unchanged; this is a frontend presentation correction.
-
-
-### Homepage featured catalog and store skeleton — October 11, 2026
-
-The homepage now reads the same channel-scoped store API and query cache as the USA 250 hub, using the canonical `StoreResponse` contract and shared `StoreProductCard`. Images, prices, product IDs, and destinations come from published catalog instances and saved packets; selectable options remain projected by the existing QRG resolver. The old `/api/products` gate and duplicate homepage quick-view/cart implementation are removed. Loading, genuine empty results, and retryable errors have distinct visible states; six store cards are available on mobile as well as desktop. Featured channel names, collection labels, and destinations use the existing store hierarchy. The featured collection badge is positioned by its image wrapper so the shared hover effect cannot move it into the title.
-
-The homepage, store root, channel hub, and collection views compose the established `PageSkeleton` and Master row/split helpers. Store breadcrumbs appear once inside main content. Product detail, cart, gift, pricing, database, and fulfillment behavior are unchanged.
-
-
-### Homepage message section — October 11, 2026
-
-Custom Gear That Sends a Message now leads with a large image, an offset frame and a floating scan label. Three supporting stories use overlapping image/copy panels, depth shadows and a staggered desktop arrangement. The existing PageSkeleton and Master row/split helpers provide the structure; presentation is scoped in the existing QR Gear site stylesheet. The section is visible on mobile, the Create link keeps its /build destination with a 48px minimum target, and hover motion respects reduced-motion preferences. The memory story uses the current QR Canvas product name. Existing images, data contracts and backend behavior are unchanged.
-
-Files: `client/src/components/MarketingMessage.tsx`, `client/src/styles/canonical/qrgear-site.css`, `client/src/pages/home.tsx`, both READMEs, manifest and source ZIP. TypeScript and production build passed.
-
-
-### Homepage narrative and responsive rows — October 11, 2026
-
-The homepage now follows one visitor journey: a real catalog shirt paired with its saved QR destination artwork, three creation steps, one USA 250 shopping section, and a focused member invitation. Redundant product-line cards, quick-link tiles, history teaser and repeated marketing pitches are no longer mounted on the homepage; their existing routes and components remain available. The hero reads the same product-detail endpoint and cache as the storefront, resolves its saved-color photo through buildProductGallery, and reports loading/missing/error states. Product cards still use the shared StoreProductCard and canonical catalog response; no hardcoded prices, product IDs or supplier reads were added.
-
-Desktop composition uses the unchanged PageSkeleton, Master row, layout__split-2 and layout__split-3 helpers. Legacy hero/how-it-works grid classes are no longer applied, leaving responsive column counts to Master. Presentation rules stay scoped to home-page in the existing qrgear-site.css. Existing Navbar/Footer, creation routes, member workflows, QRG/BLD/GRF/Assembly, pricing, permissions and backend are unchanged.
-
-Validation: root TypeScript and production build passed. Live visual and navigation acceptance follows the existing Authorization Engine deployment.
-
-Files: client/src/pages/home.tsx; client/src/components/Hero.tsx; client/src/components/HowItWorks.tsx; client/src/components/FeaturedProducts.tsx; client/src/styles/canonical/qrgear-site.css; README.md; client/src/features/adminProducts/ADMIN_README.md; MANIFEST.json; downloads/QR_Gear_Full_Website.zip.
-
-
-### Compact homepage store cards — October 11, 2026
-
-The featured-product row now has a centered 56rem maximum width. The existing Master row and layout__split-3 helpers still control responsive columns, while desktop product photos remain approximately 276px square instead of stretching across the full page. Shared card content, product data, mobile sizing and shopping destinations are unchanged.
-
-The closing member invitation now uses two text columns instead of the workbench photo. It clearly explains that members design and earn while production and direct-to-customer shipping are handled for them. The misleading image import and its unused presentation rules were removed.
-
-
-### Narrow desktop product grid — October 11, 2026
-
-The homepage product grid uses the existing Master layout__auto helper directly inside a full-parent-width row. Its columns and responsive gutter come entirely from unchanged Master rules. Removed the homepage product-row width cap, local --col-gap override, added horizontal section padding, custom section rhythm and hero grid gap. The existing stage and main surface now supply page geometry, and the Master helpers allocate the available width. No homepage grid-template-columns overrides remain. Verified against the upstream Fluba canonical Master and Page and Styles Contract.
-
-
-### Desktop header logo — October 11, 2026
-
-Increased the shared header logo height from 48px to 55.2px (15%) inside its existing min-width:768px theme rule. The 40px mobile rule, aspect ratio, header structure and canonical Master files are unchanged.
-
-
-## Shared page skeleton — October 11, 2026
-
-All routes now inherit one canonical PageSkeleton at the App routing boundary, including admin, member, standalone scan/widget, loading/error and not-found states. Pages no longer mount their own Navbar/Footer/main or parallel storefront shells. Master CSS remains unchanged; page containers and responsive columns use its row/layout helpers and gutter token. AdminShell keeps its workflow toolbar and navigation within the shared stage. Scan/embed surfaces retain their dedicated presentation. See `docs/PAGE_LAYOUT_AUDIT.md` for all 102 route entries and layout ownership. `npm run layout:verify` checks the boundary, duplicate shells, legacy page containers and upstream Master integrity before production builds. No backend, QRG, checkout or auth behavior changes.
 
 
 Desktop footer follow-up (October 11, 2026): Footer.tsx now composes the Master row and split-4 helper inside the shared skeleton scope. Removed its old independent grid rules. Desktop footer presentation is quieter: reduced vertical padding, smaller labels/social icons, compact contact/partner details, and transparent background. Column gaps remain owned by Master CSS.
@@ -951,55 +591,49 @@ Desktop footer follow-up (October 11, 2026): Footer.tsx now composes the Master 
 Footer credit: “Powered by FlubaDesigns.com”, linked to https://flubadesigns.com.
 
 
-## Footer inset correction — October 11, 2026
+### Card-density correction files
 
-The footer content panel now takes its horizontal inset from Master’s `--col-gap`, while the existing `.row` and `.layout__split-4` continue to own its width and columns. Footer headings align left with their links; desktop section labels and legal copy remain readable at 12px. The correction addresses the prior flush-to-panel text and centered headings. Master CSS, column breakpoints, header logo and the FlubaDesigns.com credit are unchanged.
-
-
-## Homepage QR types and connected ideas — October 11, 2026
-
-Restored the five QR type cards on the homepage and QR Types in desktop/mobile navigation. Existing ActionCards supplies the shared type names and destinations. Cards use Master row/layout__auto, and all existing idea routes remain available. Canvas and Play now link to Musician Merch.
-
-Nine homepage Ideas & Occasions cards use one editorial registry for titles, routes, breadcrumbs and relevant type connections. Small Business, Wedding Parties, Real Estate Agents and Memorial Gifts reuse their existing URLs/pages. Five dedicated routes cover Corporate Get-Togethers, Guerrilla Marketing, Unique Gifts, One-of-a-Kind Gifts and Christmas Gifts. Christmas includes gifts for people who have everything, personal Christmas gifts, and a link to the existing Advent page. Type pages link to applicable ideas without repeating their existing Popular Uses links; idea pages link back to their relevant types. New pages use the application skeleton and Master column helpers. No product, price, QRG/BLD/GRF/Assembly, checkout or backend changes.
-
-Validation: TypeScript, layout verification, production build and navigation checks; live checks follow the existing Authorization Engine release. Source-only checks do not establish a live release.
-
-
-## Idea pages without repeated cards — October 11, 2026
-
-The five shared occasion pages now present their examples as open text using the existing Master split layout. All nine ideas use compact QR-type links. Related ideas on the shared pages are simple text links, excluding the current page. Homepage discovery cards and all route/type connections remain available. Changed: `client/src/pages/qr-ideas.tsx`, `client/src/components/IdeaLinks.tsx`, this README, the Admin README, manifest, and source ZIP.
-
-
-The follow-up card review covers all 107 route entries, with per-route dispositions in `docs/PAGE_LAYOUT_AUDIT.md`. The 21 older use-case pages, five QR type pages, QR History, Earn, and selected repeated account/member/admin metrics were simplified as well. Homepage discovery cards remain unchanged. Product, record and form boundaries are retained.
-
-
-## Matching page imagery and alt text — October 11, 2026
-
-Added 19 generated editorial WebP photos across 37 public information, idea, QR-type, gift, sign-in and legal routes. `client/src/data/pageImages.ts` owns the route-to-image mapping and descriptive alt text; `PageIntro` uses the unchanged Master row and split-2 helpers. The legal, sign-in and gifts pages use a compact image. Product/store/member/admin workflows keep their existing real product and artwork imagery. Homepage presentation and QR-type/idea connections are unchanged.
-
-Reviewed all existing JSX image elements for missing or empty alt attributes and replaced empty/generic preview labels with descriptions based on existing item names. Images have intrinsic dimensions and compressed WebP assets. See `docs/PAGE_IMAGE_AUDIT.md` for coverage and asset provenance. TypeScript, canonical layout verification and production build passed; live verification follows the Authorization Engine release.
-
-
-## Public search and AI discovery — October 11, 2026
-
-The production build now renders the existing public React pages and catalog into crawler-readable HTML: all informational/idea/type pages, homepage, gallery, gifts, public builder, store/channel/collections and the 22 currently published products (66 URLs). It resolves route components from App.tsx, uses shopHierarchy/actionCards and reads the existing public store API; no parallel product or QR-type registry is introduced. Rendering does not execute checkout or authenticated mutations. A build fails if catalog reads or discovery validation fail.
-
-Every output has page-specific canonical, description, Open Graph/Twitter metadata, WebPage JSON-LD and existing image alt text. Shared SEO also updates these fields after client navigation. Product metadata uses its real catalog image. The build generates the sitemap (including images), llms.txt and ai.txt from the same inventory, removing old tiers, invented pricing and stale fulfillment claims. Checked-in public copies are generated development snapshots, overwritten in deployment builds. Unknown modification dates are omitted rather than replaced with the build date.
-
-Robots rules use one group for ordinary and named AI crawlers, including OAI-SearchBot, so the same private/workflow exclusions apply to all. Existing public/training crawl permissions remain allowed. Firebase serves clean public HTML URLs, permanently redirects /store to the current store, and applies noindex headers to account/admin/checkout workflows. Express uses the same generated sitemap; the older Functions sitemap redirects to the canonical one. Authentication and API permissions are unchanged.
-
-Validation: TypeScript, canonical layout verification, production build, Functions compilation and discovery:verify. The verification checks content headings, canonical uniqueness, structured data, asset existence and parity between 66 pages, sitemap and AI guide. Crawlers choose when to revisit; these changes do not guarantee indexing, recommendations or ranking. Sources: OpenAI crawler documentation (https://developers.openai.com/api/docs/bots) and Google AI features guidance (https://developers.google.com/search/docs/appearance/ai-features).
-
-
-## Preserve reviewed designs through checkout — October 11, 2026
-
-The public QR Basic/Plus wizard saves its reviewed selection, exact preview and existing guest build capability in tab-scoped session storage before leaving for Stripe. Returning to /build restores the preview with the selected product, color and size, Continue to Checkout, and Edit design. Guided mode does not restart its introduction. Browser history restoration re-enables checkout. Editing a restored design invalidates its prior preview; checkout still requires a matching reviewed packet and the existing server-side price/ownership checks.
-
-Storage failure keeps the current design visible and blocks navigation with an explicit message. A verified successful-payment response clears only its matching saved checkout; it continues through the existing order confirmation and membership invitation. This change does not treat a cancelled payment as paid, create an account, change Stripe mode, or alter fulfillment. The success route was traced in code; a completed payment and member signup remain separate live acceptance checks.
-
-Validation: seven focused React/storage regressions cover Basic and Plus reloads, checkout retry, edited artwork, browser Back, blocked storage, matching paid-return cleanup, and invalid storage. TypeScript and the production layout/discovery build are release gates. Live cancel/return acceptance follows the Authorization Engine deployment.
-
-Files: client/src/features/owner/useOwnerWizardState.ts; client/src/features/owner/OwnerWizard.tsx; client/src/lib/ownerCheckoutDraft.ts; client/src/lib/ownerCheckoutDraft.test.ts; client/src/pages/build-success.tsx; README.md; client/src/features/adminProducts/ADMIN_README.md; MANIFEST.json; downloads/QR_Gear_Full_Website.zip.
+- `MANIFEST.json`
+- `README.md`
+- `client/src/components/IdeaLinks.tsx`
+- `client/src/features/adminProducts/ADMIN_README.md`
+- `client/src/features/members/MembersPage.tsx`
+- `client/src/pages/account.tsx`
+- `client/src/pages/admin-orders.tsx`
+- `client/src/pages/admin-run.tsx`
+- `client/src/pages/advent-qr-shirts.tsx`
+- `client/src/pages/artist-qr-apparel.tsx`
+- `client/src/pages/band-dynamic-merch.tsx`
+- `client/src/pages/business-analytics-qr.tsx`
+- `client/src/pages/business-qr-plus.tsx`
+- `client/src/pages/earn.tsx`
+- `client/src/pages/event-qr-shirts.tsx`
+- `client/src/pages/everyday-qr.tsx`
+- `client/src/pages/family-reunion-shirts.tsx`
+- `client/src/pages/family-video-messages.tsx`
+- `client/src/pages/lost-found-qr.tsx`
+- `client/src/pages/medical-alert-qr.tsx`
+- `client/src/pages/memorial-qr-gifts.tsx`
+- `client/src/pages/memorial-video-shirts.tsx`
+- `client/src/pages/musician-merch.tsx`
+- `client/src/pages/networking-qr-shirts.tsx`
+- `client/src/pages/office-qr-mug.tsx`
+- `client/src/pages/orchestration-profit-tab.tsx`
+- `client/src/pages/personal-items-qr.tsx`
+- `client/src/pages/qr-basics.tsx`
+- `client/src/pages/qr-canvas.tsx`
+- `client/src/pages/qr-dynamics.tsx`
+- `client/src/pages/qr-history.tsx`
+- `client/src/pages/qr-ideas.tsx`
+- `client/src/pages/qr-play.tsx`
+- `client/src/pages/qr-plus.tsx`
+- `client/src/pages/realtor-qr-shirts.tsx`
+- `client/src/pages/video-time-capsule.tsx`
+- `client/src/pages/website-qr-shirts.tsx`
+- `client/src/pages/wedding-qr-shirts.tsx`
+- `client/src/styles/theme.css`
+- `docs/PAGE_LAYOUT_AUDIT.md`
+- `downloads/QR_Gear_Full_Website.zip`
 
 
 ## Partner API foundation — October 12, 2026
