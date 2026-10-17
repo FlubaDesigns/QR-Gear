@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 11, 2026
+Last updated: October 17, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -431,6 +431,19 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### October 17, 2026 — Firebase-only backend
+
+Removed the separate development backend and its launch/build/database tooling. Every existing Firebase admin, public/member builder, store, gift, partner, marketplace and checkout route remains. Shared schemas, identities, assets and persisted records are untouched. Account Sign Out now uses the existing Firebase/private-file-session helper with retryable errors, duplicate-click protection and cache cleanup. Vite frontend development proxies only to a local canonical Firebase Hosting emulator; this does not configure isolated browser Auth/Firestore/Storage. See `docs/FIREBASE_BACKEND.md` for startup boundaries and release requirements. Historical two-adapter notes below describe the retired architecture.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `server/**`, adapter-only scripts, mapper test, `drizzle.config.ts` | Retire unused parallel backend and its direct dependencies |
+| `package.json`, lockfile, `tsconfig.json`, `vite.config.ts`, `.replit`, `.gitignore`, `firebase.json` | Remove alternate backend launch/build targets; local frontend proxy |
+| `client/src/pages/account.tsx`, `client/src/lib/__tests__/accountSignOut.test.ts` | Canonical Firebase sign-out and regression coverage |
+| README, backend/archive guidance, source archives, manifest | Document retirement and remove only obsolete backend archive entries |
+
 
 ## Preserve reviewed designs through checkout — October 11, 2026
 
@@ -1874,3 +1887,8 @@ The admin setup check verifies the saved key, active status and catalog projecti
 Validation: 29 focused backend checks cover credential isolation, rotation, inactive/origin rejection, shared persistence, public redaction, canonical product projection and existing store/channel behavior. TypeScript and frontend/Functions production builds are release gates. Live partner connection and signed-in Admin acceptance are distinct checks, not established by these fixtures.
 
 Files changed: `client/src/pages/admin-partners.tsx`; `functions/src/services/partner-api.ts`; `functions/src/services/__tests__/partner-api.test.ts`; `functions/src/routes/{admin-stores,am-sync,partner,public,core-routes}.ts`; `functions/src/index.ts`; Functions package/version lock; both READMEs; `MANIFEST.json`; source ZIP. Deployment uses the established Authorization Engine release workflow.
+
+
+### Permanent alternate-database retirement — October 17, 2026
+
+Removed the remaining Replit database module/integration, legacy Replit login integration, unused storage-mode setting and SQL migration files. Current operating guides no longer direct agents to maintain a second backend or database. Shared validation/types and all Firebase runtime source are preserved. The backend boundary check rejects reintroduced database tooling. Verification evidence is recorded in `docs/FIREBASE_ONLY_VERIFICATION.md`; source publication and production deployment remain distinct.

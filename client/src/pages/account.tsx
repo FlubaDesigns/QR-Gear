@@ -1,3 +1,5 @@
+import { useRef, useState } from "react";
+import { signOut } from "@/lib/firebase";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -55,6 +57,29 @@ export default function Account() {
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+
+  const [signingOut, setSigningOut] = useState(false);
+  const signOutPending = useRef(false);
+  const handleSignOut = async () => {
+    if (signOutPending.current) return;
+    signOutPending.current = true;
+    setSigningOut(true);
+    try {
+      await signOut();
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      setLocation("/");
+    } catch (error) {
+      toast({
+        title: "Sign out failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      signOutPending.current = false;
+      setSigningOut(false);
+    }
+  };
 
   const userId = user?.id;
 
@@ -245,7 +270,9 @@ export default function Account() {
               <Button 
                 variant="outline" 
                 size="icon"
-                onClick={() => window.location.href = '/api/logout'}
+                onClick={handleSignOut}
+                disabled={signingOut}
+                aria-label={signingOut ? "Signing out" : "Sign out"}
                 data-testid="button-logout"
               >
                 <LogOut className="w-4 h-4" />

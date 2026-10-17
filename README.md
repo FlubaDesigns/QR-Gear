@@ -1013,3 +1013,17 @@ The admin setup check verifies the saved key, active status and catalog projecti
 Validation: 29 focused backend checks cover credential isolation, rotation, inactive/origin rejection, shared persistence, public redaction, canonical product projection and existing store/channel behavior. TypeScript and frontend/Functions production builds are release gates. Live partner connection and signed-in Admin acceptance are distinct checks, not established by these fixtures.
 
 Files changed: `client/src/pages/admin-partners.tsx`; `functions/src/services/partner-api.ts`; `functions/src/services/__tests__/partner-api.test.ts`; `functions/src/routes/{admin-stores,am-sync,partner,public,core-routes}.ts`; `functions/src/index.ts`; Functions package/version lock; both READMEs; `MANIFEST.json`; source ZIP. Deployment uses the established Authorization Engine release workflow.
+
+
+## Firebase-only backend — October 17, 2026
+
+Retired the entire separate development backend and its startup/build/database tools. Firebase Hosting and every existing Cloud Functions sales, builder, identity, asset and fulfillment route remain in place. Retained runtime code has no dependency on the removed tree; shared schemas and their validation dependencies remain. Account Sign Out now uses the existing Firebase/private-file-session sign-out flow with visible errors and cache cleanup. No database, artwork, provider account or production deployment is changed by this source cleanup.
+
+Vite now serves frontend development/preview and proxies API/QR/webhook requests only to a local canonical Firebase Hosting emulator; it never silently falls back to Main. Full offline Auth/Firestore/Storage isolation is not configured, and the existing discovery build still reads public catalog APIs. See [Firebase backend and development boundaries](docs/FIREBASE_BACKEND.md). Historical notes about two adapters are superseded by this section.
+
+The two retired adapter-only utility scripts and mapper test were removed, while canonical admin sync/placement services and all supported sales paths remain. Only retired backend entries are removed from mixed source ZIPs; unrelated files are preserved. Validation and release status are recorded in the task report; local source verification does not establish a live deployment.
+
+
+### Permanent alternate-database retirement — October 17, 2026
+
+Removed the remaining Replit database module/integration, legacy Replit login integration, unused storage-mode setting and SQL migration files. Current operating guides no longer direct agents to maintain a second backend or database. Shared validation/types and all Firebase runtime source are preserved. The backend boundary check rejects reintroduced database tooling. Verification evidence is recorded in `docs/FIREBASE_ONLY_VERIFICATION.md`; source publication and production deployment remain distinct.

@@ -5,7 +5,7 @@ Firebase-hosted e-commerce admin platform for creating and selling QR-code-integ
 ## Run & Operate
 
 ```bash
-npm run dev          # Start Express + Vite dev server (port 5000)
+npm run dev          # Vite frontend (port 5173); API requires configured Firebase emulators
 npm run build        # Build frontend for production
 ```
 
@@ -17,11 +17,10 @@ Required env vars: `FIREBASE_SERVICE_ACCOUNT_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_
 ## Stack
 
 - **Frontend:** React 18 + Vite + TypeScript + TanStack Query v5 + Wouter + Shadcn/ui + Tailwind
-- **Backend (dev):** Express (`server/`) serving API + Vite frontend on same port
-- **Backend (prod):** Firebase Cloud Functions (`functions/src/`)
+- **Backend:** Firebase Cloud Functions (`functions/src/`) in production and local emulator development
 - **Database:** Firestore (NoSQL)
 - **Storage:** Firebase Storage
-- **Auth:** Firebase Auth + Replit Auth (`isAdmin` middleware)
+- **Auth:** Firebase Auth with the existing server-side admin policy
 - **Payments:** Stripe
 - **Email:** Resend
 - **Print providers:** Printify, Printful
@@ -37,10 +36,9 @@ client/src/
     storeBuilder/      # Store builder
     ADMIN_README.md    # Detailed admin section guide (source of truth for admin docs)
   features/shared/graphics/  # productGraphicRenderer.ts — canvas engine
-server/routes/         # Express API routes (dev server only)
 functions/src/routes/  # Cloud Functions API routes (production)
 shared/                # Code shared across all layers
-  schema.ts            # Main Drizzle schema
+  schema.ts            # Shared validation/types; not a database connection
   blankKeys.ts         # isQRGBlankId, getCanonicalBlankKey helpers
   qrgCodes.ts          # isValidMasterCatalogDocId, QRG code helpers
   __tests__/           # Vitest unit tests
@@ -65,10 +63,9 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 
 ## Architecture decisions
 
-- Dev server (`server/`) and Cloud Functions (`functions/src/`) both implement the API — always make matching changes to both when adding routes.
+- `functions/src/` is the only backend. Do not mirror its routes. See `docs/FIREBASE_BACKEND.md` for emulator setup and isolation limits.
 - `master_catalog` Firestore collection uses `qrg_STNNN` doc IDs as the canonical blank identity. Provider IDs (`py_`, `pf_`, `pf:`) are lookup/reference only and must never be persisted in `catalog.blankIds` or overlay maps.
 - QRG variant suffix is **TSSLLCC** (7 digits): T=size type (1 digit), SS=size within type (2 digits), LL=length (2 digits, `00`=none; only non-00 for T=2 Adult Numeric/waist), CC=color (2 digits). Full code: `QRG-[STNNN]-[C]-[NNNNNN]-[TSSLLCC]`. Key helpers: `getSizeCode()` → 3-char TSS, `getLengthCode()` → 2-char LL, `buildVariantSuffix(size, length, color)` → 7-char.
-- `resolveCatalogBlankId()` in `server/routes/admin-catalogs-shelf.routes.ts` is the single resolution path from any provider key → `qrg_STNNN`. Always use it before any catalog write.
 - `expandBlankIdSet()` in the frontend controller reads legacy Firestore data — keep it; do not remove.
 - Frontend uses `allProductMap` with multi-key indexing for display lookup only — these keys are never persisted.
 
@@ -91,9 +88,8 @@ Layer order: Viewer wraps View, View contains Skins, Shape floats on top when a 
 
 ## Gotchas
 
-- NEVER edit `package.json` scripts or `drizzle.config.ts`
-- NEVER modify `server/vite.ts` or `vite.config.ts`
-- NEVER touch `server/routes/` — the dev server is irrelevant; all backend work goes in `functions/src/` only
+- Frontend launch commands use Vite; backend work goes in `functions/src/` only.
+- No alternate database, migration tooling, or standalone listener may be restored.
 - The QRG STNNN format is 5 digits: `qrg_11001`. Legacy 4-digit (`qrg_1101`) and 3-digit (`qrg_101`) are invalid.
 - Catalog overlay maps (`blankTiers`, `blankDescriptions`, etc.) must always use the same keys as `blankIds`
 - Deploy: `deploy/1-build.sh` (90s) then `deploy/3-hosting.sh` (75s) — never chain them directly

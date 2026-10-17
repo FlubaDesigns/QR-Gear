@@ -12,13 +12,11 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   client/src \
   client/index.html \
   client/public \
-  server \
   functions/src \
   functions/tsconfig.json \
   functions/vitest.config.ts \
   functions/package.json \
   shared \
-  migrations \
   scripts \
   public \
   .agents \
@@ -38,8 +36,7 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   storage.rules \
   .gitignore \
   .gitattributes \
-  .gcloudignore \
-  drizzle.config.ts
+  .gcloudignore
 ```
 
 ## What is excluded and why
@@ -60,10 +57,8 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
 
 All source code:
 - `client/src/**` (tsx, ts, css)
-- `server/**`
 - `functions/src/**`
 - `shared/**`
 - Config files (tailwind, tsconfig, vite.config, etc.)
 - `replit.md`, `README.md`, `ADMIN_MANUAL.md`
 - `.agents/skills/**`
-- `migrations/**`

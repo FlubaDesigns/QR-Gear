@@ -467,9 +467,8 @@ PRINTIFY_SHOP_ID="your-shop-id"
 ## Notes
 
 - All timestamps use Firebase's `serverTimestamp()` for consistency
-- IDs are auto-generated strings (not Firestore auto-IDs) for PostgreSQL compatibility
-- JSONB fields in PostgreSQL map to `map` type in Firestore
-- Arrays in PostgreSQL map to `array` type in Firestore
+- Preserve existing record IDs and canonical identity allocators; there is no alternate database compatibility requirement.
+- Structured objects and arrays use Firestore map and array values.
 - Decimal prices stored as `number` in Firestore (careful with float precision!)
 
 ---

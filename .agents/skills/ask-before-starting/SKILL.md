@@ -7,7 +7,7 @@ description: CRITICAL rule — always ask clarifying questions before starting a
 
 ## PRODUCTION MANDATE — NON-NEGOTIABLE
 
-**This project deploys exclusively to Firebase production (Cloud Functions + Firebase Hosting). The Express dev server (`server/`) is for local development only and is NEVER the target for fixes or features.**
+**This project deploys exclusively to Firebase production (Cloud Functions + Firebase Hosting). The standalone backend is retired; local API development uses the same Cloud Functions source through explicitly configured Firebase emulators.**
 
 - All backend logic lives in `functions/src/routes/` — these are the Cloud Functions
 - All deploys use the THREE-STEP method from `.agents/skills/always-deploy/SKILL.md` — read it
@@ -15,7 +15,7 @@ description: CRITICAL rule — always ask clarifying questions before starting a
 - Step 2: `firebase deploy --only functions` (separate bash call, timeout 90000ms)
 - Step 3: `firebase deploy --only hosting` (separate bash call, timeout 60000ms)
 - NEVER deploy `--only functions,hosting` together — it times out and dies silently
-- NEVER edit `server/` routes expecting production to reflect the change
+- Do not restore the retired standalone backend
 - NEVER consider a task done until it is deployed to Firebase production
 
 ## The Rule
@@ -47,7 +47,7 @@ At minimum, confirm:
 - Do not assume a component name or file from context — ask or confirm.
 - Do not add, remove, or change behavior that wasn't explicitly requested.
 - Do not start a deploy or build until the user has confirmed the plan.
-- Do not edit `server/` routes for production fixes — they have no effect in production.
+- Backend fixes belong in `functions/src/`; do not recreate a parallel backend.
 
 ## The Pattern
 

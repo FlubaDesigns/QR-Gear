@@ -280,8 +280,8 @@ If only `client/` files changed (no `functions/src/` edits):
 ### Production Rules
 
 - All backend logic lives in `functions/src/routes/` — these are the Cloud Functions
-- The Express dev server (`server/`) is local development only — NEVER the deploy target
-- NEVER edit `server/` routes expecting production to reflect the change
+- The standalone backend has been retired; `functions/src/` is the only backend source
+- Do not restore the retired standalone backend
 - NEVER deploy `--only functions,hosting` together — it times out and dies silently
 - NEVER add predeploy hooks back to `firebase.json` — causes timeout inside Firebase's runner
 - ALWAYS pass `--force` (already baked into the scripts)
@@ -318,7 +318,7 @@ clarifying questions. This applies to every task, no matter how small.
 - Do not assume a component name or file from context — ask or confirm.
 - Do not add, remove, or change behavior that wasn't explicitly requested.
 - Do not start a deploy or build until the user has confirmed the plan.
-- Do not edit `server/` routes for production fixes — they have no effect in production.
+- Backend fixes belong in `functions/src/`; do not recreate a parallel backend.
 
 ### The Pattern
 
@@ -486,13 +486,11 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   client/src \
   client/index.html \
   client/public \
-  server \
   functions/src \
   functions/tsconfig.json \
   functions/vitest.config.ts \
   functions/package.json \
   shared \
-  migrations \
   .agents \
   scripts/generate-manifest.js \
   scripts/verify-manifest.js \
@@ -525,7 +523,6 @@ cd /home/runner/workspace && zip -r downloads/QR_Gear_Full_Website.zip \
   firebase.json \
   .firebaserc \
   .gcloudignore \
-  drizzle.config.ts \
   deploy
 ```
 

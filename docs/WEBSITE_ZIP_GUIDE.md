@@ -45,7 +45,7 @@ zip -d downloads/QR_Gear_Full_Website.zip "path/to/deleted-file.ts"
 | `client/src/**` — components, pages, features | `functions/lib/**` (compiled output) |
 | `client/public/**` — images, favicons, assets | `.firebase/hosting.*.cache` |
 | `shared/**` — schemas, types, constants | Binary zips nested inside the zip |
-| `server/**` — routes, storage, handlers | `attached_assets/**` |
+| Firebase backend source only; no retired standalone backend | `attached_assets/**` |
 | `docs/**`, `*.md` at root | |
 | `.agents/skills/**` — skill definitions | |
 | `functions/package.json`, `functions/tsconfig.json` | |

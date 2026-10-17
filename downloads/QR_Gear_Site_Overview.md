@@ -165,16 +165,9 @@ Route handler in functions/src/routes/ processes request
 Reads/writes to Firestore, Firebase Storage, or external APIs
 ```
 
-### Dev vs Production
+### Development and production
 
-| Context | Dev Server | Production (Cloud Functions) |
-|---------|------------|------------------------------|
-| Frontend calls | `fetch("/api/...")` | Same — Firebase Hosting rewrites |
-| Backend | `server/routes/` (Express) | `functions/src/routes/` (separate code) |
-| Database | Firestore (same project) | Firestore (same project) |
-| Storage | Firebase Storage (same) | Firebase Storage (same) |
-
-> **Important:** Dev server (`server/`) and Cloud Functions (`functions/src/`) are **separate codebases**. Changes to one do NOT automatically apply to the other. Both must be updated when fixing backend logic.
+Both use `functions/src/`. Local Vite requests proxy to a separately configured Firebase Hosting/Functions emulator. See `docs/FIREBASE_BACKEND.md` for the Auth, Firestore, Storage and provider isolation limits. No alternate backend is supported.
 
 ### Cloud Functions Entry Point
 
@@ -497,11 +490,10 @@ export const api = onRequest(
 
 Then rebuild and redeploy functions.
 
-### Dev Server (Local Only)
-The dev server (`server/`) is a separate Express app used for local development only. It mirrors the Cloud Functions routes but is NOT the same code. Changes made to `server/routes/` do not affect production — you must also update the corresponding file in `functions/src/routes/`.
+### Local frontend
 
 ```bash
-npm run dev   # starts both frontend (Vite) and backend (Express) on port 5000
+npm run dev   # Vite frontend on port 5173; configure Firebase emulators separately
 ```
 
 ---
@@ -510,7 +502,7 @@ npm run dev   # starts both frontend (Vite) and backend (Express) on port 5000
 
 | Variable | Where Used | Purpose |
 |----------|-----------|---------|
-| `FIREBASE_SERVICE_ACCOUNT_KEY` | Backend (both) | Firebase Admin SDK credentials |
+| `FIREBASE_SERVICE_ACCOUNT_KEY` | Cloud Functions | Firebase Admin SDK credentials |
 | `FIREBASE_API_KEY` | Frontend | Firebase client config |
 | `VITE_FIREBASE_API_KEY` | Frontend | Firebase client (Vite-exposed) |
 | `VITE_FIREBASE_AUTH_DOMAIN` | Frontend | Firebase auth domain |
@@ -523,7 +515,6 @@ npm run dev   # starts both frontend (Vite) and backend (Express) on port 5000
 | `RESEND_API_KEY` | Cloud Functions | Email sending |
 | `PRINTIFY_API_KEY` | Cloud Functions | Printify catalog + orders |
 | `PRINTFUL_API_KEY` | Cloud Functions | Printful catalog + orders |
-| `DATABASE_URL` | Dev server only | PostgreSQL connection string |
 | `FIREBASE_STORAGE_BUCKET` | Backend | Storage bucket name |
 
 ---

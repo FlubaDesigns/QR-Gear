@@ -132,6 +132,6 @@ Last verified: May 6, 2026
 | `auth.ts` | Authentication |
 | `brain.ts` | Brain/AI operations |
 
-### Dev Server Only (`server/routes/` — not production)
+### Local API development
 
-Dev server mirrors the production functions routes for local development. Any route added to `functions/src/routes/` must also be added to the matching file in `server/routes/`. Changes to `server/` only do NOT affect production.
+Use the same `functions/src/` routes through configured Firebase Hosting/Functions emulators. Vite proxies API requests to loopback Hosting; no parallel backend is supported. See `docs/FIREBASE_BACKEND.md` for isolation limits.
