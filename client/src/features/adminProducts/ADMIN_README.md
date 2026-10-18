@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 17, 2026
+Last updated: October 18, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -431,6 +431,17 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### Audit repairs QRG-041–050 — October 18, 2026
+
+Account claims now use the API array with document IDs and distinguish static QR items from expired hosting. Studio uses canonical product state and the Advanced step controller. Member and owner builds preserve per-placement QR-only choices in their saved rendering snapshot; Advanced QR position controls persist and print dimensions use actual pixels. Signed-in and deferred guest video uploads share the multipart contract and save a real reusable video reference with visible failures.
+
+The unsupported legacy widget page now states its retirement; the independent Partner API boundary is unchanged. Legacy token diagnostics verify signatures and expiry. Admin provider settings link to the existing Fluba Cortex vault. Revenue and customer spend aggregate paid net cents, and current ready/failed fulfillment work appears in the queue. Customers include current users and explicit legacy identities. All email-template mutation methods enforce one template per trigger using a shared transactional write lock; mail sending retains its conflict rejection.
+
+Validation: all 313 client tests passed; 32 focused Functions tests cover claims, canonical placement handoff, reporting, customer ownership, template conflicts, widget verification and existing email behavior. Client type checking and Functions compilation passed. Tests use controlled providers and databases; they do not establish authenticated device acceptance or send real mail/orders. The pre-existing full Functions/shared suite issues remain QRG-073. Build marker changes from `20261018-audit-026-040` to `20261018-audit-041-050`; deployment evidence is recorded separately. Continue QRG-051 onward automatically.
+
+Files changed: account/My Item pages and claimed-item status helper; Studio, Advanced and owner wizard controls; member video helper/actions; canonical builder snapshot and member-build service; widget page/verification; provider settings; admin metrics/customer/template routes and reporting/settings services; related client/Functions tests; both READMEs, audit register, Functions build marker/package version, manifest and source ZIP.
+
 
 ### October 17, 2026 — Firebase-only backend
 

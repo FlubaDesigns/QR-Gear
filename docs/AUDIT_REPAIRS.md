@@ -192,6 +192,48 @@ Completion requires a successful server acknowledgment for the same signed-in us
 
 Batch marker: `20261018-audit-026-040`. Validation: 53 focused Functions tests across eight files, all 308 client tests across 53 files, and client/Functions TypeScript checks passed. Controlled tests did not create purchases, refunds, payouts, emails or provider products. Deployment is recorded separately. Earlier full Functions/shared baseline failures remain tracked under QRG-073.
 
+## QRG-041 — Claimed item account contract
+
+The list API projects document IDs and the account consumes its actual array. Static items remain active without hosting expiry or renewal prompts. Failed reads show an error. Detail reads use identity-scoped query keys. Route and status tests cover owner scoping, IDs, static items, hosted expiry and malformed dates.
+
+## QRG-042 — Studio canonical state
+
+Studio reads selectedProductType, routes Product and Channel through simpleStep (the Advanced controller), edits the canonical title/content, and blocks publication until required product/content selections exist. Product/channel actions are keyboard buttons. A rendered Studio test uses a canonical product with null legacy selectedProduct and exercises Publish and navigation.
+
+## QRG-043 — Per-placement rendering
+
+Owner selections persist in the draft and build request; member and owner preparation validates and stores each graphic choice in the canonical builder snapshot. The shared renderer projection omits text and decorative image zones for QR-only placements. Preview and final artwork consume that same snapshot. Advanced position sliders use saved QR coordinates; print-area dimensions use verified pixel units. Actual prepare/build projection tests cover both builders and invalid choices; provider services are fixtures.
+
+## QRG-044 — Reusable video uploads
+
+Signed-in and deferred guest uploads use the existing multipart media endpoint and require its URL response. A reusable video reference is saved through the library metadata endpoint, with acknowledged success and retryable errors. Text/plain pseudo-files are removed. Successful references are deduplicated within the current client session. Upload/metadata/retry contract tests passed.
+
+## QRG-045 — Legacy widget page
+
+The registered legacy page now presents an explicit retirement notice directing site owners to current Partner integrations. It no longer attempts to interpret an incompatible session model. The Partner API remains independent and its capabilities are not expanded.
+
+## QRG-046 — Widget token diagnostic
+
+The diagnostic uses the same signature/expiry verifier as the session endpoint. Arbitrary text, wrong signatures and expired tokens fail; valid signed fixtures succeed. Input bearer tokens are no longer echoed as a pretend payload.
+
+## QRG-047 — Provider credential ownership
+
+The impossible local Printful key editor and mutation were removed. The page retains current status/testing and links to the existing Fluba Cortex provider vault. Printify copy now identifies the same authority. No competing credential store was introduced.
+
+## QRG-048 — Order reporting
+
+Revenue and spend use integer cents from paid/refund payment evidence, deduct partial refunds and exclude unpaid/full refunds. Current ready/failed work and eligible historical pending work share one reporting predicate in metrics and the queue. Held orders are excluded from production actions. Numeric totals and paid/held/refund fixtures passed.
+
+## QRG-049 — Current customer history
+
+Customer reporting joins users and legacy customers by explicit userId or document identity, retaining legacy customerId order lookups without guessing by email. Canonical userId ownership takes precedence. Detail totals include all matching orders while the displayed recent list remains capped at 20. Fixtures cover current accounts, deduplication and legacy detail links.
+
+## QRG-050 — Unique email triggers
+
+Create, PUT, PATCH and DELETE use one transactional settings writer. A shared system/email-template-writes revision serializes conflicting edits; templates remain in email_templates. Disabled duplicates also conflict with HTTP 409. Existing sender fail-closed behavior remains. Controlled concurrent create and both update methods verify uniqueness and protected admin boundaries.
+
+Batch marker: `20261018-audit-041-050`. Validation: 313 client tests and 32 focused Functions tests passed, plus client/Functions type checks. Production build and deployment receipts are recorded separately. No live purchases, refunds, payouts, provider products or email sends were performed by these tests. Earlier full Functions/shared baseline failures remain QRG-073.
+
 ## Remaining sequence
 
-Continue QRG-041 through QRG-074 automatically. QRG-068 was already fixed in the Firebase-only removal commit; QRG-064 needs visual verification. Preserve legacy and conditional qualifications.
+Continue QRG-051 through QRG-074 automatically. QRG-068 was already fixed in the Firebase-only removal commit; QRG-064 needs visual verification. Preserve legacy and conditional qualifications.

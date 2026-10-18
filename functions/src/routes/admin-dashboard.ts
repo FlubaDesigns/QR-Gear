@@ -1,3 +1,4 @@
+import { orderNeedsFulfillment } from '../services/order-reporting';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
 import express from 'express';
@@ -175,19 +176,17 @@ async function buildQueue(): Promise<QueueItem[]> {
     (async () => {
       try {
         const snap = await db.collection('orders')
-          .where('fulfillmentStatus', '==', 'pending')
-          .orderBy('createdAt', 'desc')
-          .limit(100)
           .get();
-        if (!snap.empty) {
+        const pending = snap.docs.filter(d => orderNeedsFulfillment(d.data()));
+        if (pending.length) {
           items.push({
             id: 'orders-pending',
             title: 'Orders pending fulfillment',
-            reason: `${snap.size} order${snap.size === 1 ? '' : 's'} waiting — review and submit to fulfillment provider`,
+            reason: `${pending.length} order${pending.length === 1 ? '' : 's'} waiting — review and submit to fulfillment provider`,
             priority: 'next',
             category: 'sell',
             href: '/admin/orders',
-            count: snap.size,
+            count: pending.length,
           });
         }
       } catch { /* collection may not exist yet */ }

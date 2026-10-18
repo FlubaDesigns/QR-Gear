@@ -179,7 +179,7 @@ app.get('/claimed-instances', requireAuth, async (req: Request, res: Response): 
       .limit(100)
       .get();
 
-    const instances = snapshot.docs.map(doc => doc.data());
+    const instances = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
     res.json(instances);
   } catch (error: any) {
     console.error('[Claim] Get instances error:', error);

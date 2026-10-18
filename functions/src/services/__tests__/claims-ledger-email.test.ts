@@ -54,3 +54,10 @@ it('credits the saved original referrer with or without a later share parameter 
   }
   expect(store.get('referrals/original').referrerId).toBe('first');
 });
+it('returns an owner-scoped array with document IDs for claimed-item navigation', async () => {
+  store.set('claimedInstances/static-item', { ownerUserId: 'first', status: 'static', hostingExpiresAt: null, createdAt: '2026-10-18' });
+  store.set('claimedInstances/other-item', { ownerUserId: 'second', status: 'active' });
+  const r = await request(app()).get('/claimed-instances').set('Authorization', 'Bearer first');
+  expect(r.status).toBe(200); expect(r.body).toEqual([expect.objectContaining({ id: 'static-item', status: 'static' })]);
+  expect((await request(app()).get('/claimed-instances/static-item').set('Authorization', 'Bearer first')).body.isActive).toBe(true);
+});

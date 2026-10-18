@@ -1,38 +1,10 @@
-import { useEffect, useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { SiteProvider } from "@/features/sites/SiteContext";
-import { SiteWidget } from "@/features/sites/SiteWidget";
-
+/** Legacy embeds are retired; Partner API integrations have their own contract. */
 export default function Widget() {
-  const { toast } = useToast();
-  const [token, setToken] = useState<string | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tokenParam = params.get("token");
-
-    if (tokenParam) {
-      setToken(tokenParam);
-    } else {
-      toast({
-        title: "Invalid Widget",
-        description: "No authentication token provided",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
-  if (!token) {
-    return (
-      <div className="flex items-center justify-center min-h-[300px] bg-background">
-        <p className="text-sm text-muted-foreground">No token provided</p>
-      </div>
-    );
-  }
-
   return (
-    <SiteProvider token={token}>
-      <SiteWidget />
-    </SiteProvider>
+    <div className="row py-6 space-y-3" role="status">
+      <h1 className="text-lg font-semibold">Legacy widget retired</h1>
+      <p>This embed is no longer supported. Ask the site owner to update it through QR Gear’s Partner integrations.</p>
+      <a className="underline" href="/">Visit QR Gear</a>
+    </div>
   );
 }

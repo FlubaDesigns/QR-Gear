@@ -1,3 +1,4 @@
+import { uploadMemberVideo, saveMemberVideo } from '@/lib/memberVideo';
 import { publishMemberBuild } from '@/lib/memberBuild';
 import {
   generateQRCodeUrl,
@@ -42,17 +43,10 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
     }
 
     if (ctx.pendingVideoFile && ctx.playVideoUrl?.startsWith('blob:')) {
-      const formData = new FormData();
-      formData.append('file', ctx.pendingVideoFile);
-      formData.append('storeType', 'member');
-      const uploadData = await memberFetch<any>(`/${ctx.user.id}/videos/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (uploadData?.url) {
-        resolvedVideoUrl = uploadData.url;
-        ctx.setPlayVideoUrl(resolvedVideoUrl);
-      }
+      resolvedVideoUrl = await uploadMemberVideo(ctx.user.id, ctx.pendingVideoFile, `${ctx.simpleTitle || 'QR Play'} - Video`);
+      ctx.setPlayVideoUrl(resolvedVideoUrl);
+      ctx.setVideoUrl(resolvedVideoUrl);
+      URL.revokeObjectURL(ctx.playVideoUrl);
       ctx.setPendingVideoFile(null);
     }
 
@@ -258,77 +252,11 @@ export async function executeVideoFileUpload(ctx: any, file: File): Promise<void
   ctx.setVideoUploadProgress(0);
 
   try {
-    const memberId = ctx.user.id;
-    const authHeaders = await getAuthHeaders();
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('storeType', 'member');
-
-    const result = await new Promise<{ url: string }>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          ctx.setVideoUploadProgress(pct);
-        }
-      });
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            const data = JSON.parse(xhr.responseText);
-            resolve(data);
-          } catch {
-            reject(new Error('Invalid server response'));
-          }
-        } else {
-          let msg = 'Upload failed';
-          try {
-            const errData = JSON.parse(xhr.responseText);
-            msg = errData.error || msg;
-          } catch {}
-          reject(new Error(msg));
-        }
-      });
-
-      xhr.addEventListener('error', () => {
-        reject(new Error('Network error - check your connection and try again'));
-      });
-
-      xhr.addEventListener('abort', () => {
-        reject(new Error('Upload was cancelled'));
-      });
-
-      xhr.open('POST', `/api/members/${memberId}/media`);
-      const authHeader = (authHeaders as any)['Authorization'];
-      if (authHeader) {
-        xhr.setRequestHeader('Authorization', authHeader);
-      }
-      xhr.send(formData);
-    });
-
-    ctx.setPlayVideoUrl(result.url);
-    ctx.setVideoUrl(result.url);
+    const url = await uploadMemberVideo(ctx.user.id, file, `${ctx.simpleTitle || 'QR Play'} - Video`);
+    ctx.setPlayVideoUrl(url);
+    ctx.setVideoUrl(url);
+    ctx.setVideoUploadProgress(100);
     ctx.setVideoUploadSuccess(true);
-    console.log('[QR Play] Video uploaded successfully:', result.url);
-
-    try {
-      await memberFetch(`/${memberId}/library/upload`, {
-        method: 'POST',
-        json: {
-          assetType: 'video',
-          name: `${ctx.simpleTitle || 'QR Play'} - Video`,
-          imageData: 'data:text/plain;base64,' + btoa(result.url),
-          mimeType: 'text/plain',
-          originalName: `video-url-${Date.now()}.txt`,
-        },
-      });
-      console.log('[QR Play] Video auto-saved to member library');
-    } catch (libErr) {
-      console.warn('[QR Play] Auto-save to library failed (non-blocking):', libErr);
-    }
   } catch (error: any) {
     console.error('[QR Play] Video upload error:', error);
     ctx.setVideoUploadError(error?.message || 'Failed to upload video. Please try again.');
@@ -343,20 +271,9 @@ export async function executeSavePlayToLibrary(ctx: any): Promise<void> {
 
   ctx.setIsPlaySaving(true);
   try {
-    if (ctx.playVideoUrl && !ctx.playVideoUrl.startsWith('/api/member-files/')) {
-      await memberFetch(`/${ctx.user.id}/library/upload`, {
-        method: 'POST',
-        json: {
-          assetType: 'video',
-          name: `${ctx.simpleTitle || 'QR Play'} - Video`,
-          imageData: 'data:text/plain;base64,' + btoa(ctx.playVideoUrl),
-          mimeType: 'text/plain',
-          originalName: `video-url-${Date.now()}.txt`,
-        },
-      }).catch(() => {});
-    }
+    if (ctx.playVideoUrl) await saveMemberVideo(ctx.user.id, ctx.playVideoUrl, `${ctx.simpleTitle || 'QR Play'} - Video`);
   } catch (error) {
-    console.error('[QR Play] Save to library error:', error);
+    ctx.toast({ title: 'Video save failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
   } finally {
     ctx.setIsPlaySaving(false);
   }

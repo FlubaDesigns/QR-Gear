@@ -1,3 +1,6 @@
+import { changeEmailTemplate } from '../services/email-template-settings';
+import { orderDate, orderNetRevenueCents, orderNeedsFulfillment, orderInProduction } from '../services/order-reporting';
+import { customerDirectory, customerSummary, ordersForCustomer } from '../services/customer-reporting';
 import {validateCoupon} from '../services/coupons';
 import {HealthMonitorService} from '../services/health-monitor';
 import { Request, Response, NextFunction } from 'express';
@@ -23,11 +26,10 @@ import { printfulClient, updatePrintfulKeyCache } from '../services/printful';
 
 app.get('/admin/dashboard/metrics', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const [productsSnap, ordersSnap, customersSnap, packetsSnap] = await Promise.all([
+    const [productsSnap, ordersSnap, directory] = await Promise.all([
       db.collection('products').get(),
       db.collection('orders').get(),
-      db.collection('customers').get(),
-      db.collection('product_packets').get(),
+      customerDirectory(db),
     ]);
     const orders = ordersSnap.docs.map((d: any) => d.data());
     const now = new Date();
@@ -38,25 +40,22 @@ app.get('/admin/dashboard/metrics', requireAdmin, async (_req: Request, res: Res
     let revenueToday = 0, revenueWeek = 0, revenueMonth = 0;
     let pendingCount = 0, productionCount = 0, shippedCount = 0;
     for (const o of orders) {
-      const amount = o.totalAmount || 0;
-      const created = o.createdAt || '';
+      const amount = orderNetRevenueCents(o);
+      const created = orderDate(o.paymentVerifiedAt || o.createdAt) || '';
       if (created >= todayStart) revenueToday += amount;
       if (created >= weekAgo) revenueWeek += amount;
       if (created >= monthAgo) revenueMonth += amount;
-      if (o.status === 'pending') pendingCount++;
-      if (o.status === 'routed' || o.status === 'in_production') productionCount++;
+      if (orderNeedsFulfillment(o)) pendingCount++;
+      if (orderInProduction(o)) productionCount++;
       if (o.status === 'shipped') shippedCount++;
     }
 
-    const newCustomersThisWeek = customersSnap.docs.filter((d: any) => {
-      const c = d.data();
-      return (c.createdAt || '') >= weekAgo;
-    }).length;
+    const newCustomersThisWeek = [...directory.records.values()].filter(c => (orderDate(c.createdAt) || '') >= weekAgo).length;
 
     res.json({
-      revenue: { today: revenueToday, week: revenueWeek, month: revenueMonth, trend: 0 },
+      revenue: { today: revenueToday / 100, week: revenueWeek / 100, month: revenueMonth / 100, trend: 0 },
       orders: { total: ordersSnap.size, pending: pendingCount, inProduction: productionCount, shipped: shippedCount, trend: 0 },
-      customers: { total: customersSnap.size, newThisWeek: newCustomersThisWeek, returning: 0 },
+      customers: { total: directory.records.size, newThisWeek: newCustomersThisWeek, returning: 0 },
       products: { active: productsSnap.size, lowStock: 0, syncErrors: 0 },
       health: Object.fromEntries((await new HealthMonitorService(db).getOverview()).providers.map(p=>[p.provider,p.status])),
     });
@@ -65,66 +64,26 @@ app.get('/admin/dashboard/metrics', requireAdmin, async (_req: Request, res: Res
 
 app.get('/admin/customers', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    let snapshot;
-    try {
-      snapshot = await db.collection('customers').orderBy('createdAt', 'desc').limit(100).get();
-    } catch {
-      snapshot = await db.collection('customers').limit(100).get();
-    }
-    const ordersSnap = await db.collection('orders').get();
-    const ordersByCustomer: Record<string, { count: number; total: number; lastDate: string | null }> = {};
-    for (const od of ordersSnap.docs) {
-      const o = od.data() as any;
-      const cid = o.customerId || o.userId || '';
-      if (!cid) continue;
-      if (!ordersByCustomer[cid]) ordersByCustomer[cid] = { count: 0, total: 0, lastDate: null };
-      ordersByCustomer[cid].count++;
-      ordersByCustomer[cid].total += (o.totalAmount || 0);
-      const d = o.createdAt || null;
-      if (d && (!ordersByCustomer[cid].lastDate || d > ordersByCustomer[cid].lastDate)) {
-        ordersByCustomer[cid].lastDate = d;
-      }
-    }
-    const customers = snapshot.docs.map((d: any) => {
-      const data = d.data();
-      const stats = ordersByCustomer[d.id] || { count: 0, total: 0, lastDate: null };
-      return {
-        id: d.id,
-        email: data.email || null,
-        firstName: data.firstName || data.displayName?.split(' ')[0] || null,
-        lastName: data.lastName || data.displayName?.split(' ').slice(1).join(' ') || null,
-        profileImageUrl: data.profileImageUrl || data.photoURL || null,
-        createdAt: data.createdAt || null,
-        orderCount: stats.count,
-        totalSpent: stats.total,
-        lastOrderDate: stats.lastDate,
-      };
-    });
+    const [directory, ordersSnap] = await Promise.all([customerDirectory(db), db.collection('orders').get()]);
+    const orders = ordersSnap.docs.map(d => ({ ...d.data(), id: d.id }));
+    const customers = [...directory.records.values()]
+      .sort((a, b) => (orderDate(b.createdAt) || '').localeCompare(orderDate(a.createdAt) || ''))
+      .slice(0, 100)
+      .map(data => customerSummary(data, ordersForCustomer(data.id, orders, directory.legacyIds)));
     res.json(customers);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
 app.get('/admin/customers/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('customers').doc(req.params.id).get();
-    if (!doc.exists) { res.status(404).json({ error: "Customer not found" }); return; }
-    const data = doc.data() as any;
-    const ordersSnap = await db.collection('orders')
-      .where('customerId', '==', req.params.id).orderBy('createdAt', 'desc').limit(20).get()
-      .catch(() => db.collection('orders').where('customerId', '==', req.params.id).limit(20).get());
-    const recentOrders = ordersSnap.docs.map((od: any) => ({ id: od.id, ...od.data() }));
-    const totalSpent = recentOrders.reduce((s: number, o: any) => s + (o.totalAmount || 0), 0);
-    const customer = {
-      id: doc.id,
-      email: data.email || null,
-      firstName: data.firstName || data.displayName?.split(' ')[0] || null,
-      lastName: data.lastName || data.displayName?.split(' ').slice(1).join(' ') || null,
-      profileImageUrl: data.profileImageUrl || data.photoURL || null,
-      createdAt: data.createdAt || null,
-      orderCount: recentOrders.length,
-      totalSpent,
-      lastOrderDate: recentOrders[0]?.createdAt || null,
-    };
+    const directory = await customerDirectory(db);
+    const id = directory.legacyIds.get(req.params.id) || req.params.id;
+    const data = directory.records.get(id);
+    if (!data) { res.status(404).json({ error: "Customer not found" }); return; }
+    const ordersSnap = await db.collection('orders').get();
+    const orders = ordersForCustomer(id, ordersSnap.docs.map(d => ({ ...d.data(), id: d.id })), directory.legacyIds);
+    const customer = customerSummary(data, orders);
+    const recentOrders = orders.slice(0, 20);
     res.json({ customer, recentOrders });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -138,24 +97,16 @@ app.get('/admin/email-templates', requireAdmin, async (_req: Request, res: Respo
 });
 
 app.post('/admin/email-templates', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const docRef = await db.collection('email_templates').add({ ...req.body, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    res.json({ id: docRef.id, success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  try { const template = await changeEmailTemplate(db, 'create', undefined, req.body); res.json({ ...template, success: true }); }
+  catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
-
 app.put('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('email_templates').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  try { await changeEmailTemplate(db, 'update', req.params.id, req.body); res.json({ success: true }); }
+  catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
-
 app.delete('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('email_templates').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  try { await changeEmailTemplate(db, 'delete', req.params.id); res.json({ success: true }); }
+  catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.get('/admin/email-logs', requireAdmin, async (req: Request, res: Response): Promise<void> => {

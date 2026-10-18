@@ -119,7 +119,7 @@ export function packetBuildFields(value: any): Record<string, any> {
     subBottomFontWeight: sb.fontWeight, subBottomColor: sb.color,
     qrProductState: q.qrProductState,
     selectedPlacements: l.selectedPlacements, placements: l.selectedPlacements,
-    placementConfig: l.placementConfig, placementSizes: l.placementSizes, placementMethods: l.placementMethods,
+    perPlacementConfigs: l.perPlacementConfigs, placementConfig: l.placementConfig, placementSizes: l.placementSizes, placementMethods: l.placementMethods,
     defaultColor: q.selectedColor?.name ?? null, defaultColorHex: q.selectedColor?.hex ?? null,
     providerLayout: snapshot.providerLayout,
     backgroundUrl: bg, landingPageBackgroundUrl: bg,
@@ -142,18 +142,19 @@ export function packetBuildFields(value: any): Record<string, any> {
 export function productGraphicOptions(value: any, qrContent: string, placement?: string): Record<string, any> {
   const snapshot = requireBuilderSnapshot(value);
   const c = snapshot.graphics.content, sb = c.subBottomStyle || {};
+  const qrOnly = snapshot.layoutConfig.perPlacementConfigs?.[placement || snapshot.layoutConfig.selectedPlacements[0]]?.graphicChoice === 'qr-only';
   return {
     qrContent, qrColor: 'black', transparent: true,
     placement: placement || snapshot.layoutConfig.selectedPlacements[0],
     placementSize: snapshot.layoutConfig.placementSizes?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || 'medium',
-    headerStyle: c.headerStyle?.enabled ? c.headerStyle : null,
-    footerStyle: c.footerStyle?.enabled ? c.footerStyle : null,
+    headerStyle: !qrOnly && c.headerStyle?.enabled ? c.headerStyle : null,
+    footerStyle: !qrOnly && c.footerStyle?.enabled ? c.footerStyle : null,
     backgroundColor: snapshot.qrConfig.selectedColor?.hex,
     graphicLayoutMode: c.graphicLayoutMode,
     qrPositionX: c.qrPositionX, qrPositionY: c.qrPositionY, qrSizePercent: c.qrSizePercent,
-    areaImageUrl: c.areaImageUrl, areaImageMode: c.areaImageMode,
+    areaImageUrl: qrOnly ? null : c.areaImageUrl, areaImageMode: c.areaImageMode,
     areaImageOffsetX: c.areaImageOffsetX, areaImageOffsetY: c.areaImageOffsetY, areaImageScale: c.areaImageScale,
-    subBottomEnabled: sb.enabled, subBottomText: sb.text, subBottomFontFamily: sb.fontFamily,
+    subBottomEnabled: !qrOnly && sb.enabled, subBottomText: sb.text, subBottomFontFamily: sb.fontFamily,
     subBottomFontSize: sb.fontSize, subBottomFontWeight: sb.fontWeight, subBottomColor: sb.color,
     subBottomLetterSpacing: sb.letterSpacing,
     providerLayout: snapshot.layoutConfig.providerLayouts?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || snapshot.providerLayout,

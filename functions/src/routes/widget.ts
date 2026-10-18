@@ -236,7 +236,9 @@ app.get('/widget/verify', async (req: Request, res: Response): Promise<void> => 
   try {
     const token = req.query.token as string;
     if (!token) { res.json({ valid: false, error: "No token" }); return; }
-    res.json({ valid: true, payload: { token } });
+    const payload = typeof token === 'string' ? verifyWidgetToken(token) : null;
+    if (!payload) { res.json({ valid: false, error: 'Invalid or expired token' }); return; }
+    res.json({ valid: true, payload });
   } catch (e: any) { res.json({ valid: false, error: e.message }); }
 });
 

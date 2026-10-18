@@ -7,9 +7,16 @@ import type { QRType } from "@/features/shared/components/wizardSteps";
 
 export function StudioMode() {
   const {
-    selectedProduct, selectedChannel, qrType, setQrType, channelName, setChannelName,
-    qrDestination, setQrDestination, isPublishing, handlePublish, setCurrentStep, setWizardTier
+    selectedProductType, selectedChannel, qrType, setQrType, simpleTitle, setSimpleTitle,
+    qrBasicContent, setQrBasicContent, setQrBasicInputType, selectedColor, selectedShirtSize, selectedPlacements,
+    urlGraphic, playVideoUrl, composeItems, composeHostingTerm,
+    isPublishing, handlePublish, setSimpleStep, setWizardTier
   } = useWizardContext();
+
+  const needsSetup = !selectedProductType || !selectedChannel || !selectedColor || !selectedShirtSize || !selectedPlacements.length || !qrType || !simpleTitle.trim()
+    || (['qr-basic', 'qr-plus'].includes(qrType) && !qrBasicContent.trim())
+    || (qrType === 'qr-canvas' && !urlGraphic) || (qrType === 'qr-play' && !playVideoUrl)
+    || (qrType === 'qr-compose' && (composeItems.length < 2 || !composeHostingTerm));
 
   return (
     <div className="row space-y-4">
@@ -25,29 +32,29 @@ export function StudioMode() {
           <div className="layout__split-2">
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Product</label>
-              <div 
-                className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
-                onClick={() => { setCurrentStep('product'); setWizardTier('advanced'); }}
+              <button type="button"
+                className="w-full text-left p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
+                onClick={() => { setSimpleStep('product'); setWizardTier('advanced'); }}
                 data-testid="studio-select-product"
               >
-                {selectedProduct ? (
+                {selectedProductType ? (
                   <div className="flex items-center gap-3">
-                    {selectedProduct.thumbnailUrl && (
-                      <img src={selectedProduct.thumbnailUrl} alt={`Selected product: ${selectedProduct.name}`} className="w-10 h-10 rounded object-cover" />
+                    {selectedProductType.imageUrl && (
+                      <img src={selectedProductType.imageUrl} alt={`Selected product: ${selectedProductType.title}`} className="w-10 h-10 rounded object-cover" />
                     )}
-                    <span className="text-white text-sm truncate">{selectedProduct.name}</span>
+                    <span className="text-white text-sm truncate">{selectedProductType.title}</span>
                   </div>
                 ) : (
                   <span className="text-slate-400 text-sm">Click to select product...</span>
                 )}
-              </div>
+              </button>
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-slate-300">Channel</label>
-              <div 
-                className="p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
-                onClick={() => { setCurrentStep('channel'); setWizardTier('advanced'); }}
+              <button type="button"
+                className="w-full text-left p-3 bg-slate-700/50 rounded-lg border border-slate-600 cursor-pointer hover:border-blue-500 transition-colors"
+                onClick={() => { setSimpleStep('channel'); setWizardTier('advanced'); }}
                 data-testid="studio-select-channel"
               >
                 {selectedChannel ? (
@@ -58,53 +65,57 @@ export function StudioMode() {
                 ) : (
                   <span className="text-slate-400 text-sm">Click to select channel...</span>
                 )}
-              </div>
+              </button>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">QR Type</label>
-              <select
+              <label htmlFor="studio-qr-type" className="text-sm font-medium text-slate-300">QR Type</label>
+              <select id="studio-qr-type"
                 value={qrType}
                 onChange={(e) => setQrType(e.target.value as QRType)}
                 className="w-full p-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white focus:border-blue-500 outline-none"
                 data-testid="power-qr-type"
               >
+                <option value="" disabled>Select QR type</option>
                 <option value="qr-basic">QR Basic</option>
                 <option value="qr-plus">QR Plus</option>
                 <option value="qr-canvas">QR Canvas</option>
                 <option value="qr-play">QR Play</option>
+                <option value="qr-compose">QR Compose</option>
               </select>
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-300">Channel</label>
-              <input
+              <label htmlFor="studio-title" className="text-sm font-medium text-slate-300">Product title</label>
+              <input id="studio-title"
                 type="text"
-                value={channelName}
-                onChange={(e) => setChannelName(e.target.value)}
+                value={simpleTitle}
+                onChange={(e) => setSimpleTitle(e.target.value)}
                 placeholder="My Products"
                 className="w-full p-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-blue-500 outline-none"
-                data-testid="power-channel-name"
+                data-testid="power-product-title"
               />
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-300">QR Destination URL</label>
-            <input
+          {['qr-basic', 'qr-plus'].includes(qrType) && <div className="space-y-2">
+            <label htmlFor="studio-destination" className="text-sm font-medium text-slate-300">QR destination or text</label>
+            <input id="studio-destination"
               type="text"
-              value={qrDestination}
-              onChange={(e) => setQrDestination(e.target.value)}
-              placeholder="https://your-website.com or leave empty for default"
+              value={qrBasicContent}
+              onChange={(e) => { setQrBasicContent(e.target.value); setQrBasicInputType('text'); }}
+              placeholder="Enter the destination or text to encode"
               className="w-full p-3 bg-slate-700/50 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:border-blue-500 outline-none"
               data-testid="power-qr-destination"
             />
-          </div>
+          </div>}
+          <Button variant="outline" onClick={() => { setSimpleStep(selectedProductType ? 'color' : 'product'); setWizardTier('advanced'); }}>Configure product, artwork and media</Button>
+          {needsSetup && <p role="status" className="text-sm text-slate-300">Complete your channel, product, color, size, placement and QR content before publishing.</p>}
 
           <div className="flex justify-end pt-4 border-t border-slate-700">
             <Button
               onClick={handlePublish}
-              disabled={isPublishing || !selectedProduct}
+              disabled={isPublishing || needsSetup}
               className="bg-blue-600 hover:bg-blue-700"
               data-testid="power-publish"
             >

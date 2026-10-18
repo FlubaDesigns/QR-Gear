@@ -38,7 +38,13 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>(selection?.headerStyle ?? { ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>(selection?.footerStyle ?? { ...defaultTextStyle });
   const [currentPlacementIndex, setCurrentPlacementIndex] = useState(selection?.currentPlacementIndex ?? 0);
-  const [placementGraphicChoice, setPlacementGraphicChoice] = useState<PlacementGraphicChoice>(selection?.placementGraphicChoice ?? '');
+  const [placementGraphicChoice, setCurrentPlacementGraphicChoice] = useState<PlacementGraphicChoice>(selection?.placementGraphicChoice ?? '');
+
+  const [perPlacementConfigs, setPerPlacementConfigs] = useState<Record<string, { graphicChoice: PlacementGraphicChoice }>>(selection?.perPlacementConfigs ?? {});
+  const setPlacementGraphicChoice = (choice: PlacementGraphicChoice) => {
+    setCurrentPlacementGraphicChoice(choice);
+    if (choice) setPerPlacementConfigs(previous => ({ ...previous, [currentPlacement]: { graphicChoice: choice } }));
+  };
 
   const [qrBasicInputType, setQrBasicInputType] = useState<QRBasicInputType>(selection?.qrBasicInputType ?? '');
   const [qrBasicContent, setQrBasicContent] = useState(selection?.qrBasicContent ?? '');
@@ -111,7 +117,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const buildInput = {
     boundProduct: selectedProductType,
     title: selectedProductType?.title,
-    selectedColor, selectedShirtSize, selectedPlacements, graphicSize, perPlacementSizes,
+    selectedColor, selectedShirtSize, selectedPlacements, graphicSize, perPlacementSizes, perPlacementConfigs,
     packetType: qrType, qrBasicContent, qrBasicInputType,
     headerStyle: { ...headerStyle, enabled: wantsHeaderFooter === true && ['header', 'both'].includes(textLayoutChoice) },
     footerStyle: { ...footerStyle, enabled: wantsHeaderFooter === true && ['footer', 'both'].includes(textLayoutChoice) },
@@ -188,7 +194,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
       const draft = {
         version: 1 as const, inputKey, prepared: { ...entry, preview: entry.preview }, runningCost,
         selection: { selectedProductType, selectedColor, selectedShirtSize, graphicLocation,
-          graphicSize, perPlacementSizes, wantsHeaderFooter, qrType, selectedPlacements,
+          graphicSize, perPlacementSizes, perPlacementConfigs, wantsHeaderFooter, qrType, selectedPlacements,
           textLayoutChoice, headerStyle, footerStyle, currentPlacementIndex, placementGraphicChoice,
           qrBasicInputType, qrBasicContent, qrPositionX, qrPositionY, qrSizePercent,
           areaImageUrl, areaImageMode, graphicLayoutMode },
@@ -209,7 +215,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const handleProductSelect = (product: AllowedProduct) => {
     setSelectedProductType(product);
     setSelectedColor(''); setSelectedShirtSize(''); setSelectedPlacements([]);
-    setPerPlacementSizes({}); setGraphicSize('');
+    setPerPlacementSizes({}); setPerPlacementConfigs({}); setGraphicSize('');
     setRunningCost(product.retailPrice || 0);
     setCostPulse(true);
     setTimeout(() => setCostPulse(false), 600);

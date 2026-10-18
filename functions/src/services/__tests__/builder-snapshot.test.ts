@@ -63,3 +63,15 @@ describe('builder snapshot handoffs', () => {
   });
 
 });
+it('renders and persists distinct full and QR-only placements with the saved position', () => {
+  const s = fixture();
+  s.layoutConfig.selectedPlacements = ['front', 'back'];
+  s.layoutConfig.perPlacementConfigs = { front: { graphicChoice: 'full' }, back: { graphicChoice: 'qr-only' } };
+  const persisted = packetBuildFields(s).builderSnapshot;
+  const front = productGraphicOptions(persisted, 'https://destination.test', 'front');
+  const back = productGraphicOptions(persisted, 'https://destination.test', 'back');
+  expect(front.headerStyle.text).toBe('Exact words'); expect(front.areaImageUrl).toBeTruthy();
+  expect(back.headerStyle).toBeNull(); expect(back.footerStyle).toBeNull(); expect(back.areaImageUrl).toBeNull();
+  expect(back.qrPositionX).toBe(20); expect(back.qrPositionY).toBe(80);
+  expect(packetBuildFields(s).perPlacementConfigs.back.graphicChoice).toBe('qr-only');
+});

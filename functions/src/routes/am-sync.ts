@@ -1,3 +1,4 @@
+import { changeEmailTemplate } from '../services/email-template-settings';
 import { readOwnedDocument } from '../services/owned-document';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { savePartner, rotatePartnerKey, authenticatePartner, partnerProducts } from '../services/partner-api';
@@ -593,11 +594,8 @@ app.get('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Re
 });
 
 app.patch('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('email_templates').doc(req.params.id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    const doc = await db.collection('email_templates').doc(req.params.id).get();
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  try { res.json(await changeEmailTemplate(db, 'update', req.params.id, req.body)); }
+  catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 // /admin/background-assets/migrate — removed (legacy library_assets pipeline purged)

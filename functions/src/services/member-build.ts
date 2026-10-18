@@ -117,6 +117,12 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
     if (!['small', 'medium', 'large'].includes(size)) fail('Choose a valid graphic size.');
     return [placement, size];
   }));
+  const perPlacementConfigs = Object.fromEntries(selected.map((placement: string) => {
+    const config = input.perPlacementConfigs?.[placement];
+    const graphicChoice = config ? config.graphicChoice : 'full';
+    if (!['full', 'qr-only'].includes(graphicChoice)) fail('Choose a valid placement graphic.');
+    return [placement, { graphicChoice }];
+  }));
   const rawSnapshot = requireBuilderSnapshot({ title, description: String(input.description || ''),
     graphics: { loadedBackground: input.background ? { url: input.background } : null, content: {
       headerStyle: input.headerStyle, footerStyle: input.footerStyle, areaImageUrl: input.areaImageUrl || '',
@@ -125,7 +131,7 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
       hostingTierCode: compose ? input.composeHostingTerm.replace('-', '_') : (input.hostingTierCode || '1_year'), playMediaUrl: input.videoUrl || '', qrBasicInputType: input.qrBasicInputType || 'url', areaImageMode: input.areaImageMode || 'cover',
     } },
     qrConfig: { qrProductState: mode, selectedColor: product.availableColors.find((c: any) => c.name === variant.color) },
-    layoutConfig: { selectedPlacements: selected, providerLayouts, placementSizes },
+    layoutConfig: { selectedPlacements: selected, providerLayouts, placementSizes, perPlacementConfigs },
     metadata: { selectedProductDocId: sourceMasterId, fulfillmentProvider: provider, selectedRole: ownerType },
   });
   const priced = await priceNewPacket(db, rawSnapshot, QR_GEAR_BRANDED_TAG_URL);

@@ -1,3 +1,5 @@
+import { claimedItemStatus } from '@/lib/claimedItemStatus';
+import { privateQueryKey } from '@/lib/identityCache';
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,7 +16,7 @@ interface ClaimedInstance {
   productDescription?: string;
   previewImageUrl?: string;
   ownerEmail: string;
-  hostingExpiresAt: string;
+  hostingExpiresAt: string | null;
   status: string;
   claimedAt: string;
   instanceUrl?: string;
@@ -28,7 +30,7 @@ export default function MyItemPage() {
   const { user, isLoading: authLoading } = useAuth();
 
   const { data, isLoading, error } = useQuery<{ instance: ClaimedInstance; isActive: boolean }>({
-    queryKey: ['/api/claimed-instances', instanceId],
+    queryKey: privateQueryKey(`/api/claimed-instances/${instanceId}`, user?.id),
     enabled: !!instanceId && !!user,
   });
 
@@ -76,10 +78,8 @@ export default function MyItemPage() {
   }
 
   const instance = data.instance;
-  const isActive = data.isActive;
-  const expiresAt = new Date(instance.hostingExpiresAt);
-  const now = new Date();
-  const daysRemaining = Math.max(0, Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+  const { isActive, isStatic, hasTerm, daysRemaining, label } = claimedItemStatus(instance);
+  const expiresAt = hasTerm ? new Date(instance.hostingExpiresAt!) : null;
 
   return (
     <>
@@ -130,11 +130,11 @@ export default function MyItemPage() {
                 {isActive ? (
                   <Badge className="gap-1">
                     <CheckCircle className="h-3 w-3" />
-                    Active
+                    {label}
                   </Badge>
                 ) : (
                   <Badge variant="destructive" className="gap-1">
-                    Expired
+                    {label}
                   </Badge>
                 )}
               </div>
@@ -142,14 +142,14 @@ export default function MyItemPage() {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Days Remaining</span>
                 <span className="text-sm font-semibold text-foreground" data-testid="text-days-remaining">
-                  {instance.hostingExpiresAt ? `${daysRemaining} days` : 'Static QR — no hosting term'}
+                  {isStatic ? 'Static QR — no hosting term' : daysRemaining !== null ? `${daysRemaining} days` : 'Unavailable'}
                 </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">Expires</span>
                 <span className="text-sm text-foreground" data-testid="text-expires">
-                  {instance.hostingExpiresAt ? expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not applicable'}
+                  {expiresAt ? expiresAt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'Not applicable'}
                 </span>
               </div>
 
@@ -160,7 +160,7 @@ export default function MyItemPage() {
                 </span>
               </div>
 
-              {daysRemaining < 60 && isActive && (
+              {daysRemaining !== null && daysRemaining < 60 && isActive && (
                 <div className="bg-amber-500/10 border border-amber-500/20 rounded-md p-3">
                   <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <Clock className="h-3 w-3" />
@@ -169,7 +169,7 @@ export default function MyItemPage() {
                 </div>
               )}
 
-              {!isActive && instance.hostingExpiresAt && (
+              {!isActive && hasTerm && (
                 <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3">
                   <p className="text-xs text-destructive">
                     Your hosting has expired. Renew to restore your QR content.
@@ -192,7 +192,7 @@ export default function MyItemPage() {
               </Button>
             )}
 
-            {!instance.dynamicsInstanceId && <Button
+            {!isStatic && hasTerm && !instance.dynamicsInstanceId && <Button
               variant="outline"
               className="w-full"
               onClick={() => setLocation(`/renew/${instanceId}`)}

@@ -14,7 +14,7 @@ import { QRPlusMockupStep, QRPlusSaveChoiceStep, QRPlusConfirmStep } from "@/fea
 import { ShirtPreviewStep } from "@/features/shared/components/wizardSteps/PreviewAndPublishSteps";
 import { ShareKitHandoff } from "@/features/shared/components/ShareKitHandoff";
 import { calculateSizeEarningsBonuses } from "@/features/shared/components/wizardSteps";
-import { getPrintAreaDims, GRAPHIC_CENTER, getPlacementLabel } from "@/features/shared/components/wizardSteps/wizardTypes";
+import { getPlacementLabel } from "@/features/shared/components/wizardSteps/wizardTypes";
 import { useWizardContext } from './WizardContext';
 
 export function AdvancedWizardProductSteps() {
@@ -76,8 +76,7 @@ export function AdvancedWizardProductSteps() {
   } = useWizardContext();
 
   const [customFontSize, setCustomFontSize] = useState(18);
-  const [placementOffsetX, setPlacementOffsetX] = useState(0);
-  const [placementOffsetY, setPlacementOffsetY] = useState(0);
+
 
   const sharePacketId = publishedPacketId || currentPacketId || '';
   const getShareKitData = () => ({
@@ -529,46 +528,47 @@ export function AdvancedWizardProductSteps() {
               <span className="text-xs font-medium text-blue-400">Placement Coordinates</span>
             </div>
             {(() => {
-              const dims = getPrintAreaDims(currentPlacement, graphicSize);
-              const center = GRAPHIC_CENTER[currentPlacement as keyof typeof GRAPHIC_CENTER] || GRAPHIC_CENTER.front;
+              const dims = (selectedProductType?.placements?.find(p => p.id === currentPlacement) as any)?.dimensions;
               return (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-slate-800/50 rounded p-2">
                       <span className="text-[10px] text-white/40 block mb-0.5">Print Area</span>
-                      <span className="text-xs text-white/80 font-mono" data-testid="text-advanced-print-dims">{dims.w}" x {dims.h}"</span>
+                      <span className="text-xs text-white/80 font-mono" data-testid="text-advanced-print-dims">{dims?.widthPx && dims?.heightPx ? `${dims.widthPx} × ${dims.heightPx} px` : 'Available in the generated preview'}</span>
                     </div>
                     <div className="bg-slate-800/50 rounded p-2">
-                      <span className="text-[10px] text-white/40 block mb-0.5">Center Point</span>
-                      <span className="text-xs text-white/80 font-mono" data-testid="text-advanced-center-point">({center.x}, {center.y})</span>
+                      <span className="text-[10px] text-white/40 block mb-0.5">QR Position</span>
+                      <span className="text-xs text-white/80 font-mono" data-testid="text-advanced-center-point">({qrPositionX}%, {qrPositionY}%)</span>
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs text-white/60 mb-1 block">X Offset: {placementOffsetX}px</label>
+                    <label className="text-xs text-white/60 mb-1 block">QR horizontal position: {qrPositionX}%</label>
                     <Slider
-                      value={[placementOffsetX]}
-                      onValueChange={([v]) => setPlacementOffsetX(v)}
-                      min={-20}
-                      max={20}
+                      aria-label="QR horizontal position"
+                      value={[qrPositionX]}
+                      onValueChange={([v]) => setQrPositionX(v)}
+                      min={0}
+                      max={100}
                       step={1}
                       className="w-full"
                       data-testid="slider-advanced-placement-x"
                     />
                   </div>
                   <div>
-                    <label className="text-xs text-white/60 mb-1 block">Y Offset: {placementOffsetY}px</label>
+                    <label className="text-xs text-white/60 mb-1 block">QR vertical position: {qrPositionY}%</label>
                     <Slider
-                      value={[placementOffsetY]}
-                      onValueChange={([v]) => setPlacementOffsetY(v)}
-                      min={-20}
-                      max={20}
+                      aria-label="QR vertical position"
+                      value={[qrPositionY]}
+                      onValueChange={([v]) => setQrPositionY(v)}
+                      min={0}
+                      max={100}
                       step={1}
                       className="w-full"
                       data-testid="slider-advanced-placement-y"
                     />
                   </div>
                   <p className="text-[10px] text-white/30">
-                    {getPlacementLabel(currentPlacement)} placement at ({center.x + placementOffsetX}, {center.y + placementOffsetY})
+                    QR position applies to all selected placements. Review the generated product preview.
                   </p>
                 </div>
               );

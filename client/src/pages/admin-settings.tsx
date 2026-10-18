@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AdminShell from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import {
   Settings,
   Key,
@@ -31,7 +29,7 @@ interface ApiKeyStatus {
   printful: {
     masked: string;
     status: "valid" | "invalid" | "unknown" | "not_configured" | "not_checked";
-    source: "dashboard" | "env";
+    source: string;
     updatedAt: string | null;
   };
   printify: {
@@ -68,34 +66,10 @@ function StatusBadge({ status }: { status: "valid" | "invalid" | "unknown" | "no
 
 export default function AdminSettings() {
   const { toast } = useToast();
-  const [newPrintfulKey, setNewPrintfulKey] = useState("");
-  const [showKey, setShowKey] = useState(false);
 
   const { data: keyStatus, error, isLoading } = useQuery<ApiKeyStatus>({
     queryKey: ["/api/admin/api-keys"],
     refetchInterval: 30000,
-  });
-
-  const updateKeyMutation = useMutation({
-    mutationFn: async (apiKey: string) => {
-      const res = await apiRequest("POST", "/api/admin/api-keys", {
-        provider: "printful",
-        apiKey,
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Printful API key updated and verified" });
-      setNewPrintfulKey("");
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/api-keys"] });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to update key",
-        description: error.message || "The key may be invalid",
-        variant: "destructive",
-      });
-    },
   });
 
   const testKeyMutation = useMutation({
@@ -121,7 +95,7 @@ export default function AdminSettings() {
   return (
     <AdminShell
       title="Settings"
-      subtitle="Manage API keys and integrations"
+      subtitle="Provider status and integration settings"
       icon={Settings}
       backHref="/admin"
       backLabel="RUN"
@@ -152,7 +126,7 @@ export default function AdminSettings() {
                       {keyStatus?.printful.masked || "(not set)"}
                     </code>
                     <span className="text-xs text-muted-foreground">
-                      ({keyStatus?.printful.source === "dashboard" ? "Set from dashboard" : "From environment"})
+                      (Managed by Fluba Cortex)
                     </span>
                   </div>
                   {keyStatus?.printful.updatedAt && (
@@ -180,53 +154,8 @@ export default function AdminSettings() {
                 </div>
 
                 <div className="border-t pt-4 space-y-3">
-                  <p className="text-sm font-medium">Update Printful API Key</p>
-                  <p className="text-xs text-muted-foreground">
-                    Get your key from{" "}
-                    <a
-                      href="https://www.printful.com/dashboard/settings/api"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 underline"
-                    >
-                      Printful Dashboard &rarr; Settings &rarr; API
-                    </a>
-                  </p>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        type={showKey ? "text" : "password"}
-                        placeholder="Paste new Printful API key here"
-                        value={newPrintfulKey}
-                        onChange={(e) => setNewPrintfulKey(e.target.value)}
-                        className="pr-10"
-                        data-testid="input-printful-key"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowKey(!showKey)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
-                        data-testid="button-toggle-key-visibility"
-                      >
-                        {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    <Button
-                      onClick={() => updateKeyMutation.mutate(newPrintfulKey)}
-                      disabled={!newPrintfulKey || newPrintfulKey.length < 10 || updateKeyMutation.isPending}
-                      data-testid="button-save-printful-key"
-                    >
-                      {updateKeyMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                      ) : (
-                        <Save className="w-4 h-4 mr-1" />
-                      )}
-                      Save
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    The key will be validated against Printful before saving. If valid, it takes effect immediately — no deploy needed.
-                  </p>
+                  <p className="text-sm">Provider credentials are managed in Fluba Cortex.</p>
+                  <a href="https://flubadesigns.com/admin/cortex" target="_blank" rel="noopener noreferrer" className="underline" data-testid="link-cortex-provider-keys">Manage provider keys in Fluba Cortex</a>
                 </div>
               </>
             )}
@@ -247,10 +176,10 @@ export default function AdminSettings() {
               <code className="bg-muted px-2 py-1 rounded text-xs font-mono" data-testid="text-printify-key-masked">
                 {keyStatus?.printify.masked || "(not set)"}
               </code>
-              <span className="text-xs text-muted-foreground">(From environment)</span>
+              <span className="text-xs text-muted-foreground">(Managed by Fluba Cortex)</span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              The Printify key is managed through environment variables. Contact support to update.
+              Manage the Printify key in Fluba Cortex using the link above.
             </p>
           </CardContent>
         </Card>
