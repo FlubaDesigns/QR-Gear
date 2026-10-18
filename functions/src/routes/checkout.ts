@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { sendActivationEmail } from '../services/email';
 import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import Stripe from 'stripe';
+import { retrieveOwnedConnectAccount } from '../services/connect-accounts';
 
   export function register(app: express.Express): void {
 
@@ -46,14 +47,11 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     let connectAccountId = '';
     let connectTransferApplied = false;
     if (creatorMemberId) {
-      try {
-        const profileDoc = await db.collection('member_profiles').doc(creatorMemberId).get();
-        const profile = profileDoc.data() || {};
-        if (profile.stripeConnectAccountId && profile.stripePayoutsEnabled === true) {
-          connectAccountId = profile.stripeConnectAccountId;
-        }
-      } catch (profileErr: any) {
-        console.warn('[PacketCheckout] Non-fatal: Could not fetch creator profile for Connect:', profileErr.message);
+      const profileDoc = await db.collection('member_profiles').doc(creatorMemberId).get();
+      const profile = profileDoc.data() || {};
+      if (profile.stripeConnectAccountId) {
+        const account = await retrieveOwnedConnectAccount(stripe, creatorMemberId, profile.stripeConnectAccountId);
+        if (account.payouts_enabled === true) connectAccountId = account.id;
       }
     }
 

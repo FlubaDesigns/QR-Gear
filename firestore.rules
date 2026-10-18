@@ -90,9 +90,20 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Member profiles - owner or admin read/write (tutorial progress, social handles)
+    // Profile/contact edits use the authenticated API. The browser writes only
+    // tutorial progress; Stripe bindings, payout flags and membership are server-owned.
     match /member_profiles/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+      function tutorialFields() {
+        return ['tutorial_complete', 'tutorial_completed_at'];
+      }
+      function validTutorialProgress() {
+        return (!('tutorial_complete' in request.resource.data) || request.resource.data.tutorial_complete is bool)
+          && (!('tutorial_completed_at' in request.resource.data) || request.resource.data.tutorial_completed_at is string);
+      }
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if (isOwner(userId) && request.resource.data.keys().hasOnly(tutorialFields()) && validTutorialProgress()) || isAdmin();
+      allow update: if (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(tutorialFields()) && validTutorialProgress()) || isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Brain responses - signed-in read only (AI async response listener)

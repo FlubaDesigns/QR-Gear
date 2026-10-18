@@ -1027,3 +1027,11 @@ The two retired adapter-only utility scripts and mapper test were removed, while
 ### Permanent alternate-database retirement — October 17, 2026
 
 Removed the remaining Replit database module/integration, legacy Replit login integration, unused storage-mode setting and SQL migration files. Current operating guides no longer direct agents to maintain a second backend or database. Shared validation/types and all Firebase runtime source are preserved. The backend boundary check rejects reintroduced database tooling. Verification evidence is recorded in `docs/FIREBASE_ONLY_VERIFICATION.md`; source publication and production deployment remain distinct.
+
+## Audit repair QRG-001 — October 17, 2026
+
+Member browser writes to `member_profiles` are limited to typed `tutorial_complete` / `tutorial_completed_at` progress. Profile/contact edits continue through their existing authenticated API. Stripe account IDs, financial eligibility, membership and other server-owned fields cannot be created, replaced, removed or erased by an ordinary member through the client SDK; administrators and the Admin SDK retain their existing scope.
+
+Connect onboarding, status, dashboard-link and packet-checkout operations verify the account's server-created Stripe `metadata.entityId` and Express account type before trusting a stored profile reference. Dashboard access and checkout transfers use current Stripe payout eligibility. Invalid existing bindings fail explicitly; they are never silently reassigned. Signed account-update events synchronize only the metadata-bound owner whose stored account ID agrees, so a duplicate reference in another profile cannot redirect the status write.
+
+Validation: five Firestore-emulator scenarios and 18 focused API/webhook/checkout tests passed, plus Functions TypeScript. `npm run test:member-rules` requires Java 21 and starts only the `demo-qrgear-rules` local emulator. Runtime build marker: `20261017-audit-connect-ownership`. The source checks do not prove real Stripe-account access; Main deployment and rule receipts are reported separately. The anonymous refresh-link problem remains tracked as QRG-002 and is not silently closed by this ownership fix. See `docs/AUDIT_REPAIRS.md` for the ordered repair record.

@@ -13,20 +13,20 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
   try {
     const sig = req.headers['stripe-signature'];
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-    
+
     if (!sig || !webhookSecret) {
       res.status(400).json({ error: 'Missing signature or webhook secret' });
       return;
     }
-    
+
     const stripeSecretKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeSecretKey) {
       res.status(500).json({ error: 'Stripe not configured' });
       return;
     }
-    
+
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
-    
+
     let event;
     try {
       event = stripe.webhooks.constructEvent(
@@ -39,14 +39,14 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ error: `Webhook Error: ${err.message}` });
       return;
     }
-    
+
     switch (event.type) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded': {
         const session = event.data.object as Stripe.Checkout.Session;
         const source = session.metadata?.source;
         console.log(`Checkout session completed: ${session.id}, source=${source || 'direct_cart'}`);
-        
+
         if (session.payment_status !== 'paid') break;
         // Both callbacks resolve the same frozen order; a closed browser cannot strand a paid item.
         if (source === 'packet_share' || source === 'public_wizard') {
@@ -81,17 +81,18 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         const onboardingComplete = payoutsEnabled && chargesEnabled;
         console.log(`[Connect Webhook] account.updated: ${accountId} payouts=${payoutsEnabled} charges=${chargesEnabled}`);
         try {
-          const profileQuery = await db.collection('member_profiles')
-            .where('stripeConnectAccountId', '==', accountId).limit(1).get();
-          if (!profileQuery.empty) {
-            const profileRef = profileQuery.docs[0].ref;
+          const entityId = account.metadata?.entityId;
+          const profileRef = typeof entityId === 'string' && entityId && !entityId.includes('/') && account.type === 'express'
+            ? db.collection('member_profiles').doc(entityId) : null;
+          const profile = profileRef ? await profileRef.get() : null;
+          if (profileRef && profile?.data()?.stripeConnectAccountId === accountId) {
             await profileRef.set({
               stripePayoutsEnabled: payoutsEnabled,
               stripeChargesEnabled: chargesEnabled,
               stripeOnboardingComplete: onboardingComplete,
               stripeStatusSyncedAt: new Date().toISOString(),
             }, { merge: true });
-            console.log(`[Connect Webhook] Synced Connect status for profile ${profileQuery.docs[0].id}`);
+            console.log(`[Connect Webhook] Synced Connect status for profile ${entityId}`);
           } else {
             console.warn(`[Connect Webhook] No member profile found for Stripe account ${accountId}`);
           }
@@ -108,7 +109,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
-    
+
     res.json({ received: true });
   } catch (error: any) {
     console.error('Webhook error:', error);
@@ -118,4 +119,4 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
 
 
   }
-  
+

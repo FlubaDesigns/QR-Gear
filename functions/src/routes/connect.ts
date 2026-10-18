@@ -4,6 +4,7 @@ import express from 'express';
 import { db } from '../core';
 import { requireAuth } from '../middleware';
 import Stripe from 'stripe';
+import { retrieveOwnedConnectAccount } from '../services/connect-accounts';
 
 const MEMBER_PROFILES = 'member_profiles';
 const PROFIT_SHARE_PERCENT = 0.25;
@@ -38,7 +39,9 @@ export function register(app: express.Express): void {
       // If already has an account id, just refresh the link
       let accountId: string = profile.stripeConnectAccountId || '';
 
-      if (!accountId) {
+      if (accountId) {
+        await retrieveOwnedConnectAccount(stripe, entityId, accountId);
+      } else {
         const account = await stripe.accounts.create({
           type: 'express',
           capabilities: {
@@ -72,7 +75,7 @@ export function register(app: express.Express): void {
       res.json({ url: link.url, accountId });
     } catch (err: any) {
       console.error('[Connect] Onboard error:', err.message);
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: err.message });
     }
   });
 
@@ -93,6 +96,8 @@ export function register(app: express.Express): void {
         res.redirect(`${base}/members?connect_error=no_account`);
         return;
       }
+
+      await retrieveOwnedConnectAccount(stripe, entityId, accountId);
 
       const link = await stripe.accountLinks.create({
         account: accountId,
@@ -129,7 +134,7 @@ export function register(app: express.Express): void {
 
       // Fetch live status from Stripe to keep in sync
       const stripe = await getStripe();
-      const account = await stripe.accounts.retrieve(accountId);
+      const account = await retrieveOwnedConnectAccount(stripe, entityId, accountId);
 
       const payoutsEnabled = account.payouts_enabled === true;
       const chargesEnabled = account.charges_enabled === true;
@@ -155,7 +160,7 @@ export function register(app: express.Express): void {
       });
     } catch (err: any) {
       console.error('[Connect] Status error:', err.message);
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: err.message });
     }
   });
 
@@ -172,15 +177,15 @@ export function register(app: express.Express): void {
       const accountId = profile.stripeConnectAccountId;
 
       if (!accountId) { res.status(400).json({ error: 'No connected account' }); return; }
-      if (!profile.stripePayoutsEnabled) { res.status(400).json({ error: 'Account not fully onboarded' }); return; }
-
       const stripe = await getStripe();
+      const account = await retrieveOwnedConnectAccount(stripe, entityId, accountId);
+      if (!account.payouts_enabled) { res.status(400).json({ error: 'Account not fully onboarded' }); return; }
       const loginLink = await stripe.accounts.createLoginLink(accountId);
 
       res.json({ url: loginLink.url });
     } catch (err: any) {
       console.error('[Connect] Dashboard link error:', err.message);
-      res.status(500).json({ error: err.message });
+      res.status(err.status || 500).json({ error: err.message });
     }
   });
 
