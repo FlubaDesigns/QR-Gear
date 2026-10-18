@@ -30,9 +30,10 @@ import { useOwnerWizardNav } from '@/features/owner/useOwnerWizardNav';
 import { ComposeHostingStep } from '@/features/shared/components/wizardSteps/ComposeSteps';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 it('uses configured full-term Compose hosting prices without invented included prices', () => {
- const query = new QueryClient({ defaultOptions: { queries: { retry: false } } }); query.setQueryData(['/api/pricing-settings'], {hostingTiers:[{code:'3_year',name:'Three years',price:13.42}]});
+ const query = new QueryClient({ defaultOptions: { queries: { retry: false } } }); query.setQueryData(['/api/pricing-settings'], {hostingTiers:[{code:'3_year',name:'Three years',price:13.42},{code:'2_year',name:'Unsupported two years',price:8}]});
  const select=vi.fn(); let tree:any;
  act(()=>{tree=create(React.createElement(QueryClientProvider,{client:query},React.createElement(ComposeHostingStep,{selected:'',onSelect:select})));});
+ expect(tree.root.findAllByProps({'data-testid':'button-hosting-2-year'})).toHaveLength(0);
  expect(JSON.stringify(tree.toJSON())).toContain('$13.42');expect(JSON.stringify(tree.toJSON())).not.toContain('$3.99/yr');
  act(()=>tree.root.findByProps({'data-testid':'button-hosting-3-year'}).props.onClick());expect(select).toHaveBeenCalledWith('3-year');act(()=>tree.unmount());query.clear();
 });

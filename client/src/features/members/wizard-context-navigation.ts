@@ -1,3 +1,4 @@
+import { isComposeHostingCode } from '@shared/composeHosting';
 import { previewMemberBuild } from '@/lib/memberBuild';
 import { memberBuildInput, previewCanonicalMemberContext } from './wizard-context-actions';
 import {
@@ -140,7 +141,7 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'compose-hosting') {
-    if (!ctx.pricingSettings?.hostingTiers.some((tier: any) => tier.code === ctx.composeHostingTerm.replace('-', '_'))) return;
+    if (!ctx.pricingSettings?.hostingTiers.some((tier: any) => isComposeHostingCode(tier.code) && tier.code === ctx.composeHostingTerm.replace('-', '_'))) return;
     if (!ctx.user?.id) {
       ctx.setShowSignInToPublish(true);
       return;

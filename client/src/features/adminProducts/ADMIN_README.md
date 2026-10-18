@@ -432,6 +432,22 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 18, 2026 — Compose hosting review correction
+
+Admin and member Compose selectors now offer only configured one-, three-, and five-year terms supported by QR Dynamics. Unsupported restored member selections cannot advance to a supplier preview. The shared term table also controls backend expiry; pricing values still come from Admin Pricing. This closes the unsupported-term gap found while independently reviewing QRG-054 after the QRG-001–074 repair sequence. No collection or schema changes.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `shared/composeHosting.ts` | Supported Compose terms and shared validation |
+| `client/src/features/shared/components/wizardSteps/ComposeSteps.tsx` | Filter configured member options |
+| `client/src/features/adminProducts/builder/modules/ComposeContentModule.tsx` | Filter configured admin options |
+| `client/src/features/members/WizardContext.tsx` and `wizard-context-navigation.ts` | Reject unsupported restored selections |
+| `functions/src/services/qr-dynamics.ts` | Use the shared table for expiry |
+| `client/src/lib/auditUserFlows.test.ts`, `memberCanonicalPreview.test.ts`, and `functions/src/services/__tests__/admin-compose.test.ts` | Regression coverage |
+
+
+
 ### Audit repairs QRG-041–050 — October 18, 2026
 
 Account claims now use the API array with document IDs and distinguish static QR items from expired hosting. Studio uses canonical product state and the Advanced step controller. Member and owner builds preserve per-placement QR-only choices in their saved rendering snapshot; Advanced QR position controls persist and print dimensions use actual pixels. Signed-in and deferred guest video uploads share the multipart contract and save a real reusable video reference with visible failures.

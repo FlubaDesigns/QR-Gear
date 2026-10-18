@@ -1,3 +1,4 @@
+import { isComposeHostingCode } from '@shared/composeHosting';
 import { useQuery } from '@tanstack/react-query';
 import type { PricingSettings } from '@shared/schema-orders';
 import { useState } from "react";
@@ -384,7 +385,7 @@ export function ComposeHostingStep<T extends string = '1-year' | '3-year' | '5-y
   terms?: Array<{id:T;label:string;price:string;description:string;popular?:boolean}>;
 }) {
   const pricing = useQuery<PricingSettings>({ queryKey: ['/api/pricing-settings'], enabled: !configuredTerms, staleTime: 300000 });
-  const terms = configuredTerms ?? (pricing.data?.hostingTiers || []).map(tier => ({
+  const terms = configuredTerms ?? (pricing.data?.hostingTiers || []).filter(tier => isComposeHostingCode(tier.code)).map(tier => ({
     id: tier.code.replace('_', '-') as T, label: tier.name, price: `$${tier.price.toFixed(2)}`,
     description: 'Hosting cost for the full term, included in the product price', popular: false,
   }));

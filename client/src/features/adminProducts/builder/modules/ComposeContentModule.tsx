@@ -1,3 +1,4 @@
+import { isComposeHostingCode } from '@shared/composeHosting';
 import { useState, useEffect, useCallback } from "react";
 import { Sparkles, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export function ComposeContentModule() {
     queryKey: ['/api/admin/pricing-settings'],
     enabled: state.qrProductState === 'qr_compose',
   });
-  const hostingTerms = (pricingSettings?.hostingTiers || []).map(tier => ({
+  const hostingTerms = (pricingSettings?.hostingTiers || []).filter(tier => isComposeHostingCode(tier.code)).map(tier => ({
     id: tier.code.replace('_', '-'), label: tier.name,
     price: `$${tier.price.toFixed(2)}`, description: 'Hosting cost from Admin Pricing',
   }));

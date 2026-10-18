@@ -3,7 +3,7 @@ import { database } from './composition-fixture';
 const m = vi.hoisted(() => ({ db: null as any }));
 vi.mock('../../core', () => ({ db: { collection: (...a: any[]) => m.db.collection(...a), runTransaction: (...a: any[]) => m.db.runTransaction(...a) } }));
 import { prepareAdminCompose } from '../admin-compose';
-import { resolveDynamicsInstance } from '../qr-dynamics';
+import { resolveDynamicsInstance, dynamicsHostingExpiry } from '../qr-dynamics';
 import { QR_DYNAMICS_INSTANCES_COLLECTION as C } from '../../constants';
 let store: Map<string, any>;
 beforeEach(() => { const f = database({
@@ -23,4 +23,10 @@ it('prepares one-based canonical slots, keeps drafts unscannable, and resolves a
 it('rejects unpublished content and disconnected legacy publish payloads', async () => {
  store.get('productPackets/canvas').status = 'draft'; await expect(prepareAdminCompose('admin', 'build')).rejects.toThrow('published');
  await expect(prepareAdminCompose('admin', undefined as any)).rejects.toThrow('physical packet');
+});
+
+it('uses only supported Compose terms and rejects unsupported or inherited keys', () => {
+ const start = new Date('2026-10-18T00:00:00.000Z');
+ for (const [code, year] of [['1_year',2027],['3_year',2029],['5_year',2031]] as const) expect(dynamicsHostingExpiry(code,start)).toBe(`${year}-10-18T00:00:00.000Z`);
+ for (const code of ['2_year','year','toString','constructor']) expect(() => dynamicsHostingExpiry(code,start)).toThrow('supported hosting term');
 });

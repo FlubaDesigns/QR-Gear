@@ -1,3 +1,4 @@
+import { isComposeHostingCode } from '@shared/composeHosting';
 import { isAvailableProductVariant } from '@shared/storefrontTypes';
 import type { PricingSettings } from "@shared/schema-orders";
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
@@ -401,7 +402,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
 
   const canSimpleProceed = () => {
     if (!pricingSettings || isGeneratingBasicMockup || isGeneratingPlusMockup || isGeneratingCanvasMockup || isGeneratingPlayMockup || isGeneratingComposeMockup || isPublishing || isQrBasicSaving || isQrPlusSaving) return false;
-    if (simpleStep === 'compose-hosting' && !pricingSettings.hostingTiers.some(tier => tier.code === composeHostingTerm.replace('-', '_'))) return false;
+    if (simpleStep === 'compose-hosting' && !pricingSettings.hostingTiers.some(tier => isComposeHostingCode(tier.code) && tier.code === composeHostingTerm.replace('-', '_'))) return false;
     return computeCanSimpleProceed(simpleStep, {
       selectedChannel, selectedProductType, selectedColor, selectedShirtSize,
       qrType, graphicSize, wantsHeaderFooter, textLayoutChoice, selectedPlacements,

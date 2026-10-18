@@ -1,3 +1,4 @@
+import { COMPOSE_HOSTING_YEARS, isComposeHostingCode } from '../../../shared/composeHosting';
 import { isPublicPacket } from './publication';
 import { db } from '../core';
 import { MEMBER_PACKETS_COLLECTION, PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
@@ -82,9 +83,8 @@ export async function resolveDynamicsInstance(id: string) {
 }
 
 export function dynamicsHostingExpiry(code: string, start = new Date()) {
-  const years: Record<string, number> = { '1_year': 1, '3_year': 3, '5_year': 5 };
-  if (!years[code]) fail('Select a supported hosting term before creating this QR experience.');
+  if (!isComposeHostingCode(code)) fail('Select a supported hosting term before creating this QR experience.');
   const expiry = new Date(start);
-  expiry.setUTCFullYear(expiry.getUTCFullYear() + years[code]);
+  expiry.setUTCFullYear(expiry.getUTCFullYear() + COMPOSE_HOSTING_YEARS[code]);
   return expiry.toISOString();
 }

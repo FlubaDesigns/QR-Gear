@@ -20,3 +20,10 @@ it('keeps the current hosted step when preview fails and keeps video library fai
  await executeSimpleNext(ctx); expect(ctx.setSimpleStep).not.toHaveBeenCalled();
  ctx.simpleStep='play-save-choice';ctx.savePlayToLibrary=vi.fn(async()=>{throw Error('offline');});ctx.handlePlayDone=vi.fn();await executeSimpleNext(ctx);expect(ctx.handlePlayDone).not.toHaveBeenCalled();
 });
+
+it('does not advance a restored Compose draft with an unsupported configured hosting term', async () => {
+ vi.stubGlobal('window', { scrollTo: vi.fn() }); vi.stubGlobal('document', { documentElement: {}, body: {} });
+ const ctx: any = { user: {id:'owner'}, simpleStep:'compose-hosting', composeHostingTerm:'2-year', pricingSettings:{hostingTiers:[{code:'2_year'},{code:'3_year'}]}, setSimpleStep:vi.fn(), setIsGeneratingComposeMockup:vi.fn(), generateProductMockupForType:vi.fn(async()=>true) };
+ await executeSimpleNext(ctx); expect(ctx.generateProductMockupForType).not.toHaveBeenCalled(); expect(ctx.setSimpleStep).not.toHaveBeenCalled();
+ ctx.composeHostingTerm='3-year'; await executeSimpleNext(ctx); expect(ctx.generateProductMockupForType).toHaveBeenCalledTimes(1); expect(ctx.setSimpleStep).toHaveBeenCalledWith('compose-mockup');
+});
