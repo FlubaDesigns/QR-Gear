@@ -49,7 +49,7 @@ describe('Connect account ownership', () => {
       expect((await request(a)[method](route).set('Authorization', 'Bearer valid')).status).toBe(403);
     }
     const refresh = await request(a).get('/connect/onboard/refresh/owner');
-    expect(refresh.headers.location).toContain('connect_error=refresh_failed');
+    expect(refresh.headers.location).toContain('/members?connect_refresh=true');
     expect(m.link).not.toHaveBeenCalled(); expect(m.login).not.toHaveBeenCalled(); expect(m.create).not.toHaveBeenCalled();
   });
   it('keeps authentication and entity ownership ahead of Stripe access', async () => {
@@ -58,6 +58,23 @@ describe('Connect account ownership', () => {
     m.verify.mockResolvedValue({ uid: 'other' });
     expect((await request(a).post('/connect/dashboard-link/owner').set('Authorization', 'Bearer valid')).status).toBe(403);
     expect(m.retrieve).not.toHaveBeenCalled(); expect(m.login).not.toHaveBeenCalled();
+  });
+  it('never creates a link or reads a Stripe account from an anonymous refresh URL', async () => {
+    for (const id of ['owner', 'other', 'unknown']) {
+      const result = await request(app()).get(`/connect/onboard/refresh/${id}`);
+      expect(result.status).toBe(302);
+      expect(result.headers.location).toBe('https://qrgear-c1ffd.web.app/members?connect_refresh=true');
+      expect(result.headers['cache-control']).toContain('no-store');
+    }
+    expect(m.retrieve).not.toHaveBeenCalled(); expect(m.link).not.toHaveBeenCalled();
+    expect(m.create).not.toHaveBeenCalled();
+  });
+  it('requires sign-in to renew onboarding and ignores another member supplied by the caller', async () => {
+    expect((await request(app()).post('/connect/onboard')).status).toBe(401);
+    expect(m.link).not.toHaveBeenCalled();
+    const result = await request(app()).post('/connect/onboard').set('Authorization', 'Bearer valid').send({ entityId: 'other' });
+    expect(result.status).toBe(200);
+    expect(m.link).toHaveBeenCalledWith(expect.objectContaining({ account: 'acct_owner', refresh_url: 'https://qrgear-c1ffd.web.app/members?connect_refresh=true' }));
   });
   it('creates new accounts with the authenticated entity binding', async () => {
     store.delete('member_profiles/owner');

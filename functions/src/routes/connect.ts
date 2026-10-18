@@ -67,7 +67,7 @@ export function register(app: express.Express): void {
 
       const link = await stripe.accountLinks.create({
         account: accountId,
-        refresh_url: `${base}/api/connect/onboard/refresh/${entityId}`,
+        refresh_url: `${base}/members?connect_refresh=true`,
         return_url: `${base}/members?connect_return=true`,
         type: 'account_onboarding',
       });
@@ -80,38 +80,11 @@ export function register(app: express.Express): void {
   });
 
   // ── GET /api/connect/onboard/refresh/:entityId ────────────────────────────
-  // Called by Stripe when the onboarding link expires. Generates a fresh link
-  // and redirects the user back into onboarding.
-  app.get('/connect/onboard/refresh/:entityId', async (req: Request, res: Response): Promise<void> => {
-    try {
-      const { entityId } = req.params;
-      const stripe = await getStripe();
-      const base = getBaseUrl();
-
-      const profileDoc = await db.collection(MEMBER_PROFILES).doc(entityId).get();
-      const profile = profileDoc.data() || {};
-      const accountId = profile.stripeConnectAccountId;
-
-      if (!accountId) {
-        res.redirect(`${base}/members?connect_error=no_account`);
-        return;
-      }
-
-      await retrieveOwnedConnectAccount(stripe, entityId, accountId);
-
-      const link = await stripe.accountLinks.create({
-        account: accountId,
-        refresh_url: `${base}/api/connect/onboard/refresh/${entityId}`,
-        return_url: `${base}/members?connect_return=true`,
-        type: 'account_onboarding',
-      });
-
-      res.redirect(link.url);
-    } catch (err: any) {
-      console.error('[Connect] Refresh error:', err.message);
-      const base = getBaseUrl();
-      res.redirect(`${base}/members?connect_error=refresh_failed`);
-    }
+  // Compatibility for previously issued links: resume through signed-in UI.
+  // Never mint an account link from a caller-supplied member ID.
+  app.get('/connect/onboard/refresh/:entityId', (_req: Request, res: Response): void => {
+    res.set('Cache-Control', 'private, no-store');
+    res.redirect(`${getBaseUrl()}/members?connect_refresh=true`);
   });
 
   // ── GET /api/connect/status/:entityId ─────────────────────────────────────

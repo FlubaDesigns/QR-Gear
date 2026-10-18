@@ -20,8 +20,20 @@ Checks performed:
 
 Release marker: `20261017-audit-connect-ownership`. The release workflow validates deployed rules against the tested source and verifies Hosting/API markers. Consult the release run receipt for deployment completion; this source document alone is not proof of deployment.
 
-Important boundary: QRG-002 remains separate. Matching a Stripe account to the entity in a URL does not authenticate an anonymous visitor. That refresh flow is the next numbered repair.
+QRG-002 was repaired separately below. Matching a Stripe account to a URL entity alone is not authentication.
+
+## QRG-002 — Anonymous onboarding refresh
+
+Problem: an unauthenticated GET containing any member ID could create a Stripe onboarding link for that member.
+
+Repair: the old GET now only returns a no-cache redirect to the member UI and does not access profiles or Stripe. Newly created links return directly to that UI on expiry. Connect handoffs require sign-in and open Payouts; the Continue Stripe Setup button uses the existing authenticated POST. That POST derives ownership exclusively from the verified token, ignoring caller-supplied member IDs.
+
+Checks: 11 Connect route tests pass (including the previous nine QRG-001 cases), with anonymous requests for known and unknown members, unauthenticated renewal, and an attempted alternate member ID. Three client checks pass, covering the authenticated continuation button and existing sign-in/admin boundary. Client and Functions TypeScript checks pass. No real Stripe onboarding or payment was performed.
+
+Release marker for both repairs: `20261017-audit-connect-001-002`.
+
+Release follow-up: the first workflow stopped before deployment because npm 10.8.2 required an omitted nested esbuild optional dependency. The root lockfile was regenerated with that exact npm version; no existing locked versions changed. Its clean-install dry run passed. The subsequent workflow receipt determines live completion.
 
 ## Remaining sequence
 
-Continue QRG-002 through QRG-074 in order. Recheck before editing: QRG-068 was already fixed in the Firebase-only removal commit, and QRG-064 requires visual verification. Preserve the conditional/legacy qualifications in the verified audit register. Report a real completion result for each item; do not mark a fixture pass as authenticated live acceptance.
+Continue QRG-003 through QRG-074 in order. Recheck before editing: QRG-068 was already fixed in the Firebase-only removal commit, and QRG-064 requires visual verification. Preserve the conditional/legacy qualifications in the verified audit register. Report a real completion result for each item; do not mark a fixture pass as authenticated live acceptance.

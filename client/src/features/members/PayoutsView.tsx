@@ -41,6 +41,7 @@ interface PayoutsViewProps {
 export function PayoutsView({ memberId }: PayoutsViewProps) {
   const queryClient = useQueryClient();
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [refreshRequested] = useState(() => new URLSearchParams(window.location.search).get('connect_refresh') === 'true');
 
   // Detect return from Stripe onboarding
   useEffect(() => {
@@ -51,6 +52,11 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
       // Clean up URL
       const url = new URL(window.location.href);
       url.searchParams.delete('connect_return');
+      window.history.replaceState({}, '', url.toString());
+    }
+    if (params.has('connect_refresh')) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('connect_refresh');
       window.history.replaceState({}, '', url.toString());
     }
     if (params.get('connect_error')) {
@@ -154,6 +160,17 @@ export function PayoutsView({ memberId }: PayoutsViewProps) {
           <AlertCircle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
           <p className="text-red-300 text-sm">{connectError}</p>
         </div>
+      )}
+
+      {refreshRequested && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-6 space-y-4">
+            <p className="text-white">Your Stripe setup link expired. Continue securely with the account you are signed in to.</p>
+            <Button onClick={() => onboardMutation.mutate()} disabled={onboardMutation.isPending} className="w-full min-h-12" data-testid="button-refresh-onboarding">
+              {onboardMutation.isPending ? 'Opening Stripe...' : 'Continue Stripe Setup'}
+            </Button>
+          </CardContent>
+        </Card>
       )}
 
       {/* Connect Status Card */}

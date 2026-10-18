@@ -1,3 +1,4 @@
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { MemberDynamics } from './MemberDynamics';
 import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
 import { useMemberRuntimeState } from './useMemberRuntimeState';
@@ -169,6 +170,10 @@ function useTempPacketClaim({
 
 function MembersShell() {
   const { isLoading: authLoading } = useAuth();
+  const [connectHandoff] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return ['connect_refresh', 'connect_return', 'connect_error'].some(key => params.has(key));
+  });
 
   if (authLoading) {
     return (
@@ -178,11 +183,8 @@ function MembersShell() {
     );
   }
 
-  return (
-    <WizardProvider>
-      <MembersController />
-    </WizardProvider>
-  );
+  const content = <WizardProvider><MembersController /></WizardProvider>;
+  return connectHandoff ? <ProtectedRoute requireAdmin={false}>{content}</ProtectedRoute> : content;
 }
 
 function MembersController() {

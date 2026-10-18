@@ -69,6 +69,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
 
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const params = new URLSearchParams(window.location.search);
+    if (['connect_refresh', 'connect_return', 'connect_error'].some(key => params.has(key))) return 'payouts';
     return startTier || params.get('wizard') ? 'wizard' : 'index';
   });
   const [currentStep, setCurrentStep] = useState<WizardStep>('channel');
