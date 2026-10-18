@@ -1,3 +1,4 @@
+import { assertProductionPayment } from './payment-state';
 import { randomUUID } from 'crypto';
 import { db } from '../core';
 import { printfulClient, PrintfulApiError, type PrintfulOrder, type PrintfulOrderFile } from './printful';
@@ -9,7 +10,7 @@ import { detectPrintMethod } from '../../../shared/placements';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
 import { getCatalogInstancePrice, getSizeUpcharges, validateBrandLabel } from './pricing';
-import { dynamicsPrintSource, prepareDynamicsOrderItems } from './dynamics-order';
+import { freezeProductionSource, prepareDynamicsOrderItems } from './dynamics-order';
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 
 /** Freeze server-owned catalog data, never cart-supplied prices or provider IDs. */
@@ -28,7 +29,7 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   const packet = (await db.collection('productPackets').doc(packetId).get()).data();
   if (!packet) throw new Error('Production packet is missing.');
   if (memberPacketId && (packet.status !== 'published' || packet.memberId !== instance.memberId || packet.memberPacketId !== memberPacketId)) throw new Error('Member production ownership does not match.');
-  await validatePacketComposition(db, packetId, packet);
+  const composition = await validatePacketComposition(db, packetId, packet);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   const provider = requireFulfillmentProvider(snapshot.metadata.fulfillmentProvider);
   if (packet.fulfillmentProvider !== provider) throw new Error('Saved product provider differs from its production packet.');
@@ -64,8 +65,9 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   if (!productTitle) throw new Error('Product needs a saved title.');
   const dynamics = packet.composeInstanceId ? (await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(packet.composeInstanceId).get()).data() : null;
   if (snapshot.qrConfig.qrProductState === 'qr_compose' && (!dynamics || dynamics.status !== 'active')) throw new Error('The QR Compose sequence is unavailable.');
-  return { cartItemId: cart.id, productId: instanceId, packetId, masterId, assemblyId: packet.assemblyId,
-    qrExperience: { version: 1, sourceHash: dynamicsPrintSource(packet), composeMode: dynamics?.composeMode || 'auto-rotate', slots: dynamics?.slots || [] },
+  const frozenProduction = freezeProductionSource(packet, composition.assembly.qrgId);
+  return { frozenProduction, cartItemId: cart.id, productId: instanceId, packetId, masterId, assemblyId: packet.assemblyId,
+    qrExperience: { version: 2, sourceHash: frozenProduction.sourceHash, composeMode: dynamics?.composeMode || 'auto-rotate', slots: dynamics?.slots || [] },
     productCost: Number(packet.pricing?.subtotal || 0), creatorMemberId: memberPacketId ? instance.memberId : '',
     productTitle, quantity: cart.quantity, unitAmount, price: (unitAmount / 100).toFixed(2),
     customization: { productSize: size, productColor: color, instanceId, packetId },
@@ -103,7 +105,7 @@ export async function fulfillOrder(orderId: string) {
     const value = (await tx.get(ref)).data();
     if (!value || value.checkoutVersion !== 1 || value.paymentStatus !== 'paid' || !value.paymentVerifiedAt) throw new Error('Order must have a verified payment and frozen checkout items.');
     if (value.fulfillmentState === 'submitted') return null;
-    if (value.status === 'cancelled' || value.status === 'refunded') throw new Error('Cancelled/refunded orders cannot enter production.');
+    if (value.productionHold || value.status === 'cancelled' || value.status === 'refunded') throw new Error('Cancelled/refunded orders cannot enter production.');
     if (value.fulfillmentLeaseUntil > Date.now()) throw new Error('Fulfillment is already in progress. Retry shortly.');
     tx.update(ref, { fulfillmentLease: token, fulfillmentLeaseUntil: Date.now() + 120000, fulfillmentState: 'submitting', fulfillmentError: null });
     return value;
@@ -112,9 +114,10 @@ export async function fulfillOrder(orderId: string) {
   const release = async (updates: Record<string, any>) => db.runTransaction(async tx => {
     const latest = (await tx.get(ref)).data();
     if (latest?.fulfillmentLease !== token) throw new Error('Fulfillment lease changed; refresh this order before retrying.');
-    tx.update(ref, { ...updates, fulfillmentLease: null, fulfillmentLeaseUntil: 0, updatedAt: new Date().toISOString() });
+    tx.update(ref, { ...updates, ...(latest.productionHold ? { status: latest.status, fulfillmentError: 'Payment changed while provider work was in progress; review the provider order.' } : {}), fulfillmentLease: null, fulfillmentLeaseUntil: 0, updatedAt: new Date().toISOString() });
   });
   try {
+    await assertProductionPayment(order);
     const items = (await db.collection('orderItems').where('orderId', '==', orderId).get()).docs.map(d => d.data());
     if (!items.length || items.some(item => item.fulfillment?.provider !== 'printful')) throw new Error('Order has missing or unsupported provider items.');
     const address = order.shippingAddress;
@@ -126,10 +129,12 @@ export async function fulfillOrder(orderId: string) {
       const individualItems = await prepareDynamicsOrderItems(orderId, order.userId, async () => {
         await db.runTransaction(async tx => {
           const current = (await tx.get(ref)).data();
+          if (current?.paymentStatus !== 'paid' || current?.productionHold) throw new Error('Payment changed during production preparation.');
           if (current?.fulfillmentLease !== token) throw new Error('Fulfillment lease changed; retry this order.');
           tx.update(ref, { fulfillmentLeaseUntil: Date.now() + 120000 });
         });
       });
+      await assertProductionPayment((await ref.get()).data());
       remote = await printfulClient.createOrder({ external_id: orderId,
       recipient: { name: address.name, address1: address.address1, address2: address.address2 || '', city: address.city,
         state_code: address.region || '', country_code: address.country, zip: address.zip, email: order.customerEmail || '', phone: address.phone || '' },
@@ -137,7 +142,10 @@ export async function fulfillOrder(orderId: string) {
     }
     if (remote.external_id !== orderId) throw new Error('Printful returned an order with a different external ID.');
     await ref.update({ providerOrderId: String(remote.id), routedProvider: 'printful', providerStatus: remote.status });
-    if (remote.status === 'draft') remote = await printfulClient.confirmOrder(String(remote.id));
+    if (remote.status === 'draft') {
+      await assertProductionPayment((await ref.get()).data());
+      remote = await printfulClient.confirmOrder(String(remote.id));
+    }
     if (!['pending', 'inprocess', 'partial', 'fulfilled'].includes(remote.status)) throw new Error(`Printful order needs attention: ${remote.status}.`);
     await release({ ...providerUpdates(remote), fulfillmentState: 'submitted', fulfillmentError: null });
     return { success: true, providerOrderId: String(remote.id) };

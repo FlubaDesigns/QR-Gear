@@ -1,3 +1,5 @@
+import { finalizeHostingRenewal } from '../services/hosting-renewal';
+import { recordChargeRefund } from '../services/payment-state';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
   import express from 'express';
@@ -48,17 +50,14 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         console.log(`Checkout session completed: ${session.id}, source=${source || 'direct_cart'}`);
 
         if (session.payment_status !== 'paid') break;
+        if (session.metadata?.type === 'hosting_renewal') { await finalizeHostingRenewal(session); break; }
         // Both callbacks resolve the same frozen order; a closed browser cannot strand a paid item.
         if (source === 'packet_share' || source === 'public_wizard') {
           if (session.metadata?.orderId) await finalizeMemberPayment(session);
           break;
         }
         if (source === 'external_embed') {
-          try {
-            await confirmEmbedOrderPayout(session.id);
-          } catch (embedErr: any) {
-            console.error('[Webhook] Error confirming embed payout:', embedErr.message);
-          }
+          await confirmEmbedOrderPayout(session.id);
           break;
         }
 
@@ -99,6 +98,11 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         } catch (syncErr: any) {
           console.error('[Connect Webhook] Non-fatal status sync error:', syncErr.message);
         }
+        break;
+      }
+      case 'charge.refunded': {
+        const charge = event.data.object as Stripe.Charge;
+        await recordChargeRefund(await stripe.charges.retrieve(charge.id, { expand: ['transfer'] }));
         break;
       }
       case 'payment_intent.succeeded': {

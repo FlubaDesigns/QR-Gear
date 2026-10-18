@@ -68,6 +68,68 @@ Problem: ordinary members could enqueue arbitrary targets for an administrator's
 
 Batch validation: 40 focused Functions tests across six files, 300 client tests across 49 files, both TypeScript checks, diff whitespace checks and npm 10.8.2 Functions clean-install dry run passed. Build marker: `20261018-audit-003-010`. Publication, deployed markers and anonymous live boundaries are verified separately by the release receipt. Controlled fixtures are not authenticated production acceptance.
 
+## QRG-011 — Public product aliases
+
+Public packet, landing and store aliases exposed unpublished or withdrawn content. They now share publication/visibility checks, enforce current packet bindings, and return an explicit Play projection. Hidden/draft mockup requests stop before provider work. The legacy custom-design alias also now enforces owner/admin access. Four route/policy checks passed.
+
+## QRG-012 — Legacy embed session capabilities
+
+The session ID alone previously allowed expired mutations. Draft/cart actions now require the separately issued token in Authorization: Bearer, normalize expiry and recheck state inside the same transaction as writes. Invalid, expired and reused sessions are rejected. Buy is disabled by QRG-021 below; no checkout reservation path remains. Existing clients must send the capability returned when creating the session.
+
+## QRG-013 — Bounded QR rendering
+
+The public QR raster route now accepts only PNG, string payloads of at most 2048 UTF-8 bytes and integer dimensions from 64 to 2048. It caps concurrent renders per process at two and output at 2 MiB. Malformed/oversized requests are rejected before rendering; a real bounded PNG was decoded in the test. This is a resource bound, not a distributed abuse-rate measurement.
+
+## QRG-014 — Revoked member authentication
+
+Removed the local verifier that omitted token revocation checks. Member routes use the shared revocation-aware verifier, preserving their explicitly configured administrator allowance. Controlled disabled/revoked-token cases are rejected by both ordinary and member adapters; every SDK verification receives checkRevoked=true.
+
+## QRG-015 — Frozen member compensation
+
+Checkout and creator earnings now use one frozen saved memberProfitShare applied to profit in integer cents. Zero remains zero. The order stores the exact expected destination amount, and transferred status requires the actual Stripe transfer amount/currency/destination/reversal evidence to match. Historical records without a frozen policy remain needs_review. Checks cover 0%, 25% and 50%, later policy changes, missing policy and mismatched settlement. No financial transaction was performed.
+
+## QRG-016 — Frozen paid production source
+
+Checkout now saves the checked production packet in server-only orderProductionSources records, atomically with the order/items. Later catalog edits, folder moves or deletion do not replace that source; folder metadata is excluded from its production hash. Production verifies the frozen hash and order binding. Checks cover edited/deleted live sources, tampering and foreign/missing snapshots. Historical orders without snapshots retain the conservative reconciliation hold; no historical artwork is invented or silently substituted.
+
+## QRG-017 — Refunds and production retry
+
+Signed charge.refunded events persist monotonic refund evidence, hold matching orders and mark earnings for review with actual reversal evidence. Refund-first delivery prevents later checkout replay from restoring paid status. Production retrieves Stripe payment state before provider lookup and again before creation/confirmation, rejecting refunds, disputes and mismatches. Worker tests confirm a missed refund webhook cannot let a retry reach the provider. A refund arriving after production has begun still requires provider-order review; no automatic financial reversal or provider cancellation was added.
+
+## QRG-018 — Unpaid gift issuance
+
+Public issuance now accepts only an active package explicitly marked isFreePromotion with a zero price and configured validity. Paid gift sales remain disabled until payment-backed issuance exists. Admin Gifts exposes that explicit setting; the public UI says Get Free Gift and tells the user to share the code, without falsely promising an email. A $99 fixture cannot issue a code; an explicit free promotion can.
+
+## QRG-019 — Gift expiry and duplicate redemption
+
+Expiry parsing handles real Firestore Timestamp values and rejects invalid/missing expiry. A transaction consumes the gift and creates one deterministic redemption record. Concurrent controlled requests produce one success and one rejection; expired Timestamp checks pass. These are transaction fixtures, not a production load test.
+
+## QRG-020 — Idempotent legacy hosting renewal
+
+Renewal checkout freezes price/currency/duration and instance in hosting_renewals. The signed webhook and return-page verification use the same consumption transaction and session receipt. Concurrent callbacks/replays credit exactly once, and mismatched terms are rejected. Old sessions without a frozen renewal record require reconciliation because their prior credit cannot be inferred safely. This repair covers the legacy buyer_instances path only.
+
+## QRG-021 — Legacy embed payment without fulfillment
+
+Disabled the legacy embed Buy route with an explicit unavailable response and public allowBuyNow=false. A valid session capability cannot initiate payment. Historical embed payment callbacks retain reconciliation behavior; this does not implement or certify partner checkout.
+
+## QRG-022 — Durable earnings failure handling
+
+Ledger work is persisted as pending before writes and marked completed only afterward. Database failures propagate to callers/webhooks for retry; deterministic earning IDs avoid duplicate credits. Member earnings are recorded before fulfillment, so provider failure does not erase the obligation. Missing legacy embed attribution now raises an error instead of acknowledging success. Failure/retry checks verify pending work and one eventual earning.
+
+## QRG-023 — Legacy claim expiry and concurrency
+
+Legacy claim POST now reads and consumes the code inside a transaction, checks normalized expiry and creates the claimed instance atomically. Concurrent claimants cannot both succeed. Modern paid-item identity transfer remains separate and retains the existing printed identity. Tests cover an expired code and competing users.
+
+## QRG-024 — Activation email HTML
+
+Activation email text and attributes use the existing HTML escaping helper. Claim codes are URL-encoded; preview URLs require HTTPS without credentials and are attribute-escaped. Controlled member markup renders as text and an unsafe image URL is omitted. No email was sent.
+
+## QRG-025 — Original lifetime referrer
+
+Each order now freezes the buyer’s saved original referral relationship; a later link or missing referral parameter does not replace it. New relationships use a deterministic normalized-email identity and transactional creation. Earnings use the saved share and idempotent order/member key. Checks credit the original referrer with and without a later candidate and preserve the original relationship.
+
+Batch marker: `20261018-audit-011-025`. Focused route/service/transaction fixtures and TypeScript checks are recorded in the release receipt. One existing client test used a fixed 20 ms delay; it now waits for the asserted UI state. The previous full Functions/shared baseline failures remain tracked under QRG-073; this batch does not claim an entirely green legacy regression suite or authenticated production acceptance.
+
 ## Remaining sequence
 
-Continue QRG-011 through QRG-074 in order. Recheck before editing: QRG-068 was already fixed in the Firebase-only removal commit, and QRG-064 requires visual verification. Preserve the conditional/legacy qualifications in the verified audit register. Report a real completion result for each item; do not mark a fixture pass as authenticated live acceptance.
+Continue QRG-026 through QRG-074 in order. Recheck before editing: QRG-068 was already fixed in the Firebase-only removal commit, and QRG-064 requires visual verification. Preserve the conditional/legacy qualifications in the verified audit register. Report a real completion result for each item; do not mark a fixture pass as authenticated live acceptance.

@@ -1,3 +1,4 @@
+import { finalizeHostingRenewal } from '../services/hosting-renewal';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { randomBytes, createHash } from 'crypto';
 import { prepareOwnerBuild, ownedMemberBuild, saveMemberArtwork, previewMemberBuild, commitOwnerBuild } from '../services/member-build';
@@ -91,7 +92,10 @@ app.post('/buyer/instances/:instanceId/renew', async (req: Request, res: Respons
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
-    const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: 'QR Hosting Renewal - 3 Years', description: 'Extend your QR hosting for another 3 years' }, unit_amount: 499 }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, type: 'hosting_renewal' }, customer_email: instance.buyerEmail });
+    const renewalRef = db.collection('hosting_renewals').doc();
+    await renewalRef.create({ instanceId, amountCents: 499, currency: 'usd', durationDays: 1095, status: 'awaiting_payment', createdAt: new Date().toISOString() });
+    const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: 'QR Hosting Renewal - 3 Years', description: 'Extend your QR hosting for another 3 years' }, unit_amount: 499 }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, renewalId: renewalRef.id, type: 'hosting_renewal', source: 'hosting_renewal' }, customer_email: instance.buyerEmail }, { idempotencyKey: `hosting-renewal-${renewalRef.id}` });
+    await renewalRef.update({ stripeSessionId: session.id });
     res.json({ url: session.url, sessionId: session.id });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
@@ -104,16 +108,7 @@ app.post('/buyer/instances/:instanceId/verify-renewal', async (req: Request, res
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (session.payment_status !== 'paid') { res.status(400).json({ error: "Payment not completed" }); return; }
-    if (session.metadata?.instanceId !== instanceId) { res.status(400).json({ error: "Session does not match instance" }); return; }
-    const doc = await db.collection('buyer_instances').doc(instanceId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
-    const instance = doc.data() as any;
-    const currentExpiry = instance.hostingExpiresAt ? new Date(instance.hostingExpiresAt) : new Date();
-    const base = currentExpiry > new Date() ? currentExpiry : new Date();
-    const newExpiry = new Date(base.getTime() + 3 * 365 * 24 * 60 * 60 * 1000);
-    await db.collection('buyer_instances').doc(instanceId).update({ hostingExpiresAt: newExpiry.toISOString(), renewedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    res.json({ success: true, instance: { id: doc.id, hostingExpiresAt: newExpiry.toISOString() }, newExpirationDate: newExpiry.toISOString() });
+    res.json(await finalizeHostingRenewal(session, instanceId));
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

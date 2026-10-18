@@ -1,3 +1,4 @@
+import { readOwnedDocument } from '../services/owned-document';
 import { enqueueAuthorizedMockupJob } from '../services/mockup-job-authorization';
 import {readFlubaProviderKey} from '../services/fluba-provider-keys';
 import { HealthMonitorService } from '../services/health-monitor';
@@ -211,12 +212,13 @@ app.get('/products/:id/categories', async (req: Request, res: Response): Promise
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/customs/:id', async (req: Request, res: Response): Promise<void> => {
+app.get('/customs/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'private, no-store');
   try {
-    const doc = await db.collection('custom_designs').doc(req.params.id).get();
-    if (!doc.exists) { res.status(404).json({ error: "Custom design not found" }); return; }
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+    const ref = db.collection('custom_designs').doc(req.params.id);
+    const data = await db.runTransaction(tx => readOwnedDocument(tx, ref, (req as any).user.uid, ['userId', 'ownerUserId']));
+    res.json({ id: ref.id, ...data.data() });
+  } catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
 });
 
 app.get('/render/config', async (req: Request, res: Response): Promise<void> => {
@@ -225,16 +227,26 @@ app.get('/render/config', async (req: Request, res: Response): Promise<void> => 
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+let activeQrRenders = 0;
 app.get('/qr/image', async (req: Request, res: Response): Promise<void> => {
+  const { data, size = '200', format = 'png' } = req.query;
+  const width = typeof size === 'string' && /^\d{1,4}$/.test(size) ? Number(size) : NaN;
+  if (typeof data !== 'string' || !data || Buffer.byteLength(data, 'utf8') > 2048 ||
+      !Number.isSafeInteger(width) || width < 64 || width > 2048 || format !== 'png') {
+    res.status(400).json({ error: 'Use 1–2048 bytes of text, PNG format and a whole-number size from 64 to 2048.' }); return;
+  }
+  if (activeQrRenders >= 2) { res.set('Retry-After', '1'); res.status(429).json({ error: 'Renderer busy. Retry shortly.' }); return; }
+  activeQrRenders++;
   try {
-    const { data: qrData, size = '200', format = 'png' } = req.query;
-    if (!qrData) { res.status(400).json({ error: "data parameter required" }); return; }
     const QRCode = (await import('qrcode')).default;
-    const buffer = await QRCode.toBuffer(qrData as string, { width: parseInt(size as string), type: 'png', margin: 1 });
+    const buffer = await QRCode.toBuffer(data, { width, type: 'png', margin: 1 });
+    if (buffer.length > 2 * 1024 * 1024) { res.status(413).json({ error: 'Rendered image exceeds the output limit.' }); return; }
     res.set('Content-Type', 'image/png');
+    res.set('X-Content-Type-Options', 'nosniff');
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch { res.status(400).json({ error: 'Text cannot be encoded as a QR image.' }); }
+  finally { activeQrRenders--; }
 });
 
 app.get('/mockup-jobs/stats', async (req: Request, res: Response): Promise<void> => {

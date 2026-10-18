@@ -1,3 +1,4 @@
+import { isPublicPacket, publicPlayPacket } from '../services/publication';
 import { writeAuthorizedMockupJob } from '../services/mockup-job-authorization';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { priceNewPacket } from '../services/pricing';
@@ -245,23 +246,13 @@ app.get('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Resp
 });
 
 app.get('/public/packets/:packetId', async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'no-store');
   try {
-    const { packetId } = req.params;
-    if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
-    const doc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(packetId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
-    const data = doc.data();
-    let linkedTemplateId = null;
-    const templatesSnapshot = await db.collection("productTemplates").where("packetId", "==", packetId).limit(1).get();
-    if (!templatesSnapshot.empty) { linkedTemplateId = templatesSnapshot.docs[0].id; }
-    res.json({
-      success: true,
-      packet: { id: doc.id, ...data, templateId: linkedTemplateId, createdAt: data?.createdAt?.toDate?.() || null, updatedAt: data?.updatedAt?.toDate?.() || null },
-    });
-  } catch (error: any) {
-    console.error("[Packets] Error getting packet:", error);
-    res.status(500).json({ error: error.message });
-  }
+    const doc = await db.collection(PRODUCT_PACKETS_COLLECTION).doc(req.params.packetId).get();
+    const packet = doc.data();
+    if (!await isPublicPacket(doc.id, packet)) { res.status(404).json({ error: 'Packet not found' }); return; }
+    res.json({ success: true, packet: publicPlayPacket(doc.id, packet) });
+  } catch (error: any) { res.status(500).json({ error: 'Unable to load published content' }); }
 });
 
 app.patch('/admin/packets/:packetId', requireAdmin, async (req: Request, res: Response): Promise<void> => {

@@ -21,6 +21,30 @@ export function dynamicsPrintSource(packet: Record<string, any>) {
     placementGraphicUrls: packet.placementGraphicUrls, placementGrfIds: packet.placementGrfIds }))).digest('hex');
 }
 
+/** Capture the checked production packet before payment; browsing destinations are not production identity. */
+export function freezeProductionSource(packet: Record<string, any>, qrgBlankId: string) {
+  if (!/^[0-9]{5}$/.test(qrgBlankId || '')) throw new Error('A verified QRG blank is required for the production snapshot.');
+  const source = JSON.parse(JSON.stringify(packet));
+  for (const key of ['selectedRole', 'selectedStore', 'selectedChannel', 'selectedCollection', 'selectedCatalogId']) delete source.builderSnapshot?.metadata?.[key];
+  for (const key of ['storeId', 'storeName', 'channelId', 'channelName', 'collectionId', 'collectionName', 'updatedAt', 'createdAt']) delete source[key];
+  const frozen = { version: 1, packet: source, qrgBlankId, sourceHash: dynamicsPrintSource(source) };
+  if (Buffer.byteLength(JSON.stringify(frozen)) > 750000) throw new Error('Production snapshot exceeds the saved-order limit. Reduce embedded artwork before checkout.');
+  return frozen;
+}
+export async function readOrderProductionSource(lineId: string, item: any) {
+  if (item.qrExperience?.version === 2) {
+    const frozen = (await db.collection('orderProductionSources').doc(lineId).get()).data();
+    if (!frozen || frozen.version !== 1 || frozen.orderId !== item.orderId || frozen.sourceHash !== item.qrExperience.sourceHash ||
+        dynamicsPrintSource(frozen.packet) !== frozen.sourceHash || !/^[0-9]{5}$/.test(frozen.qrgBlankId || '')) throw new Error('Frozen order production snapshot is missing or invalid.');
+    return { source: frozen.packet, qrgBlankId: frozen.qrgBlankId };
+  }
+  // Never substitute edited live content for a historical order lacking a snapshot.
+  const source = (await db.collection('productPackets').doc(item.packetId).get()).data();
+  if (!source || !item.qrExperience || item.qrExperience.sourceHash !== dynamicsPrintSource(source)) throw new Error('This historical order needs its frozen QR production source reconciled before printing.');
+  const composition = await validatePacketComposition(db, item.packetId, source);
+  return { source, qrgBlankId: composition.assembly.qrgId };
+}
+
 /** Retain approved artwork and replace only its verified QR region. */
 export async function renderUnitArtwork(packet: Record<string, any>, placement: string, qrContent: string): Promise<string> {
   const output = await personalizeQrArtwork(packet.placementGraphicUrls[placement], packet.qrContent, qrContent);
@@ -38,11 +62,7 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
   for (const line of lines.docs) {
     const item = line.data();
     if (!Number.isSafeInteger(item.quantity) || item.quantity < 1) throw new Error('Invalid purchased quantity.');
-    const sourceRef = db.collection('productPackets').doc(item.packetId);
-    const source = (await sourceRef.get()).data();
-    if (!source || !item.qrExperience || item.qrExperience.sourceHash !== dynamicsPrintSource(source)) throw new Error('This order needs its frozen QR production source reconciled before printing.');
-    const composition = await validatePacketComposition(db, item.packetId, source);
-    const qrgBlankId = composition.assembly.qrgId;
+    const { source, qrgBlankId } = await readOrderProductionSource(line.id, item);
     const snapshot = requireBuilderSnapshot(source.builderSnapshot);
     const hosted = ['qr_canvas', 'qr_play', 'qr_compose'].includes(snapshot.qrConfig.qrProductState);
     const compose = snapshot.qrConfig.qrProductState === 'qr_compose';

@@ -21,13 +21,12 @@ it('renews an expired link through the authenticated POST only after the member 
   client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   await act(async () => {
     tree = create(React.createElement(QueryClientProvider, { client }, React.createElement(PayoutsView, { memberId: 'owner' })));
-    await new Promise(resolve => setTimeout(resolve, 20));
   });
+  await vi.waitFor(async () => { await act(async () => {}); expect(tree.root.findAll(node => node.type === 'button' && node.props['data-testid'] === 'button-refresh-onboarding')).toHaveLength(1); });
   expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   await act(async () => {
-    tree.root.findByProps({ 'data-testid': 'button-refresh-onboarding' }).props.onClick();
-    await new Promise(resolve => setTimeout(resolve, 20));
+    tree.root.find(node => node.type === 'button' && node.props['data-testid'] === 'button-refresh-onboarding').props.onClick();
   });
   expect(fetchMock).toHaveBeenCalledWith('/api/connect/onboard', expect.objectContaining({ method: 'POST', headers: expect.objectContaining({ Authorization: 'Bearer owner-token' }) }));
-  expect(location.href).toBe('https://fixture.invalid/stripe');
+  await vi.waitFor(() => expect(location.href).toBe('https://fixture.invalid/stripe'));
 });

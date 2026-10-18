@@ -9,7 +9,7 @@ vi.mock('../../core', () => ({ db: { collection: (...args: any[]) => m.db.collec
 vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'fixture-key' }));
 vi.mock('stripe', () => ({ default: class { accounts = { retrieve: m.retrieve, create: m.create, createLoginLink: m.login }; accountLinks = { create: m.link }; checkout = { sessions: { create: m.checkout } }; webhooks = { constructEvent: m.event }; } }));
 vi.mock('../member-build', () => ({ memberBuildProjection: async () => ({ status: 'published', memberId: 'owner', title: 'Fixture' }) }));
-vi.mock('../order-service', () => ({ prepareMemberOrder: async () => ({ orderId: 'o', amount: 4000 }) }));
+vi.mock('../order-service', () => ({ prepareMemberOrder: async () => ({ orderId: 'o', amount: 4000, memberCompensation: { version: 1, currency: 'usd', saleCents: 4000, costCents: 2400, profitCents: 1600, share: 0.25, amountCents: 400 } }) }));
 vi.mock('../email', () => ({}));
 vi.mock('../order-fulfillment', () => ({}));
 import { register as connect } from '../../routes/connect';

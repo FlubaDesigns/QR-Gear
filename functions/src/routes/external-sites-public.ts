@@ -1,4 +1,4 @@
-import { readFlubaProviderKey } from '../services/fluba-provider-keys';
+import { readEmbedSession, mutateEmbedSession } from '../services/embed-session';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db } from '../core';
@@ -9,13 +9,11 @@ import {
   SURFACE_VARIANTS_COLLECTION,
 } from '../constants';
 import { computePricingSnapshot, checkSurfaceReadiness } from '../../../shared/surfaces';
-import { createCanonicalOrder } from '../services/order-service';
 import {
   validateEmbedContext,
   buildPricingFromContext,
   DEFAULT_BUILDER_PERMISSIONS,
 } from '../services/embed-validation';
-import Stripe from 'stripe';
 
 
 export function registerExternalSitesPublicRoutes(app: express.Express): void {
@@ -29,7 +27,7 @@ app.get('/public/embed/placement/:placementId', async (req: Request, res: Respon
       return;
     }
 
-    const permissions = ctx.profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
+    const permissions = { ...(ctx.profile?.permissions || DEFAULT_BUILDER_PERMISSIONS), allowBuyNow: false };
 
     res.json({
       placement: ctx.placement,
@@ -43,7 +41,7 @@ app.get('/public/embed/placement/:placementId', async (req: Request, res: Respon
     });
   } catch (error: any) {
     console.error('[ExternalSites] GET public placement error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -68,7 +66,7 @@ app.get('/public/embed/surface/:surfaceId', async (req: Request, res: Response):
     res.json({ id: surfaceDoc.id, ...surface, variants });
   } catch (error: any) {
     console.error('[ExternalSites] GET public surface error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -119,17 +117,14 @@ app.post('/public/embed/session', async (req: Request, res: Response): Promise<v
     res.json({ id: docRef.id, ...sessionData });
   } catch (error: any) {
     console.error('[ExternalSites] POST public session error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
 app.post('/public/embed/session/:sessionId/draft', async (req: Request, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
-    const sessionDoc = await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).get();
-    if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found' }); return; }
-    const session = sessionDoc.data() as any;
-    if (session.status !== 'active') { res.status(403).json({ error: 'Session is not active' }); return; }
+    const session = await readEmbedSession(sessionId, req, ['active']);
 
     const ctx = await validateEmbedContext(session.builderPlacementId, req);
     if (!ctx.valid) { res.status(403).json({ error: ctx.error }); return; }
@@ -154,22 +149,19 @@ app.post('/public/embed/session/:sessionId/draft', async (req: Request, res: Res
       createdAt: now,
       updatedAt: now,
     };
-    const docRef = await db.collection(BUILDER_DRAFTS_COLLECTION).add(draftData);
-    await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({ lastSeenAt: now });
+    const docRef = db.collection(BUILDER_DRAFTS_COLLECTION).doc();
+    await mutateEmbedSession(sessionId, req, ['active'], { lastSeenAt: now }, tx => tx.create(docRef, draftData));
     res.json({ id: docRef.id, ...draftData });
   } catch (error: any) {
     console.error('[ExternalSites] POST public draft error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
 app.post('/public/embed/session/:sessionId/cart', async (req: Request, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
-    const sessionDoc = await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).get();
-    if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found' }); return; }
-    const session = sessionDoc.data() as any;
-    if (session.status !== 'active') { res.status(403).json({ error: 'Session is not active' }); return; }
+    const session = await readEmbedSession(sessionId, req, ['active']);
 
     const ctx = await validateEmbedContext(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
     if (!ctx.valid) { res.status(403).json({ error: ctx.error }); return; }
@@ -210,135 +202,23 @@ app.post('/public/embed/session/:sessionId/cart', async (req: Request, res: Resp
       createdAt: now,
     };
 
-    const cartRef = await db.collection('embedCartItems').add(cartItemData);
-    await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
-      lastSeenAt: now,
-      status: 'cart_added',
-    });
+    const cartRef = db.collection('embedCartItems').doc();
+    await mutateEmbedSession(sessionId, req, ['active'], { lastSeenAt: now, status: 'cart_added' }, tx => tx.create(cartRef, cartItemData));
 
     console.log(`[ExternalSites] Cart item created: ${cartRef.id}, session=${sessionId}, surface=${effectiveSurfaceId}`);
     res.json({ id: cartRef.id, ...cartItemData });
   } catch (error: any) {
     console.error('[ExternalSites] POST session cart error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
+// Legacy surfaces do not have a canonical production-order bridge. Never take payment here.
 app.post('/public/embed/session/:sessionId/buy', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { sessionId } = req.params;
-    const sessionDoc = await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).get();
-    if (!sessionDoc.exists) { res.status(404).json({ error: 'Session not found' }); return; }
-    const session = sessionDoc.data() as any;
-    if (session.status !== 'active' && session.status !== 'cart_added') {
-      res.status(403).json({ error: 'Session is not in a buyable state' }); return;
-    }
-
-    const ctx = await validateEmbedContext(session.builderPlacementId, req, { requireSurface: true, requireReadiness: true });
-    if (!ctx.valid) { res.status(403).json({ error: ctx.error }); return; }
-
-    const profile = ctx.profile;
-    const permissions = profile?.permissions || DEFAULT_BUILDER_PERMISSIONS;
-    if (!permissions.allowBuyNow) {
-      res.status(403).json({ error: 'Direct purchase is not allowed by the current profile' }); return;
-    }
-
-    if (!ctx.affiliateUserId) {
-      res.status(422).json({ error: 'Cannot process purchase: no affiliate user resolved for this placement. Check placement, host, or profile affiliate configuration.' }); return;
-    }
-
-    const { surfaceId, variantId, quantity, designSelections, qrSelections, previewSnapshot, successUrl, cancelUrl } = req.body;
-    const effectiveSurfaceId = surfaceId || session.surfaceId;
-    if (!effectiveSurfaceId) { res.status(400).json({ error: 'surfaceId is required' }); return; }
-
-    const pricingSnapshot = buildPricingFromContext(ctx.surface, ctx.pricingPolicy, ctx.revenueSplit);
-    const unitPrice = pricingSnapshot.displaySalePrice;
-    const qty = quantity || 1;
-
-    const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
-    if (!stripeKey) { res.status(503).json({ error: 'Payment not configured' }); return; }
-    const stripe = new Stripe(stripeKey);
-
-    const productTitle = ctx.surface?.title || 'QR Gear Product';
-    const productImage = ctx.surface?.images?.[0] || null;
-    const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
-
-    const checkoutSession = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: pricingSnapshot.currency.toLowerCase(),
-          product_data: {
-            name: productTitle,
-            images: productImage ? [productImage] : [],
-          },
-          unit_amount: Math.round(unitPrice * 100),
-        },
-        quantity: qty,
-      }],
-      mode: 'payment',
-      shipping_address_collection: {
-        allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'],
-      },
-      success_url: successUrl || `${baseUrl}/embed/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: cancelUrl || `${baseUrl}/embed/cancel`,
-      metadata: {
-        source: 'external_embed',
-        embedSessionId: sessionId,
-        builderPlacementId: session.builderPlacementId,
-        builderHostId: session.builderHostId,
-        affiliateUserId: ctx.affiliateUserId || '',
-        surfaceId: effectiveSurfaceId,
-        variantId: variantId || '',
-        pricingPolicyId: ctx.pricingPolicy?.id || '',
-        revenueSplitId: ctx.revenueSplit?.id || '',
-      },
-      customer_creation: 'if_required',
-    });
-
-    const now = new Date().toISOString();
-
-    const { orderItemId } = await createCanonicalOrder({
-      source: 'external_embed',
-      stripeSessionId: checkoutSession.id,
-      buyerEmail: '',
-      buyerName: '',
-      shippingAddress: null,
-      totalAmount: unitPrice * qty,
-      pricingSnapshot,
-      cartItems: [{ quantity: qty }],
-      embedContext: {
-        builderHostId: session.builderHostId,
-        builderPlacementId: session.builderPlacementId,
-        builderProfileId: session.builderProfileId || '',
-        affiliateUserId: ctx.affiliateUserId || '',
-        surfaceId: effectiveSurfaceId,
-        variantId: variantId || '',
-        pricingPolicyId: ctx.pricingPolicy?.id || '',
-        revenueSplitId: ctx.revenueSplit?.id || '',
-        designSelections: designSelections || {},
-        qrSelections: qrSelections || {},
-        previewSnapshot: previewSnapshot || null,
-      },
-    });
-
-    await db.collection(BUILDER_SESSIONS_COLLECTION).doc(sessionId).update({
-      lastSeenAt: now,
-      status: 'checkout_started',
-      stripeCheckoutSessionId: checkoutSession.id,
-    });
-
-    console.log(`[ExternalSites] Buy checkout created: stripe=${checkoutSession.id}, session=${sessionId}, affiliate=${ctx.affiliateUserId || 'none'}, amount=$${unitPrice * qty}`);
-    res.json({
-      checkoutUrl: checkoutSession.url,
-      stripeSessionId: checkoutSession.id,
-      pricingSnapshot,
-      total: unitPrice * qty,
-    });
-  } catch (error: any) {
-    console.error('[ExternalSites] POST session buy error:', error);
-    res.status(500).json({ error: error.message });
-  }
+    await readEmbedSession(req.params.sessionId, req, ['active', 'cart_added']);
+    res.status(410).json({ error: 'Purchases from this legacy embed are unavailable. Choose a published product in the QR Gear store.', storeUrl: '/store' });
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/public/embed/pricing/compute', async (req: Request, res: Response): Promise<void> => {
@@ -360,7 +240,7 @@ app.post('/public/embed/pricing/compute', async (req: Request, res: Response): P
     res.json(snapshot);
   } catch (error: any) {
     console.error('[ExternalSites] POST pricing compute error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

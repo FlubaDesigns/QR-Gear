@@ -1,3 +1,4 @@
+import { isPublicCatalogRecord, isVisibleLegacyLink, isPublicPacket } from '../services/publication';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { catalogProductOptions, CatalogSelectionError } from '../services/catalog-sale-variants';
 import { resolveSaleItem } from '../services/order-fulfillment';
@@ -125,6 +126,7 @@ function tryFlatMockupsByColor(
 
 app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<void> => {
   try {
+    res.set('Cache-Control', 'no-store');
     const { linkId } = req.params;
 
     // ── Primary: admin_catalog_instances ────────────────────────────────────
@@ -132,6 +134,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
     if (instanceDoc.exists) {
       console.log('[Store API] Product detail: serving from admin_catalog_instances', linkId);
       const d = instanceDoc.data()!;
+      if (!isPublicCatalogRecord(d)) { res.status(404).json({ error: 'Product not found' }); return; }
       const resolved = d.resolved || {};
 
       let price: number | null = resolved.pricing?.customerPrice ?? null;
@@ -151,6 +154,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
           const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
           if (pDoc.exists) {
             const pkt = pDoc.data()!;
+            if (!await isPublicPacket(pDoc.id, pkt)) { res.status(404).json({ error: 'Product not published' }); return; }
             productOptions = await catalogProductOptions(db, d, pkt);
             const extracted = extractPacketMockups(pkt);
             packetMockupsByColor = extracted.mockupsByColor;
@@ -219,6 +223,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
     const linkDoc = await db.collection('storeProductLinks').doc(linkId).get();
     if (linkDoc.exists) {
       const link = linkDoc.data()!;
+      if (!isVisibleLegacyLink(link)) { res.status(404).json({ error: 'Product not found' }); return; }
 
       let price: number | null = null;
       let productOptions = await catalogProductOptions(db, link, null);
@@ -234,6 +239,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         const packetDoc = await db.collection('packets').doc(link.packetId).get();
         if (packetDoc.exists) {
           const packet = packetDoc.data()!;
+          if (!isVisibleLegacyLink(packet)) { res.status(404).json({ error: 'Product not published' }); return; }
           productOptions = await catalogProductOptions(db, link, packet);
           packetImageUrl = packet.priorityMockupUrl || packet.landingPageSnapshotUrl || packet.productGraphicUrl || null;
           if (packet.placementMockupUrls && typeof packet.placementMockupUrls === 'object') {
@@ -342,6 +348,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
 
 app.post('/store/product/:linkId/add-to-cart', async (req: Request, res: Response): Promise<void> => {
   try {
+    res.set('Cache-Control', 'no-store');
     const { linkId } = req.params;
     const { selectedColor, selectedSize, quantity = 1 } = req.body;
 
@@ -458,7 +465,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           .filter((doc: any) => {
             const d = doc.data();
             // Exclude soft-deleted / hidden / draft instances from the public store
-            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+            if (!isPublicCatalogRecord(d)) return false;
             if (!segment) return true;
             return d.collectionName === segment;
           })
@@ -600,7 +607,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
           .filter((doc: any) => {
             const d = doc.data();
             // Exclude soft-deleted / hidden / draft instances from the public store
-            if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+            if (!isPublicCatalogRecord(d)) return false;
             if (!collection) return true;
             const name: string = d.collectionName || '';
             return name === collection || toSlug(name) === collectionSlug;
@@ -702,7 +709,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
         .filter((doc: any) => {
           const d = doc.data();
           // Exclude soft-deleted / hidden / draft instances from the public store
-          if (d.isVisible === false || d.status === 'deleted' || d.status === 'archived') return false;
+          if (!isPublicCatalogRecord(d)) return false;
           return !segment || d.collectionName === segment;
         })
         .map(async (doc: any) => {
@@ -854,6 +861,7 @@ app.get('/media-files/:filename', async (req: Request, res: Response): Promise<v
 // via Printful and writes back to the packet so the next hit is instant.
 app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Response): Promise<void> => {
   try {
+    res.set('Cache-Control', 'no-store');
     const { linkId } = req.params;
     const { colorName } = req.body;
 
@@ -872,12 +880,15 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
     const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
     if (instanceDoc.exists) {
       instanceData = instanceDoc.data()!;
+      if (!isPublicCatalogRecord(instanceData)) { res.status(404).json({ error: 'Product not found' }); return; }
       packetId = instanceData.currentPacketId || null;
       if (packetId) {
         const pDoc = await db.collection('productPackets').doc(packetId).get();
-        if (pDoc.exists) packetData = pDoc.data()!;
+        if (pDoc.exists && await isPublicPacket(pDoc.id, pDoc.data())) packetData = pDoc.data()!;
       }
     }
+
+    if (!packetData) { res.status(404).json({ error: 'Product not published' }); return; }
 
     // ── Cache check — 3-level format (colorKey → placement → size → url) ──
     if (packetData?.mockupsByColor && typeof packetData.mockupsByColor === 'object') {

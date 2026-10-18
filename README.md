@@ -1046,3 +1046,10 @@ Expired Stripe onboarding now returns through signed-in Payouts. Anonymous legac
 Public provider images now pass exact HTTPS host/redirect validation, bounded download and actual raster decoding. Stored active assets receive sandbox/download headers. Designs, member library packets and dynamic pages enforce verified ownership; legacy buyer details are private with a minimal public renewal projection. Account transitions cancel and clear private queries and discard prior-account component state. Mockup jobs require current administrator authorization and a server-only target-bound authorization record, checked at claim and before writeback. Historical jobs without that record must be regenerated from the admin builder.
 
 Validation: 300 client tests, 40 focused Functions tests, client/Functions TypeScript and the npm 10.8.2 Functions lockfile dry run passed. Tests use controlled account/provider fixtures; they do not establish authenticated production acceptance. See `docs/AUDIT_REPAIRS.md` for each repair, limitations and release marker `20261018-audit-003-010`.
+
+
+### Audit repairs QRG-011–QRG-025 — October 18, 2026
+
+Public aliases now enforce publication; legacy embed mutations require unexpired capabilities, QR rendering is bounded, and member authentication checks revocation. Member compensation is frozen once and reconciled against actual Stripe transfer evidence. New paid orders retain server-only production snapshots. Refund evidence blocks production retry and checkout replay. Paid gift issuance and incomplete legacy embed Buy are disabled; explicit free gifts, legacy claims and hosting renewal use transactional consumption. Earnings failures remain pending and propagate for retry, activation email HTML is escaped, and repeat purchases retain the original saved referrer.
+
+`docs/AUDIT_REPAIRS.md` records each repair and its tests. Historical orders/renewals lacking the new snapshots cannot be safely reconstructed automatically. Build marker: `20261018-audit-011-025`; source checks and deployed acceptance are reported separately.

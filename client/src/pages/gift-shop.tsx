@@ -52,7 +52,7 @@ export default function GiftShopPage() {
       setFormData({ buyerName: "", buyerEmail: "", recipientEmail: "", personalMessage: "" });
     },
     onError: (error: Error) => {
-      toast({ title: "Purchase failed", description: error.message, variant: "destructive" });
+      toast({ title: "Gift request failed", description: error.message, variant: "destructive" });
     },
   });
 
@@ -189,7 +189,7 @@ export default function GiftShopPage() {
                   data-testid={`button-buy-gift-${pkg.id}`}
                 >
                   <Gift className="mr-2 h-5 w-5" />
-                  Buy This Gift
+                  Get Free Gift
                 </Button>
               </CardFooter>
             </Card>
@@ -260,7 +260,7 @@ export default function GiftShopPage() {
                 className="h-12"
                 data-testid="input-recipient-email"
               />
-              <p className="text-xs text-muted-foreground">We'll send them the gift code</p>
+              <p className="text-xs text-muted-foreground">Copy and share the gift code after it is created.</p>
             </div>
             {selectedPackage?.includePersonalMessage && (
               <div className="space-y-2">
@@ -290,7 +290,7 @@ export default function GiftShopPage() {
               className="h-12"
               data-testid="button-confirm-purchase"
             >
-              {purchaseMutation.isPending ? "Processing..." : "Complete Purchase"}
+              {purchaseMutation.isPending ? "Processing..." : "Get Free Gift"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -302,7 +302,7 @@ export default function GiftShopPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-green-600">
               <Check className="h-5 w-5" />
-              Gift Purchased!
+              Free Gift Ready!
             </DialogTitle>
             <DialogDescription>
               Your gift for "{purchaseComplete?.packageName}" is ready.

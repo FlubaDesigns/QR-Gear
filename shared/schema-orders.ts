@@ -247,6 +247,7 @@ export const giftPackages = pgTable("gift_packages", {
   includePersonalMessage: boolean("include_personal_message").default(true),
   redemptionValidDays: integer("redemption_valid_days").default(365),
   displayImage: text("display_image"),
+  isFreePromotion: boolean("is_free_promotion").default(false),
   isActive: boolean("is_active").default(true),
   sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),

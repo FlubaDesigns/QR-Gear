@@ -28,6 +28,7 @@ interface PackageFormData {
   dynamicsTier: string;
   dynamicsMonths: number;
   price: string;
+  isFreePromotion: boolean;
   allowColorChoice: boolean;
   allowSizeChoice: boolean;
   allowQrCustomization: boolean;
@@ -46,6 +47,7 @@ const defaultFormData: PackageFormData = {
   dynamicsTier: "standard",
   dynamicsMonths: 12,
   price: "29.99",
+  isFreePromotion: false,
   allowColorChoice: true,
   allowSizeChoice: true,
   allowQrCustomization: true,
@@ -155,6 +157,7 @@ export default function AdminGiftsPage() {
       dynamicsTier: pkg.dynamicsTier || "standard",
       dynamicsMonths: pkg.dynamicsMonths || 12,
       price: pkg.price,
+      isFreePromotion: pkg.isFreePromotion === true,
       allowColorChoice: pkg.allowColorChoice ?? true,
       allowSizeChoice: pkg.allowSizeChoice ?? true,
       allowQrCustomization: pkg.allowQrCustomization ?? true,
@@ -583,6 +586,11 @@ export default function AdminGiftsPage() {
               </div>
             )}
 
+            <div className="space-y-2">
+              <Label htmlFor="freePromotion">Offer as a free promotion</Label>
+              <Switch id="freePromotion" checked={formData.isFreePromotion} onCheckedChange={v => setFormData({ ...formData, isFreePromotion: v })} />
+              <p className="text-sm text-muted-foreground">Public gift issuance requires this setting and a price of zero. Paid gift sales are unavailable.</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="price">Price *</Label>

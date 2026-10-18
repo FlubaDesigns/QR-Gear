@@ -1,3 +1,4 @@
+import { validateMemberCompensation } from '../services/member-compensation';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { memberBuildProjection } from '../services/member-build';
 import { Request, Response } from 'express';
@@ -42,7 +43,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     const productImage = packet.itemImage || packet.socialPacket?.itemImage || null;
     const packetBaseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
 
-    // Resolve creator's Connect account for automatic 25% transfer
+    // Resolve the creator account; the transfer uses the frozen profit-share amount.
     const creatorMemberId = packet.memberId || '';
     let connectAccountId = '';
     let connectTransferApplied = false;
@@ -56,7 +57,9 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     }
 
     const totalCents = Math.round(serverTotal * 100);
-    const entityShareCents = Math.floor(totalCents * 0.25);
+    const entityShareCents = creatorMemberId ? validateMemberCompensation(prepared.memberCompensation!, totalCents).amountCents : 0;
+    connectTransferApplied = !!connectAccountId && entityShareCents > 0;
+    await db.collection('orders').doc(prepared.orderId).update({ connectAccountId: connectTransferApplied ? connectAccountId : null, expectedTransferCents: entityShareCents });
 
     // Build session with optional destination transfer
     const sessionParams: any = {
@@ -88,13 +91,14 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
         memberId: creatorMemberId,
         serverTotal: serverTotal.toString(),
         connectAccountId: connectAccountId || '',
-        connectTransferApplied: connectAccountId ? 'true' : 'false',
+        connectTransferApplied: connectTransferApplied ? 'true' : 'false',
       },
       customer_creation: 'if_required',
     };
 
     if (connectAccountId && entityShareCents > 0) {
       sessionParams.payment_intent_data = {
+        metadata: { orderId: prepared.orderId },
         transfer_data: {
           destination: connectAccountId,
           amount: entityShareCents,

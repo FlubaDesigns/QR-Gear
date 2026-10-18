@@ -21,20 +21,6 @@ import { printfulClient } from '../services/printful';
   registerMembersLibraryRoutes(app);
   // ============ MEMBERS ROUTES (Batch 1) ============
 
-async function verifyMemberAuthCF(req: Request, memberId: string): Promise<{ authorized: boolean; userId?: string; error?: string }> {
-  const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith("Bearer ")) return { authorized: false, error: "Authorization required" };
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(authHeader.slice(7));
-    if (!decodedToken) return { authorized: false, error: "Invalid token" };
-    const isOwnData = decodedToken.uid === memberId;
-    const adminIds = (process.env.ADMIN_USER_IDS || "").split(",").map(id => id.trim()).filter(Boolean);
-    const isAdminUser = adminIds.includes(decodedToken.uid);
-    if (!isOwnData && !isAdminUser) return { authorized: false, error: "Access denied" };
-    return { authorized: true, userId: decodedToken.uid };
-  } catch { return { authorized: false, error: "Invalid token" }; }
-}
-
 app.post('/members/profile', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).user?.uid;
@@ -79,7 +65,7 @@ app.post('/members/increment-publish', requireAuth, async (req: Request, res: Re
 app.put('/members/:memberId/social-handles', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { socialHandles } = req.body;
     if (!socialHandles || typeof socialHandles !== 'object') { res.status(400).json({ error: 'socialHandles object is required' }); return; }
@@ -96,7 +82,7 @@ app.put('/members/:memberId/social-handles', async (req: Request, res: Response)
 app.put('/members/:memberId/contact-info', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { contactEmail, phoneNumber } = req.body;
     const update: Record<string, string> = { updatedAt: new Date().toISOString() };
@@ -110,7 +96,7 @@ app.put('/members/:memberId/contact-info', async (req: Request, res: Response): 
 app.post('/members/:memberId/social-schedule', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { packetId, cadence, platforms } = req.body;
     if (!packetId) { res.status(400).json({ error: 'packetId is required' }); return; }
@@ -135,7 +121,7 @@ app.post('/members/:memberId/social-schedule', async (req: Request, res: Respons
 app.get('/members/:memberId/social-schedule', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const snapshot = await db.collection('member_social_schedule').where('memberId', '==', memberId).get();
     const schedules = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -156,7 +142,7 @@ app.get('/members/:memberId/social-schedule', async (req: Request, res: Response
 app.put('/members/:memberId/social-schedule/:scheduleId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, scheduleId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const docRef = db.collection('member_social_schedule').doc(scheduleId);
     const doc = await docRef.get();
@@ -184,7 +170,7 @@ app.put('/members/:memberId/social-schedule/:scheduleId', async (req: Request, r
 app.delete('/members/:memberId/social-schedule/:scheduleId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, scheduleId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const docRef = db.collection('member_social_schedule').doc(scheduleId);
     const doc = await docRef.get();
@@ -198,7 +184,7 @@ app.delete('/members/:memberId/social-schedule/:scheduleId', async (req: Request
 app.post('/members/:memberId/social-schedule/:scheduleId/mark-posted', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, scheduleId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const docRef = db.collection('member_social_schedule').doc(scheduleId);
     const doc = await docRef.get();
@@ -216,7 +202,7 @@ app.post('/members/:memberId/social-schedule/:scheduleId/mark-posted', async (re
 app.post('/members/:memberId/social-schedule/send-reminders', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const profileDoc = await db.collection('member_profiles').doc(memberId).get();
     const profile = profileDoc.data();
@@ -297,7 +283,7 @@ app.post('/members/:memberId/social-schedule/send-reminders', async (req: Reques
 app.get('/members/:memberId/channels', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const snapshot = await db.collection("channels").where("ownerId", "==", memberId).get();
     const channels = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -310,7 +296,7 @@ app.post('/members/:memberId/channels', async (req: Request, res: Response): Pro
     const { memberId } = req.params;
     const { name, storeId } = req.body;
     if (!memberId || !name) { res.status(400).json({ error: "memberId and name are required" }); return; }
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const channelData = { name, storeId: storeId || PLATFORM_STORE_ID, ownerId: memberId, type: 'member', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
     const docRef = await db.collection("channels").add(channelData);
@@ -321,7 +307,7 @@ app.post('/members/:memberId/channels', async (req: Request, res: Response): Pro
 app.delete('/members/:memberId/channels/:channelId', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, channelId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const channelDoc = await db.collection('channels').doc(channelId).get();
     if (!channelDoc.exists) { res.status(404).json({ error: 'Channel not found' }); return; }
@@ -341,7 +327,7 @@ app.put('/members/:memberId/channels/:channelId/remove-item', async (req: Reques
     const { memberId, channelId } = req.params;
     const { itemId, itemType } = req.body;
     if (itemType !== 'packet') { res.status(400).json({ error: 'Only packet items are supported' }); return; }
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const doc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(itemId).get();
     if (!doc.exists) { res.status(404).json({ error: 'Item not found' }); return; }
@@ -357,7 +343,7 @@ app.put('/members/:memberId/channels/:channelId/remove-item', async (req: Reques
 app.patch('/members/:memberId/packets/:packetId/description', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId, packetId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const { memberPacketDescription } = req.body;
     if (typeof memberPacketDescription !== 'string') { res.status(400).json({ error: 'memberPacketDescription is required' }); return; }
@@ -389,7 +375,7 @@ app.delete('/members/:memberId/products/:productId', async (_req: Request, res: 
 app.get('/members/:memberId/products', async (req: Request, res: Response) => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const rows = await db.collection(MEMBER_PACKETS_COLLECTION).where('memberId', '==', memberId).get();
     res.json(await Promise.all(rows.docs.map(row => memberBuildProjection(row.id))));
@@ -439,7 +425,7 @@ app.get('/members/:memberId/published-items', async (req: Request, res: Response
   try {
     const { memberId } = req.params;
     const types = req.query.types as string;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
 
     const normalizeType = (type: string): string => {
@@ -471,7 +457,7 @@ app.get('/members/:memberId/published-items', async (req: Request, res: Response
 app.get('/members/:memberId/earnings', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;
-    const auth = await verifyMemberAuthCF(req, memberId);
+    const auth = await verifyMemberAuthCF(req, memberId, true);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const snapshot = await db.collection("memberEarnings").where("memberId", "==", memberId).orderBy("createdAt", "desc").get();
     const earnings = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));

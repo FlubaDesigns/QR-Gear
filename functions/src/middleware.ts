@@ -86,12 +86,12 @@ export async function requireAdmin(req: Request, res: Response, next: NextFuncti
   } catch (error) { next(error); }
 }
 
-export async function verifyMemberAuthCF(req: Request, memberId: string): Promise<{ authorized: boolean; userId?: string; error?: string }> {
+export async function verifyMemberAuthCF(req: Request, memberId: string, allowConfiguredAdmin = false): Promise<{ authorized: boolean; userId?: string; error?: string }> {
   const user = await verifyAuth(req);
   if (!user) {
     return { authorized: false, error: 'Unauthorized' };
   }
-  if (user.uid !== memberId) {
+  if (user.uid !== memberId && !(allowConfiguredAdmin && ADMIN_USER_IDS.includes(user.uid))) {
     return { authorized: false, error: 'Forbidden' };
   }
   return { authorized: true, userId: user.uid };

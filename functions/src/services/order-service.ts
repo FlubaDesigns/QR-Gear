@@ -1,10 +1,13 @@
+import { resolveLifetimeReferral } from './lifetime-referral';
+import { freezeMemberCompensation, validateMemberCompensation, reconcileMemberTransfer, type MemberCompensation } from './member-compensation';
+import { readFlubaProviderKey } from './fluba-provider-keys';
 import { sendActivationEmail } from './email';
 import { getSizeUpcharges } from './pricing';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
 import { quoteCartBundle } from './product-bundles';
 import { createHash } from 'crypto';
-import type Stripe from 'stripe';
+import Stripe from 'stripe';
 import { resolveSaleItem, verifyProviderItems, fulfillOrder } from './order-fulfillment';
 import { db, admin } from '../core';
 import {
@@ -198,7 +201,11 @@ export async function prepareCartOrder(userId: string, referrerId = '', selectio
       status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
       amountTotalCents: amount, subtotalCents: quote.subtotalCents, bundle: quote.bundle, currency: 'usd', totalAmount: (amount / 100).toFixed(2),
       referrerId, payoutState: referrerId ? 'needs_review' : null, routedProvider: items[0].fulfillment.provider, createdAt: now, updatedAt: now });
-    items.forEach((item, index) => tx.create(db.collection('orderItems').doc(`${ref.id}_${index}`), { ...item, orderId: ref.id, createdAt: now }));
+    items.forEach(({ frozenProduction, ...item }, index) => {
+      const id = `${ref.id}_${index}`;
+      tx.create(db.collection('orderItems').doc(id), { ...item, orderId: ref.id, createdAt: now });
+      tx.create(db.collection('orderProductionSources').doc(id), { ...frozenProduction, orderId: ref.id });
+    });
   });
   return { orderId: ref.id, items, amount };
 }
@@ -214,6 +221,9 @@ export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
     if (!order || order.checkoutVersion !== 1 || order.source !== session.metadata?.source || (order.source === 'direct_cart' && order.userId !== session.metadata?.userId) ||
         (order.stripeSessionId && order.stripeSessionId !== session.id) || order.currency !== session.currency ||
         order.amountTotalCents !== session.amount_total) throw new Error('Stripe payment does not match the frozen order.');
+    const paymentIntentId = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id;
+    const refund = paymentIntentId ? (await tx.get(db.collection('paymentRefunds').doc(paymentIntentId))).data() : null;
+    if (refund || order.productionHold || ['refunded', 'partially_refunded'].includes(order.paymentStatus)) throw new Error('Refunded payment cannot be restored by checkout replay.');
     if (order.paymentStatus === 'paid') return;
     const shipping = (session as any).shipping_details || (session as any).collected_information?.shipping_details;
     const address = shipping?.address;
@@ -246,32 +256,41 @@ export async function prepareOwnerOrder(packetId: string, packet: Record<string,
 async function prepareProductOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, ownerId?: string) {
   const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: ownerId ? null : packetId, productSize: size, productColor: packet.selectedColor } }, ownerId ? { packetId, ownerId } : undefined);
   await verifyProviderItems([item]);
+  const memberCompensation = item.creatorMemberId ? await freezeMemberCompensation(item.unitAmount, item.productCost) : null;
   const ref = db.collection('orders').doc(), now = new Date().toISOString();
   const batch = db.batch();
   batch.create(ref, { userId: null, source: ownerId ? 'public_wizard' : 'packet_share', sourceChannel: ownerId ? 'owner' : 'member', checkoutVersion: 1,
     packetId, productTitle: item.productTitle, qrType: packet.packetType, selectedSize: size, selectedColor: packet.selectedColor,
-    mockupUrl: packet.mockupUrl || packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost,
+    mockupUrl: packet.mockupUrl || packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost, memberCompensation,
     status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
     amountTotalCents: item.unitAmount, currency: 'usd', totalAmount: (item.unitAmount / 100).toFixed(2),
     referrerId, routedProvider: item.fulfillment.provider, createdAt: now, updatedAt: now });
-  batch.create(db.collection('orderItems').doc(`${ref.id}_0`), { ...item, orderId: ref.id, createdAt: now });
+  const { frozenProduction, ...publicItem } = item;
+  batch.create(db.collection('orderItems').doc(`${ref.id}_0`), { ...publicItem, orderId: ref.id, createdAt: now });
+  batch.create(db.collection('orderProductionSources').doc(`${ref.id}_0`), { ...frozenProduction, orderId: ref.id });
   await batch.commit();
-  return { orderId: ref.id, amount: item.unitAmount };
+  return { orderId: ref.id, amount: item.unitAmount, memberCompensation };
 }
 
 /** The signed webhook and Stripe-retrieved return page converge on one durable order. */
 export async function finalizeMemberPayment(session: Stripe.Checkout.Session) {
   if (!['packet_share', 'public_wizard'].includes(session.metadata?.source || '')) throw new Error('This is not a product checkout.');
   const { orderId, order } = await finalizeCartPayment(session);
+  if (session.metadata?.source === 'packet_share' && order.memberCompensation) {
+    const key = await readFlubaProviderKey('STRIPE_SECRET_KEY');
+    if (!key) throw new Error('Payment reconciliation is unavailable.');
+    order.transferSettlement = await reconcileMemberTransfer(new Stripe(key), order);
+    await db.collection('orders').doc(orderId).update({ transferSettlement: order.transferSettlement });
+  }
+  if (session.metadata?.source === 'packet_share') await writePayoutAttribution({ source: 'packet_share', orderId, orderTotal: order.amountTotalCents / 100,
+    productCost: order.productCost, creatorMemberId: order.creatorMemberId, referrerId: order.referrerId,
+    buyerEmail: order.customerEmail, packetId: order.packetId,
+    memberCompensation: order.memberCompensation, transferSettlement: order.transferSettlement, connectAccountId: order.connectAccountId });
   await fulfillOrder(orderId);
   const line = (await db.collection('orderItems').doc(`${orderId}_0`).get()).data();
   const instanceId = line?.dynamicsInstanceIds?.[0];
   const instance = instanceId ? (await db.collection('qr_dynamics_instances').doc(instanceId).get()).data() : null;
   if (!instance?.claimCode) throw new Error('Purchased item claim is not ready. Retry order verification.');
-  if (session.metadata?.source === 'packet_share') await writePayoutAttribution({ source: 'packet_share', orderId, orderTotal: order.amountTotalCents / 100,
-    productCost: order.productCost, creatorMemberId: order.creatorMemberId, referrerId: order.referrerId,
-    buyerEmail: order.customerEmail, packetId: order.packetId,
-    connectTransferApplied: session.metadata?.connectTransferApplied === 'true', connectAccountId: session.metadata?.connectAccountId });
   const updated = (await db.collection('orders').doc(orderId).get()).data()!;
   const publicOrder = { packetId: order.packetId, stripeSessionId: session.id, productTitle: order.productTitle,
     qrType: order.qrType, selectedColor: order.selectedColor, selectedSize: order.selectedSize, totalAmount: order.amountTotalCents / 100,
@@ -413,8 +432,7 @@ export async function confirmEmbedOrderPayout(stripeSessionId: string): Promise<
     .limit(1).get();
 
   if (attribSnap.empty) {
-    console.warn(`[OrderService] No attribution found for stripe session ${stripeSessionId}`);
-    return;
+    throw new Error(`Missing attribution for paid embed session ${stripeSessionId}; reconciliation required.`);
   }
 
   const attribDoc = attribSnap.docs[0];
@@ -474,26 +492,36 @@ export interface PayoutAttributionInput {
   builderHostId?: string;
   builderPlacementId?: string;
   quantity?: number;
+  memberCompensation?: MemberCompensation;
+  transferSettlement?: { status: string; amountCents: number; transferId: string | null };
   connectTransferApplied?: boolean;
   connectAccountId?: string;
 }
 
 export async function writePayoutAttribution(input: PayoutAttributionInput): Promise<void> {
   const nowISO = new Date().toISOString();
-
-  if (input.source === 'packet_share' || input.source === 'direct_cart') {
-    await writeCreatorAndReferralPayouts(input, nowISO);
-  }
-
-  if (input.source === 'external_embed') {
-    await writeAffiliatePayouts(input, nowISO);
+  const ref = db.collection('payout_work').doc(input.orderId);
+  const safeInput = JSON.parse(JSON.stringify(input));
+  await ref.set({ input: safeInput, status: 'pending', updatedAt: nowISO }, { merge: true });
+  try {
+    if (input.source === 'packet_share' || input.source === 'direct_cart') await writeCreatorAndReferralPayouts(input, nowISO);
+    if (input.source === 'external_embed') await writeAffiliatePayouts(input, nowISO);
+    await ref.update({ status: 'completed', completedAt: new Date().toISOString(), error: null });
+  } catch (error: any) {
+    await ref.update({ status: 'pending', error: error.message }).catch(() => {});
+    throw error;
   }
 }
 
 async function recordEarningOnce(collection: string, id: string, value: Record<string, any>) {
   const ref = db.collection(collection).doc(id);
   await db.runTransaction(async tx => {
-    if (!(await tx.get(ref)).exists) tx.create(ref, value);
+    const previous = await tx.get(ref);
+    if (!previous.exists) tx.create(ref, value);
+    else if (value.memberCompensation && value.transferSettlement && !previous.data()?.refund) {
+      if (JSON.stringify(previous.data()?.memberCompensation) !== JSON.stringify(value.memberCompensation)) throw new Error('Earnings policy differs from its frozen record.');
+      tx.update(ref, { status: value.status, connectTransferApplied: value.connectTransferApplied, transferSettlement: value.transferSettlement });
+    }
   });
 }
 
@@ -502,8 +530,10 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
 
   if (input.creatorMemberId && profit > 0) {
     try {
-      const creatorEarnings = Math.round((profit * 0.25) * 100) / 100;
-      const connectTransferApplied = !!input.connectTransferApplied;
+      // Historical orders without a frozen policy remain visibly unreconciled.
+      const policy = input.memberCompensation ? validateMemberCompensation(input.memberCompensation, Math.round(input.orderTotal * 100)) : await freezeMemberCompensation(Math.round(input.orderTotal * 100), input.productCost);
+      const creatorEarnings = policy.amountCents / 100;
+      const connectTransferApplied = !!input.memberCompensation && input.transferSettlement?.status === 'transferred' && input.transferSettlement.amountCents === policy.amountCents;
       const connectAccountId = input.connectAccountId || '';
       await recordEarningOnce('member_earnings', `${input.orderId}_${input.creatorMemberId}`, {
         memberId: input.creatorMemberId,
@@ -512,55 +542,30 @@ async function writeCreatorAndReferralPayouts(input: PayoutAttributionInput, now
         orderTotal: input.orderTotal,
         productCost: input.productCost,
         profit,
-        sharePercent: 25,
+        sharePercent: policy.share * 100, memberCompensation: policy,
         earnings: creatorEarnings,
         type: 'product_sale',
-        status: connectTransferApplied ? 'transferred' : 'pending',
+        status: !input.memberCompensation ? 'needs_review' : connectTransferApplied ? 'transferred' : input.transferSettlement?.status || 'pending',
+        transferSettlement: input.transferSettlement || null,
         connectTransferApplied,
         ...(connectAccountId ? { connectAccountId } : {}),
         createdAt: nowISO,
       });
       console.log(`[OrderService] Creator ${input.creatorMemberId} earned $${creatorEarnings} from order ${input.orderId}`);
     } catch (err: any) {
-      console.error('[OrderService] Non-fatal creator earnings error:', err.message);
+      throw err;
     }
   }
 
-  if (input.referrerId && input.buyerEmail) {
-    try {
-      const buyerKey = input.buyerEmail;
-      const existingRef = await db.collection('referrals')
-        .where('buyerKey', '==', buyerKey).limit(1).get();
-      if (existingRef.empty) {
-        await db.collection('referrals').add({
-          referrerId: input.referrerId,
-          buyerKey,
-          profitSharePercent: 25,
-          lifetime: true,
-          source: input.source,
-          createdAt: nowISO,
-        });
-        console.log(`[OrderService] Referral captured: ${input.referrerId} -> ${buyerKey}`);
-      }
-
-      if (profit > 0 && input.referrerId !== input.creatorMemberId) {
-        const referralEarnings = Math.round((profit * 0.25) * 100) / 100;
-        await recordEarningOnce('referral_earnings', `${input.orderId}_${input.referrerId}`, {
-          memberId: input.referrerId,
-          orderId: input.orderId,
-          buyerKey,
-          orderTotal: input.orderTotal,
-          productCost: input.productCost,
-          profit,
-          sharePercent: 25,
-          earnings: referralEarnings,
-          status: 'pending',
-          createdAt: nowISO,
-        });
-        console.log(`[OrderService] Referral ${input.referrerId} earned $${referralEarnings} from order ${input.orderId}`);
-      }
-    } catch (err: any) {
-      console.error('[OrderService] Non-fatal referral error:', err.message);
+  if (input.buyerEmail) {
+    const attribution = await resolveLifetimeReferral(input.orderId, input.buyerEmail, input.referrerId);
+    if (attribution?.referrerId && profit > 0 && attribution.referrerId !== input.creatorMemberId) {
+      const referralEarnings = Math.round(profit * attribution.sharePercent) / 100;
+      await recordEarningOnce('referral_earnings', `${input.orderId}_${attribution.referrerId}`, {
+        memberId: attribution.referrerId, orderId: input.orderId, buyerKey: attribution.buyerKey,
+        orderTotal: input.orderTotal, productCost: input.productCost, profit,
+        sharePercent: attribution.sharePercent, earnings: referralEarnings, status: 'pending', createdAt: nowISO,
+      });
     }
   }
 }

@@ -67,8 +67,10 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
     return false;
   }
   const baseUrl = 'https://qrgear-c1ffd.web.app';
-  const activationUrl = `${baseUrl}/claim/${activationCode}`;
+  const activationUrl = `${baseUrl}/claim/${encodeURIComponent(activationCode)}`;
 
+  let imageUrl = '';
+  try { const url = new URL(previewImageUrl || '', baseUrl); if (previewImageUrl && url.protocol === 'https:' && !url.username && !url.password) imageUrl = escapeEmailHtml(url.href); } catch { /* Invalid preview is omitted. */ }
   const html = `
     <!DOCTYPE html>
     <html>
@@ -80,14 +82,14 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
           <p style="color:#94a3b8;margin:4px 0 0;">Your item is ready to activate</p>
         </div>
         <div style="background:#1e293b;border-radius:12px;padding:32px;margin-bottom:24px;">
-          <p style="color:#94a3b8;margin:0 0 8px;">Hello ${customerName},</p>
+          <p style="color:#94a3b8;margin:0 0 8px;">Hello ${escapeEmailHtml(customerName)},</p>
           <p style="color:#e2e8f0;margin:0 0 24px;line-height:1.6;">
-            Your <strong>${productName}</strong> order is in production. Use the link below to attach this individual item to your account.
+            Your <strong>${escapeEmailHtml(productName)}</strong> order is in production. Use the link below to attach this individual item to your account.
           </p>
-          ${previewImageUrl ? `<div style="text-align:center;margin-bottom:24px;"><img src="${previewImageUrl}" alt="${productName}" style="max-width:200px;border-radius:8px;" /></div>` : ''}
+          ${imageUrl ? `<div style="text-align:center;margin-bottom:24px;"><img src="${imageUrl}" alt="${escapeEmailHtml(productName)}" style="max-width:200px;border-radius:8px;" /></div>` : ''}
           <div style="background:#0f172a;border:1px solid #334155;border-radius:8px;padding:24px;text-align:center;margin-bottom:24px;">
             <p style="color:#64748b;font-size:12px;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Your Activation Code</p>
-            <p style="color:#ffffff;font-size:32px;font-weight:700;font-family:monospace;letter-spacing:4px;margin:0;">${activationCode}</p>
+            <p style="color:#ffffff;font-size:32px;font-weight:700;font-family:monospace;letter-spacing:4px;margin:0;">${escapeEmailHtml(activationCode)}</p>
           </div>
           <div style="background:#164e63;border-radius:8px;padding:16px;margin-bottom:24px;">
             <p style="color:#7dd3fc;font-size:13px;margin:0 0 8px;font-weight:600;">How to activate:</p>
@@ -99,12 +101,12 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
             </ol>
           </div>
           <div style="text-align:center;">
-            <a href="${activationUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">Activate Now</a>
-            <p style="color:#64748b;font-size:11px;margin:12px 0 0;">Or paste this link: ${activationUrl}</p>
+            <a href="${escapeEmailHtml(activationUrl)}" style="display:inline-block;background:#2563eb;color:#ffffff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">Activate Now</a>
+            <p style="color:#64748b;font-size:11px;margin:12px 0 0;">Or paste this link: ${escapeEmailHtml(activationUrl)}</p>
           </div>
         </div>
         <div style="text-align:center;">
-          <p style="color:#475569;font-size:12px;margin:0;">Order #${orderId.slice(0, 8).toUpperCase()}</p>
+          <p style="color:#475569;font-size:12px;margin:0;">Order #${escapeEmailHtml(orderId.slice(0, 8).toUpperCase())}</p>
           <p style="color:#334155;font-size:11px;margin:4px 0 0;">Keep this email — your activation code is only valid once.</p>
         </div>
       </div>

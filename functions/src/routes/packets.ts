@@ -1,3 +1,4 @@
+import { isPublicPacket } from '../services/publication';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -65,13 +66,8 @@ app.get('/public/landing/:slug', async (req: Request, res: Response): Promise<vo
     if (snap.empty) { res.status(404).json({ error: "Landing page not found" }); return; }
     const doc = snap.docs[0];
     const d = doc.data() as any;
-    let published = d.status === 'published';
-    if (d.ownerType === 'admin') {
-      const catalog = d.ownerInstanceId ? (await db.collection('admin_catalog_instances').doc(d.ownerInstanceId).get()).data() : null;
-      published = !!catalog && catalog.currentPacketId === doc.id && catalog.qrgBaseCode === d.qrgBaseCode &&
-        catalog.isActive !== false && catalog.isVisible !== false && catalog.status === 'active';
-    }
-    if (!published) { res.status(404).json({ error: 'Landing page is not published' }); return; }
+    res.set('Cache-Control', 'no-store');
+    if (!await isPublicPacket(doc.id, d)) { res.status(404).json({ error: 'Landing page is not published' }); return; }
     res.json({ success: true, landingPage: { packetId: doc.id, title: d.landingPageTitle || d.productName || 'QR Product', description: d.landingPageDescription || d.productDescription || '', backgroundUrl: d.landingPageBackgroundUrl || d.compositeUrl || null, compositeUrl: d.compositeUrl || null, qrOnlyUrl: d.qrOnlyUrl || null, qrContent: d.qrContent || null, productName: d.productName || null, productImageUrl: d.productImageUrl || null, headerStyle: d.headerStyle || null, footerStyle: d.footerStyle || null, pricing: d.pricing || null, createdAt: d.createdAt?.toDate?.() || null, landingPageSnapshotUrl: d.landingPageSnapshotUrl || d.compositeUrl || null, qrProductState: d.qrProductState || d.mode || 'qr_canvas', playMediaUrl: d.playMediaUrl || d.videoUrl || null, playMediaType: d.playMediaType || d.mediaType || null, landingPageTitle: d.landingPageTitle || d.productName || null, landingPageDescription: d.landingPageDescription || null, landingPageBackgroundUrl: d.landingPageBackgroundUrl || null } });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
