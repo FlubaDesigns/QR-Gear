@@ -432,6 +432,19 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 18, 2026 — Dependency security follow-up
+
+Updated the dependency locks and compatible security versions without changing member, owner or administrative workflows. The backend dependency audit is clean; ten root tooling findings remain documented across two underlying advisories. Both clean installs, all 984 regression tests, client/Functions type checks and the 66-page production build pass. All 2,771 baseline CSS selectors are retained. See `docs/DEPENDENCY_HARDENING_2026-10-18.md` for compatibility checks and residual scope. Build marker: `20261018-dependency-hardening`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `package.json`, `package-lock.json` | Compatible security updates and explicit transitive overrides |
+| `functions/package.json`, `functions/package-lock.json` | Patched runtime dependencies and version 1.0.382433 |
+| `functions/src/index.ts` | Release build identity |
+| `docs/DEPENDENCY_HARDENING_2026-10-18.md` | Audit evidence, override rationale and remaining tool-only advisories |
+
+
 ### October 18, 2026 — Beta audit: authorization and compatibility
 
 Closed legacy public/admin boundaries and draft publication leaks; escaped social metadata; restored canonical member collection reads; fixed hosted-image display, upload authentication/contracts and refund-safe shipping sync. Current member/owner build and checkout paths retain their existing contracts. Full details and beta limitations: `docs/FULL_CODEBASE_AUDIT_2026-10-18.md`. Local checks: 984 regression tests, seven database-rule tests, both type checks and 66 generated pages. Build marker: `20261018-beta-audit-boundaries`.
