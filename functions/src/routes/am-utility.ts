@@ -1,3 +1,4 @@
+import { enqueueAuthorizedMockupJob } from '../services/mockup-job-authorization';
 import {readFlubaProviderKey} from '../services/fluba-provider-keys';
 import { HealthMonitorService } from '../services/health-monitor';
 import { Request, Response, NextFunction } from 'express';
@@ -297,7 +298,7 @@ app.post('/admin/partner-stores/:storeId/products/:productId/generate-mockup', r
     const prodDoc = await db.collection('products').doc(productId).get();
     if (!prodDoc.exists) { res.status(404).json({ error: "Product not found" }); return; }
     const product = prodDoc.data() as any;
-    await db.collection('mockup_jobs').add({ storeId, productId, color, status: 'pending', blueprintId: product.blueprintId, printProviderId: product.printProviderId, createdAt: new Date().toISOString() });
+    await enqueueAuthorizedMockupJob({ storeId, productId, color, status: 'pending', blueprintId: product.blueprintId, printProviderId: product.printProviderId, createdAt: new Date().toISOString() }, (req as any).user.uid);
     res.json({ success: true, message: "Mockup generation job queued" });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
@@ -396,7 +397,7 @@ app.post('/admin/mockups/pre-generate', requireAdmin, async (req: Request, res: 
     if (!blueprintId || !printProviderId) { res.status(400).json({ error: "blueprintId and printProviderId required" }); return; }
     const jobs: any[] = [];
     for (const color of (colors || ['Black'])) {
-      const job = await db.collection('mockup_jobs').add({ blueprintId, printProviderId, color, status: 'pending', createdAt: new Date().toISOString() });
+      const job = await enqueueAuthorizedMockupJob({ blueprintId, printProviderId, color, status: 'pending', createdAt: new Date().toISOString() }, (req as any).user.uid);
       jobs.push({ id: job.id, color });
     }
     res.json({ success: true, jobs, count: jobs.length });
@@ -415,20 +416,20 @@ app.post('/admin/mockup-jobs/worker/:action', requireAdmin, async (req: Request,
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/mockup-jobs/batch', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post('/mockup-jobs/batch', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { jobs } = req.body;
-    if (!Array.isArray(jobs)) { res.status(400).json({ error: "jobs array required" }); return; }
+    if (!Array.isArray(jobs) || jobs.length > 100) { res.status(400).json({ error: "jobs array required (maximum 100)" }); return; }
     const created: any[] = [];
     for (const job of jobs) {
-      const doc = await db.collection('mockup_jobs').add({ ...job, status: 'pending', createdAt: new Date().toISOString() });
+      const doc = await enqueueAuthorizedMockupJob({ ...job, status: 'pending', createdAt: new Date().toISOString() }, (req as any).user.uid);
       created.push({ id: doc.id });
     }
     res.json({ success: true, created, count: created.length });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/mockup-jobs/prioritize', requireAuth, async (req: Request, res: Response): Promise<void> => {
+app.post('/mockup-jobs/prioritize', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { jobId } = req.body;
     if (!jobId) { res.status(400).json({ error: "jobId required" }); return; }

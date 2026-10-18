@@ -1,3 +1,4 @@
+import { writeAuthorizedMockupJob } from '../services/mockup-job-authorization';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { priceNewPacket } from '../services/pricing';
 import { syncCatalogMarkup } from '../services/catalog-instance-update';
@@ -165,7 +166,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
             for (const color of colors) {
               for (const qrSize of qrSizes) {
                 const jobRef = db.collection("mockup_jobs").doc();
-                batch.set(jobRef, {
+                writeAuthorizedMockupJob(batch, jobRef, {
                   productId: productIdForMockups,
                   colorName: color.name || color,
                   qrSize,
@@ -183,7 +184,7 @@ app.post('/admin/packets', requireAdmin, async (req: Request, res: Response): Pr
                   maxAttempts: 5,
                   createdAt: admin.firestore.FieldValue.serverTimestamp(),
                   updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
+                }, (req as any).user.uid);
                 mockupJobsQueued++;
               }
             }

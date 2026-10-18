@@ -1,3 +1,4 @@
+import { enqueueAuthorizedMockupJob, assertAuthorizedMockupJob, recheckMockupJob } from '../services/mockup-job-authorization';
 import { createAdminImageLibrary } from '../services/admin-image-library';
 import { registerAdminImageRoutes } from '../services/admin-image-routes';
 import { buildPacketImageOrder } from "../../../shared/productImages";
@@ -32,7 +33,7 @@ export async function processQueueInBackground(): Promise<void> {
   console.log(`[Queue Background] Processing ${pendingSnapshot.size} jobs`);
 
   for (const jobDoc of pendingSnapshot.docs) {
-    const job = jobDoc.data();
+    let job = jobDoc.data();
     const jobId = jobDoc.id;
 
     try {
@@ -44,6 +45,8 @@ export async function processQueueInBackground(): Promise<void> {
           return false;
         }
         
+        job = freshDoc.data()!;
+        await assertAuthorizedMockupJob(transaction, jobRef, job);
         transaction.update(jobRef, {
           status: 'processing',
           startedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -104,6 +107,8 @@ export async function processQueueInBackground(): Promise<void> {
         qrSize: job.qrSize as 'small' | 'medium' | 'large' || 'medium',
         hasCompositeGraphic: true,
       });
+
+      await recheckMockupJob(db.collection('mockup_jobs').doc(jobId), job);
 
       if (job.templateId) {
         const colorKey = job.colorName.replace(/\s+/g, '_').toLowerCase();
@@ -329,7 +334,7 @@ app.post('/admin/templates/full-save', requireAdmin, async (req: Request, res: R
           if (placementMethods[placement]) {
             jobData.printMethod = placementMethods[placement];
           }
-          await db.collection('mockup_jobs').add(jobData);
+          await enqueueAuthorizedMockupJob(jobData, (req as any).user.uid);
           jobsQueued++;
         }
       }

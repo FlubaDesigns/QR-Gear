@@ -1,3 +1,4 @@
+import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { Request, Response } from 'express';
 import { db, admin, getStorageBucket } from '../core';
 import { requireAdmin } from '../middleware';
@@ -26,8 +27,8 @@ export function registerAdminGraphics(app: any): void {
         return;
       }
       const contentType = upstream.headers.get('content-type') || 'image/jpeg';
-      res.setHeader('Content-Type', contentType);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'private, no-store');
+      setUntrustedAssetHeaders(res, contentType);
       const buf = Buffer.from(await upstream.arrayBuffer());
       res.send(buf);
     } catch (err: any) {

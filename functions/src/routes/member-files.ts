@@ -1,3 +1,4 @@
+import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -38,8 +39,8 @@ app.get('/member-files/:memberId/:filename', async (req: Request, res: Response)
         const [exists] = await file.exists();
         if (exists) {
           const [metadata] = await file.getMetadata();
-          res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
           res.setHeader('Cache-Control', 'private, no-store');
+          setUntrustedAssetHeaders(res, metadata.contentType);
           const stream = file.createReadStream();
           stream.pipe(res);
           return;
@@ -59,8 +60,8 @@ app.get('/member-files/:memberId/:filename', async (req: Request, res: Response)
       const [exists] = await file.exists();
       if (exists) {
         const [metadata] = await file.getMetadata();
-        res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
         res.setHeader('Cache-Control', 'private, no-store');
+        setUntrustedAssetHeaders(res, metadata.contentType);
         const stream = file.createReadStream();
         stream.pipe(res);
         return;

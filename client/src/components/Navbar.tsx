@@ -1,3 +1,4 @@
+import { privateQueryKey } from '@/lib/identityCache';
 import { useState, useEffect } from "react";
 import { PUBLIC_SHOP_PATH } from '@shared/navigation';
 import { Link, useLocation } from "wouter";
@@ -67,8 +68,8 @@ export default function Navbar() {
   }, [fontSize]);
 
   const { data: serverCartItems } = useQuery<CartItem[]>({
-    queryKey: ["/api/cart"],
-    enabled: isAuthenticated,
+    queryKey: privateQueryKey("/api/cart", user?.id),
+    enabled: !!user?.id,
   });
 
   const cartCount = isAuthenticated ? (serverCartItems || []).length : guestCartCount;

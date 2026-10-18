@@ -1,6 +1,6 @@
 {
   "name": "qrgear-functions",
-  "version": "1.0.382425",
+  "version": "1.0.382426",
   "main": "lib/functions/src/index.js",
   "engines": {
     "node": "22"
@@ -23,6 +23,7 @@
     "jsqr": "1.4.0",
     "qrcode": "^1.5.3",
     "resend": "^4.0.0",
+    "sharp": "0.35.5",
     "stripe": "^14.0.0",
     "zod": "^3.25.76"
   },

@@ -45,14 +45,26 @@ app.get('/buyer/instances', requireAuth, async (req: Request, res: Response): Pr
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/buyer/instances/:instanceId', async (req: Request, res: Response): Promise<void> => {
+// Renewal screens need hosting dates, never buyer identity or private metadata.
+app.get('/buyer/instances/:instanceId/public', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { instanceId } = req.params;
-    const doc = await db.collection('buyer_instances').doc(instanceId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
-    const instance = doc.data() as any;
-    const isActive = instance.hostingExpiresAt ? new Date(instance.hostingExpiresAt) > new Date() : true;
-    res.json({ instance: { id: doc.id, ...instance }, isActive });
+    const doc = await db.collection('buyer_instances').doc(req.params.instanceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
+    const instance = doc.data()!;
+    const expiry = instance.hostingExpiresAt?.toDate?.() ?? (instance.hostingExpiresAt ? new Date(instance.hostingExpiresAt) : null);
+    res.json({ instance: { id: doc.id, hostingExpiresAt: expiry && Number.isFinite(expiry.getTime()) ? expiry.toISOString() : null }, isActive: !expiry || expiry > new Date() });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
+app.get('/buyer/instances/:instanceId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'private, no-store');
+  try {
+    const doc = await db.collection('buyer_instances').doc(req.params.instanceId).get();
+    if (!doc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
+    const instance = doc.data()!;
+    if (instance.buyerUserId !== (req as any).user.uid) { res.status(403).json({ error: 'Forbidden' }); return; }
+    const expiry = instance.hostingExpiresAt?.toDate?.() ?? (instance.hostingExpiresAt ? new Date(instance.hostingExpiresAt) : null);
+    res.json({ instance: { id: doc.id, ...instance }, isActive: !expiry || expiry > new Date() });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
@@ -101,7 +113,7 @@ app.post('/buyer/instances/:instanceId/verify-renewal', async (req: Request, res
     const base = currentExpiry > new Date() ? currentExpiry : new Date();
     const newExpiry = new Date(base.getTime() + 3 * 365 * 24 * 60 * 60 * 1000);
     await db.collection('buyer_instances').doc(instanceId).update({ hostingExpiresAt: newExpiry.toISOString(), renewedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
-    res.json({ success: true, instance: { ...instance, hostingExpiresAt: newExpiry.toISOString() }, newExpirationDate: newExpiry.toISOString() });
+    res.json({ success: true, instance: { id: doc.id, hostingExpiresAt: newExpiry.toISOString() }, newExpirationDate: newExpiry.toISOString() });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

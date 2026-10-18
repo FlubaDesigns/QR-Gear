@@ -1,3 +1,4 @@
+import { privateQueryKey } from '@/lib/identityCache';
 import { useCallback, useState, useEffect } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
@@ -22,8 +23,8 @@ export default function Checkout() {
   const [paymentReview, setPaymentReview] = useState<{ quoteToken: string; bundle?: { bundleId: string; selectedItems?: string[] } } | null>(null);
 
   const { data: cartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
-    queryKey: ["/api/cart"],
-    enabled: isAuthenticated,
+    queryKey: privateQueryKey("/api/cart", user?.id),
+    enabled: !!user?.id,
   });
 
   type Quote = { quoteToken: string; amount: number; subtotalCents: number;

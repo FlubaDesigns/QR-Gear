@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import type { User } from "@shared/schema";
+import { resetIdentityCache } from '@/lib/identityCache';
 
 type UserWithAdmin = User & { isAdmin?: boolean };
 
@@ -14,6 +15,7 @@ export function useAuth() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      resetIdentityCache(queryClient, user?.uid ?? null);
       setFirebaseUser(user);
       setAuthChecked(true);
       queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });

@@ -1,72 +1,51 @@
-import { Request, Response, NextFunction } from 'express';
-  import express from 'express';
-  import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
-import { verifyAuth, requireAuth, requireAdmin, verifyMemberAuthCF, ADMIN_USER_IDS } from '../middleware';
-import { printfulClient } from '../services/printful';
-  import { printifyClient, getPrintifyApiKey, getPrintifyShopId, submitOrderToPrintify, checkPrintifyOrderStatus, PRINTIFY_API_BASE } from '../services/printify';
-  import { generateSignedUrl, addSignedUrlsToAssets, downloadAndStoreImage } from '../services/storage-helpers';
-  import { calculateAuthoritativePrice, getAuthoritativePrice } from '../services/pricing';
-  import { generateMockupFromPrintful, processMockupResult, getPrintfulProductId, toPublicUrl, DEFAULT_BLUEPRINT_MAPPINGS } from '../services/mockup-generator';
-  import type { MockupRequest, MockupResult } from '../services/mockup-generator';
-  import { getPrintfulApiKey, getPrintfulApiKeyAsync, getPrintfulStoreId, PRINTFUL_API_BASE } from '../services/printful';
-  import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
-  import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
-  import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+import express, { Request, Response } from 'express';
+import { admin, db, docToObject, docsToArray } from '../core';
+import { requireAuth } from '../middleware';
+import { readOwnedDocument } from '../services/owned-document';
 
-  export function register(app: express.Express): void {
-  // ============ DESIGNS CRUD ============
-
-app.get('/designs', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req as any).user.uid;
-    const snapshot = await db.collection('customDesigns')
-      .where('userId', '==', userId)
-      .orderBy('createdAt', 'desc')
-      .get();
-    res.json(docsToArray(snapshot));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post('/designs', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const userId = (req as any).user.uid;
-    const docRef = await db.collection('customDesigns').add({
-      ...req.body,
-      userId,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    const doc = await docRef.get();
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.put('/designs/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('customDesigns').doc(req.params.id).update({
-      ...req.body,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-    const doc = await db.collection('customDesigns').doc(req.params.id).get();
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.delete('/designs/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
-  try {
-    await db.collection('customDesigns').doc(req.params.id).delete();
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-
-  }
-  
+const editableFields = ['projectName', 'productId', 'productName', 'productImage', 'placements', 'placementConfigs', 'placementImages', 'backgroundImageUrl', 'backgroundAssetId', 'topText', 'bottomText', 'landingOverlay', 'templateVariant', 'externalUrl', 'templateName', 'templateCategory', 'templateSubcategory', 'campaignName', 'selectedColors', 'defaultColor', 'graphicsConfig', 'selectedVariantIds'];
+function editable(body: any): Record<string, unknown> {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw Object.assign(new Error('Invalid design'), { status: 400 });
+  return Object.fromEntries(editableFields.filter(key => Object.prototype.hasOwnProperty.call(body, key)).map(key => [key, body[key]]));
+}
+const ownedDesign = (tx: FirebaseFirestore.Transaction, ref: FirebaseFirestore.DocumentReference, uid: string) => readOwnedDocument(tx, ref, uid, ['userId', 'ownerUserId']);
+export function register(app: express.Express): void {
+  app.get('/designs', requireAuth, async (req: Request, res: Response) => {
+    res.set('Cache-Control', 'private, no-store');
+    try { res.json(docsToArray(await db.collection('customDesigns').where('userId', '==', (req as any).user.uid).orderBy('createdAt', 'desc').get())); }
+    catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+  app.get('/designs/:id', requireAuth, async (req: Request, res: Response) => {
+    res.set('Cache-Control', 'private, no-store');
+    try {
+      const doc = await db.runTransaction(tx => ownedDesign(tx, db.collection('customDesigns').doc(req.params.id), (req as any).user.uid));
+      res.json(docToObject(doc));
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+  app.post('/designs', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const ref = await db.collection('customDesigns').add({ ...editable(req.body), userId: (req as any).user.uid, createdAt: admin.firestore.FieldValue.serverTimestamp(), updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      res.json(docToObject(await ref.get()));
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+  app.put('/designs/:id', requireAuth, async (req: Request, res: Response) => {
+    res.set('Cache-Control', 'private, no-store');
+    try {
+      const ref = db.collection('customDesigns').doc(req.params.id);
+      const data = await db.runTransaction(async tx => {
+        const doc = await ownedDesign(tx, ref, (req as any).user.uid);
+        const patch = { ...editable(req.body), updatedAt: admin.firestore.FieldValue.serverTimestamp() };
+        tx.update(ref, patch);
+        return { ...doc.data(), ...patch, id: doc.id };
+      });
+      res.json(data);
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+  app.delete('/designs/:id', requireAuth, async (req: Request, res: Response) => {
+    try {
+      const ref = db.collection('customDesigns').doc(req.params.id);
+      await db.runTransaction(async tx => { await ownedDesign(tx, ref, (req as any).user.uid); tx.delete(ref); });
+      res.json({ success: true });
+    } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+  });
+}

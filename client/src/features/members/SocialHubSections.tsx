@@ -90,12 +90,15 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
   const [hasChanges, setHasChanges] = useState(false);
 
   const { data: profileData, isLoading } = useQuery<{ isMember: boolean; profile?: any }>({
-    queryKey: ['/api/members/profile'],
+    queryKey: ['/api/members/profile', memberId],
     queryFn: () => memberFetch<any>('/profile'),
     enabled: !!memberId,
   });
 
   useEffect(() => {
+    setHandles({});
+    setContactInfo({ contactEmail: '', phoneNumber: '' });
+    setHasChanges(false);
     if (profileData?.profile) {
       const p = profileData.profile;
       if (p.socialHandles) {
@@ -113,7 +116,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
         phoneNumber: p.phoneNumber || '',
       });
     }
-  }, [profileData]);
+  }, [profileData, memberId]);
 
   const saveMutation = useMutation({
     mutationFn: async ({ socialHandles, contact }: { socialHandles: SocialHandles; contact: ContactInfo }) => {
@@ -126,7 +129,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
     onSuccess: () => {
       toast({ title: 'Profiles saved' });
       setHasChanges(false);
-      queryClient.invalidateQueries({ queryKey: ['/api/members/profile'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/members/profile', memberId] });
     },
     onError: (err: Error) => {
       toast({ title: 'Failed to save', description: err.message, variant: 'destructive' });

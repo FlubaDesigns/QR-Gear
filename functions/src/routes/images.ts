@@ -1,3 +1,4 @@
+import { fetchProviderImage, setUntrustedAssetHeaders, validateImageBytes, LibraryImageError } from '../services/image-validation';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -20,38 +21,34 @@ app.get('/proxy-image', async (req: Request, res: Response): Promise<void> => {
   try {
     const imageUrl = req.query.url as string;
     if (!imageUrl) { res.status(400).json({ error: "Missing url parameter" }); return; }
-    const allowed = ['images.printify.com', 'images-api.printify.com', 'printful.com', 'files.cdn.printful.com'];
-    const url = new URL(imageUrl);
-    if (!allowed.some(d => url.hostname.includes(d))) { res.status(403).json({ error: "Domain not allowed" }); return; }
-    const resp = await fetch(imageUrl);
-    if (!resp.ok) { res.status(resp.status).json({ error: "Failed to fetch" }); return; }
-    const ct = resp.headers.get('content-type') || 'image/jpeg';
-    const buf = Buffer.from(await resp.arrayBuffer());
-    res.set('Content-Type', ct);
+    const buf = await fetchProviderImage(imageUrl);
+    setUntrustedAssetHeaders(res, 'image/png');
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Cache-Control', 'public, max-age=86400');
     res.send(buf);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) { res.status(e instanceof LibraryImageError ? e.status : 502).json({ error: e.message }); }
 });
 
 app.post('/images/upload', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const { imageData, originalName, mimeType, title, description, userId } = req.body;
-    if (!imageData || !originalName || !mimeType) { res.status(400).json({ error: "Missing required fields" }); return; }
+    if (typeof imageData !== 'string' || typeof originalName !== 'string' || !originalName || typeof mimeType !== 'string') { res.status(400).json({ error: "Missing required fields" }); return; }
     const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml'];
     if (!allowedMimeTypes.includes(mimeType)) { res.status(400).json({ error: `Invalid file type: ${mimeType}. Allowed: PNG, JPEG, WebP, GIF, SVG` }); return; }
+    if (imageData.length > Math.ceil(25 * 1024 * 1024 / 3) * 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(imageData)) { res.status(400).json({ error: 'Invalid image encoding or size' }); return; }
     const buf = Buffer.from(imageData, 'base64');
+    validateImageBytes(buf, mimeType);
     const maxSize = 25 * 1024 * 1024;
     if (buf.length > maxSize) { res.status(400).json({ error: "Image exceeds 25MB limit" }); return; }
     const fileName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const bucket = admin.storage().bucket();
     const file = bucket.file(`uploads/${fileName}`);
-    await file.save(buf, { metadata: { contentType: mimeType } });
+    await file.save(buf, { metadata: { contentType: mimeType, ...(mimeType === 'image/svg+xml' ? { contentDisposition: 'attachment' } : {}) } });
     await file.makePublic();
     const publicUrl = `https://storage.googleapis.com/${bucket.name}/uploads/${fileName}`;
-    const ref = await db.collection('hosted_images').add({ userId: userId || null, fileName, originalName, mimeType, sizeBytes: buf.length, storageUrl: `uploads/${fileName}`, publicUrl, title: title || null, description: description || null, isActive: true, createdAt: new Date() });
+    const ref = await db.collection('hosted_images').add({ userId: (req as any).user.uid, fileName, originalName, mimeType, sizeBytes: buf.length, storageUrl: `uploads/${fileName}`, publicUrl, title: title || null, description: description || null, isActive: true, createdAt: new Date() });
     res.json({ id: ref.id, publicUrl: `/view/${ref.id}`, directUrl: publicUrl, landingUrl: `/view/${ref.id}` });
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
+  } catch (e: any) { res.status(e instanceof LibraryImageError ? e.status : 500).json({ error: e.message }); }
 });
 
 app.get('/images/:imageId', async (req: Request, res: Response): Promise<void> => {

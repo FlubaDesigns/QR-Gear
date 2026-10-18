@@ -147,13 +147,18 @@ app.post('/member/templates/save', requireAuth, async (req: Request, res: Respon
     if (!memberId || !packetId) { res.status(400).json({ error: "memberId and packetId are required" }); return; }
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const templateId = `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
-    const packetData = packetDoc.data() || {};
-    const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_compose', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
-    await db.collection('memberTemplates').doc(templateId).set(templateData);
-    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ templateId, updatedAt: new Date().toISOString() });
+    const packetRef = db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId);
+    await db.runTransaction(async tx => {
+      const packetDoc = await tx.get(packetRef);
+      if (!packetDoc.exists) throw Object.assign(new Error('Packet not found'), { status: 404 });
+      const packetData = packetDoc.data()!;
+      if (packetData.memberId !== memberId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+      const templateData = { templateId, packetId, memberId, kind: kind || packetData.kind || 'qr_compose', compositeUrl: compositeUrl || null, titleText: titleText || '', descriptionText: descriptionText || '', background: packetData.background || null, textLayers: packetData.textLayers || [], metadata: metadata || null, createdAt: new Date().toISOString() };
+      tx.set(db.collection('memberTemplates').doc(templateId), templateData);
+      tx.update(packetRef, { templateId, updatedAt: new Date().toISOString() });
+    });
     res.json({ templateId });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/member/library-links', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -163,10 +168,24 @@ app.post('/member/library-links', requireAuth, async (req: Request, res: Respons
     if ((req as any).user.uid !== memberId) { res.status(403).json({ error: "Forbidden" }); return; }
     const libraryLinkId = `lib-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const linkData = { libraryLinkId, packetId, channelId: channelId || null, storeId: memberId, templateId: templateId || null, memberId, compositeUrl: compositeUrl || null, qrOnlyUrl: qrOnlyUrl || null, boundProduct: boundProduct || null, metadata: metadata || null, status: status || 'active', shareUrl: `/share/${packetId}`, createdAt: new Date().toISOString() };
-    await db.collection('memberLibraryLinks').doc(libraryLinkId).set(linkData);
-    await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).update({ status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
+    const packetRef = db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId);
+    await db.runTransaction(async tx => {
+      const packetDoc = await tx.get(packetRef);
+      if (!packetDoc.exists) throw Object.assign(new Error('Packet not found'), { status: 404 });
+      if (packetDoc.data()?.memberId !== memberId) throw Object.assign(new Error('Forbidden'), { status: 403 });
+      if (templateId) {
+        const template = await tx.get(db.collection('memberTemplates').doc(templateId));
+        if (!template.exists || template.data()?.memberId !== memberId || template.data()?.packetId !== packetId) throw Object.assign(new Error('Template does not belong to this product'), { status: 403 });
+      }
+      if (channelId) {
+        const channel = await tx.get(db.collection('channels').doc(channelId));
+        if (!channel.exists || channel.data()?.ownerId !== memberId) throw Object.assign(new Error('Channel does not belong to this member'), { status: 403 });
+      }
+      tx.set(db.collection('memberLibraryLinks').doc(libraryLinkId), linkData);
+      tx.update(packetRef, { status: 'published', libraryLinkId, updatedAt: new Date().toISOString() });
+    });
     res.json({ libraryLinkId, shareUrl: `/share/${packetId}` });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.get('/member/library-links', requireAuth, async (req: Request, res: Response): Promise<void> => {

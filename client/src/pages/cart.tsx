@@ -1,3 +1,4 @@
+import { privateQueryKey } from '@/lib/identityCache';
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -16,15 +17,15 @@ import type { CartItem } from "@shared/schema";
 
 export default function Cart() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { items: guestItems, removeItem, updateQuantity, clearCart } = useCart();
   const [, setLocation] = useLocation();
   const [isMerging, setIsMerging] = useState(false);
   const mergeAttemptedRef = useRef(false);
 
   const { data: serverCartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
-    queryKey: ["/api/cart"],
-    enabled: isAuthenticated,
+    queryKey: privateQueryKey("/api/cart", user?.id),
+    enabled: !!user?.id,
   });
 
   const updateQuantityMutation = useMutation({
@@ -32,7 +33,7 @@ export default function Cart() {
       await apiRequest("PUT", `/api/cart/${id}`, { quantity });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: privateQueryKey("/api/cart", user?.id) });
     },
   });
 
@@ -41,7 +42,7 @@ export default function Cart() {
       await apiRequest("DELETE", `/api/cart/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      queryClient.invalidateQueries({ queryKey: privateQueryKey("/api/cart", user?.id) });
       toast({ title: "Item removed", description: "The item has been removed from your cart" });
     },
   });
@@ -65,7 +66,7 @@ export default function Cart() {
         const result = await mergeGuestCartOnLogin(guestItems, addToServer);
         if (cancelled) return;
         if (result.merged > 0) {
-          queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+          queryClient.invalidateQueries({ queryKey: privateQueryKey("/api/cart", user?.id) });
           clearCart();
           toast({
             title: "Cart merged",

@@ -1039,3 +1039,10 @@ Validation: five Firestore-emulator scenarios and 18 focused API/webhook/checkou
 ### Audit repair QRG-002 — October 17, 2026
 
 Expired Stripe onboarding now returns through signed-in Payouts. Anonymous legacy refresh URLs cannot create Stripe links; renewal uses the verified caller on the existing POST. Eleven Connect route checks and three client continuation/protection checks passed. The release lockfile was reconciled with npm 10.8.2 without changing existing package versions after the first release attempt stopped before deployment. See `docs/AUDIT_REPAIRS.md` and the release receipt for precise source/live status.
+
+
+### Audit repairs QRG-003–QRG-010 — October 18, 2026
+
+Public provider images now pass exact HTTPS host/redirect validation, bounded download and actual raster decoding. Stored active assets receive sandbox/download headers. Designs, member library packets and dynamic pages enforce verified ownership; legacy buyer details are private with a minimal public renewal projection. Account transitions cancel and clear private queries and discard prior-account component state. Mockup jobs require current administrator authorization and a server-only target-bound authorization record, checked at claim and before writeback. Historical jobs without that record must be regenerated from the admin builder.
+
+Validation: 300 client tests, 40 focused Functions tests, client/Functions TypeScript and the npm 10.8.2 Functions lockfile dry run passed. Tests use controlled account/provider fixtures; they do not establish authenticated production acceptance. See `docs/AUDIT_REPAIRS.md` for each repair, limitations and release marker `20261018-audit-003-010`.

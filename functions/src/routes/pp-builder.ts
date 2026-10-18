@@ -1,3 +1,4 @@
+import { assertAuthorizedMockupJob, recheckMockupJob } from '../services/mockup-job-authorization';
 import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -72,13 +73,15 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
     console.log(`[Queue CF] Processing ${pendingSnapshot.size} mockup jobs`);
     const results: Array<{ jobId: string; status: string; error?: string }> = [];
     for (const jobDoc of pendingSnapshot.docs) {
-      const job = jobDoc.data();
+      let job = jobDoc.data();
       const jobId = jobDoc.id;
       try {
         const claimed = await db.runTransaction(async (transaction) => {
           const jobRef = db.collection("mockup_jobs").doc(jobId);
           const freshDoc = await transaction.get(jobRef);
           if (!freshDoc.exists || freshDoc.data()?.status !== "pending") return false;
+          job = freshDoc.data()!;
+          await assertAuthorizedMockupJob(transaction, jobRef, job);
           transaction.update(jobRef, { status: "processing", startedAt: admin.firestore.FieldValue.serverTimestamp(), processorId: `cf-${Date.now()}` });
           return true;
         });
@@ -97,6 +100,7 @@ app.post('/admin/queue/process', requireAdmin, async (req: Request, res: Respons
           hasCompositeGraphic: true,
         });
         if ((mockupResult as any).error) throw new Error((mockupResult as any).error);
+        await recheckMockupJob(db.collection('mockup_jobs').doc(jobId), job);
         const colorKey = job.colorName.replace(/\s+/g, "_").toLowerCase();
         const placementKey = job.placement || "front";
         const sizeKey = job.qrSize || "large";

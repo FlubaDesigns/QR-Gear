@@ -1,3 +1,4 @@
+import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { catalogProductOptions } from '../services/catalog-sale-variants';
 import { resolveColorHex } from '../../../shared/colorUtils';
@@ -140,8 +141,8 @@ app.get('/files/:filename', async (req: Request, res: Response): Promise<void> =
     }
 
     const [metadata] = await file.getMetadata();
-    res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
     res.setHeader('Cache-Control', 'public, max-age=31536000');
+    setUntrustedAssetHeaders(res, metadata.contentType);
     
     file.createReadStream().pipe(res);
   } catch (error: any) {
@@ -160,8 +161,8 @@ app.get('/library-files/:storeType/:mediaType/:fname', async (req: Request, res:
     const [exists] = await file.exists();
     if (!exists) { res.status(404).json({ error: 'File not found' }); return; }
     const [metadata] = await file.getMetadata();
-    res.set('Content-Type', metadata.contentType || 'application/octet-stream');
     res.set('Cache-Control', 'public, max-age=3600');
+    setUntrustedAssetHeaders(res, metadata.contentType);
     file.createReadStream().pipe(res);
   } catch (e: any) { if (!res.headersSent) res.status(500).json({ error: e.message }); }
 });
@@ -203,8 +204,8 @@ app.get('/library-files/:filename', async (req: Request, res: Response): Promise
       
       if (exists) {
         const [metadata] = await file.getMetadata();
-        res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
         res.setHeader('Cache-Control', 'public, max-age=31536000');
+        setUntrustedAssetHeaders(res, metadata.contentType);
         file.createReadStream().pipe(res);
         return;
       }

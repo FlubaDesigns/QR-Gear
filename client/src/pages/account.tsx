@@ -1,3 +1,4 @@
+import { privateQueryKey } from '@/lib/identityCache';
 import { useRef, useState } from "react";
 import { signOut } from "@/lib/firebase";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -84,27 +85,27 @@ export default function Account() {
   const userId = user?.id;
 
   const { data: orders, isLoading: ordersLoading } = useQuery<OrderWithItems[]>({
-    queryKey: ["/api/orders"],
+    queryKey: privateQueryKey("/api/orders", userId),
     enabled: !!userId,
   });
 
   const { data: cartItems, isLoading: cartLoading } = useQuery<CartItem[]>({
-    queryKey: ["/api/cart"],
+    queryKey: privateQueryKey("/api/cart", userId),
     enabled: !!userId,
   });
 
   const { data: browsingHistory, isLoading: historyLoading } = useQuery<BrowsingHistory[]>({
-    queryKey: ["/api/browsing-history"],
+    queryKey: privateQueryKey("/api/browsing-history", userId),
     enabled: !!userId,
   });
 
   const { data: savedDesigns, isLoading: designsLoading } = useQuery<QrDesign[]>({
-    queryKey: ["/api/designs"],
+    queryKey: privateQueryKey("/api/designs", userId),
     enabled: !!userId,
   });
 
   const { data: dynamicPages, isLoading: dynamicPagesLoading } = useQuery<DynamicPageWithImage[]>({
-    queryKey: ["/api/dynamic-pages"],
+    queryKey: privateQueryKey("/api/dynamic-pages", userId),
     enabled: !!userId,
   });
 
@@ -113,7 +114,7 @@ export default function Account() {
   });
 
   const { data: claimedData, isLoading: claimedLoading } = useQuery<{ instances: any[] }>({
-    queryKey: ["/api/claimed-instances"],
+    queryKey: privateQueryKey("/api/claimed-instances", userId),
     enabled: !!userId,
   });
   const claimedInstances = claimedData?.instances || [];
@@ -123,7 +124,7 @@ export default function Account() {
       await apiRequest("DELETE", `/api/designs/${designId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/designs"] });
+      queryClient.invalidateQueries({ queryKey: privateQueryKey("/api/designs", userId) });
       toast({
         title: "Design deleted",
         description: "Your saved design has been removed.",

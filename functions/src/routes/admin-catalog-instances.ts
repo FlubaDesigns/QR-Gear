@@ -1,3 +1,4 @@
+import { writeAuthorizedMockupJob } from '../services/mockup-job-authorization';
 import { listCatalogInstances } from "../services/catalog-list";
 import { updateCatalogInstance } from '../services/catalog-instance-update';
 import { buildPacketImageOrder } from "../../../shared/productImages";
@@ -254,7 +255,7 @@ export function register(app: express.Express): void {
         for (const placement of placements) {
           for (const qrSize of qrSizes) {
             const jobRef = db.collection('mockup_jobs').doc();
-            batch.set(jobRef, {
+            writeAuthorizedMockupJob(batch, jobRef, {
               productId: productIdForMockups,
               colorName: color.name,
               colorHex: color.hex,
@@ -273,7 +274,7 @@ export function register(app: express.Express): void {
               maxAttempts: 5,
               createdAt: now,
               updatedAt: now,
-            });
+            }, (req as any).user.uid);
             jobsQueued++;
           }
         }

@@ -1,3 +1,5 @@
+import { readOwnedDocument } from '../services/owned-document';
+import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { savePartner, rotatePartnerKey, authenticatePartner, partnerProducts } from '../services/partner-api';
 import {readHostingTiers,changeHostingTier} from '../services/hosting-tiers';
 import { HealthMonitorService } from '../services/health-monitor';
@@ -264,8 +266,8 @@ app.get('/library-files/member/:userId/:mediaType/:filename', async (req: Reques
     const [exists] = await file.exists();
     if (!exists) { res.status(404).json({ error: "File not found" }); return; }
     const [metadata] = await file.getMetadata();
-    res.setHeader('Content-Type', metadata.contentType || 'application/octet-stream');
     res.setHeader('Cache-Control', 'private, no-store');
+    setUntrustedAssetHeaders(res, metadata.contentType);
     const stream = file.createReadStream();
     stream.pipe(res);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -311,13 +313,14 @@ app.get('/dynamic-pages', requireAuth, async (req: Request, res: Response): Prom
 
 app.get('/dynamic-pages/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const doc = await db.collection('dynamic_pages').doc(req.params.id).get();
+    res.set('Cache-Control', 'private, no-store');
+    const doc = await db.runTransaction(tx => readOwnedDocument(tx, db.collection('dynamic_pages').doc(req.params.id), (req as any).user.uid));
     if (!doc.exists) { res.status(404).json({ error: 'Dynamic page not found' }); return; }
     const page = { id: doc.id, ...doc.data() };
     const assetsSnapshot = await db.collection('dynamic_page_assets').where('pageId', '==', req.params.id).get();
     const assets = assetsSnapshot.docs.map((d: any) => ({ id: d.id, ...d.data() }));
     res.json({ ...page, assets });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/dynamic-pages', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -344,41 +347,76 @@ app.post('/dynamic-pages/create', requireAuth, async (req: Request, res: Respons
 
 app.put('/dynamic-pages/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id } = req.params;
-    await db.collection('dynamic_pages').doc(id).update({ ...req.body, updatedAt: new Date().toISOString() });
-    const doc = await db.collection('dynamic_pages').doc(id).get();
-    res.json({ id: doc.id, ...doc.data() });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const ref = db.collection('dynamic_pages').doc(req.params.id);
+    const result = await db.runTransaction(async tx => {
+      const doc = await readOwnedDocument(tx, ref, (req as any).user.uid);
+      const patch: Record<string, any> = {};
+      for (const key of ['title', 'description', 'isActive']) if (Object.prototype.hasOwnProperty.call(req.body, key)) patch[key] = req.body[key];
+      if (Object.prototype.hasOwnProperty.call(req.body, 'activeAssetId')) {
+        const assetId = req.body.activeAssetId;
+        if (assetId !== null) {
+          if (typeof assetId !== 'string' || !assetId) throw Object.assign(new Error('Invalid asset'), { status: 400 });
+          const asset = await tx.get(db.collection('dynamic_page_assets').doc(assetId));
+          if (!asset.exists || asset.data()?.pageId !== ref.id) throw Object.assign(new Error('Asset does not belong to this page'), { status: 403 });
+        }
+        patch.activeAssetId = assetId;
+      }
+      patch.updatedAt = new Date().toISOString();
+      tx.update(ref, patch);
+      return { ...doc.data(), ...patch, id: doc.id };
+    });
+    res.json(result);
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.delete('/dynamic-pages/:id', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    await db.collection('dynamic_pages').doc(req.params.id).delete();
+    const ref = db.collection('dynamic_pages').doc(req.params.id);
+    await db.runTransaction(async tx => { await readOwnedDocument(tx, ref, (req as any).user.uid); tx.delete(ref); });
     res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.get('/dynamic-pages/:id/assets', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'private, no-store');
   try {
+    await db.runTransaction(tx => readOwnedDocument(tx, db.collection('dynamic_pages').doc(req.params.id), (req as any).user.uid));
     const snapshot = await db.collection('dynamic_page_assets').where('pageId', '==', req.params.id).get();
     res.json(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/dynamic-pages/:id/assets', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const assetData = { pageId: req.params.id, ...req.body, createdAt: new Date().toISOString() };
-    const docRef = await db.collection('dynamic_page_assets').add(assetData);
-    res.json({ id: docRef.id, ...assetData });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const ref = db.collection('dynamic_pages').doc(req.params.id);
+    const assetRef = db.collection('dynamic_page_assets').doc();
+    const assetData: Record<string, any> = { pageId: ref.id, createdAt: new Date().toISOString() };
+    for (const key of ['hostedImageId', 'assetType', 'url', 'title', 'description', 'sortOrder']) if (Object.prototype.hasOwnProperty.call(req.body, key)) assetData[key] = req.body[key];
+    await db.runTransaction(async tx => {
+      await readOwnedDocument(tx, ref, (req as any).user.uid);
+      if (assetData.hostedImageId) {
+        const imageRef = db.collection('hosted_images').doc(assetData.hostedImageId);
+        await readOwnedDocument(tx, imageRef, (req as any).user.uid);
+      }
+      tx.create(assetRef, assetData);
+    });
+    res.json({ ...assetData, id: assetRef.id });
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/dynamic-pages/:id/set-active', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
+    const ref = db.collection('dynamic_pages').doc(req.params.id);
     const { assetId } = req.body;
-    await db.collection('dynamic_pages').doc(req.params.id).update({ activeAssetId: assetId, updatedAt: new Date().toISOString() });
+    if (typeof assetId !== 'string' || !assetId) { res.status(400).json({ error: 'Asset is required' }); return; }
+    await db.runTransaction(async tx => {
+      await readOwnedDocument(tx, ref, (req as any).user.uid);
+      const asset = await tx.get(db.collection('dynamic_page_assets').doc(assetId));
+      if (!asset.exists || asset.data()?.pageId !== ref.id) throw Object.assign(new Error('Asset does not belong to this page'), { status: 403 });
+      tx.update(ref, { activeAssetId: assetId, updatedAt: new Date().toISOString() });
+    });
     res.json({ success: true });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.get('/dynamic/:slug', async (req: Request, res: Response): Promise<void> => {
@@ -386,8 +424,9 @@ app.get('/dynamic/:slug', async (req: Request, res: Response): Promise<void> => 
     const { slug } = req.params;
     const snapshot = await db.collection('dynamic_pages').where('slug', '==', slug).limit(1).get();
     if (snapshot.empty) { res.status(404).json({ error: 'Page not found' }); return; }
-    const page = { id: snapshot.docs[0].id, ...snapshot.docs[0].data() };
-    res.json(page);
+    const doc = snapshot.docs[0]; const page = doc.data();
+    if (page.isActive === false) { res.status(404).json({ error: 'Page not found' }); return; }
+    res.json({ id: doc.id, slug: page.slug, title: page.title, description: page.description, activeAssetId: page.activeAssetId, isActive: page.isActive });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

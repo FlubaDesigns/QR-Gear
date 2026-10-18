@@ -69,19 +69,6 @@ app.get('/products/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-app.get('/designs/:id', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const doc = await db.collection('customDesigns').doc(req.params.id).get();
-    if (!doc.exists) {
-      res.status(404).json({ error: 'Design not found' });
-      return;
-    }
-    res.json(docToObject(doc));
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.get('/auth/user', async (req: Request, res: Response): Promise<void> => {
   res.set('Cache-Control', 'private, no-store');
   try {

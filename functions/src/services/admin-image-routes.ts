@@ -1,3 +1,4 @@
+import { setUntrustedAssetHeaders } from './image-validation';
 import type { Request, Response, RequestHandler } from 'express';
 import { IMAGE_LIBRARY_MAX_BYTES, ImageLibraryError } from '../../../shared/imageLibrary';
 import type { createAdminImageLibrary } from './admin-image-library';
@@ -45,8 +46,8 @@ export function registerAdminImageRoutes(app: ImageRoutesApp, prefix: string, re
   app.get(`${prefix}/images/:id/file`, requireAdmin, route(async (req, res) => {
     const asset = await library.getFile(req.params.id);
     if (!asset) { res.status(404).json({ error: 'Image not found' }); return; }
-    res.set('Content-Type', asset.mimeType);
     res.set('Cache-Control', 'private, max-age=86400');
+    setUntrustedAssetHeaders(res, asset.mimeType);
     const stream = asset.file.createReadStream();
     stream.on('error', () => { if (!res.headersSent) res.status(404).end(); else res.destroy(); });
     stream.pipe(res);

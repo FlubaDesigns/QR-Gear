@@ -8,7 +8,6 @@ import { Loader2, AlertCircle, CheckCircle, Clock, CreditCard } from "lucide-rea
 
 interface BuyerInstance {
   instanceId: string;
-  buyerEmail: string;
   hostingExpiresAt: string;
   status: string;
   destinationUrl: string;
@@ -24,7 +23,7 @@ export default function RenewPage() {
   const successSessionId = searchParams.get('session_id');
 
   const { data, isLoading, error, refetch } = useQuery<{ instance: BuyerInstance; isActive: boolean }>({
-    queryKey: ['/api/buyer/instances', instanceId],
+    queryKey: ['/api/buyer/instances', instanceId, 'public'],
     enabled: !!instanceId,
   });
 
@@ -163,12 +162,7 @@ export default function RenewPage() {
                 {expirationDate.toLocaleDateString()}
               </span>
             </div>
-            {instance.buyerEmail && (
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Email</span>
-                <span className="truncate max-w-[180px]">{instance.buyerEmail}</span>
-              </div>
-            )}
+
           </div>
 
           <div className="bg-slate-800/50 rounded-lg p-4 text-center">

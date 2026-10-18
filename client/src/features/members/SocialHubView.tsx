@@ -271,7 +271,7 @@ function AddScheduleForm({ memberId, onComplete }: { memberId: string; onComplet
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([]);
 
   const { data: profileData } = useQuery<{ isMember: boolean; profile?: any }>({
-    queryKey: ['/api/members/profile'],
+    queryKey: ['/api/members/profile', memberId],
     queryFn: () => memberFetch<any>('/profile'),
   });
 

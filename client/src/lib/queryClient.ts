@@ -39,10 +39,13 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  await auth.authStateReady();
+  const requestUid = auth.currentUser?.uid ?? null;
   const authHeader = await getAuthHeader();
 
   const res = await Nexus.retry(
     async () => {
+      if ((auth.currentUser?.uid ?? null) !== requestUid) throw new Error('Account changed; try again.');
       const r = await fetch(getApiUrl(url), {
         method,
         headers: {
@@ -78,6 +81,7 @@ export async function apiRequest(
   );
 
   await throwIfResNotOk(res);
+  if ((auth.currentUser?.uid ?? null) !== requestUid) throw new Error('Account changed; try again.');
   return res;
 }
 
@@ -86,13 +90,19 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
+  async ({ queryKey, signal }) => {
+    await auth.authStateReady();
+    const requestUid = auth.currentUser?.uid ?? null;
+    const scope = queryKey.find(part => part && typeof part === "object" && "scopeUid" in part) as { scopeUid: string | null } | undefined;
+    if (scope && scope.scopeUid !== requestUid) throw new Error("Account changed; reload your data.");
     const authHeader = await getAuthHeader();
-    const url = getApiUrl(queryKey.join("/") as string);
+    const url = getApiUrl(queryKey.filter(part => !(part && typeof part === "object" && "scopeUid" in part)).join("/") as string);
 
     const res = await Nexus.retry(
       async () => {
+        if ((auth.currentUser?.uid ?? null) !== requestUid) throw new Error("Account changed; reload your data.");
         const r = await fetch(url, {
+          signal,
           credentials: "include",
           headers: authHeader,
         });
@@ -126,7 +136,9 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    if ((auth.currentUser?.uid ?? null) !== requestUid) throw new Error("Account changed; reload your data.");
+    return data;
   };
 
 export const queryClient = new QueryClient({
