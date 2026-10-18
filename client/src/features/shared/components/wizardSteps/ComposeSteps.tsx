@@ -529,9 +529,11 @@ export function ComposePreviewStep({
 export function ComposePublishStep({
   isPublishing,
   itemCount,
+  staged = false,
 }: {
   isPublishing: boolean;
   itemCount: number;
+  staged?: boolean;
 }) {
   return (
     <div className="text-center space-y-6 animate-in fade-in duration-500">
@@ -539,9 +541,9 @@ export function ComposePublishStep({
         <Send className="w-8 h-8 text-white" />
       </div>
       <div>
-        <h2 className="text-xl font-bold text-white mb-2">Ready to Publish</h2>
+        <h2 className="text-xl font-bold text-white mb-2">{staged ? "Ready to Build" : "Ready to Publish"}</h2>
         <p className="text-slate-300">
-          Your rotating playlist with {itemCount} items will go live
+          Your rotating playlist with {itemCount} items {staged ? "will go live when you create the graphics and save this product." : "will go live"}
         </p>
       </div>
       {isPublishing && (

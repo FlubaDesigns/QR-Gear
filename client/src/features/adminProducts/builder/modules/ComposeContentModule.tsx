@@ -188,32 +188,8 @@ export function ComposeContentModule() {
   };
 
   const handlePublish = async () => {
-    if (!hostingTerms.some(term => term.id === composeHostingTerm)) return;
-    setIsPublishing(true);
-    try {
-      const payload = {
-        qrType: 'qr-compose',
-        composeItems,
-        composeMode: composeMode || 'auto-rotate',
-        composeHostingTerm,
-        productId: state.selectedProduct?.id,
-        blueprintId: state.selectedProduct?.blueprintId,
-        color: state.selectedColor?.name || '',
-        colorHex: state.selectedColor?.hex || '',
-      };
-      const result = await adminFetch<any>("/compose/publish", {
-        method: "POST",
-        json: payload,
-      });
-      setContent({
-        composeInstanceId: result.instanceId || result.composeInstanceId || null,
-        composeStep: 'confirm',
-      });
-    } catch (error) {
-      console.error('[ComposeModule] Publish error:', error);
-    } finally {
-      setIsPublishing(false);
-    }
+    if (!hostingTerms.some(term => term.id === composeHostingTerm) || composeItems.length < 2) return;
+    setContent({ composeStep: 'confirm', composeInstanceId: null });
   };
 
   return (
@@ -324,17 +300,14 @@ export function ComposeContentModule() {
 
           {composeStep === 'publish' && (
             <ComposePublishStep
+              staged
               isPublishing={isPublishing}
               itemCount={composeItems.length}
             />
           )}
 
           {composeStep === 'confirm' && (
-            <ComposeConfirmStep
-              instanceId={composeInstanceId}
-              resolverUrl={composeInstanceId ? `/qr/d/${composeInstanceId}` : null}
-              itemCount={composeItems.length}
-            />
+            <div className="p-4 space-y-2"><h3 className="font-semibold">Playlist ready for this build</h3><p>Create the graphics and save the product to publish this playlist with its permanent QR identity.</p></div>
           )}
         </div>
 
@@ -358,7 +331,7 @@ export function ComposeContentModule() {
               {composeStep === 'publish' ? (
                 isPublishing ? (
                   <><Loader2 className="w-4 h-4 mr-1 animate-spin" /> Publishing...</>
-                ) : 'Publish Now'
+                ) : 'Use This Playlist'
               ) : (
                 <>Next <ChevronRight className="w-4 h-4 ml-1" /></>
               )}

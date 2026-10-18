@@ -130,6 +130,68 @@ Each order now freezes the buyer’s saved original referral relationship; a lat
 
 Batch marker: `20261018-audit-011-025`. Focused route/service/transaction fixtures and TypeScript checks are recorded in the release receipt. One existing client test used a fixed 20 ms delay; it now waits for the asserted UI state. The previous full Functions/shared baseline failures remain tracked under QRG-073; this batch does not claim an entirely green legacy regression suite or authenticated production acceptance.
 
+## QRG-026 — Historical Printify retry
+
+A stored remote ID was treated as production success after a failed submission. The helper now leases the order, rechecks payment, reads the saved remote order and resumes an on-hold submission. Created/submitted/production states are distinct; unknown remote states fail for review. The admin shortcut was removed. Controlled retries create once and submit twice; already submitted and refunded cases are checked. This does not automatically reconstruct a remote create whose response and identity were both lost.
+
+## QRG-027 — Saved embed pricing
+
+Pricing now uses the saved retail, campaign markup, reserved platform margin, rounding and price limits. Numeric zero survives the editor and calculation. Unsupported live/variant cost feeds fail explicitly. Platform margin is labeled as reserved from retail before affiliate sharing. Tests reproduce the $75 policy/$70 minimum case and zero affiliate payment. Legacy Buy remains disabled under QRG-021; no charge was made.
+
+## QRG-028 — Partial guest-cart transfer
+
+Only successfully imported identities are removed from local storage. Failed items remain visible with retry/remove controls. A stable per-user import receipt makes a lost-response retry idempotent and detects changed input. Tests cover one failed row, stable retry identity, repeated server import, removed imported rows and separate users.
+
+## QRG-029 — Checkout confirmation receipt
+
+The authenticated verification endpoint now returns the exact buyer-owned frozen order and an explicit safe item projection. Session, amount and currency bindings are checked. Paid sessions waiting for their webhook show confirmation pending with bounded polling, rather than a failed order. Refunds and incomplete payment have distinct copy. Tests cover delayed completion, confirmed receipt, refund and mismatched ownership/payment.
+
+## QRG-030 — Plus QR destination
+
+Plus now uses the shared direct-content contract with Basic; Canvas, Play and Compose remain hosted types. Plus exposes the direct URL/text editor and empty destinations block generation. The destination contract is tested. Canonical tier identities are unchanged.
+
+## QRG-031 — Missing selected artwork
+
+Print and landing renderers now reject a selected image load failure instead of returning an incomplete successful image. Tests exercise the actual renderers with controlled canvas/image adapters, including a valid landing background. No physical print was generated.
+
+## QRG-032 — Member Canvas landing
+
+Public landing projection no longer substitutes the physical print composite for a missing landing snapshot. The viewer renders the saved landing background/text contract with the existing landing renderer and explicit retry on failure. A route test proves the chosen Canvas background is retained while the snapshot remains absent.
+
+## QRG-033 — Interrupted marketplace locks
+
+Jobs have a 65-minute lease, longer than the deployed one-hour function deadline. Expired jobs become recoverable failures; status checks are reachable from the listing UI and retries reconcile the saved remote identity first. Unknown creation outcomes remain held until reconciliation succeeds, preventing blind duplicate creation. Tests cover expired recovery, no new create, and the unknown-outcome hold. No external listing was changed.
+
+## QRG-034 — Activation-code input
+
+The input accepts both current 24-character paid codes and 12-character case-sensitive admin codes. It no longer truncates or uppercases the latter, has an accessible label, and describes the purchased hosting term instead of promising one year. Shared-format tests cover both generators and invalid legacy-shaped input.
+
+## QRG-035 — Basic layout selection
+
+Basic now exposes the shared physical layout editor required by Finalize. This removes the fresh-draft dead end without inventing a default layout. Type checks and the existing builder suite passed.
+
+## QRG-036 — Canonical admin Compose
+
+The picker reads public canonical productPackets. Choosing a playlist stages it; it no longer announces a disconnected experience as published. Graphic generation prepares validated one-based slots, the printed QR uses that resolver, and catalog commit atomically binds/activates the instance with the permanent QRG identity. Resolver checks use the shared publication policy. Tests cover draft denial, canonical targets, invalid content, resolver binding and actual atomic catalog activation.
+
+## QRG-037 — Catalog color objects
+
+The instance resolver normalizes both catalog name/hex objects and historical strings before merging color names. The canonical object fixture no longer calls trim on an object; whitespace and case-insensitive deduplication are checked.
+
+## QRG-038 — Complete Printify republishing
+
+Republishing now uses the same composition validation and registered per-placement artwork projection as first publication. Every selected placement is required; the right sleeve cannot silently disappear. Changes to canonical placement maps trigger synchronization. Tests cover all three placements and failure before provider access. Historical packets without a valid canonical composition need rebuilding through the builder; legacy URL fields are not treated as proof of correct artwork.
+
+## QRG-039 — Guest draft sign-in handoff
+
+The wizard provider stays mounted during transient auth loading. First-time onboarding happens inside the same wizard provider rather than navigating away and destroying it. The existing identity boundary still clears state when leaving a signed-in identity. A React lifecycle test preserves an unsaved draft through loading, onboarding and completion with one provider mount.
+
+## QRG-040 — Acknowledged onboarding
+
+Completion requires a successful server acknowledgment for the same signed-in user. Failures remain on the form with an error; missing tokens and account changes reject. The exact profile cache is updated before completion, preventing the fresh false-cache redirect loop. Failed/empty product discovery offers retry and permits interests to be chosen later. Real query-cache tests cover acknowledged and rejected saves.
+
+Batch marker: `20261018-audit-026-040`. Validation: 53 focused Functions tests across eight files, all 308 client tests across 53 files, and client/Functions TypeScript checks passed. Controlled tests did not create purchases, refunds, payouts, emails or provider products. Deployment is recorded separately. Earlier full Functions/shared baseline failures remain tracked under QRG-073.
+
 ## Remaining sequence
 
-Continue QRG-026 through QRG-074 in order. Recheck before editing: QRG-068 was already fixed in the Firebase-only removal commit, and QRG-064 requires visual verification. Preserve the conditional/legacy qualifications in the verified audit register. Report a real completion result for each item; do not mark a fixture pass as authenticated live acceptance.
+Continue QRG-041 through QRG-074 automatically. QRG-068 was already fixed in the Firebase-only removal commit; QRG-064 needs visual verification. Preserve legacy and conditional qualifications.

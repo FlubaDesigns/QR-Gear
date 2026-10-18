@@ -191,7 +191,7 @@ export interface InstanceSnapshot {
   description?: string | null;
   images?: unknown[];
   brand?: string | null;
-  colors?: string[] | null;
+  colors?: Array<string | { name: string; hex?: string }> | null;
   sizes?: string[] | null;
   category?: string | null;
   pricing?: Record<string, any> | null;
@@ -237,6 +237,11 @@ export interface ResolvedInstance {
  * - pricing/graphics/qrConfig/layoutConfig/zones/metadata: mergePrimitivePreserve
  *   (entire object replace — callers must merge internally if they need partial patching)
  */
+export function normalizeCatalogColors(values: unknown): string[] {
+  if (!Array.isArray(values)) return [];
+  return values.map(value => typeof value === 'string' ? value : value?.name).filter((value): value is string => typeof value === 'string').map(value => value.trim()).filter(Boolean);
+}
+
 export function resolveInstance(
   base: InstanceSnapshot,
   overrides: InstanceOverrides,
@@ -261,8 +266,8 @@ export function resolveInstance(
   const category = mergeStringNormalized(base.category, overrides.category as string | null | undefined);
 
   const colors = mergeArrayUnionStrings(
-    base.colors as string[] | undefined,
-    overrides.colors as string[] | undefined,
+    normalizeCatalogColors(base.colors),
+    normalizeCatalogColors(overrides.colors),
   );
   const sizes = mergeArrayUnionStrings(
     base.sizes as string[] | undefined,

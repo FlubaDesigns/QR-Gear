@@ -1,3 +1,4 @@
+import { saveMemberOnboarding } from '@/lib/memberOnboardingSave';
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +16,7 @@ import {
 } from "lucide-react";
 import { SiTiktok } from "react-icons/si";
 import { auth } from "@/lib/firebase";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 
 interface OnboardingData {
@@ -126,10 +127,12 @@ function slugify(text: string): string {
 }
 
 export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) {
+  const queryClient = useQueryClient();
+  const [saveError, setSaveError] = useState("");
   const { data: pricingSettings } = useQuery<{ memberProfitShare?: number; baseRetailPrice?: number }>({
     queryKey: ['/api/pricing-settings'],
   });
-  const { data: allowedProductsData } = useQuery<{ products: { title: string }[] }>({
+  const { data: allowedProductsData, isPending: productsPending, isError: productsError, refetch: reloadProducts } = useQuery<{ products: { title: string }[] }>({
     queryKey: ['/api/members/allowed-products', 'member'],
     queryFn: async () => {
       const res = await fetch('/api/members/allowed-products?section=member');
@@ -169,7 +172,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
       case 0: return true;
       case 1: return true;
       case 2: return !!data.useCase;
-      case 3: return data.productInterests.length > 0;
+      case 3: return data.productInterests.length > 0 || (!productsPending && dynamicCategories.length === 0);
       case 4:
         return data.fullName.length >= 2 && data.storeName.length >= 2 && data.creatorSlug.length >= 3 && !!data.country;
       case 5: {
@@ -192,29 +195,15 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
     }
   };
 
-  const saveProfileToServer = async () => {
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      if (!token) return;
-      await fetch('/api/members/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(data),
-      });
-    } catch (e) {
-      console.error('Failed to save member profile:', e);
-    }
-  };
-
   const handleNext = async () => {
-    if (step < totalSteps - 1) {
-      setStep(step + 1);
-    } else {
-      setSaving(true);
-      await saveProfileToServer();
-      setSaving(false);
+    if (!canProceed() || saving) return;
+    if (step < totalSteps - 1) { setStep(step + 1); return; }
+    setSaving(true); setSaveError('');
+    try {
+      await saveMemberOnboarding(userId, data, queryClient);
       onComplete(data);
-    }
+    } catch (error) { setSaveError(error instanceof Error ? error.message : 'Your profile could not be saved. Please retry.'); }
+    finally { setSaving(false); }
   };
 
   const handleBack = () => {
@@ -332,7 +321,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
             <p className="text-slate-400">
               {dynamicCategories.length > 0
                 ? "Pick as many as you like. You can always change this later."
-                : "Loading available products..."}
+                : productsPending ? "Loading available products..." : "Product interests can be chosen later. Continue with your profile."}
             </p>
             {dynamicCategories.length > 0 && (
               <div className="layout__auto">
@@ -362,11 +351,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
                 })}
               </div>
             )}
-            {dynamicCategories.length === 0 && (
-              <div className="flex justify-center py-4">
-                <Loader2 className="w-6 h-6 animate-spin text-amber-400" />
-              </div>
-            )}
+            {dynamicCategories.length === 0 && (productsPending ? <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-amber-400" /></div> : <div className="space-y-2"><p>{productsError ? 'Available products could not load.' : 'No products are available yet.'} You can continue and choose interests later.</p><Button variant="outline" onClick={() => reloadProducts()}>Retry products</Button></div>)}
           </div>
         );
 
@@ -748,6 +733,7 @@ export function MemberOnboarding({ onComplete, userId }: MemberOnboardingProps) 
               <div />
             )}
 
+            {saveError && <p role="alert" className="text-red-400">{saveError}</p>}
             <Button
               onClick={handleNext}
               disabled={!canProceed() || saving}

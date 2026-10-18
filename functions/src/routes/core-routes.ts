@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { publicPartner } from '../services/partner-api';
 import { resolveColorHex } from '../../../shared/colorUtils';
 import { catalogProductOptions, CatalogSelectionError } from '../services/catalog-sale-variants';
@@ -124,11 +125,27 @@ app.post('/cart', requireAuth, async (req: Request, res: Response): Promise<void
     const cartItem = { customization: { ...customization, ...resolved.customization }, productId: resolved.productId,
       quantity: resolved.quantity, price: resolved.price, userId, createdAt: admin.firestore.FieldValue.serverTimestamp() };
 
+    if (req.body.guestCartId != null) {
+      if (typeof req.body.guestCartId !== 'string' || !/^[A-Za-z0-9_-]{1,160}$/.test(req.body.guestCartId)) { res.status(400).json({ error: 'Invalid guest item identity' }); return; }
+      const key = createHash('sha256').update(`${userId}:${req.body.guestCartId}`).digest('hex');
+      const receipt = db.collection('cartImports').doc(key), target = db.collection('cartItems').doc(`guest_${key}`);
+      const fingerprint = JSON.stringify({ productId: cartItem.productId, quantity: cartItem.quantity, customization: cartItem.customization });
+      const saved = await db.runTransaction(async tx => {
+        const prior = await tx.get(receipt), row = await tx.get(target);
+        if (prior.exists) {
+          if (prior.data()?.fingerprint !== fingerprint) throw Object.assign(new Error('Guest item changed after import. Review your signed-in cart before removing this saved copy.'), { status: 409 });
+          return row.exists ? { id: target.id, ...row.data() } : { id: target.id, alreadyImported: true };
+        }
+        tx.create(target, cartItem); tx.create(receipt, { userId, fingerprint, cartItemId: target.id });
+        return { id: target.id, ...cartItem };
+      });
+      res.json(saved); return;
+    }
     const docRef = await db.collection('cartItems').add(cartItem);
     const doc = await docRef.get();
     res.json(docToObject(doc));
   } catch (error: any) {
-    res.status(error instanceof CatalogSelectionError ? 400 : 500).json({ error: error.message });
+    res.status(error.status || (error instanceof CatalogSelectionError ? 400 : 500)).json({ error: error.message });
   }
 });
 

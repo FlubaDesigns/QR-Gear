@@ -145,7 +145,7 @@ export function ProductGraphicTextModule() {
     }
   }, [libraryTarget, state.content, setContent]);
 
-  const showGraphicText = state.qrProductState === "qr_plus" ||
+  const showGraphicText = state.qrProductState === "qr_basics" || state.qrProductState === "qr_plus" ||
                           state.qrProductState === "qr_canvas" || 
                           state.qrProductState === "qr_play" || 
                           state.qrProductState === "qr_compose";

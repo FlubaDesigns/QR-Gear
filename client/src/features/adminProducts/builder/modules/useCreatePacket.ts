@@ -1,3 +1,4 @@
+import { buildQrDestination, isHostedQrType } from "@shared/qrDestination";
 import type { PricingSettings } from '@shared/schema-orders';
 import { queryClient } from "@/lib/queryClient";
 import { refreshBuildLibrary, ORIGINALS_QK } from "@/features/adminLibrary/shared/grfQueryKeys";
@@ -178,6 +179,9 @@ export function useCreatePacket({
       if (!pricing || !packetData.builderSnapshot) throw new Error('Server returned no saved pricing or build snapshot.');
       Object.assign(snapshot, packetData.builderSnapshot);
 
+      const compose = state.qrProductState === 'qr_compose'
+        ? await adminFetch<{ instanceId: string }>('/compose/publish', { method: 'POST', json: { packetId } }) : null;
+
       let uploadedPlayMediaUrl: string | null = null;
       let uploadedPlayMediaType: string | null = null;
 
@@ -228,10 +232,8 @@ export function useCreatePacket({
       }
 
       const baseUrl = window.location.origin;
-      const isLandingPageMode = state.qrProductState === "qr_canvas" || state.qrProductState === "qr_play" || state.qrProductState === "qr_compose" || state.qrProductState === "qr_plus";
-      const finalQrContent = isLandingPageMode
-        ? `${baseUrl}/m/${landingPageSlug}`
-        : (content.url || content.title || "");
+      const isLandingPageMode = isHostedQrType(state.qrProductState);
+      const finalQrContent = buildQrDestination(state.qrProductState, content.url || content.title || "", compose ? `${baseUrl}/qr/d/${compose.instanceId}` : `${baseUrl}/m/${landingPageSlug}`);
 
       const qrUrl = generateQRCodeUrl(finalQrContent.trim(), 3000);
 

@@ -589,11 +589,14 @@ export interface PricingInput {
 export function computePricingSnapshot(input: PricingInput): PricingSnapshot {
   const salePrice = input.salePrice;
   const productCost = input.productCost;
-  const providerCost = input.providerCost || 0;
-  const platformFeeAmount = input.platformFeeAmount || 0;
-  const shippingCostBurden = input.shippingCostBurden || 0;
-  const discountBurden = input.discountBurden || 0;
-  const affiliatePercent = input.affiliatePercent || 25;
+  const providerCost = input.providerCost ?? 0;
+  const platformFeeAmount = input.platformFeeAmount ?? 0;
+  const shippingCostBurden = input.shippingCostBurden ?? 0;
+  const discountBurden = input.discountBurden ?? 0;
+  const affiliatePercent = input.affiliatePercent ?? 25;
+
+  if ([salePrice, productCost, providerCost, platformFeeAmount, shippingCostBurden, discountBurden, affiliatePercent].some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0) || affiliatePercent > 100) throw new Error('Pricing amounts and shares must be finite, nonnegative numbers.');
+  if (input.currency && !/^[A-Z]{3}$/i.test(input.currency)) throw new Error('Use a three-letter currency code.');
 
   const grossProfitAmount = salePrice - productCost - providerCost - platformFeeAmount - shippingCostBurden - discountBurden;
   const affiliateAmount = grossProfitAmount > 0 ? Math.round(grossProfitAmount * (affiliatePercent / 100) * 100) / 100 : 0;
@@ -616,6 +619,34 @@ export function computePricingSnapshot(input: PricingInput): PricingSnapshot {
     pricingSnapshotVersion: '1.0',
     createdAt: new Date().toISOString(),
   };
+}
+
+/** Legacy embed preview contract. Unsupported cost feeds fail explicitly; Buy remains disabled. */
+export function computePolicyPricing(surface: any, policy: any, split: any): PricingSnapshot {
+  const number = (value: any, name: string, fallback?: number) => {
+    const result = value ?? fallback;
+    if (typeof result !== 'number' || !Number.isFinite(result) || result < 0) throw new Error(`Configure a valid ${name}.`);
+    return result;
+  };
+  if (policy?.baseCostMode && policy.baseCostMode !== 'snapshot') throw new Error('Live and variant cost policies require a verified cost adapter. Use a saved snapshot policy.');
+  const base = number(policy?.baseRetailPrice ?? surface?.retailPrice, 'retail price');
+  const cost = number(surface?.baseCost, 'product cost');
+  const margin = (type: any, value: any, basis: number) => {
+    const amount = number(value, 'margin', 0);
+    if (type != null && !['percent', 'fixed'].includes(type)) throw new Error('Invalid margin type.');
+    return type === 'fixed' ? amount : basis * amount / 100;
+  };
+  const marked = base + margin(policy?.campaignMarkupType, policy?.campaignMarkupValue, base);
+  const rounding = policy?.roundingMode ?? 'round';
+  if (!['none', 'round', 'ceil', 'floor'].includes(rounding)) throw new Error('Invalid rounding mode.');
+  const round = rounding === 'ceil' ? Math.ceil : rounding === 'floor' ? Math.floor : Math.round;
+  const sale = round(marked * 100) / 100;
+  const min = number(policy?.minPrice, 'minimum price', 0), max = policy?.maxPrice == null ? Infinity : number(policy.maxPrice, 'maximum price');
+  if (min > max || sale < min || sale > max) throw new Error('Calculated price falls outside the saved policy limits.');
+  // Platform margin is reserved from retail revenue before affiliate profit sharing.
+  const fee = Math.round(margin(policy?.platformMarginType, policy?.platformMarginValue, sale) * 100) / 100;
+  const affiliatePercent = number(split?.affiliatePercent ?? split?.affiliateSharePercent ?? policy?.affiliatePercent, 'affiliate share', 0);
+  return computePricingSnapshot({ salePrice: sale, productCost: cost, platformFeeAmount: fee, affiliatePercent, currency: policy?.currency ?? surface?.currency ?? 'USD' });
 }
 
 // ============ INSERT TYPES ============

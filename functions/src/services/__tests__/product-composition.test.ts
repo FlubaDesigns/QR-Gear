@@ -150,3 +150,23 @@ describe('product builder composition', () => {
 
   });
 });
+
+it('normalizes current catalog color objects before resolving the committed product', async () => {
+ const { resolveInstance } = await import('../instance-resolver');
+ expect(resolveInstance({ colors: [{ name: ' Black ', hex: '#000' }, { name: 'White' }] }, { colors: ['black', 'Blue'] }).colors).toEqual(['Black', 'White', 'Blue']);
+});
+
+it('activates a prepared Compose identity in the same transaction as its catalog owner', async () => {
+ const f = await generated();
+ f.packet().builderSnapshot.qrConfig.qrProductState = 'qr_compose'; f.packet().composeInstanceId = 'compose';
+ const { QR_DYNAMICS_INSTANCES_COLLECTION: collection } = await import('../../constants');
+ f.store.set(`${collection}/compose`, { packetId: 'p', status: 'draft', slots: [{ packetId: 'canvas', order: 1 }], hostingTierCode: '1_year' });
+ const data = { currentPacketId: 'p', sourceMasterId: 'master', sourceSessionId: 's', bldId: f.bld.bldId, assemblyId: f.asm.assemblyId, qrgBlankId: '11001', qrgBaseCode: 'QRG-11001-I-000001', createdAt: 'now', updatedAt: 'now' };
+ await saveBuildInstance(f.db, { id: 's' }, data);
+ expect(f.store.get(`${collection}/compose`)).toMatchObject({ status: 'active', packetId: 'p', qrgBaseCode: data.qrgBaseCode });
+ expect(f.packet().ownerInstanceId).toBeTruthy();
+});
+it('rejects any missing required registered placement before returning Printify artwork', async () => {
+ const f = await generated(); delete f.packet().placementGraphicUrls.left_sleeve;
+ await expect(packetPrintifyArtwork(f.db, f.packet())).rejects.toThrow('left_sleeve');
+});

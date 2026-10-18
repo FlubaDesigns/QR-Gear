@@ -1,3 +1,4 @@
+import { isPublicPacket } from './publication';
 import { db } from '../core';
 import { MEMBER_PACKETS_COLLECTION, PRODUCT_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { resolveActiveSlot, type DynamicsSlot } from '../../../shared/qrDynamicsResolver';
@@ -64,7 +65,7 @@ export async function resolveDynamicsInstance(id: string) {
   if (!instance || instance.status !== 'active') fail('QR experience is not available.', 404);
   if (!/^QRG-[1-6][1-9]\d{3}-[IMEO]-\d{6}$/.test(instance.qrgBaseCode || '')) fail('QR item identity is not connected.', 409);
   const bound = (await db.collection(PRODUCT_PACKETS_COLLECTION).doc(documentId(instance.packetId)).get()).data();
-  if (!bound || bound.status !== 'published' || bound.qrgBaseCode !== instance.qrgBaseCode || bound.composeInstanceId !== id) fail('QR experience and physical item are not connected.', 409);
+  if (!bound || !await isPublicPacket(instance.packetId, bound) || bound.qrgBaseCode !== instance.qrgBaseCode || bound.composeInstanceId !== id) fail('QR experience and physical item are not connected.', 409);
   if (instance.hostingExpiresAt && new Date(instance.hostingExpiresAt).getTime() <= Date.now()) fail('QR hosting has expired.', 410);
   const result = resolveActiveSlot(instance.slots || [], instance.startTimestamp, Math.floor(Date.now() / 1000));
   if ('error' in result) fail(result.error, 409);
@@ -72,7 +73,7 @@ export async function resolveDynamicsInstance(id: string) {
   const targets: string[] = [];
   for (const slot of slots) {
     const packet = (await db.collection(PRODUCT_PACKETS_COLLECTION).doc(documentId(slot.packetId)).get()).data();
-    if (!packet || packet.status !== 'published' || !packet.landingPageSlug) fail('Published QR content is unavailable.', 404);
+    if (!packet || !await isPublicPacket(slot.packetId, packet) || !packet.landingPageSlug) fail('Published QR content is unavailable.', 404);
     // A sale may retain its purchased public content; edits still require the new owner's own content.
     if (packet.ownerType === 'member' && packet.memberId !== instance.ownerId && !(instance.sourcePacketIds || []).includes(slot.packetId)) fail('QR content belongs to another account.', 403);
     targets.push(`/m/${encodeURIComponent(packet.landingPageSlug)}`);

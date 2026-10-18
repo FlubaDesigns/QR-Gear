@@ -177,7 +177,7 @@ async function drawImageInZone(
 
     ctx.drawImage(img, drawX, drawY, drawW, drawH);
   } catch (err) {
-    console.warn("[productGraphicRenderer] Image load failed:", err);
+    throw new Error(`Selected artwork could not load. Retry generation: ${imgUrl}`, { cause: err });
   }
 }
 

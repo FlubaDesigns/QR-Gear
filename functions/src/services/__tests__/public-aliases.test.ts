@@ -8,9 +8,10 @@ vi.mock('../mockup-generator', () => ({ generateMockupFromPrintful: m.generate }
 import { register as packetRoutes } from '../../routes/pp-pricing-packets';
 import { register as storeRoutes } from '../../routes/store-files';
 import { register as utilityRoutes } from '../../routes/am-utility';
+import { register as landingRoutes } from '../../routes/packets';
 import { isPublicPacket } from '../publication';
 let store: Map<string, any>;
-const app = () => { const a = express(); a.use(express.json()); packetRoutes(a); storeRoutes(a); utilityRoutes(a); return a; };
+const app = () => { const a = express(); a.use(express.json()); packetRoutes(a); landingRoutes(a); storeRoutes(a); utilityRoutes(a); return a; };
 beforeEach(() => { vi.clearAllMocks(); m.uid = 'other'; const fixture = database({
   'productPackets/p': { ownerType: 'admin', ownerInstanceId: 'i', qrgBaseCode: 'q', status: 'ready', playMediaUrl: 'https://example.invalid/video.mp4', privateField: 'secret' },
   'admin_catalog_instances/i': { status: 'active', currentPacketId: 'p', qrgBaseCode: 'q' },
@@ -39,4 +40,11 @@ it('protects the retained legacy design alias', async () => {
   const a = app(); expect((await request(a).get('/customs/legacy')).status).toBe(401);
   expect((await request(a).get('/customs/legacy').set('Authorization', 'Bearer valid')).status).toBe(403);
   m.uid = 'owner'; expect((await request(a).get('/customs/legacy').set('Authorization', 'Bearer valid')).status).toBe(200);
+});
+
+it('returns the saved Canvas background without substituting physical print artwork', async () => {
+ Object.assign(store.get('productPackets/p'), { qrProductState: 'qr_canvas', landingPageSlug: 'canvas', landingPageBackgroundUrl: 'https://files/canvas.png', compositeUrl: 'https://files/printed-qr.png' });
+ const result = await request(app()).get('/public/landing/canvas');
+ expect(result.status).toBe(200); expect(result.body.landingPage.landingPageSnapshotUrl).toBeNull();
+ expect(result.body.landingPage.landingPageBackgroundUrl).toBe('https://files/canvas.png');
 });

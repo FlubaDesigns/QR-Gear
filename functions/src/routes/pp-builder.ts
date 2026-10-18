@@ -1,3 +1,5 @@
+import { prepareAdminCompose } from '../services/admin-compose';
+import { isPublicPacket } from '../services/publication';
 import { assertAuthorizedMockupJob, recheckMockupJob } from '../services/mockup-job-authorization';
 import { packetMockupSourceId, buildPacketMockupRequest } from '../../../shared/builderSnapshot';
 import { Request, Response, NextFunction } from 'express';
@@ -205,10 +207,12 @@ app.post('/admin/content/upload', requireAdmin, async (req: Request, res: Respon
 
 app.get('/admin/published-compose-items', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
-    const snapshot = await db.collection('packets').where('status', '==', 'published').get();
-    const items = snapshot.docs
-      .map((doc: any) => ({ id: doc.id, ...doc.data() }))
-      .filter((p: any) => ['qr-canvas', 'qr-play'].includes(p.packetType || p.type));
+    const snapshot = await db.collection('productPackets').get();
+    const items: any[] = [];
+    for (const doc of snapshot.docs) {
+      const p = doc.data(), type = p.qrProductState || p.builderSnapshot?.qrConfig?.qrProductState || p.packetType?.replace(/-/g, '_');
+      if (['qr_canvas', 'qr_play'].includes(type) && p.landingPageSlug && await isPublicPacket(doc.id, p)) items.push({ id: doc.id, packetId: doc.id, name: p.title || p.productName || p.landingPageTitle, type: type.replace(/_/g, '-'), packetType: type.replace(/_/g, '-'), thumbnailUrl: p.mockupUrl || p.landingPageBackgroundUrl || p.compositeUrl });
+    }
     res.json({ items });
   } catch (error: any) {
     console.error("[ComposeItems CF] Error:", error);
@@ -217,32 +221,8 @@ app.get('/admin/published-compose-items', requireAdmin, async (_req: Request, re
 });
 
 app.post('/admin/compose/publish', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { composeItems, composeMode, composeHostingTerm, productId, blueprintId, color, colorHex } = req.body;
-    if (!composeItems || !Array.isArray(composeItems) || composeItems.length === 0) {
-      res.status(400).json({ error: 'At least one compose item is required' });
-      return;
-    }
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    const instanceData = {
-      createdAt: nowEpoch, startTimestamp: nowEpoch,
-      mode: composeMode || 'auto-rotate', hostingTerm: composeHostingTerm || '1-year',
-      productId: productId || null, blueprintId: blueprintId || null,
-      color: color || null, colorHex: colorHex || null,
-      slots: composeItems.map((item: any, index: number) => ({
-        slotId: item.slotId || `slot-${Date.now()}-${index}`,
-        packetId: item.packetId || item.id,
-        durationSeconds: item.durationSeconds || 86400,
-        order: item.order ?? index + 1,
-      })),
-    };
-    const docRef = await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).add(instanceData);
-    console.log(`[ComposePublish CF] Created instance ${docRef.id} with ${composeItems.length} slots`);
-    res.json({ success: true, instanceId: docRef.id, composeInstanceId: docRef.id });
-  } catch (error: any) {
-    console.error("[ComposePublish CF] Error:", error);
-    res.status(500).json({ error: error.message });
-  }
+  try { res.json(await prepareAdminCompose((req as any).user.uid, req.body.packetId)); }
+  catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 // ============ PRODUCTS PAGE: SHELF GROUPS & BUILD SHELF ============

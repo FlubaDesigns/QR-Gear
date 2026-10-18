@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261018-audit-011-025';
+const _BUILD_ID = '20261018-audit-026-040';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

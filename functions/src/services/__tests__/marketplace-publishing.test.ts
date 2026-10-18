@@ -215,3 +215,20 @@ it('tracks Amazon identities before a failed submission and keeps remote checks/
   expect(fixture.store.get(`marketplaceListings/${listing.id}`).amazonRemovalRequested).toBe(true);
   expect(fixture.store.get(`marketplaceListings/${listing.id}`).status).toBe('pending');
 });
+
+it('recovers an interrupted job by checking its saved remote identity without recreating it', async () => {
+ const listing = await getOrCreateMarketplaceListing('s', 'a');
+ Object.assign(fixture.store.get(`marketplaceListings/${listing.id}`), { status: 'syncing', lastSyncJobId: 'interrupted', externalListingId: sku });
+ fixture.store.set('marketplaceSyncJobs/interrupted', { listingId: listing.id, action: 'create', status: 'running', updatedAt: '2020-01-01' });
+ vi.mocked(checkAmazonListing).mockResolvedValue({ success: true, sku, listingStatus: 'active', amazonItems: [{ sku }] } as any);
+ const result = await retryFailedJob('interrupted');
+ expect(result.success).toBe(true); expect(pushListingToAmazon).not.toHaveBeenCalled(); expect(checkAmazonListing).toHaveBeenCalledTimes(1);
+ expect(fixture.store.get(`marketplaceListings/${listing.id}`)).toMatchObject({ status: 'active', needsRemoteReconciliation: false });
+});
+it('keeps an interrupted unknown creation on hold until remote reconciliation succeeds', async () => {
+ const listing = await getOrCreateMarketplaceListing('s', 'a');
+ Object.assign(fixture.store.get(`marketplaceListings/${listing.id}`), { status: 'syncing', lastSyncJobId: 'lost' });
+ fixture.store.set('marketplaceSyncJobs/lost', { listingId: listing.id, action: 'create', status: 'running', updatedAt: '2020-01-01' });
+ await expect(runMarketplaceJob(listing.id, 'create')).rejects.toThrow('Check remote status');
+ expect(pushListingToAmazon).not.toHaveBeenCalled();
+});

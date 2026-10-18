@@ -9,7 +9,7 @@ import { useBuilderContext } from "../BuilderContext";
 export function BasicsContentModule() {
   const { state, setContent } = useBuilderContext();
 
-  if (state.qrProductState !== "qr_basics" || !state.selectedProduct || !state.content) {
+  if (!["qr_basics", "qr_plus"].includes(state.qrProductState || "") || !state.selectedProduct || !state.content) {
     return null;
   }
 

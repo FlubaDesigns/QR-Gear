@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+import { assertProductionPayment } from './payment-state';
 import { readFlubaProviderKey } from './fluba-provider-keys';
 import { isSandboxRuntime, requireLiveCommerce } from '../runtime-config';
 import { admin, db } from '../core';
@@ -75,7 +77,8 @@ class PrintifyClient {
         const errorText = await response.text();
         throw new Error(`Printify API error: ${response.status} - ${errorText}`);
       }
-      return response.json() as Promise<T>;
+      const text = await response.text();
+      return (text.trim() ? JSON.parse(text) : undefined) as T;
     } catch (e: any) {
       if (e.name === 'AbortError') throw new Error(`Printify request timed out after ${timeoutMs}ms: ${endpoint}`);
       throw e;
@@ -196,108 +199,53 @@ interface ShippingAddress {
   country: string;
 }
 
-async function submitOrderToPrintify(
-  orderId: string,
-  shippingAddress: ShippingAddress
-): Promise<{ success: boolean; printifyOrderId?: string; error?: string }> {
+async function submitOrderToPrintify(orderId: string, shippingAddress: ShippingAddress): Promise<{ success: boolean; printifyOrderId?: string; error?: string }> {
+  const ref = db.collection('orders').doc(orderId), lease = randomUUID();
+  let claimed = false;
   try {
-    if (!(await printifyClient.isConfigured)) {
-      return { success: false, error: 'Printify API not configured (missing API key or shop ID)' };
-    }
-
-    // Get the order
-    const orderDoc = await db.collection('orders').doc(orderId).get();
-    if (!orderDoc.exists) {
-      return { success: false, error: 'Order not found' };
-    }
-    const order = orderDoc.data()!;
-    if (order.routedProvider !== 'printify' || !order.paymentVerifiedAt || order.paymentStatus !== 'paid') {
-      return { success: false, error: 'Printify requires a verified paid order explicitly routed to Printify.' };
-    }
-
-    // Check if already submitted
-    if (order.printifyOrderId) {
-      return { success: true, printifyOrderId: order.printifyOrderId };
-    }
-
-    // Get order items
-    const orderItemsSnapshot = await db.collection('orderItems')
-      .where('orderId', '==', orderId)
-      .get();
-    
-    if (orderItemsSnapshot.empty) {
-      return { success: false, error: 'No order items found' };
-    }
-
-    const lineItems: PrintifyOrderLineItem[] = [];
-    
-    for (const doc of orderItemsSnapshot.docs) {
-      const item = doc.data();
-      const customization = item.customization as Record<string, any>;
-      
-      if (!customization?.printifyProductId || !customization?.printifyVariantId) {
-        console.warn(`Order item ${doc.id} missing Printify product/variant IDs`);
-        continue;
-      }
-
-      lineItems.push({
-        product_id: customization.printifyProductId,
-        variant_id: customization.printifyVariantId,
-        quantity: item.quantity || 1,
-        print_areas: customization.printAreas,
-      });
-    }
-
-    if (!lineItems.length) {
-      return { success: false, error: 'No valid line items for Printify (missing product/variant IDs)' };
-    }
-
-    const addressTo: PrintifyOrderAddress = {
-      first_name: shippingAddress.firstName,
-      last_name: shippingAddress.lastName,
-      email: shippingAddress.email,
-      phone: shippingAddress.phone || '',
-      country: shippingAddress.country,
-      region: shippingAddress.region,
-      address1: shippingAddress.address1,
-      address2: shippingAddress.address2,
-      city: shippingAddress.city,
-      zip: shippingAddress.zip,
-    };
-
-    const printifyOrderRequest: CreatePrintifyOrderRequest = {
-      external_id: orderId,
-      label: `QR Gear Order ${orderId.slice(0, 8).toUpperCase()}`,
-      line_items: lineItems,
-      shipping_method: 1, // Standard shipping
-      send_shipping_notification: true,
-      address_to: addressTo,
-    };
-
-    // Create order in Printify
-    const printifyOrder = await printifyClient.createOrder(printifyOrderRequest);
-
-    // Update order status
-    await db.collection('orders').doc(orderId).update({
-      printifyOrderId: printifyOrder.id,
-      status: 'processing',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    requireLiveCommerce('Printify production');
+    if (!(await printifyClient.isConfigured)) throw new Error('Printify API is not configured');
+    const order = await db.runTransaction(async tx => {
+      const value = (await tx.get(ref)).data();
+      if (!value || value.routedProvider !== 'printify' || !value.paymentVerifiedAt || value.paymentStatus !== 'paid' || value.productionHold) throw new Error('Printify requires a verified paid order explicitly routed to Printify.');
+      if (value.printifyLeaseUntil > Date.now()) throw new Error('Printify submission is already in progress.');
+      tx.update(ref, { printifyLease: lease, printifyLeaseUntil: Date.now() + 120000 });
+      return value;
     });
-
-    // Submit to production
-    await printifyClient.submitOrderToProduction(printifyOrder.id);
-
-    // Update status to in_production
-    await db.collection('orders').doc(orderId).update({
-      status: 'in_production',
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
-    console.log(`Order ${orderId} submitted to Printify: ${printifyOrder.id}`);
-    return { success: true, printifyOrderId: printifyOrder.id };
+    claimed = true;
+    await assertProductionPayment(order);
+    let remoteId = order.printifyOrderId;
+    if (!remoteId) {
+      const items = (await db.collection('orderItems').where('orderId', '==', orderId).get()).docs.map(doc => doc.data());
+      if (!items.length || items.some(item => !item.customization?.printifyProductId || !item.customization?.printifyVariantId || !Number.isSafeInteger(item.quantity) || item.quantity < 1)) throw new Error('Every item needs saved Printify product, variant and quantity.');
+      const remote = await printifyClient.createOrder({ external_id: orderId, label: `QR Gear Order ${orderId.slice(0, 8).toUpperCase()}`,
+        line_items: items.map(item => ({ product_id: item.customization.printifyProductId, variant_id: item.customization.printifyVariantId, quantity: item.quantity, print_areas: item.customization.printAreas })),
+        shipping_method: 1, send_shipping_notification: true,
+        address_to: { first_name: shippingAddress.firstName, last_name: shippingAddress.lastName, email: shippingAddress.email, phone: shippingAddress.phone || '',
+          country: shippingAddress.country, region: shippingAddress.region, address1: shippingAddress.address1, address2: shippingAddress.address2, city: shippingAddress.city, zip: shippingAddress.zip } });
+      if (!remote?.id) throw new Error('Printify did not return an order identity.');
+      remoteId = remote.id;
+      await ref.update({ printifyOrderId: remoteId, printifySubmissionState: 'created', status: 'processing' });
+    }
+    const remote = await printifyClient.getOrder(remoteId);
+    if (remote.id !== remoteId || (remote.external_id && remote.external_id !== orderId)) throw new Error('Printify order identity mismatch.');
+    const status = String(remote.status || '').toLowerCase();
+    const submitted = ['sending-to-production', 'in-production', 'fulfilled', 'partially-fulfilled'].includes(status);
+    if (!submitted) {
+      if (!['pending', 'on-hold'].includes(status)) throw new Error(`Printify order requires review: ${status || 'unknown'}`);
+      await assertProductionPayment((await ref.get()).data());
+      await printifyClient.submitOrderToProduction(remoteId);
+    }
+    await ref.update({ printifySubmissionState: 'submitted', status: status === 'fulfilled' ? 'shipped' : status === 'in-production' ? 'in_production' : 'processing', printifySubmissionError: null, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+    return { success: true, printifyOrderId: remoteId };
   } catch (error: any) {
-    console.error(`Failed to submit order ${orderId} to Printify:`, error);
+    if (claimed) await ref.update({ printifySubmissionError: error.message }).catch(() => {});
     return { success: false, error: error.message };
+  } finally {
+    if (claimed) await db.runTransaction(async tx => {
+      const current = (await tx.get(ref)).data();
+      if (current?.printifyLease === lease) tx.update(ref, { printifyLease: null, printifyLeaseUntil: 0 });
+    });
   }
 }
 

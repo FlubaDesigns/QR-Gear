@@ -1,3 +1,4 @@
+import { computePolicyPricing } from '../../../shared/surfaces';
 import { Request } from 'express';
 import { db } from '../core';
 import {
@@ -185,12 +186,5 @@ export async function validateEmbedContext(
 }
 
 export function buildPricingFromContext(surface: any, pricingPolicy: any, revenueSplit: any): PricingSnapshot {
-  const salePrice = surface?.retailPrice || 0;
-  const productCost = surface?.baseCost || 0;
-  const affiliatePercent = revenueSplit?.affiliatePercent ?? 25;
-  const platformFeeAmount = pricingPolicy?.platformFeeAmount || 0;
-  return computePricingSnapshot({
-    salePrice, productCost, platformFeeAmount, affiliatePercent,
-    currency: pricingPolicy?.currency || 'USD',
-  });
+  return computePolicyPricing(surface, pricingPolicy, revenueSplit);
 }

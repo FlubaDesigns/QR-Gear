@@ -1,3 +1,5 @@
+import { dynamicsHostingExpiry } from './qr-dynamics';
+import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { validatePacketContent } from './assembly-store';
 import { transactionReader } from './composition-validation';
 import { destinationMetadata } from './build-destination';
@@ -47,6 +49,12 @@ export async function saveBuildInstance(db: any, session: any, data: Record<stri
     if (existing && (!existing.exists || existing.data().sourceSessionId !== session.id)) throw new Error('Catalog item belongs to a different build.');
     // Validate the rendered candidate before atomically attaching its catalog owner.
     await validatePacketContent(transactionReader(db, tx), packetDoc.data(), assemblyDoc.data());
+    const isCompose = packetDoc.data().builderSnapshot?.qrConfig?.qrProductState === 'qr_compose';
+    const dynamicRef = isCompose && packetDoc.data().composeInstanceId ? db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(packetDoc.data().composeInstanceId) : null;
+    const dynamic = dynamicRef ? (await tx.get(dynamicRef)).data() : null;
+    if (isCompose && (!dynamic || dynamic.packetId !== packetRef.id || !dynamic.slots?.length || !data.qrgBaseCode)) throw new Error('Compose must be prepared and bound to this generated packet before saving.');
+    if (dynamicRef) tx.update(dynamicRef, { status: 'active', qrgBaseCode: data.qrgBaseCode, qrgBlankId: data.qrgBlankId,
+      hostingExpiresAt: dynamic.hostingExpiresAt || dynamicsHostingExpiry(dynamic.hostingTierCode), updatedAt: data.updatedAt });
     const { createdAt, ...updates } = data;
     if (existing) tx.update(instanceRef, updates); else tx.create(instanceRef, data);
     tx.update(packetRef, { ownerType: 'admin', ownerInstanceId: instanceRef.id, sourceAdminInstanceId: instanceRef.id,

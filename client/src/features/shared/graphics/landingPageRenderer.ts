@@ -180,7 +180,7 @@ export async function renderLandingPage(
       const y = (CANVAS_HEIGHT - scaledHeight) / 2;
       ctx.drawImage(bgImg, x, y, scaledWidth, scaledHeight);
     } catch (e) {
-      console.warn("[landingPageRenderer] Failed to load background:", e);
+      throw new Error("Selected landing background could not load. Retry generation.", { cause: e });
     }
   }
 

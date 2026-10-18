@@ -1,3 +1,4 @@
+import { readCheckoutReceipt } from '../services/checkout-receipt';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { catalogProductOptions } from '../services/catalog-sale-variants';
@@ -98,15 +99,10 @@ app.get('/checkout/verify/:sessionId', requireAuth, async (req: Request, res: Re
 
     const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
-    if (session.metadata?.userId !== (req as any).user.uid) { res.status(403).json({ error: 'This checkout belongs to another account.' }); return; }
-    
-    res.json({
-      status: session.payment_status,
-      customerEmail: session.customer_details?.email,
-      amountTotal: session.amount_total ? session.amount_total / 100 : 0,
-    });
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json(await readCheckoutReceipt(session, (req as any).user.uid));
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

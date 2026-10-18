@@ -59,8 +59,27 @@ export async function getOrCreateMarketplaceListing(surfaceId: string, accountId
   });
 }
 
+// Longer than the deployed 3600-second function deadline: a reclaimed worker cannot still run.
+const JOB_LEASE_MS = 65 * 60 * 1000;
+export async function recoverInterruptedListing(listingId: string) {
+  return db.runTransaction(async tx => {
+    const ref = listings().doc(listingId), snap = await tx.get(ref);
+    const listing = snap.data();
+    if (!listing || listing.status !== 'syncing') return false;
+    const jobRef = listing.lastSyncJobId ? jobs().doc(listing.lastSyncJobId) : null;
+    const job = jobRef ? (await tx.get(jobRef)).data() : null;
+    const expiry = job?.leaseExpiresAt || Date.parse(job?.lastAttemptAt || job?.updatedAt || listing.updatedAt || '') + JOB_LEASE_MS;
+    if (!Number.isFinite(expiry) || expiry > Date.now()) return false;
+    const message = 'Interrupted job recovered. Check remote status before publishing again; an unknown creation outcome must be reconciled.';
+    if (jobRef && job) tx.update(jobRef, { status: 'failed', recoveryRequired: true, errorMessage: message, updatedAt: now() });
+    tx.update(ref, { status: 'error', needsRemoteReconciliation: true, errorMessage: message, updatedAt: now() });
+    return true;
+  });
+}
+
 /** Hold one listing lock and await the attempt while the HTTP request is alive. */
 export async function runMarketplaceJob(listingId: string, action: SyncJobAction, options: Record<string, any> = {}) {
+  await recoverInterruptedListing(listingId);
   const jobRef = jobs().doc(), listingRef = listings().doc(listingId);
   const savedOptions = Object.keys(options).length ? validateEtsySettings(options) : {};
   await db.runTransaction(async tx => {
@@ -68,11 +87,12 @@ export async function runMarketplaceJob(listingId: string, action: SyncJobAction
     if (!snap.exists) throw new MarketplaceError('Listing not found.', 404);
     const listing = snap.data()!;
     if (listing.status === 'syncing') throw new MarketplaceError('A job is already running for this listing.', 409);
-    if (listing.platform === 'etsy' && listing.externalCreateAttempted && !listing.externalListingId) throw new MarketplaceError('Previous Etsy creation has an unknown outcome. Check Etsy and reconcile its listing ID before retrying.', 409);
+    if (listing.needsRemoteReconciliation && action !== 'check_status') throw new MarketplaceError('Check remote status before retrying this interrupted job.', 409);
+    if (action !== 'check_status' && listing.platform === 'etsy' && listing.externalCreateAttempted && !listing.externalListingId) throw new MarketplaceError('Previous Etsy creation has an unknown outcome. Check Etsy and reconcile its listing ID before retrying.', 409);
     const timestamp = now();
     tx.create(jobRef, { listingId, surfaceId: listing.surfaceId, accountId: listing.accountId, platform: listing.platform,
       qrgCode: listing.qrgCode, marketplaceSku: listing.marketplaceSku, productInstanceId: listing.productInstanceId,
-      action, status: 'queued', attempts: 0, maxAttempts: 1, createdAt: timestamp, updatedAt: timestamp });
+      action, leaseExpiresAt: Date.now() + JOB_LEASE_MS, status: 'queued', attempts: 0, maxAttempts: 1, createdAt: timestamp, updatedAt: timestamp });
     tx.update(listingRef, { status: 'syncing', lastSyncJobId: jobRef.id, updatedAt: timestamp,
       ...(Object.keys(savedOptions).length ? { publishOptions: { ...listing.publishOptions, ...savedOptions } } : {}) });
   });
@@ -92,7 +112,7 @@ export async function executeSyncJob(jobId: string): Promise<void> {
       tx.update(jobRef, { status: 'failed', errorMessage: 'Listing is missing or owned by another job.', updatedAt: now() });
       return null;
     }
-    tx.update(jobRef, { status: 'running', attempts: (data.attempts || 0) + 1, lastAttemptAt: now(), nextRetryAt: null, updatedAt: now() });
+    tx.update(jobRef, { status: 'running', leaseExpiresAt: Date.now() + JOB_LEASE_MS, attempts: (data.attempts || 0) + 1, lastAttemptAt: now(), nextRetryAt: null, updatedAt: now() });
     return data;
   });
   if (!job) return;
@@ -141,7 +161,7 @@ export async function executeSyncJob(jobId: string): Promise<void> {
     tx.update(jobRef, { status: result.success ? 'completed' : 'failed', result: storedResult,
       errorMessage: result.error || null, completedAt: timestamp, updatedAt: timestamp });
     tx.update(listingRef, { status: result.listingStatus, lastSyncAt: timestamp, updatedAt: timestamp,
-      errorMessage: result.error || null, ...((['ebay', 'etsy'].includes(job.platform) && result.success) || (job.platform === 'amazon' && result.amazonItems && ['check_status', 'delete'].includes(job.action)) ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
+      errorMessage: result.error || null, ...(job.action === 'check_status' && result.success ? { needsRemoteReconciliation: false } : {}), ...((['ebay', 'etsy'].includes(job.platform) && result.success) || (job.platform === 'amazon' && result.amazonItems && ['check_status', 'delete'].includes(job.action)) ? { remoteCheckedAt: timestamp, remoteStatus: result.remoteStatus || result.listingStatus } : {}),
       ...(result.amazonItems ? { amazonItems: result.amazonItems } : {}),
       ...(result.externalListingId ? { externalListingId: result.externalListingId } : {}),
       ...(result.externalUrl ? { externalUrl: result.externalUrl } : {}) });
@@ -163,12 +183,16 @@ export async function retryFailedJob(jobId: string) {
   const snap = await jobs().doc(jobId).get();
   if (!snap.exists) throw new MarketplaceError('Job not found.', 404);
   const job = snap.data()!;
-  if (job.status !== 'failed') throw new MarketplaceError('Only failed jobs can be retried.');
+  if (job.status === 'running' || job.status === 'queued') await recoverInterruptedListing(job.listingId);
+  const current = (await snap.ref.get()).data()!;
+  if (current.status !== 'failed') throw new MarketplaceError('Only failed jobs can be retried.');
   // Retain the old attempt for audit; the same locked job path owns explicit retries.
-  return runMarketplaceJob(job.listingId, job.action);
+  return runMarketplaceJob(job.listingId, current.recoveryRequired ? 'check_status' : job.action);
 }
 
 export async function processRetryQueue(): Promise<number> {
+  const running = await listings().where('status', '==', 'syncing').get();
+  for (const row of running.docs) if (await recoverInterruptedListing(row.id)) await runMarketplaceJob(row.id, 'check_status');
   const snapshot = await jobs().where('status', '==', 'queued').get();
   for (const job of snapshot.docs) await executeSyncJob(job.id);
   return snapshot.size;

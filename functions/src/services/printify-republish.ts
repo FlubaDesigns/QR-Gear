@@ -1,3 +1,4 @@
+import { validatePacketComposition, packetPrintifyArtwork } from './assembly-store';
 /**
  * printify-republish.ts
  *
@@ -28,7 +29,7 @@ export function compositeChanged(
   before: Record<string, any>,
   after: Record<string, any>
 ): boolean {
-  return COMPOSITE_FIELDS.some((field) => before[field] !== after[field]);
+  return COMPOSITE_FIELDS.some((field) => before[field] !== after[field]) || ['placementGraphicUrls', 'placementGrfIds', 'sleeveCompositeUrls'].some(field => JSON.stringify(before[field]) !== JSON.stringify(after[field]));
 }
 
 /**
@@ -55,6 +56,8 @@ export async function republishInstanceToPrintify(instanceId: string): Promise<{
     }
     const packet = packetDoc.data()!;
 
+    await validatePacketComposition(db, instance.currentPacketId, packet);
+    const artwork = await packetPrintifyArtwork(db, packet);
     const { printifyClient } = await import('./printify');
 
     const existingProduct = await printifyClient.getProduct(instance.printifyProductId);
@@ -66,23 +69,8 @@ export async function republishInstanceToPrintify(instanceId: string): Promise<{
       return { success: false, error: 'No enabled variants on existing Printify product' };
     }
 
-    const placements: string[] = packet.placements || ['front'];
-    const placeholders: Array<{
-      position: string;
-      images: Array<{ id: string; x: number; y: number; scale: number; angle: number }>;
-    }> = [];
-
-    for (const placement of placements) {
-      const urlField = PLACEMENT_URL_MAP[placement];
-      if (!urlField) {
-        console.warn(`[Republish] Unknown placement "${placement}" on instance ${instanceId} — skipping`);
-        continue;
-      }
-      const imageUrl: string | undefined = packet[urlField];
-      if (!imageUrl) {
-        console.warn(`[Republish] Placement "${placement}" has no URL (field: ${urlField}) on packet ${instance.currentPacketId} — skipping`);
-        continue;
-      }
+    const placeholders: Array<{ position: string; images: Array<{ id: string; x: number; y: number; scale: number; angle: number }> }> = [];
+    for (const { position: placement, imageUrl } of artwork) {
       const upload = await printifyClient.uploadImage(
         `${instance.currentPacketId}-${placement}-repub.png`,
         imageUrl

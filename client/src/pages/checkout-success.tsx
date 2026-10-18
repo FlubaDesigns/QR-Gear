@@ -21,9 +21,10 @@ export default function CheckoutSuccess() {
     setSessionId(params.get("session_id"));
   }, []);
 
-  const { data: orderData, isLoading, error } = useQuery<{ order: OrderWithItems; message: string }>({
+  const { data: orderData, isLoading, error } = useQuery<{ order: OrderWithItems; state: string }>({
     queryKey: ["/api/checkout/verify", sessionId],
     enabled: !!sessionId,
+    refetchInterval: query => query.state.data?.state === "confirmation_pending" && query.state.dataUpdateCount < 20 ? 3000 : false,
   });
 
   if (!sessionId) {
@@ -79,6 +80,15 @@ export default function CheckoutSuccess() {
         </div>
       </div>
     );
+  }
+
+  if (orderData.state !== "confirmed") {
+    const pending = orderData.state === "confirmation_pending";
+    return <div className="row py-16"><Card className="max-w-md mx-auto"><CardContent className="pt-6 space-y-4">
+      <h1 className="text-xl font-semibold">{pending ? "Payment received" : orderData.state === "refund_review" ? "Refund recorded" : "Payment not yet complete"}</h1>
+      <p>{pending ? "Your payment was received. We are still confirming the order details. You can check your orders while this finishes." : orderData.state === "refund_review" ? "This order has a full or partial refund. Check your order for its current status." : "This checkout has not reported a completed payment. Check your orders before trying again."}</p>
+      <Link href="/account"><Button className="w-full">View My Orders</Button></Link>
+    </CardContent></Card></div>;
   }
 
   const order = orderData.order;
@@ -168,7 +178,7 @@ export default function CheckoutSuccess() {
                   <li>1. Your order is being sent to our production partner</li>
                   <li>2. Your custom QR products will be printed and quality checked</li>
                   <li>3. You will receive shipping updates via email</li>
-                  <li>4. Typical delivery time is 5-7 business days</li>
+                  <li>4. Delivery timing depends on your product and destination</li>
                 </ul>
               </div>
             </div>

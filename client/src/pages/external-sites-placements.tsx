@@ -427,8 +427,8 @@ export function PricingSection() {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label>Platform Margin Value</Label><Input type="number" step="0.01" value={formData.platformMarginValue} onChange={(e) => setFormData({ ...formData, platformMarginValue: parseFloat(e.target.value) || 0 })} data-testid="input-pricing-marginval" /></div>
-            <div><Label>Affiliate Percent</Label><Input type="number" value={formData.affiliatePercent} onChange={(e) => setFormData({ ...formData, affiliatePercent: parseFloat(e.target.value) || 25 })} data-testid="input-pricing-affiliate" /></div>
+            <div><Label>Reserved platform margin (from retail)</Label><Input type="number" step="0.01" value={formData.platformMarginValue} onChange={(e) => setFormData({ ...formData, platformMarginValue: parseFloat(e.target.value) || 0 })} data-testid="input-pricing-marginval" /></div>
+            <div><Label>Affiliate Percent</Label><Input type="number" value={formData.affiliatePercent} onChange={(e) => setFormData({ ...formData, affiliatePercent: e.target.value === "" ? 0 : Number(e.target.value) })} data-testid="input-pricing-affiliate" /></div>
             <div>
               <Label>Rounding Mode</Label>
               <Select value={formData.roundingMode} onValueChange={(v) => setFormData({ ...formData, roundingMode: v })}>

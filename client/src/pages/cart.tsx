@@ -18,10 +18,11 @@ import type { CartItem } from "@shared/schema";
 export default function Cart() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { items: guestItems, removeItem, updateQuantity, clearCart } = useCart();
+  const { items: guestItems, removeItem, updateQuantity } = useCart();
   const [, setLocation] = useLocation();
   const [isMerging, setIsMerging] = useState(false);
   const mergeAttemptedRef = useRef(false);
+  const [mergeRetry, setMergeRetry] = useState(0);
 
   const { data: serverCartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
     queryKey: privateQueryKey("/api/cart", user?.id),
@@ -60,17 +61,17 @@ export default function Cart() {
     const runMerge = async () => {
       setIsMerging(true);
       try {
-        const addToServer = async (item: Omit<GuestCartItem, "id" | "addedAt">) => {
+        const addToServer = async (item: Omit<GuestCartItem, "id" | "addedAt"> & { guestCartId: string }) => {
           await apiRequest("POST", "/api/cart", item);
         };
         const result = await mergeGuestCartOnLogin(guestItems, addToServer);
         if (cancelled) return;
         if (result.merged > 0) {
           queryClient.invalidateQueries({ queryKey: privateQueryKey("/api/cart", user?.id) });
-          clearCart();
+          result.mergedIds.forEach(removeItem);
           toast({
-            title: "Cart merged",
-            description: `${result.merged} item${result.merged > 1 ? "s" : ""} from your guest cart have been added`,
+            title: result.failed ? "Some items still need attention" : "Cart merged",
+            description: `${result.merged} added. ${result.failed ? `${result.failed} saved guest item(s) could not be added. You can retry them below.` : "Your guest items are now in your signed-in cart."}`,
           });
         }
       } finally {
@@ -80,7 +81,7 @@ export default function Cart() {
 
     runMerge();
     return () => { cancelled = true; };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.id, mergeRetry]);
 
   const isLoadingState = authLoading || (isAuthenticated && cartLoading) || isMerging;
   const displayItems = isAuthenticated && !isMerging ? serverCartItems : guestItems;
@@ -147,6 +148,16 @@ export default function Cart() {
         description="Review your custom QR code merchandise before checkout."
       />
 
+      {isAuthenticated && guestItems.length > 0 && !isMerging && (
+        <div className="row my-4" role="status">
+          <p>{guestItems.length} guest item(s) are still saved on this device and have not been added to this account.</p>
+          <Button className="w-full min-h-12 mt-3" onClick={() => { mergeAttemptedRef.current = false; setMergeRetry(value => value + 1); }}>Retry Saved Guest Items</Button>
+          {guestItems.map(item => <div key={item.id} className="py-3 border-b">
+            <p>{String(item.customization?.productName || item.productId)} × {item.quantity}</p>
+            <Button variant="outline" className="w-full min-h-12 mt-2" onClick={() => removeItem(item.id)}>Remove Saved Guest Item</Button>
+          </div>)}
+        </div>
+      )}
       {!hasItems ? (
         <EmptyCart />
       ) : (

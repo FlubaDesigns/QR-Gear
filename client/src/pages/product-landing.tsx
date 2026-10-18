@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { CLAIM_CODE_MAX_LENGTH, isClaimCode, normalizeClaimCode } from "@shared/claimCode";
+import { renderLandingPage, type LandingPageTextStyle } from "@/features/shared/graphics/landingPageRenderer";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Zap, ChevronDown, ChevronUp } from "lucide-react";
 
 interface LandingPageData {
+  landingTextBlocks?: LandingPageTextStyle[];
+  titleStyle?: LandingPageTextStyle;
+  descriptionStyle?: LandingPageTextStyle;
   landingPageSnapshotUrl: string | null;
   qrOnlyUrl: string | null;
   qrProductState: string;
@@ -41,8 +46,8 @@ function ActivationPanel() {
   const [code, setCode] = useState("");
 
   function handleActivate() {
-    const cleaned = code.trim().toUpperCase();
-    if (cleaned.length >= 8) {
+    const cleaned = normalizeClaimCode(code);
+    if (isClaimCode(cleaned)) {
       setLocation(`/claim/${cleaned}`);
     }
   }
@@ -68,21 +73,24 @@ function ActivationPanel() {
               </Button>
             </div>
             <p className="text-xs text-slate-400">
-              Enter the activation code from your purchase email to start your 1-year hosting.
+              Enter the activation code from your purchase email to activate the hosting term included with your purchase.
             </p>
             <div className="flex gap-2">
               <Input
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="e.g. ABCD-1234"
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="Paste your full activation code"
+                aria-label="Activation code"
+                autoCapitalize="none"
+                autoCorrect="off"
                 className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono tracking-widest text-center"
-                maxLength={9}
+                maxLength={CLAIM_CODE_MAX_LENGTH}
                 data-testid="input-activation-code"
                 onKeyDown={(e) => e.key === 'Enter' && handleActivate()}
               />
               <Button
                 onClick={handleActivate}
-                disabled={code.trim().length < 8}
+                disabled={!isClaimCode(code)}
                 data-testid="button-activate"
               >
                 Activate
@@ -131,9 +139,10 @@ export default function ProductLanding() {
   const landingPage = data?.landingPage;
   const isPlayMode = landingPage?.qrProductState === "qr_play";
   const hasPlayMedia = isPlayMode && landingPage?.playMediaUrl;
+  const hasSavedCanvas = !isPlayMode && !!landingPage?.landingPageBackgroundUrl;
   const hasSnapshot = !isPlayMode && !!landingPage?.landingPageSnapshotUrl;
 
-  if (error || !data?.success || (!hasSnapshot && !hasPlayMedia)) {
+  if (error || !data?.success || (!hasSnapshot && !hasPlayMedia && !hasSavedCanvas)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4">
         <Card className="max-w-md w-full">
@@ -185,6 +194,8 @@ export default function ProductLanding() {
     );
   }
 
+  if (!hasSnapshot && hasSavedCanvas) return <SavedCanvasLanding page={landingPage!} />;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-black pb-14">
       <img
@@ -196,4 +207,21 @@ export default function ProductLanding() {
       <ActivationPanel />
     </div>
   );
+}
+
+/** Render the saved landing contract; physical print artwork is never a landing substitute. */
+export function SavedCanvasLanding({ page }: { page: LandingPageData }) {
+  const [image, setImage] = useState<string | null>(null), [failed, setFailed] = useState(false), [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true; setImage(null); setFailed(false);
+    const style = (text: string | null): LandingPageTextStyle => ({ text: text || '', fontFamily: 'Arial', fontSize: '24px', color: '#ffffff' });
+    renderLandingPage({ backgroundUrl: page.landingPageBackgroundUrl, textBlocks: page.landingTextBlocks,
+      titleStyle: page.titleStyle || style(page.landingPageTitle), descriptionStyle: page.descriptionStyle || style(page.landingPageDescription) })
+      .then(url => { if (active) setImage(url); }).catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, [page, retry]);
+  return <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white pb-14">
+    {image ? <img src={image} alt={page.landingPageTitle || 'QR Canvas'} className="max-w-full max-h-screen object-contain" /> : failed ? <><p>The selected landing image could not load.</p><Button onClick={() => setRetry(n => n + 1)}>Retry</Button></> : <Loader2 aria-label="Loading landing page" className="animate-spin" />}
+    <ActivationPanel />
+  </div>;
 }

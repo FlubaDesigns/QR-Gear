@@ -170,16 +170,6 @@ app.post('/admin/orders/:id/submit-to-printify', requireAdmin, async (req: Reque
     
     const order = orderDoc.data()!;
     
-    // Check if already submitted
-    if (order.printifyOrderId) {
-      res.json({ 
-        success: true, 
-        message: 'Order already submitted to Printify',
-        printifyOrderId: order.printifyOrderId 
-      });
-      return;
-    }
-    
     // Get shipping address from order or request body
     let shippingAddress = order.shippingAddress || req.body.shippingAddress;
     

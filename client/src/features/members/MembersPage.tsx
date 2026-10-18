@@ -1,3 +1,4 @@
+import { MemberOnboarding } from './MemberOnboarding';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { MemberDynamics } from './MemberDynamics';
 import { useState, useEffect, useRef, Component, lazy, Suspense, type ErrorInfo, type ReactNode } from "react";
@@ -168,22 +169,14 @@ function useTempPacketClaim({
   }, [onboardingComplete, tempPacketId, userId]);
 }
 
-function MembersShell() {
+export function MembersShell() {
   const { isLoading: authLoading } = useAuth();
   const [connectHandoff] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return ['connect_refresh', 'connect_return', 'connect_error'].some(key => params.has(key));
   });
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-400" />
-      </div>
-    );
-  }
-
-  const content = <WizardProvider><MembersController /></WizardProvider>;
+  const content = <WizardProvider>{authLoading ? <LazyFallback /> : <MembersController />}</WizardProvider>;
   return connectHandoff ? <ProtectedRoute requireAdmin={false}>{content}</ProtectedRoute> : content;
 }
 
@@ -202,13 +195,6 @@ function MembersController() {
 
   const { isLoading, isAuthenticated, userId, onboardingComplete, profileError, refreshProfile } = useMemberRuntimeState();
 
-  useEffect(() => {
-    if (profileError) return;
-    if (!isLoading && isAuthenticated && userId && !onboardingComplete) {
-      const params = window.location.search;
-      setLocation(`/member${params}`);
-    }
-  }, [isLoading, isAuthenticated, userId, onboardingComplete, profileError, setLocation]);
 
   useTempPacketClaim({
     userId,
@@ -264,7 +250,11 @@ function MembersController() {
     );
   }
 
-  if (isAuthenticated && (isLoading || !onboardingComplete)) {
+  if (isAuthenticated && !isLoading && !onboardingComplete) {
+    return <MemberOnboarding userId={userId} onComplete={() => refreshProfile()} />;
+  }
+
+  if (isAuthenticated && isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%)' }}>
         <Loader2 className="h-8 w-8 animate-spin text-blue-400" />

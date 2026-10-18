@@ -129,22 +129,24 @@ export function useCart(): CartContextValue {
 
 export async function mergeGuestCartOnLogin(
   guestItems: GuestCartItem[],
-  addToServerCart: (item: Omit<GuestCartItem, "id" | "addedAt">) => Promise<void>
-): Promise<{ merged: number; failed: number }> {
+  addToServerCart: (item: Omit<GuestCartItem, "id" | "addedAt"> & { guestCartId: string }) => Promise<void>
+): Promise<{ merged: number; failed: number; mergedIds: string[]; failedIds: string[] }> {
   let merged = 0;
   let failed = 0;
+  const mergedIds: string[] = [], failedIds: string[] = [];
   for (const item of guestItems) {
     try {
       await addToServerCart({
+        guestCartId: item.id,
         productId: item.productId,
         quantity: item.quantity,
         price: item.price,
         customization: item.customization,
       });
-      merged++;
+      merged++; mergedIds.push(item.id);
     } catch {
-      failed++;
+      failed++; failedIds.push(item.id);
     }
   }
-  return { merged, failed };
+  return { merged, failed, mergedIds, failedIds };
 }
