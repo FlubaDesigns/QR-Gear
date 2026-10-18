@@ -1,3 +1,4 @@
+import { isPublicMemberPacket } from '../services/publication';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -28,10 +29,11 @@ app.get('/p/:packetId', async (req: Request, res: Response, next: NextFunction):
     const isCrawler = /facebookexternalhit|Twitterbot|LinkedInBot|Discordbot|Slackbot|TelegramBot|WhatsApp/i.test(userAgent);
     if (!isCrawler) { next(); return; }
     const packetDoc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
+    if (!packetDoc.exists || !await isPublicMemberPacket(packetId, packetDoc.data())) { res.status(404).json({ error: 'Packet not found' }); return; }
     let title = 'QR Gear - Dynamic QR Experience';
     let description = 'Scan to discover personalized content';
     let ogImage = 'https://qrgear-c1ffd.web.app/og-default.png';
-    const canonicalUrl = `https://qrgear-c1ffd.web.app/p/${packetId}`;
+    const canonicalUrl = `https://qrgear-c1ffd.web.app/p/${encodeURIComponent(packetId)}`;
     if (packetDoc.exists) {
       const packet = packetDoc.data();
       if (packet) {
@@ -46,7 +48,7 @@ app.get('/p/:packetId', async (req: Request, res: Response, next: NextFunction):
         ogImage = packet.shareCardUrl || packet.compositeUrl || packet.videoSource?.posterUrl || packet.previewUrl || ogImage;
       }
     }
-    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${escapeHtml(title)}</title><meta property="og:type" content="website"/><meta property="og:title" content="${escapeHtml(title)}"/><meta property="og:description" content="${escapeHtml(description)}"/><meta property="og:image" content="${ogImage}"/><meta property="og:url" content="${canonicalUrl}"/><meta property="og:site_name" content="QR Gear"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="${escapeHtml(title)}"/><meta name="twitter:description" content="${escapeHtml(description)}"/><meta name="twitter:image" content="${ogImage}"/><meta http-equiv="refresh" content="0;url=/app/p/${packetId}"/><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:#fff}.loading{text-align:center}.spinner{width:40px;height:40px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="loading"><div class="spinner"></div><p>Loading your QR experience...</p></div></body></html>`;
+    const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>${escapeHtml(title)}</title><meta property="og:type" content="website"/><meta property="og:title" content="${escapeHtml(title)}"/><meta property="og:description" content="${escapeHtml(description)}"/><meta property="og:image" content="${escapeHtml(String(ogImage))}"/><meta property="og:url" content="${escapeHtml(canonicalUrl)}"/><meta property="og:site_name" content="QR Gear"/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="${escapeHtml(title)}"/><meta name="twitter:description" content="${escapeHtml(description)}"/><meta name="twitter:image" content="${escapeHtml(String(ogImage))}"/><meta http-equiv="refresh" content="0;url=/app/p/${encodeURIComponent(packetId)}"/><style>body{font-family:system-ui,sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#0f172a;color:#fff}.loading{text-align:center}.spinner{width:40px;height:40px;border:3px solid #334155;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}@keyframes spin{to{transform:rotate(360deg)}}</style></head><body><div class="loading"><div class="spinner"></div><p>Loading your QR experience...</p></div></body></html>`;
     res.set('Content-Type', 'text/html');
     res.set('Cache-Control', 'public, max-age=300');
     res.send(html);

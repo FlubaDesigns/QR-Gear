@@ -1,3 +1,4 @@
+import { isPublicPacket, isVisibleLegacyLink } from '../services/publication';
 import { finalizeHostingRenewal } from '../services/hosting-renewal';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { randomBytes, createHash } from 'crypto';
@@ -140,7 +141,14 @@ app.get('/public/dynamics/resolve/:surfaceId', async (req: Request, res: Respons
     const { storeId, channelId, collectionName, rotationInterval, timezone } = surface;
     const linksSnapshot = await db.collection(STORE_PRODUCT_LINKS_COLLECTION).where("storeId", "==", storeId).where("channel", "==", channelId).where("collection", "==", collectionName).orderBy("createdAt", "asc").get();
     if (linksSnapshot.empty) { res.json({ success: true, surfaceId, isEnabled: true, activeItem: null, message: "No items in collection" }); return; }
-    const items = linksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const items = [] as any[];
+    for (const doc of linksSnapshot.docs) {
+      const link = doc.data();
+      if (!isVisibleLegacyLink(link) || typeof link.packetId !== 'string') continue;
+      const packet = (await db.collection(PRODUCT_PACKETS_COLLECTION).doc(link.packetId).get()).data();
+      if (await isPublicPacket(link.packetId, packet)) items.push({ ...link, id: doc.id });
+    }
+    if (!items.length) { res.json({ success: true, surfaceId, isEnabled: true, activeItem: null, message: 'No published items in collection' }); return; }
     const now = new Date();
     const tz = timezone || "America/New_York";
     const fmt = new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", weekday: "short", hour12: false });

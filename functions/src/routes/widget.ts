@@ -1,3 +1,4 @@
+import { isVisibleLegacyLink, isPublicLegacyProduct } from '../services/publication';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import * as jwt from 'jsonwebtoken';
@@ -57,7 +58,7 @@ app.get('/widget/session', async (req: Request, res: Response): Promise<void> =>
       .limit(6)
       .get();
     
-    const featuredProducts = snapshot.docs.map(doc => {
+    const featuredProducts = snapshot.docs.filter(doc => isPublicLegacyProduct(doc.data())).map(doc => {
       const p = doc.data();
       return {
         id: doc.id,
@@ -187,7 +188,7 @@ app.get('/widget/events', async (req: Request, res: Response): Promise<void> => 
 app.get('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).get();
-    if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
+    if (!doc.exists || (!doc.data()?.status || !isVisibleLegacyLink(doc.data()))) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
     res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() } });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
@@ -195,7 +196,7 @@ app.get('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Promis
 app.get('/widget/mosaics/:mosaicId/moments', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection(MOSAICS_COLLECTION).doc(req.params.mosaicId).get();
-    if (!doc.exists) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
+    if (!doc.exists || (!doc.data()?.status || !isVisibleLegacyLink(doc.data()))) { res.status(404).json({ ok: false, error: "Mosaic not found" }); return; }
     const entries = doc.data()?.entries || [];
     const moments = entries.sort((a: any, b: any) => a.day - b.day);
     res.json({ ok: true, mosaic: { id: doc.id, ...doc.data() }, moments });
@@ -230,7 +231,7 @@ app.patch('/widget/mosaics/:mosaicId', async (req: Request, res: Response): Prom
 app.get('/widget/stores/:storeId/mosaics', async (req: Request, res: Response): Promise<void> => {
   try {
     const snap = await db.collection(MOSAICS_COLLECTION).where('storeId', '==', req.params.storeId).get();
-    res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })) });
+    res.json({ ok: true, mosaics: snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((m: any) => m.status && isVisibleLegacyLink(m)) });
   } catch (e: any) { res.status(500).json({ ok: false, error: e.message }); }
 });
 

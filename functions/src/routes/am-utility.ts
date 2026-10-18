@@ -249,7 +249,7 @@ app.get('/qr/image', async (req: Request, res: Response): Promise<void> => {
   finally { activeQrRenders--; }
 });
 
-app.get('/mockup-jobs/stats', async (req: Request, res: Response): Promise<void> => {
+app.get('/mockup-jobs/stats', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const pending = await db.collection('mockup_jobs').where('status', '==', 'pending').get();
     const processing = await db.collection('mockup_jobs').where('status', '==', 'processing').get();
@@ -258,14 +258,14 @@ app.get('/mockup-jobs/stats', async (req: Request, res: Response): Promise<void>
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/mockup-jobs/product/:productId', async (req: Request, res: Response): Promise<void> => {
+app.get('/mockup-jobs/product/:productId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const snap = await db.collection('mockup_jobs').where('productId', '==', req.params.productId).orderBy('createdAt', 'desc').limit(50).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/mockup-jobs/:jobId', async (req: Request, res: Response): Promise<void> => {
+app.get('/mockup-jobs/:jobId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('mockup_jobs').doc(req.params.jobId).get();
     if (!doc.exists) { res.status(404).json({ error: "Job not found" }); return; }

@@ -14,6 +14,7 @@ import { printfulClient, PrintfulApiError } from '../printful';
 import { fulfillOrder, syncFulfillment } from '../order-fulfillment';
 import { prepareCartOrder, finalizeCartPayment, readCartQuote } from '../order-service';
 import { saveBundle } from '../product-bundles';
+import { MEMBER_PACKETS_COLLECTION } from '../../constants';
 let store: Map<string, any>;
 const grfId = 'GRF-11442-000001';
 const cart = { userId: 'buyer', quantity: 2, price: '0.01', customization: { productId: 'instance', productSize: 'M', productColor: 'Navy', printifyVariantId: 999, productName: 'Untrusted name' } };
@@ -48,6 +49,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 async function paidOrder() { const prepared = await prepareCartOrder('buyer'); await finalizeCartPayment(payment(prepared.orderId)); return prepared; }
 describe('Store sale to Printful production', () => {
+  it('quotes a published member product from the canonical member collection', async () => {
+    store.set(`${MEMBER_PACKETS_COLLECTION}/member`, { status: 'published', memberId: 'seller', productionPacketId: 'packet' });
+    Object.assign(store.get('productPackets/packet'), { status: 'published', memberId: 'seller', memberPacketId: 'member', title: 'Member shirt', selectedColor: 'Navy', pricing: { customerPrice: 30 } });
+    store.get('cartItems/cart').customization.memberPacketId = 'member';
+    const quote = await readCartQuote('buyer');
+    expect(quote.amount).toBe(6800); expect(quote.items[0].productTitle).toBe('Member shirt');
+    store.get('productPackets/packet').memberId = 'different-owner';
+    await expect(readCartQuote('buyer')).rejects.toThrow('ownership does not match');
+  });
   it('freezes real price, exact variant and artwork, pays and submits once despite webhook replay/cart edits', async () => {
     const { orderId, items, amount } = await prepareCartOrder('buyer');
     expect(amount).toBe(6800); expect(items[0].productTitle).toBe('Saved Navy Shirt');

@@ -17,7 +17,7 @@ import { printfulClient } from '../services/printful';
   export function register(app: express.Express): void {
   // ============ STOREFRONT MOCKUP GENERATION ============
 
-app.post('/storefront/generate-mockup', async (req: Request, res: Response): Promise<void> => {
+app.post('/storefront/generate-mockup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { productId, color, qrSize, qrSizePercent } = req.body;
     
@@ -269,7 +269,7 @@ app.get('/placements', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promise<void> => {
+app.post('/mockups/get-or-generate', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
       blueprintId, 
@@ -288,23 +288,7 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
       return;
     }
 
-    const cacheKey = `${blueprintId}-${printProviderId}-${colorName}-${canonicalPlacementId}-${artworkVariant}`;
-    const cacheSnapshot = await db.collection('mockup_cache')
-      .where('cacheKey', '==', cacheKey)
-      .limit(1)
-      .get();
-    
-    if (!cacheSnapshot.empty) {
-      const cached = cacheSnapshot.docs[0].data();
-      res.json({
-        success: true,
-        mockupUrl: cached.mockupUrl,
-        lifestyleUrl: cached.lifestyleUrl,
-        fromCache: true,
-      });
-      return;
-    }
-    
+    // The canonical generator keys cached previews by artwork content and size.
     // Generate via Printful if not in cache
     if (!(await printfulClient.isConfigured)) {
       res.json({
@@ -347,7 +331,7 @@ app.post('/mockups/get-or-generate', async (req: Request, res: Response): Promis
 
 // Test endpoint: Generate priority mockup for digital proof
 
-app.get('/mockups/cached/:blueprintId/:printProviderId', async (req: Request, res: Response): Promise<void> => {
+app.get('/mockups/cached/:blueprintId/:printProviderId', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { blueprintId, printProviderId } = req.params;
     

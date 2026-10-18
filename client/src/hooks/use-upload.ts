@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import type { UppyFile } from "@uppy/core";
 import { nexusFetch } from "@/lib/nexusFetch";
+import { apiRequest } from "@/lib/queryClient";
 
 interface UploadMetadata {
   name: string;
@@ -63,18 +64,10 @@ export function useUpload(options: UseUploadOptions = {}) {
    */
   const requestUploadUrl = useCallback(
     async (file: File): Promise<UploadResponse> => {
-      const response = await nexusFetch("/api/uploads/request-url", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          contentType: file.type || "application/octet-stream",
-        }),
-        source: "upload:request-url",
-        tries: 3,
+      const response = await apiRequest("POST", "/api/uploads/request-url", {
+        name: file.name,
+        size: file.size,
+        contentType: file.type || "application/octet-stream",
       });
 
       if (!response.ok) {
@@ -167,18 +160,10 @@ export function useUpload(options: UseUploadOptions = {}) {
       headers?: Record<string, string>;
     }> => {
       // Use the actual file properties to request a per-file presigned URL
-      const response = await nexusFetch("/api/uploads/request-url", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: file.name,
-          size: file.size,
-          contentType: file.type || "application/octet-stream",
-        }),
-        source: "upload:uppy-request-url",
-        tries: 3,
+      const response = await apiRequest("POST", "/api/uploads/request-url", {
+        name: file.name,
+        size: file.size,
+        contentType: file.type || "application/octet-stream",
       });
 
       if (!response.ok) {

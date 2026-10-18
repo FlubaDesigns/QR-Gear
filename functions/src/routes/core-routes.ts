@@ -1,3 +1,4 @@
+import { isPublicLegacyProduct } from '../services/publication';
 import { createHash } from 'crypto';
 import { publicPartner } from '../services/partner-api';
 import { resolveColorHex } from '../../../shared/colorUtils';
@@ -45,7 +46,7 @@ app.get('/products', async (req: Request, res: Response): Promise<void> => {
       query = query.where('isFeatured', '==', true);
     }
     const snapshot = await query.get();
-    res.json(await Promise.all(docsToArray(snapshot).map(async (product: any) => {
+    res.json(await Promise.all(docsToArray(snapshot).filter(isPublicLegacyProduct).map(async (product: any) => {
       const options = await catalogProductOptions(db, { enabledColors: product.selectedColors ?? product.availableColors ?? [], enabledSizes: product.availableSizes ?? [] }, product);
       return { ...product, ...options, selectedColors: options.availableColors, availableColorsWithHex: options.availableColors.map(name => ({ name, hex: resolveColorHex(name) })) };
     })));
@@ -63,6 +64,7 @@ app.get('/products/:id', async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const product: any = docToObject(doc);
+    if (!isPublicLegacyProduct(product)) { res.status(404).json({ error: 'Product not found' }); return; }
     const options = await catalogProductOptions(db, { enabledColors: product.selectedColors ?? product.availableColors ?? [], enabledSizes: product.availableSizes ?? [] }, product);
     res.json({ ...product, ...options, selectedColors: options.availableColors, availableColorsWithHex: options.availableColors.map(name => ({ name, hex: resolveColorHex(name) })) });
   } catch (error: any) {

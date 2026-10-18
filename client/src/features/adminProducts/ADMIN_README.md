@@ -432,6 +432,20 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### October 18, 2026 — Beta audit: authorization and compatibility
+
+Closed legacy public/admin boundaries and draft publication leaks; escaped social metadata; restored canonical member collection reads; fixed hosted-image display, upload authentication/contracts and refund-safe shipping sync. Current member/owner build and checkout paths retain their existing contracts. Full details and beta limitations: `docs/FULL_CODEBASE_AUDIT_2026-10-18.md`. Local checks: 984 regression tests, seven database-rule tests, both type checks and 66 generated pages. Build marker: `20261018-beta-audit-boundaries`.
+
+#### Files Changed
+| File | Change |
+|------|--------|
+| `functions/src/routes/{referral,seo,images,dynamics,widget,core-routes,am-sync,am-utility,mockup-routes,members-library}.ts` | Publication, privacy and legacy administrative authorization |
+| `functions/src/services/{publication,order-fulfillment}.ts` | Canonical member collection and refund-safe sync |
+| `client/src/hooks/use-upload.ts`, `client/src/pages/view-image.tsx` | Authenticated upload and working hosted-image display |
+| `firestore.rules`, regression/emulator tests | Administrative response privacy, product visibility and compatibility coverage |
+| `functions/package-lock.json`, version/build marker | Compatible backend dependency fixes and release identity |
+
+
 ### October 18, 2026 — Compose hosting review correction
 
 Admin and member Compose selectors now offer only configured one-, three-, and five-year terms supported by QR Dynamics. Unsupported restored member selections cannot advance to a supplier preview. The shared term table also controls backend expiry; pricing values still come from Admin Pricing. This closes the unsupported-term gap found while independently reviewing QRG-054 after the QRG-001–074 repair sequence. No collection or schema changes.

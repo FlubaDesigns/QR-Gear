@@ -9,6 +9,10 @@ before(async () => {
   env = await initializeTestEnvironment({ projectId: 'demo-qrgear-rules', firestore: { rules: readFileSync(new URL('../firestore.rules', import.meta.url), 'utf8') } });
   await env.withSecurityRulesDisabled(async context => {
     await setDoc(doc(context.firestore(), 'member_profiles/owner'), { fullName: 'Owner', stripeConnectAccountId: 'acct_owner', stripePayoutsEnabled: true, isMember: true });
+    await setDoc(doc(context.firestore(), 'brain_responses/private'), { response: 'Administrative response' });
+    for (const [id, data] of Object.entries({ enabled: { isEnabled: true }, disabled: { isEnabled: false }, hidden: { isEnabled: true, isVisible: false }, draft: { isEnabled: true, status: 'draft' } })) {
+      await setDoc(doc(context.firestore(), 'products', id), data);
+    }
   });
 });
 after(async () => { await env?.cleanup(); });
@@ -43,4 +47,17 @@ test('tutorial values remain typed and an administrator retains controlled acces
   const ref = doc(env.authenticatedContext('admin', { role: 'admin' }).firestore(), 'member_profiles/admin-created');
   await assertSucceeds(setDoc(ref, { stripeConnectAccountId: 'acct_admin_created' }));
   await assertSucceeds(deleteDoc(ref));
+});
+test('public product reads preserve enabled legacy products and exclude disabled, hidden and draft records', async () => {
+  for (const context of [env.unauthenticatedContext(), env.authenticatedContext('other')]) {
+    await assertSucceeds(getDoc(doc(context.firestore(), 'products/enabled')));
+    for (const id of ['disabled', 'hidden', 'draft']) await assertFails(getDoc(doc(context.firestore(), 'products', id)));
+  }
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('admin', { role: 'admin' }).firestore(), 'products/draft')));
+});
+test('administrative Brain responses are not readable by ordinary signed-in accounts', async () => {
+  for (const context of [env.unauthenticatedContext(), env.authenticatedContext('other')]) {
+    await assertFails(getDoc(doc(context.firestore(), 'brain_responses/private')));
+  }
+  await assertSucceeds(getDoc(doc(env.authenticatedContext('admin', { role: 'admin' }).firestore(), 'brain_responses/private')));
 });

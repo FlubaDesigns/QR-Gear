@@ -11,7 +11,7 @@ import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
 import { getCatalogInstancePrice, getSizeUpcharges, validateBrandLabel } from './pricing';
 import { freezeProductionSource, prepareDynamicsOrderItems } from './dynamics-order';
-import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
+import { MEMBER_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 
 /** Freeze server-owned catalog data, never cart-supplied prices or provider IDs. */
 export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string; ownerId: string }) {
@@ -20,7 +20,7 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   const instanceId = ownerBuild?.packetId || memberPacketId || c.instanceId || c.linkId || c.productId;
   if (typeof instanceId !== 'string' || !instanceId || instanceId.includes('/')) throw new Error('The cart item needs a saved catalog product.');
   if (!Number.isSafeInteger(cart.quantity) || cart.quantity <= 0) throw new Error('Choose a positive whole-number quantity.');
-  const instance = (await db.collection(ownerBuild ? 'productPackets' : memberPacketId ? 'member_packets' : 'admin_catalog_instances').doc(instanceId).get()).data();
+  const instance = (await db.collection(ownerBuild ? 'productPackets' : memberPacketId ? MEMBER_PACKETS_COLLECTION : 'admin_catalog_instances').doc(instanceId).get()).data();
   if (!instance || instance.isVisible === false || instance.isActive === false || ['archived', 'deleted'].includes(instance.status)) throw new Error('This catalog product is unavailable.');
   if (memberPacketId && instance.status !== 'published') throw new Error('This member product is not published.');
   if (ownerBuild && (instance.ownerType !== 'owner' || instance.ownerId !== ownerBuild.ownerId || instance.status !== 'ready')) throw new Error('This owner build is not ready for your checkout.');
@@ -160,7 +160,13 @@ export async function syncFulfillment(orderId: string) {
   if (!order || order.routedProvider !== 'printful' || !order.providerOrderId) throw new Error('No Printful order has been submitted.');
   const remote = await printfulClient.getOrder(String(order.providerOrderId));
   if (remote.external_id !== orderId) throw new Error('Provider order identity does not match.');
-  const updates = providerUpdates(remote);
-  await ref.update(updates);
-  return updates;
+  return db.runTransaction(async tx => {
+    const current = (await tx.get(ref)).data();
+    if (!current || current.routedProvider !== 'printful' || String(current.providerOrderId) !== String(remote.id)) throw new Error('Provider order binding changed; refresh before syncing.');
+    const updates = providerUpdates(remote);
+    // A refund may arrive while the provider request is in flight. Keep its hold/status.
+    if (current.productionHold || ['refunded', 'refund_review', 'cancelled'].includes(current.status) || ['refunded', 'partially_refunded'].includes(current.paymentStatus)) updates.status = typeof current.status === 'string' ? current.status : current.paymentStatus === 'refunded' ? 'refunded' : 'on_hold';
+    tx.update(ref, updates);
+    return updates;
+  });
 }

@@ -44,9 +44,11 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
     }
 
-    // Products - public read, admin write
+    // Products - enabled published legacy products only; admin retains draft access
     match /products/{productId} {
-      allow read: if true;
+      allow read: if isAdmin() || (resource.data.isEnabled == true
+        && resource.data.get('isVisible', true) != false && resource.data.get('isActive', true) != false
+        && resource.data.get('status', null) in [null, 'active', 'published']);
       allow write: if isAdmin();
     }
 
@@ -106,9 +108,9 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Brain responses - signed-in read only (AI async response listener)
+    // Brain responses belong to the administrative AI workflow.
     match /brain_responses/{docId} {
-      allow read: if signedIn();
+      allow read: if isAdmin();
       allow write: if false;
     }
 

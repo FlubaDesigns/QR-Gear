@@ -6,7 +6,7 @@ vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'fi
 vi.mock('stripe', () => ({ default: class { paymentIntents = { retrieve: m.payment }; } }));
 import { recordChargeRefund, assertProductionPayment } from '../payment-state';
 import { finalizeCartPayment } from '../order-service';
-import { fulfillOrder } from '../order-fulfillment';
+import { fulfillOrder, syncFulfillment } from '../order-fulfillment';
 import { printfulClient } from '../printful';
 let store: Map<string, any>;
 const order = () => ({ checkoutVersion: 1, source: 'direct_cart', userId: 'buyer', paymentStatus: 'paid', paymentVerifiedAt: '2026-01-01', amountTotalCents: 4000, currency: 'usd', stripePaymentIntentId: 'pi_fixture', stripeSessionId: 'cs_fixture' });
@@ -34,4 +34,16 @@ it('permits an exact unrefunded payment and denies amount mismatch or disputes',
   const p = { status: 'succeeded', amount_received: 4000, currency: 'usd', latest_charge: charge(0) }; m.payment.mockResolvedValue(p);
   await expect(assertProductionPayment(order())).resolves.toBeUndefined(); p.latest_charge.disputed = true; await expect(assertProductionPayment(order())).rejects.toThrow('not available');
   p.latest_charge.disputed = false; p.amount_received = 1; await expect(assertProductionPayment(order())).rejects.toThrow('not available');
+});
+it('preserves a refund arriving during shipping sync while saving shipment evidence', async () => {
+  Object.assign(store.get('orders/o'), { routedProvider: 'printful', providerOrderId: '123', status: 'routed' });
+  const provider = vi.spyOn(printfulClient, 'getOrder').mockImplementation(async () => {
+    await recordChargeRefund(charge());
+    return { id: 123, external_id: 'o', status: 'fulfilled', shipments: [{ tracking_number: 'TRACK' }] } as any;
+  });
+  try {
+    const result = await syncFulfillment('o');
+    expect(result.status).toBe('refunded');
+    expect(store.get('orders/o')).toMatchObject({ status: 'refunded', paymentStatus: 'refunded', productionHold: true, trackingNumber: 'TRACK', providerStatus: 'fulfilled' });
+  } finally { provider.mockRestore(); }
 });

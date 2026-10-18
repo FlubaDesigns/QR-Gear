@@ -33,8 +33,8 @@ it('denies hidden/inactive/archived/draft aliases before provider generation', a
 });
 it('requires a published member packet bound to the exact production packet', async () => {
   const packet = { status: 'published', memberId: 'owner', memberPacketId: 'm' }; expect(await isPublicPacket('p', packet)).toBe(false);
-  store.set('member_packets/m', { status: 'published', memberId: 'owner', productionPacketId: 'p' }); expect(await isPublicPacket('p', packet)).toBe(true);
-  store.get('member_packets/m').productionPacketId = 'replacement'; expect(await isPublicPacket('p', packet)).toBe(false);
+  store.set('memberPackets/m', { status: 'published', memberId: 'owner', productionPacketId: 'p' }); expect(await isPublicPacket('p', packet)).toBe(true);
+  store.get('memberPackets/m').productionPacketId = 'replacement'; expect(await isPublicPacket('p', packet)).toBe(false);
 });
 it('protects the retained legacy design alias', async () => {
   const a = app(); expect((await request(a).get('/customs/legacy')).status).toBe(401);

@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { fetchProviderImage, setUntrustedAssetHeaders, validateImageBytes, LibraryImageError } from '../services/image-validation';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -13,6 +14,14 @@ import { printfulClient } from '../services/printful';
   import type { PrintfulMockupTask, PrintfulVariant } from '../services/printful';
   import { getResendClient, QR_GEAR_FROM_EMAIL } from '../services/email';
   import { cfGenerateCompositeImage, cfGeneratePrintifyComposite, cfUploadBufferToStorage, cfGetPreviewFontSize, cfWrapText, CF_PLACEMENT_DIMENSIONS, CF_FONT_MAP, CF_PREVIEW_CONTAINER_WIDTH, CF_PREVIEW_WIDTH, CF_PREVIEW_QR_SIZE, getCanvas, getQRCode } from '../services/composite-image';
+
+function publicImage(id: string, data: any) {
+  const date = data.createdAt?.toDate?.() ?? (data.createdAt ? new Date(data.createdAt) : null);
+  return { id, publicUrl: data.publicUrl || null, title: data.title || null, description: data.description || null,
+    businessName: data.businessName || null, businessLogo: data.businessLogo || null,
+    views: Number.isFinite(data.views) ? data.views : 0,
+    createdAt: date && Number.isFinite(date.getTime()) ? date.toISOString() : null };
+}
 
   export function register(app: express.Express): void {
   // ============ BATCH: IMAGES, PROXY, UPLOADS, CLAIMS, STORAGE ============
@@ -40,7 +49,7 @@ app.post('/images/upload', requireAuth, async (req: Request, res: Response): Pro
     validateImageBytes(buf, mimeType);
     const maxSize = 25 * 1024 * 1024;
     if (buf.length > maxSize) { res.status(400).json({ error: "Image exceeds 25MB limit" }); return; }
-    const fileName = `${Date.now()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const fileName = `${randomUUID()}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
     const bucket = admin.storage().bucket();
     const file = bucket.file(`uploads/${fileName}`);
     await file.save(buf, { metadata: { contentType: mimeType, ...(mimeType === 'image/svg+xml' ? { contentDisposition: 'attachment' } : {}) } });
@@ -54,21 +63,23 @@ app.post('/images/upload', requireAuth, async (req: Request, res: Response): Pro
 app.get('/images/:imageId', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('hosted_images').doc(req.params.imageId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Image not found" }); return; }
-    res.json({ id: doc.id, ...doc.data() });
+    if (!doc.exists || doc.data()?.isActive !== true) { res.status(404).json({ error: "Image not found" }); return; }
+    res.json(publicImage(doc.id, doc.data()));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
 app.get('/images/info/:imageId', async (req: Request, res: Response): Promise<void> => {
   try {
     const doc = await db.collection('hosted_images').doc(req.params.imageId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Image not found" }); return; }
-    res.json({ id: doc.id, ...doc.data() });
+    if (!doc.exists || doc.data()?.isActive !== true) { res.status(404).json({ error: "Image not found" }); return; }
+    res.json(publicImage(doc.id, doc.data()));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/images/user/:userId', async (req: Request, res: Response): Promise<void> => {
+app.get('/images/user/:userId', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'private, no-store');
   try {
+    if ((req as any).user.uid !== req.params.userId) { res.status(403).json({ error: 'Forbidden' }); return; }
     const snap = await db.collection('hosted_images').where('userId', '==', req.params.userId).where('isActive', '==', true).get();
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
   } catch (e: any) { res.status(500).json({ error: e.message }); }
@@ -76,16 +87,19 @@ app.get('/images/user/:userId', async (req: Request, res: Response): Promise<voi
 
 app.post('/uploads/request-url', requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, contentType } = req.body;
-    if (!name || !contentType) { res.status(400).json({ error: "Missing name or contentType" }); return; }
+    const { name, contentType, size } = req.body;
+    if (typeof name !== 'string' || !name || name.length > 255 || typeof contentType !== 'string') { res.status(400).json({ error: "Missing or invalid name or contentType" }); return; }
+    if (!Number.isSafeInteger(size) || size <= 0 || size > 25 * 1024 * 1024) { res.status(400).json({ error: 'Choose a file between 1 byte and 25 MB.' }); return; }
     const allowedUploadTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml', 'video/mp4', 'video/webm'];
     if (!allowedUploadTypes.includes(contentType)) { res.status(400).json({ error: `Invalid content type: ${contentType}` }); return; }
     const sanitizedName = name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const path = `uploads/${Date.now()}-${sanitizedName}`;
+    const path = `uploads/${(req as any).user.uid}/${randomUUID()}-${sanitizedName}`;
     const bucket = admin.storage().bucket();
     const file = bucket.file(path);
     const [uploadUrl] = await file.getSignedUrl({ action: 'write', expires: Date.now() + 15 * 60 * 1000, contentType });
-    res.json({ uploadUrl, fileUrl: `https://storage.googleapis.com/${bucket.name}/${path}`, path });
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ uploadURL: uploadUrl, objectPath: path, metadata: { name, size, contentType },
+      uploadUrl, fileUrl: `https://storage.googleapis.com/${bucket.name}/${path}`, path });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -109,4 +123,3 @@ app.get('/storage/health', async (req: Request, res: Response): Promise<void> =>
 });
 
   }
-  

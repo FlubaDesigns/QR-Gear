@@ -11,7 +11,8 @@ interface HostedImageInfo {
   businessName: string | null;
   businessLogo: string | null;
   views: number;
-  createdAt: string;
+  createdAt: string | null;
+  publicUrl: string | null;
 }
 
 export default function ViewImage() {
@@ -22,7 +23,6 @@ export default function ViewImage() {
     queryKey: ['/api/images/info', imageId],
     enabled: !!imageId,
   });
-  // Note: View count is incremented server-side when the image is loaded via GET /api/images/:id
 
   if (isLoading) {
     return (
@@ -39,7 +39,7 @@ export default function ViewImage() {
     );
   }
 
-  if (error || !imageInfo) {
+  if (error || !imageInfo?.publicUrl) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -54,12 +54,12 @@ export default function ViewImage() {
     );
   }
 
-  const imageUrl = `/api/images/${imageId}`;
-  const formattedDate = new Date(imageInfo.createdAt).toLocaleDateString('en-US', {
+  const imageUrl = imageInfo.publicUrl;
+  const formattedDate = imageInfo.createdAt ? new Date(imageInfo.createdAt).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  });
+  }) : 'Date unavailable';
 
   return (
     <div className="min-h-screen bg-background">

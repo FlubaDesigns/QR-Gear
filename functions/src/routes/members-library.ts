@@ -280,7 +280,7 @@ app.post('/members/generate-product-graphic', requireAuth, async (req: Request, 
   }
 });
 
-app.post('/public/generate-product-graphic', async (req: Request, res: Response): Promise<void> => {
+app.post('/public/generate-product-graphic', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const { qrUrl, headerStyle, footerStyle, textLayoutChoice, qrColor = 'black' } = req.body;
     if (!qrUrl) { res.status(400).json({ error: "Missing required field: qrUrl" }); return; }
@@ -316,7 +316,7 @@ app.post('/public/generate-product-graphic', async (req: Request, res: Response)
   }
 });
 
-app.post('/public/generate-mockup', async (req: Request, res: Response): Promise<void> => {
+app.post('/public/generate-mockup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       tempPacketId, blueprintId, printProviderId, colorName, colorHex,

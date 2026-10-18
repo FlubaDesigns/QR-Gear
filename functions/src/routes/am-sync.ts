@@ -1,3 +1,4 @@
+import { isPublicLegacyProduct } from '../services/publication';
 import { saveEmailTemplate } from '../services/email-template-store';
 import { readOwnedDocument } from '../services/owned-document';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
@@ -433,7 +434,7 @@ app.get('/dynamic/:slug', async (req: Request, res: Response): Promise<void> => 
 
 // --- Misc Admin & Public Routes ---
 
-app.get('/store-product-links', async (_req: Request, res: Response): Promise<void> => {
+app.get('/store-product-links', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('store_product_links').get();
     res.json(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
@@ -526,7 +527,7 @@ app.post('/admin/channel-items/:itemId/regenerate-assets', requireAdmin, async (
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.get('/templates', async (_req: Request, res: Response): Promise<void> => {
+app.get('/templates', requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('templates').get();
     res.json(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
@@ -546,7 +547,7 @@ app.get('/admin/queue/status', requireAdmin, async (_req: Request, res: Response
 app.get('/store/products', async (_req: Request, res: Response): Promise<void> => {
   try {
     const snapshot = await db.collection('products').where('isVisible', '==', true).get();
-    res.json(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
+    res.json(snapshot.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })).filter(isPublicLegacyProduct));
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

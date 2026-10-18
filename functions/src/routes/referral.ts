@@ -1,3 +1,4 @@
+import { isPublicMemberPacket, isPublicPacket } from '../services/publication';
 import { memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -18,35 +19,12 @@ import { printfulClient } from '../services/printful';
   export function register(app: express.Express): void {
   // ============ REFERRAL TRACKING (Share & Earn — Forever) ============
 
-app.post('/public/referral/capture', async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { referrerId, buyerEmail, buyerUserId } = req.body;
-    if (!referrerId) { res.status(400).json({ error: "referrerId is required" }); return; }
-    if (!buyerEmail && !buyerUserId) { res.status(400).json({ error: "buyerEmail or buyerUserId is required" }); return; }
-    const buyerKey = buyerUserId || buyerEmail;
-    const existingQuery = await db.collection('referrals')
-      .where('buyerKey', '==', buyerKey)
-      .limit(1).get();
-    if (!existingQuery.empty) {
-      res.json({ success: true, message: 'Referral already exists', referralId: existingQuery.docs[0].id, existing: true });
-      return;
-    }
-    const referralData = {
-      referrerId,
-      buyerKey,
-      buyerEmail: buyerEmail || null,
-      buyerUserId: buyerUserId || null,
-      profitSharePercent: 25,
-      lifetime: true,
-      createdAt: new Date().toISOString(),
-    };
-    const docRef = await db.collection('referrals').add(referralData);
-    console.log(`[Referral] Captured: ${referrerId} -> ${buyerKey} (${docRef.id})`);
-    res.json({ success: true, referralId: docRef.id });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+// Attribution is established only by the verified checkout transaction.
+app.post('/public/referral/capture', (_req: Request, res: Response): void => {
+  res.status(410).json({ error: 'Referral attribution is recorded during verified checkout.' });
 });
 
-app.get('/public/referral/lookup', async (req: Request, res: Response): Promise<void> => {
+app.get('/public/referral/lookup', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
     const buyerKey = (req.query.buyerUserId || req.query.buyerEmail) as string;
     if (!buyerKey) { res.status(400).json({ error: "buyerUserId or buyerEmail required" }); return; }
@@ -62,10 +40,10 @@ app.get('/public/member-packet/:packetId', async (req: Request, res: Response): 
     const { packetId } = req.params;
     if (!packetId) { res.status(400).json({ error: "packetId is required" }); return; }
     let doc = await db.collection(MEMBER_PACKETS_COLLECTION).doc(packetId).get();
-    if (!doc.exists) {
-      doc = await db.collection('productPackets').doc(packetId).get();
-    }
-    if (!doc.exists) { res.status(404).json({ error: "Packet not found" }); return; }
+    const memberRecord = doc.exists;
+    if (!memberRecord) doc = await db.collection('productPackets').doc(packetId).get();
+    const visible = doc.exists && (memberRecord ? await isPublicMemberPacket(packetId, doc.data()) : await isPublicPacket(packetId, doc.data()));
+    if (!visible) { res.status(404).json({ error: "Packet not found" }); return; }
     const data = doc.data()?.productionPacketId ? await memberBuildProjection(packetId) : doc.data()!;
     const publicData = {
       id: doc.id,
@@ -87,36 +65,9 @@ app.get('/public/member-packet/:packetId', async (req: Request, res: Response): 
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
-app.post('/public/referral/record-earnings', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { orderId, buyerKey, orderTotal, productCost } = req.body;
-    if (!orderId || !buyerKey) { res.status(400).json({ error: "orderId and buyerKey required" }); return; }
-    const refSnap = await db.collection('referrals').where('buyerKey', '==', buyerKey).limit(1).get();
-    if (refSnap.empty) { res.json({ success: true, message: 'No referral found for buyer', earnings: 0 }); return; }
-    const referral = refSnap.docs[0].data();
-    const profit = (orderTotal || 0) - (productCost || 0);
-    if (profit <= 0) { res.json({ success: true, message: 'No profit to share', earnings: 0 }); return; }
-    const sharePercent = referral.profitSharePercent || 25;
-    const earnings = Math.round((profit * sharePercent / 100) * 100) / 100;
-    const earningsData = {
-      memberId: referral.referrerId,
-      orderId,
-      buyerKey,
-      referralId: refSnap.docs[0].id,
-      orderTotal,
-      productCost,
-      profit,
-      sharePercent,
-      earnings,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    };
-    const earningsRef = await db.collection('referral_earnings').add(earningsData);
-    console.log(`[Referral Earnings] ${referral.referrerId} earned $${earnings} from order ${orderId}`);
-    res.json({ success: true, earningsId: earningsRef.id, earnings });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+// The canonical paid-order ledger owns earnings and replay protection.
+app.post('/public/referral/record-earnings', requireAdmin, (_req: Request, res: Response): void => {
+  res.status(410).json({ error: 'Earnings are recorded from verified orders, not caller-supplied totals.' });
 });
 
-
-  }
-  
+}
