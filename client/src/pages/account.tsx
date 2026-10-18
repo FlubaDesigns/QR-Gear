@@ -1,4 +1,5 @@
-import { claimedItemStatus } from '@/lib/claimedItemStatus';
+import { PUBLIC_SHOP_PATH } from '@shared/navigation';
+import { claimedItemLifecycle, type ClaimedItemsResponse } from '@shared/claimedItems';
 import { privateQueryKey } from '@/lib/identityCache';
 import { useRef, useState } from "react";
 import { signOut } from "@/lib/firebase";
@@ -114,7 +115,7 @@ export default function Account() {
     queryKey: ["/api/products"],
   });
 
-  const { data: claimedData, isLoading: claimedLoading, isError: claimedError } = useQuery<any[]>({
+  const { data: claimedData, isLoading: claimedLoading } = useQuery<ClaimedItemsResponse>({
     queryKey: privateQueryKey("/api/claimed-instances", userId),
     enabled: !!userId,
   });
@@ -568,7 +569,7 @@ export default function Account() {
                   <p className="text-muted-foreground mb-6">
                     Add some custom QR products to your cart!
                   </p>
-                  <Link href="/products">
+                  <Link href={PUBLIC_SHOP_PATH}>
                     <Button className="btn btn-gold" data-testid="button-browse-products">
                       Browse Products
                     </Button>
@@ -612,7 +613,7 @@ export default function Account() {
                         ${cartItems.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0).toFixed(2)}
                       </span>
                     </div>
-                    <Button className="w-full btn btn-gold mt-4" data-testid="button-checkout">
+                    <Button className="w-full btn btn-gold mt-4" onClick={() => setLocation("/checkout")} data-testid="button-checkout">
                       Proceed to Checkout
                     </Button>
                   </CardContent>
@@ -636,7 +637,7 @@ export default function Account() {
                   <p className="text-muted-foreground mb-6">
                     Products you view will appear here
                   </p>
-                  <Link href="/products">
+                  <Link href={PUBLIC_SHOP_PATH}>
                     <Button className="btn btn-gold" data-testid="button-explore-products">
                       Explore Products
                     </Button>
@@ -807,15 +808,13 @@ export default function Account() {
                   <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
                 </CardContent>
               </Card>
-            ) : claimedError ? (
-              <p role="alert">Could not load your QR items. Please refresh to try again.</p>
             ) : claimedInstances.length === 0 ? (
               <Card className="glass-card">
                 <CardContent className="p-12 text-center">
                   <Zap className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
                   <h2 className="text-xl font-semibold mb-2 text-foreground">No Activated Items Yet</h2>
                   <p className="text-muted-foreground mb-6">
-                    When you receive a QR Gear product, scan its QR code and enter your activation code to claim it.
+                    When you receive a QR Gear product, scan its QR code and enter your activation code to activate the hosting term included with your purchase.
                   </p>
                   <Link href="/build">
                     <Button data-testid="button-get-qr-item">
@@ -827,7 +826,7 @@ export default function Account() {
             ) : (
               <div className="row"><div className="layout__split-3">
                 {claimedInstances.map((instance: any) => {
-                  const { isActive, isStatic, hasTerm, daysRemaining, label } = claimedItemStatus(instance);
+                  const { isActive, isStatic, daysRemaining } = claimedItemLifecycle(instance);
 
                   return (
                     <Card key={instance.id} className="glass-card" data-testid={`card-qr-item-${instance.id}`}>
@@ -847,12 +846,12 @@ export default function Account() {
                           {isActive ? (
                             <Badge className="gap-1 text-xs">
                               <Shield className="h-3 w-3" />
-                              {label}
+                              Active
                             </Badge>
                           ) : (
-                            <Badge variant="destructive" className="text-xs">{label}</Badge>
+                            <Badge variant="destructive" className="text-xs">Expired</Badge>
                           )}
-                          <span className="text-xs text-muted-foreground">{isStatic ? 'No hosting term' : daysRemaining !== null ? `${daysRemaining}d left` : 'Hosting unavailable'}</span>
+                          <span className="text-xs text-muted-foreground">{isStatic ? "Static QR — no hosting expiry" : daysRemaining == null ? "Hosting status unavailable" : `${daysRemaining}d left`}</span>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -863,12 +862,12 @@ export default function Account() {
                           >
                             View Item
                           </Button>
-                          {!isActive && hasTerm && (
+                          {!isActive && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => setLocation(`/renew/${instance.id}`)}
-                              aria-label={`Renew hosting for ${instance.productName}`}
+                              aria-label={`Renew hosting for ${instance.productName || "QR item"}`}
                               data-testid={`button-renew-item-${instance.id}`}
                             >
                               <RefreshCw className="h-3 w-3" />

@@ -1,3 +1,4 @@
+import { saveCreatorProfile, findCreatorProfile } from '../services/creator-slugs';
 import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { prepareMemberBuild, previewMemberBuild, saveMemberArtwork, commitMemberBuild, memberBuildProjection } from '../services/member-build';
 import { Request, Response, NextFunction } from 'express';
@@ -27,9 +28,9 @@ app.post('/members/profile', requireAuth, async (req: Request, res: Response): P
     const { fullName, storeName, creatorSlug, country, useCase, productInterests, socialSurfaces, primarySocial, socialHandle, contactEmail, phoneNumber, attributionSource } = req.body;
     if (!fullName || !storeName || !creatorSlug) { res.status(400).json({ error: "fullName, storeName, and creatorSlug are required" }); return; }
     const profileData = { userId, fullName, storeName, creatorSlug, country: country || '', useCase: useCase || '', productInterests: productInterests || [], socialSurfaces: socialSurfaces || [], primarySocial: primarySocial || '', socialHandle: socialHandle || '', contactEmail: contactEmail || '', phoneNumber: phoneNumber || '', attributionSource: attributionSource || '', isMember: true, memberSince: new Date().toISOString(), updatedAt: new Date().toISOString() };
-    await db.collection('member_profiles').doc(userId).set(profileData, { merge: true });
-    res.json({ success: true, profile: profileData });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const saved = await saveCreatorProfile(userId, profileData);
+    res.json({ success: true, profile: saved });
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.get('/members/profile', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -206,11 +207,11 @@ app.post('/members/:memberId/social-schedule/send-reminders', async (req: Reques
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     const profileDoc = await db.collection('member_profiles').doc(memberId).get();
     const profile = profileDoc.data();
-    let memberEmail = profile?.email || null;
+    let memberEmail = profile?.contactEmail?.trim() || profile?.email || null;
     if (!memberEmail) {
       try { const userRecord = await admin.auth().getUser(memberId); memberEmail = userRecord.email || null; } catch { }
     }
-    if (!memberEmail) { res.status(400).json({ error: 'No email address found' }); return; }
+    if (!memberEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberEmail)) { res.status(400).json({ error: 'Save a valid contact email before sending reminders.' }); return; }
     const memberName = profile?.fullName || profile?.storeName || 'Creator';
     const snapshot = await db.collection('member_social_schedule').where('memberId', '==', memberId).where('isActive', '==', true).get();
     const now = new Date();
@@ -237,23 +238,23 @@ app.post('/members/:memberId/social-schedule/send-reminders', async (req: Reques
     const itemsHtml = dueItems.map(item => `
       <div style="margin-bottom:24px;padding:16px;background:#f8f9fa;border-radius:8px;border:1px solid #e9ecef;">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-          ${item.image ? `<img src="${item.image}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;" />` : ''}
+          ${item.image ? `<img src="${escapeHtml(/^https:\/\//.test(item.image) ? item.image : "")}" alt="" style="width:60px;height:60px;object-fit:cover;border-radius:6px;" />` : ''}
           <div>
-            <h3 style="margin:0;font-size:16px;color:#1a1a2e;">${item.title}</h3>
-            <p style="margin:4px 0 0;font-size:13px;color:#666;">Post to: ${item.platforms.map((p: string) => platformLabels[p] || p).join(', ')}</p>
+            <h3 style="margin:0;font-size:16px;color:#1a1a2e;">${escapeHtml(String(item.title))}</h3>
+            <p style="margin:4px 0 0;font-size:13px;color:#666;">Post to: ${escapeHtml(item.platforms.map((p: string) => platformLabels[p] || p).join(', '))}</p>
           </div>
         </div>
         <div style="padding:12px;background:#fff;border-radius:6px;margin-bottom:12px;">
-          <p style="margin:0;font-size:14px;color:#333;">${item.caption}</p>
+          <p style="margin:0;font-size:14px;color:#333;">${escapeHtml(String(item.caption))}</p>
         </div>
-        <a href="${item.shareUrl}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;">View Product</a>
+        <a href="${escapeHtml(/^https:\/\//.test(item.shareUrl) ? item.shareUrl : "")}" style="display:inline-block;padding:8px 16px;background:#2563eb;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;">View Product</a>
       </div>
     `).join('');
     const html = `
       <div style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
         <div style="padding:24px;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px 12px 0 0;">
           <h1 style="margin:0;color:#fff;font-size:22px;">Time to Post!</h1>
-          <p style="margin:8px 0 0;color:#a0aec0;font-size:14px;">Hey ${memberName}, you have ${dueItems.length} ${dueItems.length === 1 ? 'product' : 'products'} ready to share.</p>
+          <p style="margin:8px 0 0;color:#a0aec0;font-size:14px;">Hey ${escapeHtml(String(memberName))}, you have ${dueItems.length} ${dueItems.length === 1 ? 'product' : 'products'} ready to share.</p>
         </div>
         <div style="padding:24px;background:#fff;">
           ${itemsHtml}
@@ -267,12 +268,13 @@ app.post('/members/:memberId/social-schedule/send-reminders', async (req: Reques
         </div>
       </div>
     `;
-    await resend.emails.send({
+    const delivery = await resend.emails.send({
       from: QR_GEAR_FROM_EMAIL,
       to: memberEmail,
       subject: `${dueItems.length} ${dueItems.length === 1 ? 'product' : 'products'} ready to post — QR Gear`,
       html,
     });
+    if (delivery.error || !delivery.data?.id) { res.status(502).json({ error: 'The email provider did not accept the reminder. Please retry.', sent: false }); return; }
     res.json({ success: true, sent: true, itemCount: dueItems.length });
   } catch (error: any) {
     console.error('[Social Reminder Email]', error);
@@ -476,19 +478,8 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
     const { slug } = req.params;
     if (!slug) { res.status(400).json({ error: 'slug is required' }); return; }
 
-    let profileSnap: FirebaseFirestore.DocumentSnapshot | null = null;
-    let userId: string | null = null;
-
-    // Primary lookup: creatorSlug field
-    const bySlug = await db.collection('member_profiles').where('creatorSlug', '==', slug).limit(1).get();
-    if (!bySlug.empty) {
-      profileSnap = bySlug.docs[0];
-      userId = bySlug.docs[0].id;
-    } else {
-      // Fallback: treat slug as Firebase UID (doc ID)
-      const byId = await db.collection('member_profiles').doc(slug).get();
-      if (byId.exists) { profileSnap = byId; userId = byId.id; }
-    }
+    const profileSnap = await findCreatorProfile(slug);
+    const userId = profileSnap?.id;
 
     if (!profileSnap || !userId) { res.status(404).json({ error: 'Creator not found' }); return; }
 
@@ -542,7 +533,7 @@ app.get('/public/creator/:slug', async (req: Request, res: Response): Promise<vo
       items,
       channelName,
     });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 }

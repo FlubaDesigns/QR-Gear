@@ -612,7 +612,7 @@ export function SimpleBackgroundStep({
           open={showCrop}
           onOpenChange={(open) => {
             setShowCrop(open);
-            if (!open) setSelectedAsset(null);
+            // Preserve the selection when cropping is cancelled.
           }}
           onCropComplete={handleCropComplete}
           fetchImageBlob={fetchImageBlob}

@@ -1,3 +1,4 @@
+import { loginReturnPath } from '@/lib/loginReturn';
 import { MemberOnboarding } from './MemberOnboarding';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { MemberDynamics } from './MemberDynamics';
@@ -190,10 +191,18 @@ function MembersController() {
     setSelectedColor, setQrType, setSelectedPlacements, setGraphicSize,
   } = useWizardContext();
   const [, setLocation] = useLocation();
+  const [returnIntent] = useState(() => new URLSearchParams(window.location.search).has('redirect') ? loginReturnPath(window.location.search, null) : null);
   const [initialChannelId, setInitialChannelId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const { isLoading, isAuthenticated, userId, onboardingComplete, profileError, refreshProfile } = useMemberRuntimeState();
+
+  useEffect(() => {
+    if (returnIntent && isAuthenticated && !isLoading && onboardingComplete && !profileError) {
+      try { localStorage.removeItem('login_return_path'); } catch {}
+      setLocation(returnIntent);
+    }
+  }, [returnIntent, isAuthenticated, isLoading, onboardingComplete, profileError, setLocation]);
 
 
   useTempPacketClaim({

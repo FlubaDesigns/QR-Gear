@@ -151,8 +151,8 @@ export interface WizardContextType {
   setPlacementGraphicChoice: React.Dispatch<React.SetStateAction<PlacementGraphicChoice>>;
   placementSize: GraphicSize;
   setPlacementSize: React.Dispatch<React.SetStateAction<GraphicSize>>;
-  perPlacementConfigs: Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; size: GraphicSize }>;
-  setPerPlacementConfigs: React.Dispatch<React.SetStateAction<Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; size: GraphicSize }>>>;
+  perPlacementConfigs: Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; qrPositionX?: number; qrPositionY?: number; size: GraphicSize }>;
+  setPerPlacementConfigs: React.Dispatch<React.SetStateAction<Record<PlacementOption, { graphicChoice: PlacementGraphicChoice; qrPositionX?: number; qrPositionY?: number; size: GraphicSize }>>>;
   perPlacementSizes: Record<PlacementOption, GraphicSize>;
   setPerPlacementSizes: React.Dispatch<React.SetStateAction<Record<PlacementOption, GraphicSize>>>;
 
@@ -268,7 +268,7 @@ export interface WizardContextType {
   handlePlayDone: () => void;
   handleCanvasDone: () => void;
   handleProductSelect: (product: AllowedProduct) => Promise<void>;
-  generateProductMockupForType: (type: string, setMockup: (url: string) => void) => Promise<void>;
+  generateProductMockupForType: (type: string, setMockup: (url: string) => void) => Promise<boolean>;
   handleSimplePublish: () => Promise<void>;
   pendingVideoFile: File | null;
   setPendingVideoFile: React.Dispatch<React.SetStateAction<File | null>>;

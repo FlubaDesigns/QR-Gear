@@ -213,6 +213,7 @@ export default function AdminEmailTemplates() {
                       <div className="space-y-2 text-sm">
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">{template.trigger}</Badge>
+                          {templates.filter(row => row.trigger === template.trigger).length > 1 && <Badge variant="destructive">Duplicate trigger — resolve before sending</Badge>}
                         </div>
                         <p className="text-muted-foreground truncate"><strong>Subject:</strong> {template.subject}</p>
                       </div>

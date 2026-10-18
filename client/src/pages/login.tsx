@@ -1,3 +1,4 @@
+import { loginReturnPath } from '@/lib/loginReturn';
 import { PageImage } from '@/components/PageIntro';
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
@@ -8,6 +9,10 @@ import { AuthorizationEngineSignIn } from "@/components/auth/AuthorizationEngine
 export default function LoginPage() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
+  const [returnPath] = useState(() => {
+    let stored: string | null = null; try { stored = localStorage.getItem('login_return_path'); } catch {}
+    return loginReturnPath(window.location.search, stored);
+  });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -32,13 +37,8 @@ export default function LoginPage() {
       const result = await signInWithEmail(email, password);
       console.log("[Login] Success! User:", result.user?.uid);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      const returnPath = localStorage.getItem('login_return_path');
-      if (returnPath) {
-        localStorage.removeItem('login_return_path');
-        setLocation(returnPath);
-      } else {
-        setLocation("/");
-      }
+      try { localStorage.removeItem('login_return_path'); } catch {}
+      setLocation(returnPath);
     } catch (err: any) {
       console.error("[Login] Error:", err.code, err.message);
       if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
@@ -64,13 +64,8 @@ export default function LoginPage() {
       const result = await signInWithGoogle();
       console.log("[Login] Google success! User:", result.user?.uid);
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      const returnPath = localStorage.getItem('login_return_path');
-      if (returnPath) {
-        localStorage.removeItem('login_return_path');
-        setLocation(returnPath);
-      } else {
-        setLocation("/");
-      }
+      try { localStorage.removeItem('login_return_path'); } catch {}
+      setLocation(returnPath);
     } catch (err: any) {
       console.error("[Login] Google error:", err.code, err.message);
       if (err.code === "auth/popup-closed-by-user") {
@@ -179,7 +174,7 @@ export default function LoginPage() {
 
         <div className="qr-auth-footer">
           Don't have an account?{" "}
-          <Link href="/members" className="qr-auth-link" data-testid="link-register">
+          <Link href={returnPath === "/" ? "/members" : `/members?redirect=${encodeURIComponent(returnPath)}`} className="qr-auth-link" data-testid="link-register">
             Create one
           </Link>
         </div>

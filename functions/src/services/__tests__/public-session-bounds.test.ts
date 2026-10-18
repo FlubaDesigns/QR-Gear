@@ -2,11 +2,13 @@ import { beforeEach, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { database } from './composition-fixture';
-const m = vi.hoisted(() => ({ db: null as any, verify: vi.fn(), context: vi.fn() }));
-vi.mock('../../core', () => ({ db: { collection: (...a: any[]) => m.db.collection(...a), runTransaction: (...a: any[]) => m.db.runTransaction(...a) }, admin: { auth: () => ({ verifyIdToken: m.verify }), firestore: { FieldValue: { serverTimestamp: () => 'now' } } } }));
+const m = vi.hoisted(() => ({ db: null as any, verify: vi.fn(), context: vi.fn(), send: vi.fn() }));
+vi.mock('../../core', () => ({ db: { collection: (...a: any[]) => m.db.collection(...a), runTransaction: (...a: any[]) => m.db.runTransaction(...a) }, escapeHtml: (v: string) => v.replace(/</g, '&lt;'), admin: { auth: () => ({ verifyIdToken: m.verify }), firestore: { FieldValue: { serverTimestamp: () => 'now' } } } }));
 vi.mock('../embed-validation', () => ({ validateEmbedContext: m.context, DEFAULT_BUILDER_PERMISSIONS: { allowSaveDraft: true } }));
 import { registerExternalSitesPublicRoutes } from '../../routes/external-sites-public';
 import { register as utility } from '../../routes/am-utility';
+vi.mock('../email', () => ({ getResendClient: async () => ({ emails: { send: m.send } }), QR_GEAR_FROM_EMAIL: 'test@example.test' }));
+import { saveCreatorProfile, findCreatorProfile } from '../creator-slugs';
 import { register as members } from '../../routes/members';
 import { assertEmbedSession, mutateEmbedSession } from '../embed-session';
 import { verifyMemberAuthCF, verifyAuth } from '../../middleware';
@@ -49,4 +51,24 @@ it('uses revocation checking for ordinary and member adapters and rejects disabl
     expect((await request(app()).put('/members/owner/social-handles').set('Authorization', 'Bearer valid').send({ socialHandles: {} })).status).toBe(401);
   }
   expect(m.verify.mock.calls.every(args => args[1] === true)).toBe(true);
+});
+
+it('reserves normalized creator addresses and refuses historical collisions', async () => {
+ const run = m.db.runTransaction; let tail = Promise.resolve(); m.db.runTransaction = (fn: any) => { const r = tail.then(() => run(fn)); tail = r.catch(() => {}); return r; };
+ store.set('member_profiles/owner', { memberSince: '2020-01-01', stripeAccountId: 'protected' });
+ const results = await Promise.allSettled([saveCreatorProfile('owner', { creatorSlug: ' My-Shop ' }), saveCreatorProfile('other', { creatorSlug: 'my-shop' })]);
+ expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+ expect(store.get('member_profiles/owner')).toMatchObject({ creatorSlug: 'my-shop', memberSince: '2020-01-01', stripeAccountId: 'protected' });
+ await saveCreatorProfile('owner', { creatorSlug: 'new-shop' }); expect(store.has('creatorSlugs/my-shop')).toBe(false);
+ store.set('member_profiles/legacy1', { creatorSlug: 'Duplicate' }); store.set('member_profiles/legacy2', { creatorSlug: 'duplicate' });
+ await expect(findCreatorProfile('DUPLICATE')).rejects.toMatchObject({ status: 409 });
+ await expect(saveCreatorProfile('other', { creatorSlug: 'DUPLICATE' })).rejects.toMatchObject({ status: 409 });
+});
+it('uses contact email and reports delivery only after provider acceptance', async () => {
+ store.set('member_profiles/owner', { contactEmail: 'contact@example.test', email: 'old@example.test', fullName: '<Creator>' });
+ store.set('member_social_schedule/due', { memberId: 'owner', isActive: true, nextPostAt: '2000-01-01', packetId: 'p', platforms: [] });
+ m.send.mockResolvedValue({ error: { message: 'Rejected' }, data: null });
+ const send = () => request(app()).post('/members/owner/social-schedule/send-reminders').set('Authorization', 'Bearer valid');
+ expect((await send()).status).toBe(502); expect(m.send.mock.calls[0][0].to).toBe('contact@example.test'); expect(m.send.mock.calls[0][0].html).toContain('&lt;Creator>');
+ m.send.mockResolvedValue({ data: { id: 'accepted' }, error: null }); expect((await send()).body.sent).toBe(true);
 });

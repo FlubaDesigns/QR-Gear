@@ -38,12 +38,12 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>(selection?.headerStyle ?? { ...defaultTextStyle });
   const [footerStyle, setFooterStyle] = useState<TextStyleConfig>(selection?.footerStyle ?? { ...defaultTextStyle });
   const [currentPlacementIndex, setCurrentPlacementIndex] = useState(selection?.currentPlacementIndex ?? 0);
-  const [placementGraphicChoice, setCurrentPlacementGraphicChoice] = useState<PlacementGraphicChoice>(selection?.placementGraphicChoice ?? '');
-
+  const [placementGraphicChoice, setPlacementChoiceState] = useState<PlacementGraphicChoice>(selection?.placementGraphicChoice ?? '');
   const [perPlacementConfigs, setPerPlacementConfigs] = useState<Record<string, { graphicChoice: PlacementGraphicChoice }>>(selection?.perPlacementConfigs ?? {});
-  const setPlacementGraphicChoice = (choice: PlacementGraphicChoice) => {
-    setCurrentPlacementGraphicChoice(choice);
-    if (choice) setPerPlacementConfigs(previous => ({ ...previous, [currentPlacement]: { graphicChoice: choice } }));
+  const setPlacementGraphicChoice = (value: React.SetStateAction<PlacementGraphicChoice>) => {
+    const choice = typeof value === 'function' ? value(placementGraphicChoice) : value;
+    setPlacementChoiceState(choice);
+    if (choice && selectedPlacements[currentPlacementIndex]) setPerPlacementConfigs(previous => ({ ...previous, [selectedPlacements[currentPlacementIndex]]: { graphicChoice: choice } }));
   };
 
   const [qrBasicInputType, setQrBasicInputType] = useState<QRBasicInputType>(selection?.qrBasicInputType ?? '');

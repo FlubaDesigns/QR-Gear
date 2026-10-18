@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { database } from './composition-fixture';
 import { buildWorkingSnapshot } from '../../../../shared/builderSnapshot';
 vi.mock('../../core', () => ({ db: {} }));
@@ -17,10 +17,12 @@ function snapshot() {
     selectedProduct:{docId:'qrg_11001'}, selectedPlacements:['front','back','label_inside'], placementConfig:{},placementSizes:{},placementMethods:{},
     fulfillmentProvider:'printful', qrProductState:'qr_canvas' }, {selectedRole:'internal',selectedStore:null,selectedChannel:null,selectedCollection:null});
 }
-const master = {qrgBlankId:'11001',providerMappings:{printful:{productId:'71',minPrice:10,maxPrice:12},printify:{blueprintId:'12',printProviderId:'9',minPrice:6,maxPrice:7}}};
+const labelSpec = (provider: string, id = 'label_inside') => ({ id, provider, providerPlacementId: id, dimensions: { widthPx: 900, heightPx: 900, dpi: 300 } });
+beforeEach(() => { vi.mocked(printfulClient.getProduct).mockReset().mockResolvedValue({variants:[{price:'10'},{price:'12'}]} as any); });
+const master = {qrgPrintSpecs:{printful:{locations:[labelSpec('printful')]},printify:{locations:[labelSpec('printify')]}},qrgBlankId:'11001',providerMappings:{printful:{productId:'71',minPrice:10,maxPrice:12},printify:{blueprintId:'12',printProviderId:'9',minPrice:6,maxPrice:7}}};
 it('includes every applicable charge before both markups without double-charging label placement', () => {
-  expect(calculatePacketPricing(master,snapshot(),settings)).toMatchObject({baseProductCost:12,placementCost:4,textUpcharge:4,centerGraphicUpcharge:5,
-    hostingCost:8,shippingCost:4.95,brandLabelCost:0.99,subtotal:38.94,markupAmount:10.74,customerPrice:49.68});
+  expect(calculatePacketPricing(master,snapshot(),settings)).toMatchObject({baseProductCost:10,placementCost:4,textUpcharge:4,centerGraphicUpcharge:5,
+    hostingCost:8,shippingCost:4.95,brandLabelCost:0.99,subtotal:36.94,markupAmount:10.24,customerPrice:47.18});
 });
 it.each([['additionalPlacementCost','placementCost',1],['textLineUpcharge','textUpcharge',2],['centerGraphicUpcharge','centerGraphicUpcharge',1],['builtInShippingCost','shippingCost',1]] as const)(
  'changing %s changes its charge and the final price', (field,charge,count) => {
@@ -30,13 +32,13 @@ it.each([['additionalPlacementCost','placementCost',1],['textLineUpcharge','text
 it('preserves zero for every monetary setting', () => {
   const zero={...settings,markupPercent:0,markupFixed:0,additionalPlacementCost:0,textLineUpcharge:0,centerGraphicUpcharge:0,builtInShippingCost:0,memberProfitShare:0,
     hostingTiers:settings.hostingTiers.map(t=>({...t,price:0})),brandLabelPricing:{printifyInside:0,printifyOutside:0,printfulInside:0,printfulOutside:0}};
-  expect(calculatePacketPricing(master,snapshot(),zero)).toMatchObject({subtotal:12,customerPrice:12,placementCost:0,textUpcharge:0,hostingCost:0,shippingCost:0,brandLabelCost:0,markupAmount:0});
+  expect(calculatePacketPricing(master,snapshot(),zero)).toMatchObject({subtotal:10,customerPrice:10,placementCost:0,textUpcharge:0,hostingCost:0,shippingCost:0,brandLabelCost:0,markupAmount:0});
 });
 it('uses selected supplier and actual inside/outside label costs, never combined master prices', () => {
   const build=snapshot();build.metadata.fulfillmentProvider='printify';build.layoutConfig.selectedPlacements=['front','label_inside'];
-  expect(calculatePacketPricing({...master,maxPrice:999},build,settings)).toMatchObject({baseProductCost:7,brandLabelCost:0.55,placementCost:0});
-  build.layoutConfig.selectedPlacements=['front','label_inside','label_outside'];expect(calculatePacketPricing(master,build,settings).brandLabelCost).toBe(1.20);
-  build.metadata.fulfillmentProvider='printful';expect(calculatePacketPricing(master,build,settings).brandLabelCost).toBe(3.48);
+  expect(calculatePacketPricing({...master,maxPrice:999},build,settings)).toMatchObject({baseProductCost:6,brandLabelCost:0.55,placementCost:0});
+  build.layoutConfig.selectedPlacements=['front','label_outside']; const outsideMaster={...master,qrgPrintSpecs:{printify:{locations:[labelSpec('printify','label_outside')]},printful:{locations:[labelSpec('printful','label_outside')]}}}; expect(calculatePacketPricing(outsideMaster,build,settings).brandLabelCost).toBe(0.65);
+  build.metadata.fulfillmentProvider='printful';expect(calculatePacketPricing(outsideMaster,build,settings).brandLabelCost).toBe(2.49);
 });
 it('charges enabled filled zones and actual center images, and hosting only for hosted modes', () => {
   const build=snapshot();build.graphics.content.headerStyle.enabled=false;build.graphics.content.footerStyle.imageUrl='';build.graphics.content.areaImageUrl='';
@@ -55,6 +57,7 @@ it('member profit share does not discount admin retail prices', () => {
   expect(calculatePacketPricing(master,snapshot(),{...settings,memberProfitShare:0}).customerPrice).toBe(calculatePacketPricing(master,snapshot(),settings).customerPrice);
 });
 it('imports only the mapped supplier costs into QRG and converts Printify cents', async () => {
+  vi.mocked(printfulClient.getProduct).mockResolvedValue({variants:[{price:'11'},{price:'13'}]} as any);
   const {db,store}=database({'master_catalog/qrg_11001':master,'printful_products/71':{minPrice:'11.00',maxPrice:'13.00'},
     'printifyPrintProviders/12_9':{blueprintId:12,providerId:9,minCost:800,maxCost:900},'printifyPrintProviders/wrong':{blueprintId:12,providerId:10,minCost:1,maxCost:2}});
   const before=structuredClone(store);
@@ -72,16 +75,16 @@ it('always retains the automatic inside label regardless of the old position pre
 });
 
 it('does not generate a product by silently dropping its inside label', async () => {
-  const {db}=database({'testSettings/pricing':settings,'master_catalog/qrg_11001':master,'printful_products/71':{minPrice:10,maxPrice:12}});
-  await expect(priceNewPacket(db,snapshot(),'https://storage/brand.png')).rejects.toThrow('verified inside label');
+  const {db}=database({'testSettings/pricing':settings,'master_catalog/qrg_11001':{...master,qrgPrintSpecs:{}},'printful_products/71':{minPrice:10,maxPrice:12}});
+  await expect(priceNewPacket(db,snapshot(),'https://storage/brand.png')).rejects.toThrow('Refresh the QRG print areas');
 });
 
-it('imports missing QRG provider costs through a read-only catalog lookup and reuses the saved result', async () => {
+it('imports QRG provider costs through a read-only catalog lookup and refreshes on each explicit import', async () => {
   const {db,store}=database({'master_catalog/qrg_11001':{...master,providerMappings:{printful:{productId:'71'}}}});
   vi.mocked(printfulClient.getProduct).mockResolvedValue({product:{id:71},variants:[{price:'10.00'},{price:'12.00'}]} as any);
   const result=await refreshQrgProviderPricing(db,'qrg_11001','printful');
   expect(result.providerMappings.printful).toMatchObject({minPrice:10,maxPrice:12});
   expect(store.has('printful_products/71')).toBe(false);
   vi.mocked(printfulClient.getProduct).mockClear();
-  await refreshQrgProviderPricing(db,'qrg_11001','printful');expect(printfulClient.getProduct).not.toHaveBeenCalled();
+  await refreshQrgProviderPricing(db,'qrg_11001','printful');expect(printfulClient.getProduct).toHaveBeenCalledWith(71);
 });

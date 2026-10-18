@@ -74,3 +74,9 @@ it('counts the same visible catalog instances used by store channels',async()=>{
  const {db}=database({'stores/a':{name:'A'},'storeChannels/c':{storeId:'a',name:'C',productCount:0},'admin_catalog_instances/one':{storeId:'a',channelId:'c'},'admin_catalog_instances/two':{storeId:'a',channelId:'c',status:'deleted'},'admin_catalog_instances/three':{storeId:'b',channelId:'c'}});
  expect(await listStoreChannels(db,'a')).toEqual([expect.objectContaining({id:'c',productCount:1})]);
 });
+it('rejects malformed scan writes and skips corrupt historical records without breaking analytics', async () => {
+ const {db,store}=database({'qr_scan_events/good':{scanDate:new Date().toISOString(),scanCount:1,masterProductId:'qrg_11111'},'qr_scan_events/bad':{scanDate:new Date().toISOString(),scanCount:1,masterProductId:{value:'oops'}}});
+ const service=new QrAnalyticsService(db);
+ for(const input of [{masterProductId:[]},{customDesignId:'bad/id'},{qrUrl:'x'.repeat(2049)},{country:8,qrUrl:'https://example.test'}]) await expect(service.logScan(input as any)).rejects.toMatchObject({status:400});
+ expect(store.size).toBe(2);expect((await service.getSummary()).totalScans).toBe(1);expect((await service.getProductAnalytics())[0].productId).toBe('qrg_11111');
+});

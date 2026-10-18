@@ -160,7 +160,7 @@ function Router() {
       <Route path="/admin/email-templates">{() => <AdminRoute><AdminEmailTemplates /></AdminRoute>}</Route>
       <Route path="/admin/manual">{() => <AdminRoute><AdminManual /></AdminRoute>}</Route>
       <Route path="/admin/settings">{() => <AdminRoute><AdminSettings /></AdminRoute>}</Route>
-      <Route path="/admin/sales/build">{() => <AdminRoute><StoreBuild /></AdminRoute>}</Route>
+      <Route path="/admin/sales/build">{() => <AdminRoute><AdminStoreBuilder /></AdminRoute>}</Route>
       <Route path="/build/success" component={BuildSuccess} />
       <Route path="/earn" component={EarnPage} />
       <Route path="/checkout" component={Checkout} />

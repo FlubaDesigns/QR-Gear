@@ -192,48 +192,140 @@ Completion requires a successful server acknowledgment for the same signed-in us
 
 Batch marker: `20261018-audit-026-040`. Validation: 53 focused Functions tests across eight files, all 308 client tests across 53 files, and client/Functions TypeScript checks passed. Controlled tests did not create purchases, refunds, payouts, emails or provider products. Deployment is recorded separately. Earlier full Functions/shared baseline failures remain tracked under QRG-073.
 
-## QRG-041 — Claimed item account contract
+## QRG-041 — Claimed-item response and static lifecycle
 
-The list API projects document IDs and the account consumes its actual array. Static items remain active without hosting expiry or renewal prompts. Failed reads show an error. Detail reads use identity-scoped query keys. Route and status tests cover owner scoping, IDs, static items, hosted expiry and malformed dates.
+The Account page expected an envelope but received an array, and static items were treated as expired. The API and client now share a typed array contract, explicit document IDs and normalized expiry values. Static items remain active without a hosting expiry. Actual owner-scoped route tests and lifecycle checks pass.
 
 ## QRG-042 — Studio canonical state
 
-Studio reads selectedProductType, routes Product and Channel through simpleStep (the Advanced controller), edits the canonical title/content, and blocks publication until required product/content selections exist. Product/channel actions are keyboard buttons. A rendered Studio test uses a canonical product with null legacy selectedProduct and exercises Publish and navigation.
+Studio read retired product/channel fields, leaving valid builds unable to publish. It now reads the current wizard product, channel and content and navigates to the correct Advanced steps. Required fields are shown before publishing. A rendered React test starts with only canonical state and verifies the publish and edit actions.
 
-## QRG-043 — Per-placement rendering
+## QRG-043 — Per-placement artwork
 
-Owner selections persist in the draft and build request; member and owner preparation validates and stores each graphic choice in the canonical builder snapshot. The shared renderer projection omits text and decorative image zones for QR-only placements. Preview and final artwork consume that same snapshot. Advanced position sliders use saved QR coordinates; print-area dimensions use verified pixel units. Actual prepare/build projection tests cover both builders and invalid choices; provider services are fixtures.
+Full-design/QR-only choices and advanced QR coordinates now persist in the validated build snapshot and owner checkout draft. Rendering uses each placement's saved choices and coordinates; QR-only excludes decorative text/images. Coordinates are bounded to 0–100%, and print dimensions use the actual configured pixels. Actual prepare-build/render-option and owner-hook tests cover different front/back choices and reject invalid coordinates.
 
-## QRG-044 — Reusable video uploads
+## QRG-044 — Play media upload and library identity
 
-Signed-in and deferred guest uploads use the existing multipart media endpoint and require its URL response. A reusable video reference is saved through the library metadata endpoint, with acknowledged success and retryable errors. Text/plain pseudo-files are removed. Successful references are deduplicated within the current client session. Upload/metadata/retry contract tests passed.
+Guest video handoff and signed-in upload use the same multipart endpoint. It returns a real owned library asset ID and URL; saving a URL no longer creates a text file pretending to be a video. Public URL references use a dedicated validated route, and existing owned uploads are reused. Failed saves remain recoverable. Multipart route tests cover ownership, returned asset identity and reuse; no live upload occurred.
 
-## QRG-045 — Legacy widget page
+## QRG-045 — Legacy widget response
 
-The registered legacy page now presents an explicit retirement notice directing site owners to current Partner integrations. It no longer attempts to interpret an incompatible session model. The Partner API remains independent and its capabilities are not expanded.
+The unsupported legacy widget page now clearly states that it is retired. The independent Partner API boundary remains unchanged. Session-contract and signed-token tests cover retained diagnostic behavior; no legacy buying/building surface has been revived.
 
-## QRG-046 — Widget token diagnostic
+## QRG-046 — Widget token diagnostics
 
-The diagnostic uses the same signature/expiry verifier as the session endpoint. Arbitrary text, wrong signatures and expired tokens fail; valid signed fixtures succeed. Input bearer tokens are no longer echoed as a pretend payload.
+The diagnostic endpoint now verifies the same JWT signature and expiry as the session endpoint. Arbitrary, forged and expired tokens fail. Valid-token and rejection tests pass without returning the raw token.
 
-## QRG-047 — Provider credential ownership
+## QRG-047 — Central provider-key editor
 
-The impossible local Printful key editor and mutation were removed. The page retains current status/testing and links to the existing Fluba Cortex provider vault. Printify copy now identifies the same authority. No competing credential store was introduced.
+The local Printful password form was incompatible with the central key authority and rejected every save. It now directs administrators to the existing Cortex provider-key manager while retaining status checks. Source review and TypeScript/build checks pass; no credential was changed.
 
-## QRG-048 — Order reporting
+## QRG-048 — Admin order totals and work queue
 
-Revenue and spend use integer cents from paid/refund payment evidence, deduct partial refunds and exclude unpaid/full refunds. Current ready/failed work and eligible historical pending work share one reporting predicate in metrics and the queue. Held orders are excluded from production actions. Numeric totals and paid/held/refund fixtures passed.
+Revenue now sums verified paid integer cents, including exact legacy decimal amounts, and accounts for refunds. Unsupported currencies or incomplete paid/refund records are explicitly unreconciled rather than guessed. Pending work uses current fulfillment states. Actual metrics tests cover $25 + $30, unpaid exclusion, partial refunds and held/unpaid orders.
 
-## QRG-049 — Current customer history
+## QRG-049 — Current customer records
 
-Customer reporting joins users and legacy customers by explicit userId or document identity, retaining legacy customerId order lookups without guessing by email. Canonical userId ownership takes precedence. Detail totals include all matching orders while the displayed recent list remains capped at 20. Fixtures cover current accounts, deduplication and legacy detail links.
+Customer reports now include current `users` records and canonical `orders.userId` purchases. Legacy customers join only through explicit IDs, never guessed email matches. Full-history totals and the recent-order display use the same customer identity. Route tests verify a current account with paid and unpaid purchases.
 
-## QRG-050 — Unique email triggers
+## QRG-050 — Unique email-template triggers
 
-Create, PUT, PATCH and DELETE use one transactional settings writer. A shared system/email-template-writes revision serializes conflicting edits; templates remain in email_templates. Disabled duplicates also conflict with HTTP 409. Existing sender fail-closed behavior remains. Controlled concurrent create and both update methods verify uniqueness and protected admin boundaries.
+Create/edit/delete now atomically reserve and release each trigger, including disabled templates. Conflicting writes return a visible conflict instead of creating ambiguous send behavior. Existing duplicates receive a badge and remain fail-closed until an administrator chooses the correct template; none were deleted automatically. Concurrent create, edit, disabled-conflict and delete/recreate checks pass.
 
-Batch marker: `20261018-audit-041-050`. Validation: 313 client tests and 32 focused Functions tests passed, plus client/Functions type checks. Production build and deployment receipts are recorded separately. No live purchases, refunds, payouts, provider products or email sends were performed by these tests. Earlier full Functions/shared baseline failures remain QRG-073.
+## QRG-051 — Unique creator addresses
 
-## Remaining sequence
+Profile saves normalize, validate and transactionally reserve creator slugs, preserve membership age and protect existing owners. Historical mixed-case duplicates and UID collisions are detected; public lookup returns a conflict instead of selecting an arbitrary creator. Concurrent reservation, rename/release and historical-collision tests pass. Existing conflicting profiles are not silently renamed.
 
-Continue QRG-051 through QRG-074 automatically. QRG-068 was already fixed in the Firebase-only removal commit; QRG-064 needs visual verification. Preserve legacy and conditional qualifications.
+## QRG-052 — Reminder recipient and delivery acknowledgment
+
+Reminders prefer the saved contact email and validate it. Provider errors or missing acceptance IDs return a failure instead of `sent: true`; interpolated email text and links are escaped. Route tests use a mocked provider to verify recipient choice and accepted/rejected delivery. No email was sent.
+
+## QRG-053 — Tier products across categories
+
+The tier picker combines every category within Good/Better/Best and deduplicates canonical QRG identities. Products outside the first category remain selectable. A two-category fixture plus a duplicate verifies complete results.
+
+## QRG-054 — Configured Compose hosting prices
+
+Member Compose selectors load saved pricing terms and show each full-term hosting cost. Invented included prices, annual prices and savings claims were removed. Missing configuration has retry UI; progression requires a configured term. A rendered selector test verifies a saved $13.42 term and its selected ID.
+
+## QRG-055 — Canonical hosted previews
+
+Canvas, Play and Compose now preview through the same saved build/artwork pipeline as publishing, including selected placements, per-placement art, layout controls and owned media. Deferred video upload completes before preparation. Failed previews stay on the current step with an error; a QR placeholder is never presented as a supplier mockup. Review steps recheck the input fingerprint before advancing. Controlled client and backend build tests pass; no provider product was created.
+
+## QRG-056 — Measured launch readiness
+
+Static reminders no longer count as configuration blockers. Obsolete backend/auth assertions were replaced with clearly manual fulfillment, payment and customer-journey reviews. Failed setup reads cannot establish readiness. Derived-state/source review confirms an all-OK measured result clears blockers while manual review remains visible.
+
+## QRG-057 — Crop cancellation
+
+Closing the crop dialog preserves the chosen asset, returning to the visible Full Image/Crop choices. Selecting a different image still clears it explicitly. The state transition and mounted shared component were inspected; TypeScript and build checks pass.
+
+## QRG-058 — Super Simple skip-media destination
+
+Skipping hosted media now opens the direct QR Plus content editor and clears its old mockup. It no longer generates a temporary URL preview before collecting a destination. The next action uses canonical destination validation. Fresh and reused-state transitions were traced, and the canonical preview regressions pass.
+
+## QRG-059 — Legacy store builder
+
+The retained `/admin/sales/build` route now opens the canonical admin store builder. It no longer mounts the incompatible legacy POST/PATCH screen. Both entry routes resolve to the same maintained component. No existing store records were migrated or deleted.
+
+## QRG-060 — External policy assignment
+
+Host forms now edit default pricing/revenue policy IDs; placement forms edit overrides or inherit the host defaults. Existing selections survive editing, unavailable selections are visible, and failed option loading offers retry. The forms explicitly state that legacy embed checkout remains disabled. Payload/source and TypeScript checks pass; no live host or policy was changed.
+
+## QRG-061 — Failed external report reads
+
+All seven External Sites sections handle primary and supporting query failures with an actionable retry state. They do not render empty records or authoritative $0 totals while a read has failed. Hook order, error branches and type checks were verified.
+
+## QRG-062 — Scan input validation
+
+The public logger validates identifier types, allowed document IDs, lengths and optional field values before writing. Analytics skips and logs corrupt historical rows instead of passing them into Firestore lookups. Tests reject malformed writes and preserve valid analytics alongside a corrupt row. Calendar calculations also use consistent UTC boundaries, fixing the full-suite timezone discrepancy. No malformed live scan was submitted.
+
+## QRG-063 — Short-screen navigation
+
+The menu is constrained to the available dynamic viewport height, scrolls internally, prevents scroll chaining and locks the page behind it. Escape closes it. Chromium at 400×547 CSS pixels verified a 482px panel with 646px scroll content and Sign In fully visible after scrolling.
+
+## QRG-064 — Menu contrast
+
+The navigation panel now has an opaque dark background rather than content-dependent translucent glass. The same Chromium check placed a white surface behind it and confirmed the rendered opaque background; the screenshot was visually inspected. This targeted check is not a whole-site contrast certification.
+
+## QRG-065 — Targeted keyboard and accessible controls
+
+Cart, menu, account, gallery and quantity controls have names; the menu exposes expansion and its controlled navigation. Link/button nesting in the navigation was removed. Content-rights toggles and file pickers support keyboard activation; collapsible headers use native buttons separated from other header actions. Targeted text/color/range controls have names and color selection state. Rendered keyboard/collapse tests and the browser menu check pass; this is not a complete accessibility audit.
+
+## QRG-066 — Trailing-slash informational pages
+
+Editorial-image lookup normalizes trailing slashes, queries and fragments. Missing imagery is nonfatal. Chromium loaded both `/qr-basics/` and `/wedding-qr-shirts/` with their image and navigation, with no page errors. Public-page generation and discovery validation also pass.
+
+## QRG-067 — Sign-in return destinations
+
+Email and Google sign-in share one sanitized internal return-path contract. Current query intent takes precedence over old storage and is consumed after successful authentication. Unsafe external/protocol-relative/backslash targets and login/API loops are rejected. Registration links preserve current intent, and the member flow resumes it after acknowledged onboarding. Tests cover checkout, claim, stale state and unsafe targets without performing a live sign-in.
+
+## QRG-068 — Account logout already repaired
+
+This item was already fixed by the Firebase-only cleanup before these repairs: Account awaits Firebase sign-out, cancels and clears query data, then navigates away. The shared identity boundary also clears signed-in state. Current source and identity regression checks confirm the retained behavior. No duplicate logout implementation was added.
+
+## QRG-069 — Account shopping actions
+
+Browse/Explore links use the canonical shop path, and the Account cart's checkout button navigates to the supported checkout flow. Route/source and type checks pass; no purchase was started.
+
+## QRG-070 — Play mute controls
+
+The legacy direct-video view now uses labeled native playback controls, with mute state synchronized to the video. The full-screen click overlay and competing custom mute layer were removed; embedded players have titles. Source/render structure and type checks pass without opening a live scan destination.
+
+## QRG-071 — QR Plus promise consistency
+
+Terms and Privacy now describe current Basic/Plus as fixed encoded content, without QR Gear hosting expiry. Canvas, Play and Compose remain hosted and use the purchased term. Copy was compared to the builder, pricing and direct-destination implementation. This is a product-contract correction, not a legal-compliance assessment.
+
+## QRG-072 — Owner Back navigation
+
+Layout selection now returns to Generate, and Text Choice returns to Layout Mode. Eighteen reachable Back transitions are checked through the actual navigation hook, including both QR preview branches. Existing owner checkout/draft tests also pass.
+
+## QRG-073 — Full regression release gate
+
+`npm test` runs the complete client/shared and Functions suites with external network calls blocked. Both QR Gear CI and the active Fluba release controller require it before deployment. Fixtures were brought up to current provider selection, saved print specifications, fresh cost imports, public binding, session capabilities, frozen production and Stripe refund-verification contracts. The payment worker test retains real per-unit allocation while mocking external image/storage/provider boundaries. Production validation was not weakened to satisfy old fixtures. Build, type, Brain, manifest and live acceptance remain separate checks.
+
+## QRG-074 — Timing tests must reach assertions
+
+All timing fixtures use one-based slot ordering. Resolver errors throw instead of returning before the timing expectations. Separate negative cases cover zero-based ordering, invalid durations and duplicate orders. The shared suite now executes its cycle, boundary and time-remaining assertions.
+
+Final source batch marker: `20261018-audit-041-074`. Exact suite totals and deployed source/controller commits are recorded in the final delivery receipt. No tests made real purchases, refunds, payouts, emails, provider products or public scan events. Historical reconciliation holds noted above remain explicit.

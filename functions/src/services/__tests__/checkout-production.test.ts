@@ -1,9 +1,15 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { database } from './composition-fixture';
 import { parseGrfId } from '../../../../shared/GRF_engine';
-const m = vi.hoisted(() => ({ db: null as any, composition: vi.fn() }));
-vi.mock('../../core', () => ({ get db() { return m.db; }, admin: {} }));
+const m = vi.hoisted(() => ({ db: null as any, composition: vi.fn(), payment: vi.fn() }));
+vi.mock('../../core', () => ({ QR_GEAR_BRANDED_TAG_URL: 'https://files.example/brand.png', get db() { return m.db; }, admin: { firestore: { FieldValue: { serverTimestamp: () => "fixture-time" } } } }));
 vi.mock('../assembly-store', () => ({ validatePacketComposition: m.composition }));
+vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'fixture' }));
+vi.mock('stripe', () => ({ default: class { paymentIntents = { retrieve: m.payment }; } }));
+// Storage/image/assembly adapters are covered separately; retain real per-unit allocation here.
+vi.mock('../brand-label-artwork', () => ({ renderUnitBrandLabel: async () => Buffer.from('label-fixture') }));
+vi.mock('../grf-registrar', () => ({ registerGrfAsset: async (input: any) => ({ publicUrl: `https://files.example/label-${input.packetId}.png` }), registerPacketGrfAssets: async () => ({}) }));
+vi.mock('../bld-builder', () => ({ writeAutoAssembly: async () => ({}) }));
 import { printfulClient, PrintfulApiError } from '../printful';
 import { fulfillOrder, syncFulfillment } from '../order-fulfillment';
 import { prepareCartOrder, finalizeCartPayment, readCartQuote } from '../order-service';
@@ -31,6 +37,9 @@ beforeEach(() => {
     [`grf_assets/${grfId}`]: { ...parseGrfId(grfId), grfId, publicUrl: 'https://files.example/art.png' },
     'master_catalog/qrg_11111': { qrgVariants: { '0403': { colorLabel: 'Navy', sizeLabel: 'M', providerVariants: { printful: { productId: 71, variantId: 123 } } } }, qrgPrintSpecs: { printful: { locations: [{ ...layout, id: 'back', verifiedVariantIds: [123] },{...insideLayout,id:'label_inside',verifiedVariantIds:[123]}] } } },
   }); m.db = f.db; store = f.store;
+  m.db.batch = () => { const writes: Array<() => Promise<any>> = []; return { update: (ref: any, value: any) => writes.push(() => ref.update(value)), commit: async () => { for (const write of writes) await write(); } }; };
+  m.composition.mockResolvedValue({ assembly: { qrgId: '11111' } });
+  m.payment.mockImplementation(async () => { const order = [...store.entries()].find(([key]) => key.startsWith('orders/'))?.[1]; return { status: 'succeeded', amount_received: order.amountTotalCents, currency: 'usd', latest_charge: { id: 'ch_test', payment_intent: 'pi_test', paid: true, amount_refunded: 0 } }; });
   getOrder.mockRejectedValue(new PrintfulApiError(404, 'Not found'));
   getProduct.mockResolvedValue({ product: { files: [{ type: 'back' },{type:'label_inside'}] }, variants: [{ id: 123, in_stock: true }] } as any);
   createOrder.mockImplementation(async body => ({ id: 77, external_id: body.external_id, status: 'draft' }));
@@ -46,8 +55,14 @@ describe('Store sale to Printful production', () => {
     expect(m.composition).toHaveBeenCalledWith(m.db, 'packet', expect.anything());
     store.get('cartItems/cart').quantity = 9; store.get('productPackets/packet').placementGraphicUrls.back = 'https://files.example/edited.png';
     await finalizeCartPayment(payment(orderId)); await fulfillOrder(orderId);
-    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ external_id: orderId, items: [{ variant_id: 123, quantity: 2,
-      files: [{ type: 'back', url: 'https://files.example/art.png', position: { area_width: 3600, area_height: 4800, width: 3600, height: 4800, top: 0, left: 0 } },{type:'label_inside',url:'https://files.example/label.png',position:{area_width:900,area_height:900,width:900,height:900,top:0,left:0}}] }] }));
+    const production = createOrder.mock.calls[0][0];
+    expect(production.external_id).toBe(orderId); expect(production.items).toHaveLength(2);
+    for (const item of production.items) {
+      expect(item).toMatchObject({ variant_id: 123, quantity: 1 });
+      expect(item.files?.[0]).toMatchObject({ type: 'back', url: 'https://files.example/art.png', position: { area_width: 3600, area_height: 4800, width: 3600, height: 4800, top: 0, left: 0 } });
+      expect(item.files?.[1]).toMatchObject({ type: 'label_inside', url: expect.stringMatching(/^https:\/\/files.example\/label-auto-/) });
+    }
+    expect(production.items[0].files?.[1].url).not.toBe(production.items[1].files?.[1].url);
     expect(store.get('orders/' + orderId)).toMatchObject({ paymentStatus: 'paid', fulfillmentState: 'submitted', providerOrderId: '77', status: 'routed' });
     await finalizeCartPayment(payment(orderId)); await fulfillOrder(orderId);
     expect(createOrder).toHaveBeenCalledTimes(1); expect(confirmOrder).toHaveBeenCalledTimes(1); expect(store.get('cartItems/cart').quantity).toBe(9);

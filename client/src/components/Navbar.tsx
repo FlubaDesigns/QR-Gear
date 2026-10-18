@@ -79,6 +79,15 @@ export default function Navbar() {
     setSettingsOpen(false);
   }, [location]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setMenuOpen(false); };
+    document.addEventListener('keydown', close);
+    return () => { document.body.style.overflow = previous; document.removeEventListener('keydown', close); };
+  }, [menuOpen]);
+
   const navLinks = [
     { href: "/", label: "Home" },
     { href: "/build", label: "Create" },
@@ -133,17 +142,16 @@ export default function Navbar() {
 
           <div className="flex items-center gap-3">
             {isAuthenticated && (
-              <Link href={isAdmin ? "/admin" : "/account"}>
-                <Button
+              <Button asChild
                   variant="ghost"
                   size="sm"
                   className="gap-2"
+                  aria-label={isAdmin ? "Admin dashboard" : "My account"}
                   data-testid="button-user-dashboard"
-                >
+                ><Link href={isAdmin ? "/admin" : "/account"}>
                   <User className="w-4 h-4" />
                   <span className="hidden sm:inline">{isAdmin ? "Admin" : "My Account"}</span>
-                </Button>
-              </Link>
+                </Link></Button>
             )}
 
             <Button
@@ -159,8 +167,7 @@ export default function Navbar() {
               <Settings className="w-4 h-4" />
             </Button>
 
-            <Link href="/cart" data-testid="link-cart">
-              <Button variant="ghost" size="icon" className="relative">
+            <Link href="/cart" data-testid="link-cart" aria-label={`Cart, ${cartCount} items`} className="relative inline-flex items-center justify-center h-10 w-10">
                 <ShoppingCart className="w-4 h-4" />
                 {cartCount > 0 && (
                   <Badge 
@@ -170,14 +177,11 @@ export default function Navbar() {
                     {cartCount}
                   </Badge>
                 )}
-              </Button>
             </Link>
 
-            <Link href="/build" className="hidden sm:block">
-              <QRButton variant="accent" size="small" data-testid="button-get-started">
+            <Link href="/build" className="hidden sm:block px-4 py-2 rounded bg-primary text-primary-foreground" data-testid="button-get-started">
                 Get Started
-              </QRButton>
-            </Link>
+              </Link>
 
             <Button
               variant="ghost"
@@ -186,6 +190,8 @@ export default function Navbar() {
                 setMenuOpen(!menuOpen);
                 setSettingsOpen(false);
               }}
+              aria-label={menuOpen ? "Close navigation" : "Open navigation"}
+              aria-expanded={menuOpen} aria-controls="mobile-navigation"
               data-testid="button-mobile-menu"
             >
               {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -200,10 +206,10 @@ export default function Navbar() {
           onClick={() => setMenuOpen(false)}
         >
           <div 
-            className="absolute top-16 left-0 right-0 md:left-auto md:right-4 md:w-72 border-t md:border md:rounded-xl glass-card"
+            className="absolute top-16 left-0 right-0 md:left-auto md:right-4 md:w-72 border-t md:border md:rounded-xl bg-slate-950 text-white max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain"
             onClick={(e) => e.stopPropagation()}
           >
-            <nav className="container md:px-4 py-4 flex flex-col gap-2">
+            <nav id="mobile-navigation" aria-label="Main navigation" className="container md:px-4 py-4 flex flex-col gap-2">
               <div className="md:hidden flex flex-col gap-2 mb-4">
                 {navLinks.map((link) => (
                   <Link
@@ -233,19 +239,15 @@ export default function Navbar() {
                     <div className="text-sm text-muted-foreground mb-2 px-4" data-testid="text-username">
                       Signed in as {user?.firstName || user?.email || 'User'}
                     </div>
-                    <Link href="/account" onClick={() => setMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-account">
+                    <Button asChild variant="ghost" className="w-full justify-start gap-2" data-testid="link-account"><Link href="/account" onClick={() => setMenuOpen(false)}>
                         <User className="w-4 h-4" />
                         My Account
-                      </Button>
-                    </Link>
+                      </Link></Button>
                     {isAdmin && (
-                      <Link href="/admin" onClick={() => setMenuOpen(false)}>
-                        <Button variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin">
+                      <Button asChild variant="ghost" className="w-full justify-start gap-2" data-testid="link-admin"><Link href="/admin" onClick={() => setMenuOpen(false)}>
                           <Shield className="w-4 h-4" />
                           Admin Panel
-                        </Button>
-                      </Link>
+                        </Link></Button>
                     )}
                     <Button 
                       variant="ghost" 
@@ -259,21 +261,15 @@ export default function Navbar() {
                   </>
                 ) : (
                   <>
-                    <Link href="/login" onClick={() => setMenuOpen(false)}>
-                      <Button variant="ghost" className="w-full justify-start gap-2" data-testid="button-login">
+                    <Button asChild variant="ghost" className="w-full justify-start gap-2" data-testid="button-login"><Link href="/login" onClick={() => setMenuOpen(false)}>
                         <LogIn className="w-4 h-4" />
                         Sign In
-                      </Button>
-                    </Link>
+                      </Link></Button>
                   </>
                 )}
               </div>
 
-              <Link href="/build" className="mt-4 md:hidden" onClick={() => setMenuOpen(false)}>
-                <QRButton variant="accent" className="w-full" data-testid="mobile-get-started">
-                  Get Started
-                </QRButton>
-              </Link>
+              <Link href="/build" className="mt-4 md:hidden rounded bg-primary text-primary-foreground p-3 text-center" onClick={() => setMenuOpen(false)} data-testid="mobile-get-started">Get Started</Link>
             </nav>
           </div>
         </div>
@@ -318,7 +314,7 @@ export default function Navbar() {
                   <Label>Font Size: {fontSize}px</Label>
                 </div>
                 <Slider
-                  value={[fontSize]}
+                  aria-label="Text size" value={[fontSize]}
                   onValueChange={(value) => setFontSize(value[0])}
                   min={12}
                   max={24}

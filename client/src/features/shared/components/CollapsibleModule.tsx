@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, createContext, useCallback } from "react";
+import { useState, useId, useEffect, useContext, createContext, useCallback } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface CollapseAllContextValue {
@@ -52,6 +52,7 @@ export function CollapsibleModule({
   className = "",
   variant = "glass",
 }: CollapsibleModuleProps) {
+  const contentId = useId();
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const { collapseSignal, expandSignal } = useContext(CollapseAllContext);
 
@@ -70,10 +71,9 @@ export function CollapsibleModule({
   return (
     <div className={`${baseClasses} ${className}`}>
       <div
-        className="mobile-compact-module-header cursor-pointer select-none flex items-center"
-        onClick={() => setIsOpen(!isOpen)}
-        data-testid={`collapsible-header-${title.toLowerCase().replace(/\s+/g, "-")}`}
+        className="mobile-compact-module-header flex items-center"
       >
+        <button type="button" className="flex flex-1 items-center gap-2 text-left" aria-expanded={isOpen} aria-controls={contentId} onClick={() => setIsOpen(!isOpen)} data-testid={`collapsible-header-${title.toLowerCase().replace(/\s+/g, "-")}`}>
         {isOpen ? (
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         ) : (
@@ -82,13 +82,14 @@ export function CollapsibleModule({
         {icon && <span className="text-primary">{icon}</span>}
         <span className="flex-1 font-semibold text-base">{title}</span>
         {badge}
+        </button>
         {headerRight && (
           <div onClick={(e) => e.stopPropagation()}>
             {headerRight}
           </div>
         )}
       </div>
-      {isOpen && <div className="mobile-compact-module-content">{children}</div>}
+      {isOpen && <div id={contentId} className="mobile-compact-module-content">{children}</div>}
     </div>
   );
 }

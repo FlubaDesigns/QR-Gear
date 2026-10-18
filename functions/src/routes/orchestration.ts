@@ -268,9 +268,9 @@ app.post('/qr/scan', async (req: Request,res: Response) => {
   try {
     const {masterProductId,customDesignId,qrUrl,country,region}=req.body;
     if (!masterProductId && !customDesignId && !qrUrl) {res.status(400).json({error:'At least one identifier required'});return;}
-    const userAgent=req.headers['user-agent']||'';
+    const userAgent=(req.headers['user-agent'] || 'Unknown').slice(0, 512);
     await qrAnalyticsService.logScan({masterProductId,customDesignId,qrUrl,country,region,userAgent,deviceType:qrAnalyticsService.detectDeviceType(userAgent)});
     res.json({success:true});
-  } catch(e:any) {console.error('[QR Scan]',e);res.status(500).json({error:e.message});}
+  } catch(e:any) {console.error('[QR Scan]',e);res.status(e.status || 500).json({error:e.message});}
 });
 }

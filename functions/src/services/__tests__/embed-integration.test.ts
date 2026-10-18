@@ -90,6 +90,11 @@ const mockCollection = (name: string) => ({
 vi.mock('../../core', () => ({
   db: {
     collection: (name: string) => mockCollection(name),
+    runTransaction: async (fn: any) => {
+      const writes: Array<() => Promise<any>> = [];
+      const result = await fn({ get: (ref: any) => ref.get(), create: (ref: any, value: any) => writes.push(() => ref.set(value)), update: (ref: any, value: any) => writes.push(() => ref.update(value)), set: (ref: any, value: any) => writes.push(() => ref.set(value)) });
+      for (const write of writes) await write(); return result;
+    },
     batch: () => {
       const ops: typeof batchOps = [];
       return {
@@ -202,7 +207,7 @@ function seedStandardFixtures() {
   });
   seedDoc('pricingPolicies', 'policy-1', {
     name: 'Standard',
-    currency: 'USD',
+    currency: 'USD', baseCostMode: 'snapshot', baseRetailPrice: 29.99, platformMarginType: 'fixed', platformMarginValue: 0, roundingMode: 'none',
     platformFeeAmount: 2.00,
   });
   seedDoc('revenueSplits', 'split-1', {
@@ -266,7 +271,7 @@ describe('Embed Integration: session → cart → buy → confirm', () => {
     expect(res.body.id).toBeDefined();
   });
 
-  it('full flow: session → cart → buy creates attribution + payout', async () => {
+  it('session cart supports a capability while retired checkout creates no payment or earnings', async () => {
     const sessionRes = await request(app)
       .post('/public/embed/session')
       .set('Origin', 'https://testsite.com')
@@ -277,6 +282,7 @@ describe('Embed Integration: session → cart → buy → confirm', () => {
 
     const cartRes = await request(app)
       .post(`/public/embed/session/${sessionId}/cart`)
+      .set('Authorization', `Bearer ${sessionRes.body.anonToken}`)
       .set('Origin', 'https://testsite.com')
       .send({
         surfaceId: 'surface-1',
@@ -292,6 +298,7 @@ describe('Embed Integration: session → cart → buy → confirm', () => {
 
     const buyRes = await request(app)
       .post(`/public/embed/session/${sessionId}/buy`)
+      .set('Authorization', `Bearer ${sessionRes.body.anonToken}`)
       .set('Origin', 'https://testsite.com')
       .send({
         surfaceId: 'surface-1',
@@ -302,26 +309,10 @@ describe('Embed Integration: session → cart → buy → confirm', () => {
         cancelUrl: 'https://testsite.com/cancel',
       });
 
-    expect(buyRes.status).toBe(200);
-    expect(buyRes.body.checkoutUrl).toBeDefined();
-    expect(buyRes.body.stripeSessionId).toBe('cs_mock_stripe_session');
-
-    const attributions = getAllDocs('embeddedOrderAttributions');
-    expect(attributions.length).toBe(1);
-    const attrib = attributions[0].data;
-    expect(attrib.stripeCheckoutSessionId).toBe('cs_mock_stripe_session');
-    expect(attrib.status).toBe('pending_payment');
-    expect(attrib.affiliateUserId).toBe('aff-user-1');
-    expect(attrib.builderHostId).toBe('host-1');
-    expect(attrib.quantity).toBe(2);
-
-    const payouts = getAllDocs('affiliatePayoutLedger');
-    expect(payouts.length).toBe(1);
-    const payout = payouts[0].data;
-    expect(payout.orderId).toBe('cs_mock_stripe_session');
-    expect(payout.affiliateUserId).toBe('aff-user-1');
-    expect(payout.status).toBe('pending');
-    expect(payout.affiliateAmount).toBeGreaterThan(0);
+    expect(buyRes.status).toBe(410);
+    expect(buyRes.body.checkoutUrl).toBeUndefined();
+    expect(getAllDocs('embeddedOrderAttributions')).toHaveLength(0);
+    expect(getAllDocs('affiliatePayoutLedger')).toHaveLength(0);
   });
 
   it('confirm payout transitions attribution and payout to paid/approved', async () => {
@@ -410,14 +401,15 @@ describe('Embed Integration: session → cart → buy → confirm', () => {
 
     const buyRes = await request(app)
       .post(`/public/embed/session/${sessionId}/buy`)
+      .set('Authorization', `Bearer ${sessionRes.body.anonToken}`)
       .set('Origin', 'https://anywhere.com')
       .send({
         surfaceId: 'surface-1',
         quantity: 1,
       });
 
-    expect(buyRes.status).toBe(422);
-    expect(buyRes.body.error).toContain('no affiliate user resolved');
+    expect(buyRes.status).toBe(410);
+    expect(getAllDocs('embeddedOrderAttributions')).toHaveLength(0);
 
     const attributions = getAllDocs('embeddedOrderAttributions');
     expect(attributions.length).toBe(0);

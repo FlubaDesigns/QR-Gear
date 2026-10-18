@@ -130,99 +130,10 @@ export function WizardMediaSteps({
             setSimpleStep('compose-pick-items');
           }}
           publishedItemCount={publishedCanvasPlayItems.length}
-          onSkip={async () => {
+          onSkip={() => {
             setQrType('qr-plus');
-            setIsGeneratingPlusMockup(true);
-            setSimpleStep('qr-plus-mockup');
-
-            try {
-              const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-              const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
-              setQrGraphic(qrApiUrl);
-              console.log('[QR Plus] Generated qrGraphic:', qrApiUrl);
-
-              console.log('[QR Plus] Generating productGraphic with:');
-              console.log('[QR Plus]   textLayoutChoice:', textLayoutChoice);
-              console.log('[QR Plus]   headerStyle:', JSON.stringify({
-                text: headerStyle.text,
-                enabled: headerStyle.enabled,
-                color: headerStyle.color,
-                fontFamily: headerStyle.fontFamily,
-                fontSize: headerStyle.fontSize,
-              }));
-              console.log('[QR Plus]   footerStyle:', JSON.stringify({
-                text: footerStyle.text,
-                enabled: footerStyle.enabled,
-                color: footerStyle.color,
-                fontFamily: footerStyle.fontFamily,
-                fontSize: footerStyle.fontSize,
-              }));
-              const productGraphicResult = await api.generateProductGraphic({
-                qrUrl: previewUrl,
-                headerStyle: headerStyle,
-                footerStyle: footerStyle,
-                textLayoutChoice: textLayoutChoice,
-                qrColor: 'black',
-              });
-
-              console.log('[QR Plus] productGraphicResult:', JSON.stringify({
-                success: productGraphicResult.success,
-                hasProductGraphic: !!productGraphicResult.productGraphic,
-                productGraphicLength: productGraphicResult.productGraphic?.length || 0,
-                error: productGraphicResult.error,
-              }));
-
-              if (productGraphicResult.success && productGraphicResult.productGraphic) {
-                setProductGraphic(productGraphicResult.productGraphic);
-                console.log('[QR Plus] Generated productGraphic (composite), length:', productGraphicResult.productGraphic.length);
-              } else {
-                console.warn('[QR Plus] productGraphic generation failed, using qrGraphic as fallback');
-                console.warn('[QR Plus] Fallback reason - success:', productGraphicResult.success, 'hasGraphic:', !!productGraphicResult.productGraphic);
-                setProductGraphic(qrApiUrl);
-              }
-
-              const isPrintfulPlus = selectedProductType?.fulfillmentProvider === 'printful';
-              if (selectedProductType?.blueprintId && (selectedProductType?.printProviderId || isPrintfulPlus) && selectedColor) {
-                const effectiveQrSize = (graphicSize === 'small' || graphicSize === 'medium' || graphicSize === 'large') ? graphicSize : 'medium';
-                console.log('[QR Plus] Generating mockup with graphicSize:', graphicSize, '\u2192 effectiveQrSize:', effectiveQrSize, 'provider:', isPrintfulPlus ? 'printful' : 'printify');
-
-                const artworkForMockup = productGraphicResult.success && productGraphicResult.productGraphic
-                  ? productGraphicResult.productGraphic
-                  : qrApiUrl;
-
-                const mockupResult = await api.generateMockup({
-        canonicalBlankKey: selectedProductType?.canonicalBlankKey,
-                  blueprintId: selectedProductType.blueprintId,
-                  printProviderId: selectedProductType.printProviderId || 99,
-                  colorName: selectedColor,
-                  artworkUrl: artworkForMockup,
-                  placement: 'front',
-                  qrSize: effectiveQrSize,
-                  fulfillmentProvider: isPrintfulPlus ? 'printful' : 'printify',
-                });
-
-                console.log('[QR Plus] Mockup API Response:', JSON.stringify(mockupResult, null, 2));
-
-                const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-
-                if (mockupResult.success && bestUrl) {
-                  console.log('[QR Plus] SUCCESS - Setting qrPlusMockup to:', bestUrl);
-                  setQrPlusMockup(bestUrl);
-                } else {
-                  console.warn('[QR Plus] FAILED - Using QR fallback. Error:', mockupResult.error);
-                  setQrPlusMockup(qrApiUrl);
-                }
-              } else {
-                console.warn('[QR Plus] Missing product info for mockup');
-                setQrPlusMockup(qrApiUrl);
-              }
-            } catch (error) {
-              console.error('[QR Plus] Error generating mockup:', error);
-              const fallbackUrl = generateQRCodeUrl('placeholder', 200);
-              setQrPlusMockup(fallbackUrl);
-            } finally {
-              setIsGeneratingPlusMockup(false);
-            }
+            setQrPlusMockup('');
+            setSimpleStep('qr-basic-input');
           }}
         />
       )}

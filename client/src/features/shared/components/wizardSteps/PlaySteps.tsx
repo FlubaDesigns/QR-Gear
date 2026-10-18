@@ -69,7 +69,7 @@ export function PlayVideoSourceStep({
                     ? 'border-red-400 bg-red-400/5 cursor-pointer hover:border-red-300'
                     : 'border-slate-600 cursor-pointer hover:border-emerald-400'
             }`}
-            data-testid="dropzone-video-upload"
+            role="button" tabIndex={isUploading ? -1 : 0} aria-disabled={isUploading} aria-label="Choose video file" onKeyDown={event => { if (!isUploading && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); fileInputRef.current?.click(); } }} data-testid="dropzone-video-upload"
           >
             {isUploading ? (
               <div className="flex flex-col items-center gap-3">

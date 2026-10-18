@@ -118,10 +118,15 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
     return [placement, size];
   }));
   const perPlacementConfigs = Object.fromEntries(selected.map((placement: string) => {
-    const config = input.perPlacementConfigs?.[placement];
-    const graphicChoice = config ? config.graphicChoice : 'full';
-    if (!['full', 'qr-only'].includes(graphicChoice)) fail('Choose a valid placement graphic.');
-    return [placement, { graphicChoice }];
+    const saved = input.perPlacementConfigs?.[placement] || {};
+    const graphicChoice = saved.graphicChoice || 'full';
+    if (!['full', 'qr-only'].includes(graphicChoice)) fail('Choose full graphic or QR only for each placement.');
+    const value: Record<string, any> = { graphicChoice };
+    for (const key of ['qrPositionX', 'qrPositionY']) if (saved[key] != null) {
+      if (typeof saved[key] !== 'number' || !Number.isFinite(saved[key]) || saved[key] < 0 || saved[key] > 100) fail('Placement QR positions must be between 0 and 100 percent.');
+      value[key] = saved[key];
+    }
+    return [placement, value];
   }));
   const rawSnapshot = requireBuilderSnapshot({ title, description: String(input.description || ''),
     graphics: { loadedBackground: input.background ? { url: input.background } : null, content: {

@@ -178,7 +178,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
   const [placementGraphicChoice, setPlacementGraphicChoice] = useState<PlacementGraphicChoice>('');
   const [placementSize, setPlacementSize] = useState<GraphicSize>('');
   const [perPlacementConfigs, setPerPlacementConfigs] = useState<Record<PlacementOption, {
-    graphicChoice: PlacementGraphicChoice;
+    graphicChoice: PlacementGraphicChoice; qrPositionX?: number; qrPositionY?: number;
     size: GraphicSize;
   }>>({} as any);
   const [perPlacementSizes, setPerPlacementSizes] = useState<Record<PlacementOption, GraphicSize>>({} as any);
@@ -385,7 +385,7 @@ function WizardSession({ children, startTier, startNewBuild }: {
     saveQrPlusToPacket,
     handleSimplePublish,
     saveCanvasToLibrary,
-    handlePlayDone,
+    handlePlayDone, savePlayToLibrary, pricingSettings,
     handleCanvasDone,
     generateProductMockupForType,
     fetchPublishedCanvasPlayItems,
@@ -400,7 +400,8 @@ function WizardSession({ children, startTier, startNewBuild }: {
   };
 
   const canSimpleProceed = () => {
-    if (!pricingSettings || isGeneratingBasicMockup || isGeneratingPlusMockup || isPublishing || isQrBasicSaving || isQrPlusSaving) return false;
+    if (!pricingSettings || isGeneratingBasicMockup || isGeneratingPlusMockup || isGeneratingCanvasMockup || isGeneratingPlayMockup || isGeneratingComposeMockup || isPublishing || isQrBasicSaving || isQrPlusSaving) return false;
+    if (simpleStep === 'compose-hosting' && !pricingSettings.hostingTiers.some(tier => tier.code === composeHostingTerm.replace('-', '_'))) return false;
     return computeCanSimpleProceed(simpleStep, {
       selectedChannel, selectedProductType, selectedColor, selectedShirtSize,
       qrType, graphicSize, wantsHeaderFooter, textLayoutChoice, selectedPlacements,

@@ -4,8 +4,8 @@ import { pageImages } from '@/data/pageImages';
 
 export function PageImage({ compact = false }: { compact?: boolean }) {
   const [location] = useLocation();
-  const image = pageImages[location];
-  if (!image) throw new Error(`No editorial image is registered for ${location}`);
+  const image = pageImages[location.split(/[?#]/)[0].replace(/\/+$/, "") || "/"];
+  if (!image) return null;
   return (
     <figure className="m-0" data-testid="page-editorial-image">
       <img src={image.src} alt={image.alt} width={1536} height={1024}

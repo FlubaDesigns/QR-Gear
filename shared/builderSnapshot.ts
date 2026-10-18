@@ -60,6 +60,7 @@ export function buildWorkingSnapshot(state: Record<string, any>, ctx: BuilderSna
           layoutSource: p.layoutSource, sourceTable: p.sourceTable,
           providerPlacementId: p.providerPlacementId || p.providerPlacement || p.id, provider: p.provider }])),
       placementConfig: state.placementConfig,
+      perPlacementConfigs: state.perPlacementConfigs,
       placementSizes: state.placementSizes,
       placementMethods: state.placementMethods,
     },
@@ -142,7 +143,9 @@ export function packetBuildFields(value: any): Record<string, any> {
 export function productGraphicOptions(value: any, qrContent: string, placement?: string): Record<string, any> {
   const snapshot = requireBuilderSnapshot(value);
   const c = snapshot.graphics.content, sb = c.subBottomStyle || {};
-  const qrOnly = snapshot.layoutConfig.perPlacementConfigs?.[placement || snapshot.layoutConfig.selectedPlacements[0]]?.graphicChoice === 'qr-only';
+  const selected = placement || snapshot.layoutConfig.selectedPlacements[0];
+  const artwork = snapshot.layoutConfig.perPlacementConfigs?.[selected] || {};
+  const qrOnly = artwork.graphicChoice === 'qr-only';
   return {
     qrContent, qrColor: 'black', transparent: true,
     placement: placement || snapshot.layoutConfig.selectedPlacements[0],
@@ -150,8 +153,8 @@ export function productGraphicOptions(value: any, qrContent: string, placement?:
     headerStyle: !qrOnly && c.headerStyle?.enabled ? c.headerStyle : null,
     footerStyle: !qrOnly && c.footerStyle?.enabled ? c.footerStyle : null,
     backgroundColor: snapshot.qrConfig.selectedColor?.hex,
-    graphicLayoutMode: c.graphicLayoutMode,
-    qrPositionX: c.qrPositionX, qrPositionY: c.qrPositionY, qrSizePercent: c.qrSizePercent,
+    graphicLayoutMode: artwork.qrPositionX != null || artwork.qrPositionY != null ? "freeform" : c.graphicLayoutMode,
+    qrPositionX: artwork.qrPositionX ?? c.qrPositionX, qrPositionY: artwork.qrPositionY ?? c.qrPositionY, qrSizePercent: c.qrSizePercent,
     areaImageUrl: qrOnly ? null : c.areaImageUrl, areaImageMode: c.areaImageMode,
     areaImageOffsetX: c.areaImageOffsetX, areaImageOffsetY: c.areaImageOffsetY, areaImageScale: c.areaImageScale,
     subBottomEnabled: !qrOnly && sb.enabled, subBottomText: sb.text, subBottomFontFamily: sb.fontFamily,

@@ -13,7 +13,8 @@
     "layout:verify": "node scripts/verify-page-layouts.js",
     "discovery:verify": "node scripts/verify-discovery.mjs",
     "backend:verify": "node scripts/verify-firebase-backend.mjs",
-    "test:member-rules": "npx --yes firebase-tools@15.29.0 emulators:exec --only firestore --project demo-qrgear-rules --config firebase.rules-tests.json \"node --test tests/member-profile-rules.test.mjs\""
+    "test:member-rules": "npx --yes firebase-tools@15.29.0 emulators:exec --only firestore --project demo-qrgear-rules --config firebase.rules-tests.json \"node --test tests/member-profile-rules.test.mjs\"",
+    "test": "node scripts/test-regression.mjs"
   },
   "dependencies": {
     "@google-cloud/storage": "7.19.0",

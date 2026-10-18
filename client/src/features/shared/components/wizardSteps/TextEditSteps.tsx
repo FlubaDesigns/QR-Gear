@@ -145,7 +145,7 @@ export function HeaderTextEditStep({
                   <input type="range" min="0" max="100" value={headerStyle.horizontalOffset ?? 50}
                     onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
                     className="flex-1 touch-slider"
-                    style={{ touchAction: 'none' }} data-testid="slider-header-image-offset-x" />
+                    style={{ touchAction: 'none' }} aria-label="header image offset x" data-testid="slider-header-image-offset-x" />
                   <span className="text-xs text-slate-500 w-8">{headerStyle.horizontalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -153,7 +153,7 @@ export function HeaderTextEditStep({
                   <input type="range" min="0" max="100" value={headerStyle.verticalOffset ?? 50}
                     onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
                     className="flex-1 touch-slider"
-                    style={{ touchAction: 'none' }} data-testid="slider-header-image-offset-y" />
+                    style={{ touchAction: 'none' }} aria-label="header image offset y" data-testid="slider-header-image-offset-y" />
                   <span className="text-xs text-slate-500 w-8">{headerStyle.verticalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -161,7 +161,7 @@ export function HeaderTextEditStep({
                   <input type="range" min="20" max="200" value={headerStyle.imageScale ?? 100}
                     onChange={(e) => updateHeader({ imageScale: Number(e.target.value) })}
                     className="flex-1 touch-slider"
-                    style={{ touchAction: 'none' }} data-testid="slider-header-image-scale" />
+                    style={{ touchAction: 'none' }} aria-label="header image scale" data-testid="slider-header-image-scale" />
                   <span className="text-xs text-slate-500 w-8">{headerStyle.imageScale ?? 100}%</span>
                 </div>
               </div>
@@ -170,7 +170,7 @@ export function HeaderTextEditStep({
             <div
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-slate-600 rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-700/30 transition-colors"
-              data-testid="dropzone-header-upload"
+              role="button" tabIndex={0} aria-label="Upload header image" onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInputRef.current?.click(); } }} data-testid="dropzone-header-upload"
             >
               <Upload className="h-6 w-6 text-slate-400" />
               <p className="text-xs text-slate-400">Tap to upload a header image</p>
@@ -203,7 +203,7 @@ export function HeaderTextEditStep({
             maxLength={40}
             rows={2}
             className="w-full text-sm min-h-[40px] px-2 py-1.5 bg-slate-700 border border-slate-600 text-white rounded resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-            data-testid="textarea-header-text"
+            aria-label="Header text" data-testid="textarea-header-text"
           />
           <div className="flex items-center justify-between">
             <div className="text-xs text-slate-500">{charCount}/40</div>
@@ -229,7 +229,7 @@ export function HeaderTextEditStep({
                   headerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
                 }`}
                 style={{ backgroundColor: color }}
-                data-testid={`btn-header-color-${color.replace('#', '')}`}
+                aria-label={`Header color ${color}`} aria-pressed={headerStyle.color === color} data-testid={`btn-header-color-${color.replace('#', '')}`}
               />
             ))}
           </div>
@@ -272,7 +272,7 @@ export function HeaderTextEditStep({
                 type="range" min="0" max="100" value={vOffset}
                 onChange={(e) => updateHeader({ verticalOffset: Number(e.target.value) })}
                 className="flex-1 touch-slider"
-                style={{ touchAction: 'none' }} data-testid="slider-header-vertical" />
+                style={{ touchAction: 'none' }} aria-label="header vertical" data-testid="slider-header-vertical" />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-slate-400 font-bold w-3">X</span>
@@ -280,7 +280,7 @@ export function HeaderTextEditStep({
                 type="range" min="0" max="100" value={hOffset}
                 onChange={(e) => updateHeader({ horizontalOffset: Number(e.target.value) })}
                 className="flex-1 touch-slider"
-                style={{ touchAction: 'none' }} data-testid="slider-header-horizontal" />
+                style={{ touchAction: 'none' }} aria-label="header horizontal" data-testid="slider-header-horizontal" />
             </div>
           </div>
         </>
@@ -421,7 +421,7 @@ export function FooterTextEditStep({
                   <input type="range" min="0" max="100" value={footerStyle.horizontalOffset ?? 50}
                     onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
                     className="flex-1 touch-slider"
-                    style={{ touchAction: 'none' }} data-testid="slider-footer-image-offset-x" />
+                    style={{ touchAction: 'none' }} aria-label="footer image offset x" data-testid="slider-footer-image-offset-x" />
                   <span className="text-xs text-slate-500 w-8">{footerStyle.horizontalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -429,7 +429,7 @@ export function FooterTextEditStep({
                   <input type="range" min="0" max="100" value={footerStyle.verticalOffset ?? 50}
                     onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
                     className="flex-1 touch-slider"
-                    style={{ touchAction: 'none' }} data-testid="slider-footer-image-offset-y" />
+                    style={{ touchAction: 'none' }} aria-label="footer image offset y" data-testid="slider-footer-image-offset-y" />
                   <span className="text-xs text-slate-500 w-8">{footerStyle.verticalOffset ?? 50}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -437,7 +437,7 @@ export function FooterTextEditStep({
                   <input type="range" min="20" max="200" value={footerStyle.imageScale ?? 100}
                     onChange={(e) => updateFooter({ imageScale: Number(e.target.value) })}
                     className="flex-1 touch-slider"
-                    style={{ touchAction: 'none' }} data-testid="slider-footer-image-scale" />
+                    style={{ touchAction: 'none' }} aria-label="footer image scale" data-testid="slider-footer-image-scale" />
                   <span className="text-xs text-slate-500 w-8">{footerStyle.imageScale ?? 100}%</span>
                 </div>
               </div>
@@ -446,7 +446,7 @@ export function FooterTextEditStep({
             <div
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-slate-600 rounded-md p-4 flex flex-col items-center gap-1.5 cursor-pointer hover:bg-slate-700/30 transition-colors"
-              data-testid="dropzone-footer-upload"
+              role="button" tabIndex={0} aria-label="Upload footer image" onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInputRef.current?.click(); } }} data-testid="dropzone-footer-upload"
             >
               <Upload className="h-6 w-6 text-slate-400" />
               <p className="text-xs text-slate-400">Tap to upload a footer image</p>
@@ -479,7 +479,7 @@ export function FooterTextEditStep({
             maxLength={40}
             rows={2}
             className="w-full text-sm min-h-[40px] px-2 py-1.5 bg-slate-700 border border-slate-600 text-white rounded resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
-            data-testid="textarea-footer-text"
+            aria-label="Footer text" data-testid="textarea-footer-text"
           />
           <div className="flex items-center justify-between">
             <div className="text-xs text-slate-500">{charCount}/40</div>
@@ -505,7 +505,7 @@ export function FooterTextEditStep({
                   footerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
                 }`}
                 style={{ backgroundColor: color }}
-                data-testid={`btn-footer-color-${color.replace('#', '')}`}
+                aria-label={`Footer color ${color}`} aria-pressed={footerStyle.color === color} data-testid={`btn-footer-color-${color.replace('#', '')}`}
               />
             ))}
           </div>
@@ -548,7 +548,7 @@ export function FooterTextEditStep({
                 type="range" min="0" max="100" value={vOffset}
                 onChange={(e) => updateFooter({ verticalOffset: Number(e.target.value) })}
                 className="flex-1 touch-slider"
-                style={{ touchAction: 'none' }} data-testid="slider-footer-vertical" />
+                style={{ touchAction: 'none' }} aria-label="footer vertical" data-testid="slider-footer-vertical" />
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-slate-400 font-bold w-3">X</span>
@@ -556,7 +556,7 @@ export function FooterTextEditStep({
                 type="range" min="0" max="100" value={hOffset}
                 onChange={(e) => updateFooter({ horizontalOffset: Number(e.target.value) })}
                 className="flex-1 touch-slider"
-                style={{ touchAction: 'none' }} data-testid="slider-footer-horizontal" />
+                style={{ touchAction: 'none' }} aria-label="footer horizontal" data-testid="slider-footer-horizontal" />
             </div>
           </div>
         </>

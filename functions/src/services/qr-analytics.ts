@@ -34,6 +34,15 @@ export interface ScanTrend {
   scans: number;
 }
 
+export function validateScanInput(input: QrScanLogInput): void {
+ const limits: Record<string, number> = { masterProductId: 128, customDesignId: 128, qrUrl: 2048, country: 100, region: 100, deviceType: 30, userAgent: 512 };
+ for (const [key, limit] of Object.entries(limits)) {
+  const value = (input as any)[key];
+  if (value !== undefined && (typeof value !== 'string' || !value.trim() || value.length > limit || /[\x00-\x1f]/.test(value) || (key.endsWith('Id') && value.includes('/')))) throw Object.assign(new Error(`Invalid ${key}`), { status: 400 });
+ }
+ if (!input.masterProductId && !input.customDesignId && !input.qrUrl) throw Object.assign(new Error('At least one scan identifier is required'), { status: 400 });
+}
+
 export class QrAnalyticsService {
   constructor(private db: any) {}
   private async events(): Promise<any[]> {
@@ -41,14 +50,20 @@ export class QrAnalyticsService {
     const [current, legacy] = await Promise.all(['qr_scan_events', 'qr_scans'].map(name => this.db.collection(name).get()));
     return [...current.docs.map((d: any) => ({id:d.id,...d.data()})),
       ...legacy.docs.map((d: any) => ({id:`legacy:${d.id}`,...d.data(),scanCount:1,scanDate:d.data().scannedAt}))]
-      .map(event => { const value=event.scanDate; const date=value?.toDate ? value.toDate() : new Date(value);
-        if (!value || !Number.isFinite(date.getTime()) || !Number.isInteger(event.scanCount) || event.scanCount < 0) throw new Error('Invalid saved QR scan record.');
-        return {...event,scanDate:date.toISOString()}; });
+      .flatMap(event => {
+        try {
+          validateScanInput(event);
+          const value = event.scanDate; const date = value?.toDate ? value.toDate() : new Date(value);
+          if (!value || !Number.isFinite(date.getTime()) || !Number.isInteger(event.scanCount) || event.scanCount < 0) throw new Error('Invalid saved QR scan record');
+          return [{ ...event, scanDate: date.toISOString() }];
+        } catch { console.warn('[QR Analytics] Skipped invalid saved event', event.id); return []; }
+      });
   }
   private async product(id: string): Promise<any> {
     const d=await this.db.collection('master_catalog').doc(id).get();return d.exists?{id:d.id,...d.data()}:null;
   }
   async logScan(input: QrScanLogInput): Promise<void> {
+    validateScanInput(input);
     const ref=this.db.collection('qr_scan_events').doc();
     await ref.set(Object.fromEntries(Object.entries({...input,scanCount:1,scanDate:new Date().toISOString()}).filter(([,v])=>v!==undefined)));
   }
@@ -56,15 +71,15 @@ export class QrAnalyticsService {
   async getSummary(): Promise<ScanAnalyticsSummary> {
     const now = new Date();
     const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
+    todayStart.setUTCHours(0, 0, 0, 0);
     
     const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - 6);
-    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+    weekStart.setUTCHours(0, 0, 0, 0);
     
     const monthStart = new Date(now);
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
+    monthStart.setUTCDate(1);
+    monthStart.setUTCHours(0, 0, 0, 0);
 
     const allEvents = await this.events();
 
@@ -125,11 +140,11 @@ export class QrAnalyticsService {
   async getProductAnalytics(limit = 20): Promise<ProductScanAnalytics[]> {
     const now = new Date();
     const todayStart = new Date(now);
-    todayStart.setHours(0, 0, 0, 0);
+    todayStart.setUTCHours(0, 0, 0, 0);
     
     const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - 6);
-    weekStart.setHours(0, 0, 0, 0);
+    weekStart.setUTCDate(weekStart.getUTCDate() - 6);
+    weekStart.setUTCHours(0, 0, 0, 0);
 
     const allEvents = await this.events();
 
@@ -185,8 +200,8 @@ export class QrAnalyticsService {
 
   async getTrends(days = 30): Promise<ScanTrend[]> {
     const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days + 1);
-    startDate.setHours(0, 0, 0, 0);
+    startDate.setUTCDate(startDate.getUTCDate() - days + 1);
+    startDate.setUTCHours(0, 0, 0, 0);
 
     const allEvents = await this.events();
 
@@ -208,7 +223,7 @@ export class QrAnalyticsService {
         date: dateStr,
         scans: dateMap.get(dateStr) || 0,
       });
-      current.setDate(current.getDate() + 1);
+      current.setUTCDate(current.getUTCDate() + 1);
     }
 
     return allDates;

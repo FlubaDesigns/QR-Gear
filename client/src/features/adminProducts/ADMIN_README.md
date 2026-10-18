@@ -1903,3 +1903,8 @@ Files changed: `client/src/pages/admin-partners.tsx`; `functions/src/services/pa
 ### Permanent alternate-database retirement — October 17, 2026
 
 Removed the remaining Replit database module/integration, legacy Replit login integration, unused storage-mode setting and SQL migration files. Current operating guides no longer direct agents to maintain a second backend or database. Shared validation/types and all Firebase runtime source are preserved. The backend boundary check rejects reintroduced database tooling. Verification evidence is recorded in `docs/FIREBASE_ONLY_VERIFICATION.md`; source publication and production deployment remain distinct.
+
+
+## Final audit reconciliation — QRG-041–074
+
+The combined release preserves the claims array, retired widget page and `perPlacementConfigs` snapshot field from QRG-041–050. Multipart video uploads now acknowledge the server-created library record; URL references use the validated video-reference route. Reports use the shared paid-net calculation and template writes use trigger reservations. The full client/shared/Functions regression suite gates release. See `docs/AUDIT_REPAIRS.md` for every retained item and verification limits.

@@ -51,8 +51,7 @@ export default function TermsOfService() {
             <ul className="list-disc pl-6 text-muted-foreground space-y-1">
               <li><strong>QR Basic</strong> — Static QR codes that permanently encode your chosen content
                 (URL, text, or contact info). Once printed, the encoded data cannot be changed.</li>
-              <li><strong>QR Plus</strong> — Dynamic QR codes that link to a destination you can update
-                at any time through your account.</li>
+              <li><strong>QR Plus</strong> — Static QR codes with additional printed artwork or text. The encoded destination is fixed once printed; QR Gear hosting and renewal are not required.</li>
               <li><strong>QR Canvas</strong> — Dynamic QR codes that display a custom image or graphic
                 you configure and can update.</li>
               <li><strong>QR Play</strong> — Dynamic QR codes that play a video you upload and can update.</li>
@@ -60,8 +59,7 @@ export default function TermsOfService() {
                 content on a schedule you set.</li>
             </ul>
             <p className="text-muted-foreground leading-relaxed mt-3">
-              Dynamic QR products (Plus, Canvas, Play, Compose) require an active hosting subscription
-              after the initial included period. If hosting expires, the QR code will display a renewal
+              Hosted QR products (Canvas, Play, Compose) require an active hosting term. The selected term and price are shown before purchase. If hosting expires, the QR code will display a renewal
               notice instead of your content. You can renew at any time to restore your content.
             </p>
           </section>

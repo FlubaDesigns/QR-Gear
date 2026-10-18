@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "wouter";
-import { Loader2, AlertCircle, Play, Volume2, VolumeX } from "lucide-react";
-import { useState, useRef } from "react";
+import { Loader2, AlertCircle } from "lucide-react";
+import { useState } from "react";
 
 interface PacketData {
   id: string;
@@ -13,7 +13,6 @@ interface PacketData {
 export default function PlayPage() {
   const { packetId } = useParams<{ packetId: string }>();
   const [isMuted, setIsMuted] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
 
   const { data, isLoading, error } = useQuery<{ packet: PacketData }>({
     queryKey: ["/api/public/packets", packetId],
@@ -24,19 +23,6 @@ export default function PlayPage() {
     },
     enabled: !!packetId,
   });
-
-  const handleToggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
-    }
-  };
-
-  const handlePlayVideo = () => {
-    if (videoRef.current) {
-      videoRef.current.play();
-    }
-  };
 
   if (isLoading) {
     return (
@@ -101,7 +87,7 @@ export default function PlayPage() {
     <div className="min-h-screen bg-black flex flex-col">
       <div className="flex-1 flex items-center justify-center relative">
         {isYouTube ? (
-          <iframe
+          <iframe title="QR video player"
             src={getYouTubeEmbedUrl(mediaUrl)}
             className="w-full h-full absolute inset-0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -109,7 +95,7 @@ export default function PlayPage() {
             data-testid="play-youtube-embed"
           />
         ) : isVimeo ? (
-          <iframe
+          <iframe title="QR video player"
             src={getVimeoEmbedUrl(mediaUrl)}
             className="w-full h-full absolute inset-0"
             allow="autoplay; fullscreen; picture-in-picture"
@@ -119,30 +105,18 @@ export default function PlayPage() {
         ) : isVideo ? (
           <div className="relative w-full h-full">
             <video
-              ref={videoRef}
               src={mediaUrl}
               className="w-full h-full object-contain"
               autoPlay
               loop
               muted={isMuted}
+              onVolumeChange={event => setIsMuted(event.currentTarget.muted)}
               playsInline
-              onClick={handlePlayVideo}
+              controls
+              aria-label="QR video"
               data-testid="play-video"
             />
-            <button
-              onClick={handleToggleMute}
-              className="absolute bottom-4 right-4 p-3 bg-black/50 rounded-full text-white hover:bg-black/70 transition-colors"
-              data-testid="button-toggle-mute"
-            >
-              {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
-            </button>
-            <button
-              onClick={handlePlayVideo}
-              className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity"
-              data-testid="button-play-overlay"
-            >
-              <Play className="h-16 w-16 text-white" />
-            </button>
+
           </div>
         ) : (
           <img

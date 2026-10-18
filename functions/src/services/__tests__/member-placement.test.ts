@@ -25,5 +25,5 @@ it('carries member and owner placement choices from API input through canonical 
 });
 it('rejects unknown placement choices before creating a build', async () => {
   const invalid = input(); invalid.perPlacementConfigs.back.graphicChoice = 'unrecognized';
-  await expect(prepareMemberBuild('u', invalid)).rejects.toThrow('valid placement graphic');
+  await expect(prepareMemberBuild('u', invalid)).rejects.toThrow('Choose full graphic or QR only');
 });

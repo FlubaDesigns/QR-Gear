@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
@@ -78,6 +79,7 @@ app.post('/members/:memberId/media', requireAuth, async (req: Request, res: Resp
   try {
     const userId = (req as any).user?.uid || (req as any).userId;
     if (!userId) { res.status(401).json({ error: "Authentication required" }); return; }
+    if (req.params.memberId !== userId) { res.status(403).json({ error: 'Upload to your own library.' }); return; }
     console.log(`[CF MemberMedia] Starting media upload for member: ${userId}`);
     const contentType = req.headers["content-type"] || "";
     const boundaryMatch = contentType.match(/boundary=(.+)/);
@@ -117,7 +119,8 @@ app.post('/members/:memberId/media', requireAuth, async (req: Request, res: Resp
       res.status(400).json({ error: `Invalid file type: ${fileMimeType}` }); return;
     }
     const mediaType = fileMimeType.startsWith("video/") ? "video" : "image";
-    const uniqueFilename = `${Date.now()}-${fileName}`;
+    if (fileBuffer.length > 100 * 1024 * 1024) { res.status(400).json({ error: "Media exceeds 100 MB." }); return; }
+    const uniqueFilename = `${randomUUID()}-${fileName.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
     const storagePath = `library/member/${userId}/${mediaType}/${uniqueFilename}`;
     const mediaUrl = `/api/library-files/member/${userId}/${mediaType}/${uniqueFilename}`;
     console.log(`[CF MemberMedia] Uploading ${fileName} (${fileMimeType}, ${fileBuffer.length} bytes) to ${storagePath}`);
@@ -125,7 +128,11 @@ app.post('/members/:memberId/media', requireAuth, async (req: Request, res: Resp
     const file = bucket.file(storagePath);
     await file.save(fileBuffer, { metadata: { contentType: fileMimeType } });
     console.log(`[CF MemberMedia] Upload complete: ${mediaUrl}`);
-    res.json({ url: mediaUrl, mimeType: fileMimeType, fileName, size: fileBuffer.length, storagePath });
+    const asset = db.collection('memberLibrary').doc();
+    await asset.set({ memberId: userId, assetType: mediaType, mediaType, name: fileName, originalName: fileName,
+      fileName: uniqueFilename, storageUrl: `gs://${bucket.name}/${storagePath}`, publicUrl: mediaUrl,
+      mimeType: fileMimeType, sizeBytes: fileBuffer.length, isActive: true, createdAt: new Date().toISOString() });
+    res.json({ url: mediaUrl, assetId: asset.id, mimeType: fileMimeType, fileName, size: fileBuffer.length });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 

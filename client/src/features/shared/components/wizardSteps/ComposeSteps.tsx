@@ -1,3 +1,5 @@
+import { useQuery } from '@tanstack/react-query';
+import type { PricingSettings } from '@shared/schema-orders';
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -381,11 +383,12 @@ export function ComposeHostingStep<T extends string = '1-year' | '3-year' | '5-y
   onSelect: (term: NoInfer<T>) => void;
   terms?: Array<{id:T;label:string;price:string;description:string;popular?:boolean}>;
 }) {
-  const terms = configuredTerms ?? [
-    { id: '1-year' as const, label: '1 Year', price: 'Included', description: 'Included with your purchase' },
-    { id: '3-year' as const, label: '3 Years', price: '$3.99/yr', description: 'Best value - save 20%', popular: true },
-    { id: '5-year' as const, label: '5 Years', price: '$2.99/yr', description: 'Maximum savings - save 40%' },
-  ];
+  const pricing = useQuery<PricingSettings>({ queryKey: ['/api/pricing-settings'], enabled: !configuredTerms, staleTime: 300000 });
+  const terms = configuredTerms ?? (pricing.data?.hostingTiers || []).map(tier => ({
+    id: tier.code.replace('_', '-') as T, label: tier.name, price: `$${tier.price.toFixed(2)}`,
+    description: 'Hosting cost for the full term, included in the product price', popular: false,
+  }));
+  if (!terms.length) return <div role="status" className="text-slate-200 p-4">{pricing.isLoading ? 'Loading hosting prices…' : 'Hosting prices are unavailable. Please retry.'}<Button onClick={() => pricing.refetch()}>Retry</Button></div>;
 
   return (
     <div className="animate-in fade-in slide-in-from-right-5 duration-300">

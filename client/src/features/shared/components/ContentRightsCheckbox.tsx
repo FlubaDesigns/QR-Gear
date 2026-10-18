@@ -16,7 +16,9 @@ export function ContentRightsCheckbox({
   const typeLabel = contentType === 'image' ? 'image' : contentType === 'video' ? 'video' : 'content';
   
   return (
-    <div 
+    <div role="checkbox" aria-checked={confirmed} tabIndex={0}
+      aria-label={`I have the right to use this ${typeLabel}`}
+      onKeyDown={event => { if (event.key === " " || event.key === "Enter") { event.preventDefault(); onToggle(); } }}
       className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
         confirmed 
           ? "bg-emerald-500/10 border border-emerald-500/30" 

@@ -1,0 +1,20 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import express from 'express';
+import request from 'supertest';
+import { database } from './composition-fixture';
+const m = vi.hoisted(() => ({ db: null as any, save: vi.fn() }));
+vi.mock('../../core', () => ({ db: { collection: (...a: any[]) => m.db.collection(...a) }, storage: { bucket: () => ({ name: 'fixture', file: () => ({ save: m.save }) }) }, admin: { auth: () => ({ verifyIdToken: async () => ({ uid: 'owner' }) }) } }));
+import { register as files } from '../../routes/member-files';
+import { registerMembersLibraryRoutes as library } from '../../routes/members-library';
+import { requireMemberMediaUpload } from '../../../../shared/memberMedia';
+let store: Map<string, any>;
+beforeEach(() => { const f = database(); m.db = f.db; store = f.store; m.save.mockResolvedValue(undefined); });
+it('returns a real owned library identity from multipart video upload and reuses its reference', async () => {
+ const app = express(); app.use(express.raw({ type: 'multipart/form-data' })); app.use(express.json()); files(app); library(app);
+ const body = '--fixture\r\nContent-Disposition: form-data; name="file"; filename="video.mp4"\r\nContent-Type: video/mp4\r\n\r\nfixture-video-bytes\r\n--fixture--\r\n';
+ const response = await request(app).post('/members/owner/media').set('Authorization', 'Bearer valid').set('Content-Type', 'multipart/form-data; boundary=fixture').send(Buffer.from(body));
+ expect(response.status).toBe(200); const uploaded = requireMemberMediaUpload(response.body);
+ expect(store.get(`memberLibrary/${uploaded.assetId}`)).toMatchObject({ memberId: 'owner', mediaType: 'video', publicUrl: uploaded.url });
+ const saved = await request(app).post('/members/owner/library/video-reference').set('Authorization', 'Bearer valid').send({ url: uploaded.url }); expect(saved.status).toBe(200); expect(saved.body.asset.id).toBe(uploaded.assetId);
+ expect((await request(app).post('/members/other/media').set('Authorization', 'Bearer valid').set('Content-Type', 'multipart/form-data; boundary=fixture').send(Buffer.from(body))).status).toBe(403);
+});

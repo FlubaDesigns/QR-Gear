@@ -1,3 +1,4 @@
+import { ExternalReadError } from '@/components/admin/ExternalReadError';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -74,7 +75,7 @@ export function RevenueSection() {
     status: "draft",
   });
 
-  const { data: splits = [], isLoading } = useQuery<RevenueSplit[]>({ queryKey: ["/api/admin/external/revenue-splits"] });
+  const { data: splits = [], isLoading, isError: splitsReadError, refetch: retrysplits } = useQuery<RevenueSplit[]>({ queryKey: ["/api/admin/external/revenue-splits"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -142,6 +143,7 @@ export function RevenueSection() {
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-revenue" /></div>;
 
+  if (splitsReadError) return <ExternalReadError retry={() => { void retrysplits(); }} />;
   return (
     <AdminSectionCard
       title={`Revenue Splits (${splits.length})`}
@@ -225,11 +227,12 @@ export function AttributionsSection() {
   const queryString = queryParams.toString();
   const url = `/api/admin/external/attributions${queryString ? `?${queryString}` : ""}`;
 
-  const { data: attributions = [], isLoading } = useQuery<OrderAttribution[]>({ queryKey: [url] });
-  const { data: hosts = [] } = useQuery<BuilderHostRef[]>({ queryKey: ["/api/admin/external/hosts"] });
+  const { data: attributions = [], isLoading, isError: attributionsReadError, refetch: retryattributions } = useQuery<OrderAttribution[]>({ queryKey: [url] });
+  const { data: hosts = [], isError: hostsReadError, refetch: retryhosts } = useQuery<BuilderHostRef[]>({ queryKey: ["/api/admin/external/hosts"] });
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-attributions" /></div>;
 
+  if (attributionsReadError || hostsReadError) return <ExternalReadError retry={() => { void retryattributions(); void retryhosts(); }} />;
   return (
     <AdminSectionCard
       title={`Order Attributions (${attributions.length})`}
@@ -292,7 +295,7 @@ export function PayoutsSection() {
   const queryString = queryParams.toString();
   const url = `/api/admin/external/payouts${queryString ? `?${queryString}` : ""}`;
 
-  const { data: payouts = [], isLoading } = useQuery<AffiliatePayout[]>({ queryKey: [url] });
+  const { data: payouts = [], isLoading, isError: payoutsReadError, refetch: retrypayouts } = useQuery<AffiliatePayout[]>({ queryKey: [url] });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
@@ -311,6 +314,7 @@ export function PayoutsSection() {
   const totalPending = payouts.filter((p) => p.status === "pending").reduce((sum, p) => sum + (p.affiliateAmount || 0), 0);
   const totalPaid = payouts.filter((p) => p.status === "paid").reduce((sum, p) => sum + (p.affiliateAmount || 0), 0);
 
+  if (payoutsReadError) return <ExternalReadError retry={() => { void retrypayouts(); }} />;
   return (
     <AdminSectionCard
       title={`Affiliate Payouts (${payouts.length})`}

@@ -600,6 +600,24 @@ app.post('/members/:memberId/library/crop', async (req: Request, res: Response):
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 });
 
+// Video references are records, never text files pretending to be video bytes.
+app.post('/members/:memberId/library/video-reference', requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const memberId = (req as any).user.uid;
+    if (memberId !== req.params.memberId) { res.status(403).json({ error: 'Use your own video library.' }); return; }
+    const url = req.body.url;
+    if (typeof url !== 'string' || url.length > 4096) { res.status(400).json({ error: 'Choose a valid video URL.' }); return; }
+    const existing = await db.collection('memberLibrary').where('memberId', '==', memberId).where('publicUrl', '==', url).limit(1).get();
+    if (!existing.empty) { res.json({ success: true, asset: { ...existing.docs[0].data(), id: existing.docs[0].id } }); return; }
+    let parsed: URL;
+    try { parsed = new URL(url); } catch { res.status(400).json({ error: 'Upload local videos before saving a reference.' }); return; }
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || /\/api\/(?:member-files|library-files)\//.test(parsed.pathname)) { res.status(400).json({ error: 'Choose a public HTTPS video URL or your own uploaded video.' }); return; }
+    const ref = db.collection('memberLibrary').doc();
+    const asset = { memberId, assetType: 'video', mediaType: 'video', name: String(req.body.name || 'QR Play video').slice(0, 200), publicUrl: parsed.href, mimeType: 'video/url', isActive: true, createdAt: new Date().toISOString() };
+    await ref.set(asset); res.json({ success: true, asset: { ...asset, id: ref.id } });
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+});
+
 app.post('/members/:memberId/videos/upload', async (req: Request, res: Response): Promise<void> => {
   try {
     const { memberId } = req.params;

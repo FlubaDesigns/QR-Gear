@@ -40,7 +40,7 @@ import { formatCurrency, formatTrend } from "@/lib/admin-utils";
 import { queryClient } from "@/lib/queryClient";
 
 interface DashboardMetrics {
-  revenue: { today: number; week: number; month: number; trend: number };
+  revenue: { today: number; week: number; month: number; trend: number; unreconciledOrders?: number };
   orders: { total: number; pending: number; inProduction: number; shipped: number; trend: number };
   customers: { total: number; newThisWeek: number; returning: number };
   products: { active: number; lowStock: number; syncErrors: number };
@@ -186,6 +186,7 @@ function MetricsSection() {
           <span className="text-[10px] text-muted-foreground">Stripe</span>
         </div>
       </div>
+      {!!metrics?.revenue.unreconciledOrders && <p role="status" className="text-sm text-amber-600 mb-3">{metrics.revenue.unreconciledOrders} order(s) need currency or refund reconciliation and are excluded from revenue.</p>}
       <div className="row"><div className="layout__split-4 mb-2">
         <MetricCard
           title="Today's Revenue"

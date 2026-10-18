@@ -484,6 +484,19 @@ function tierProductToAllowedProduct(tp: TierProduct): AllowedProduct {
   };
 }
 
+export function mergeCategoryTiers(categories: Record<string, Record<string, TierGroup>>) {
+  const result: Record<string, TierGroup> = {};
+  for (const category of Object.values(categories)) for (const [tier, group] of Object.entries(category)) {
+    const merged = result[tier] ||= { ...group, products: [] };
+    const existing = new Set(merged.products.map(p => p.canonicalBlankKey || `${p.fulfillmentProvider}:${p.blueprintId}`));
+    for (const product of group.products) {
+      const key = product.canonicalBlankKey || `${product.fulfillmentProvider}:${product.blueprintId}`;
+      if (!existing.has(key)) { merged.products.push(product); existing.add(key); }
+    }
+  }
+  return result;
+}
+
 export function TierPickerStep({
   selectedProduct,
   onSelect,
@@ -521,9 +534,7 @@ export function TierPickerStep({
 
   const hasTiers = (tierData?.hasTiers && !tierError) || false;
 
-  const allCategories = tierData?.tiers ? Object.keys(tierData.tiers) : [];
-  const firstCategory = allCategories[0] || "";
-  const categoryTiers = tierData?.tiers?.[firstCategory] || {};
+  const categoryTiers = mergeCategoryTiers(tierData?.tiers || {});
   const tierOrder = ["good", "better", "best"];
   const availableTiers = tierOrder.filter((t) => categoryTiers[t]?.products?.length > 0);
 

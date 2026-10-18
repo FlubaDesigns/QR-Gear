@@ -284,7 +284,7 @@ function ProductImageGalleryView({ images, className }: ProductImageGalleryProps
             size="icon"
             className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white h-10 w-10 rounded-full qr-touch-48"
             onClick={(e) => { e.stopPropagation(); goToPrev(); }}
-            data-testid="button-gallery-prev"
+            aria-label="Previous image" data-testid="button-gallery-prev"
           >
             <ChevronLeft className="h-6 w-6" />
           </Button>
@@ -294,7 +294,7 @@ function ProductImageGalleryView({ images, className }: ProductImageGalleryProps
             size="icon"
             className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/30 hover:bg-black/50 text-white h-10 w-10 rounded-full qr-touch-48"
             onClick={(e) => { e.stopPropagation(); goToNext(); }}
-            data-testid="button-gallery-next"
+            aria-label="Next image" data-testid="button-gallery-next"
           >
             <ChevronRight className="h-6 w-6" />
           </Button>

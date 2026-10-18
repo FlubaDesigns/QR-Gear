@@ -1,4 +1,4 @@
-import { orderNeedsFulfillment } from '../services/order-reporting';
+import { needsFulfillmentAttention } from '../services/order-metrics';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { Request, Response } from 'express';
 import express from 'express';
@@ -176,8 +176,10 @@ async function buildQueue(): Promise<QueueItem[]> {
     (async () => {
       try {
         const snap = await db.collection('orders')
+          .orderBy('createdAt', 'desc')
+          .limit(100)
           .get();
-        const pending = snap.docs.filter(d => orderNeedsFulfillment(d.data()));
+        const pending = snap.docs.filter(doc => needsFulfillmentAttention(doc.data()));
         if (pending.length) {
           items.push({
             id: 'orders-pending',

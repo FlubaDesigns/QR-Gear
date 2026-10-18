@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 const m = vi.hoisted(() => ({ rows: {} as Record<string, any> }));
-vi.mock('../../core', () => ({ db: { collection: (c: string) => ({ doc: (id: string) => ({ get: async () => ({ exists: !!m.rows[c]?.[id], data: () => m.rows[c]?.[id] }) }) }) } }));
+vi.mock('../../core', () => ({ db: { collection: (c: string) => ({ doc: (id: string) => ({ get: async () => ({ id, exists: !!m.rows[c]?.[id], data: () => m.rows[c]?.[id] }) }) }) } }));
 vi.mock('../../middleware', () => ({}));
 vi.mock('../../services/printful', () => ({}));
 vi.mock('../../services/printify', () => ({}));
@@ -14,7 +14,7 @@ vi.mock('../../services/composite-image', () => ({}));
 import { register } from '../../routes/store-files';
 const app = express(); register(app);
 it.each(['https://www.youtube.com/watch?v=DVUbzOk8mCc', 'https://storage.example/graphic.mp4'])('returns the linked packet video without substituting the static snapshot: %s', async (source) => {
-  m.rows = { admin_catalog_instances: { shirt: { currentPacketId: 'packet', resolved: { title: 'Monument', description: 'A Bella + Canvas 3001 tee in Forest.', pricing: { customerPrice: 24.61 } } } }, productPackets: { packet: { qrProductState: 'qr_play', playMediaUrl: source, landingPageSnapshotUrl: 'static.png', qrOnlyUrl: 'qr.png' } } };
+  m.rows = { admin_catalog_instances: { shirt: { status: 'active', qrgBaseCode: 'QRG-11111-I-000001', currentPacketId: 'packet', resolved: { title: 'Monument', description: 'A Bella + Canvas 3001 tee in Forest.', pricing: { customerPrice: 24.61 } } } }, productPackets: { packet: { ownerType: 'admin', ownerInstanceId: 'shirt', qrgBaseCode: 'QRG-11111-I-000001', qrProductState: 'qr_play', playMediaUrl: source, landingPageSnapshotUrl: 'static.png', qrOnlyUrl: 'qr.png' } } };
   const res = await request(app).get('/store/product/shirt');
   expect(res.status).toBe(200);
   expect(res.body).toMatchObject({ qrProductType: 'qr-play', playMediaUrl: source, qrCodeUrl: 'qr.png', price: 24.61 });

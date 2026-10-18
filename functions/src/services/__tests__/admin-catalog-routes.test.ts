@@ -9,6 +9,7 @@ const first = 'qrg_11001', second = 'qrg_11002';
 const colors = [{ name: 'Black', hex: '#000000' }];
 function fixture(prefix: string, extra: Record<string, any> = {}) {
   const f = database({
+    "settings/admin": { defaultFulfillmentProvider: "printful" },
     [`master_catalog/${first}`]: { qrgBlankId: '11001', title: 'Original', minPrice: 10, qrgCategory: 'Tees', images: ['https://images/original.png'], providerMappings: { printful: { productId: 71 } }, qrgVariants: { '1101': { colorLabel: 'Black', sizeLabel: 'M' } } },
     [`master_catalog/${second}`]: { qrgBlankId: '11002', title: 'Other' },
     'catalogs/source': { name: 'Source', blankIds: [first], blankColors: { [first]: colors }, blankImages: { [first]: [] }, blankTitles: { [first]: 'Curated' } },
@@ -84,7 +85,7 @@ it('member products read QRG and curated choices rather than provider display ro
   const f = fixture('/admin', { 'systemSettings/catalog-assignments': { member: 'source' } });
   f.store.get('catalogs/source').blankTiers = { [first]: 'good' }; f.store.get('catalogs/source').blankColors[first] = [];
   const result = await catalogTierProducts(f.db, 'member');
-  expect(result.tiers.Tees.good.products[0]).toMatchObject({ canonicalBlankKey: first, blueprintId: 71, title: 'Curated', colors: [], images: [], imageUrl: null, cost: 10 });
+  expect(result.tiers.Tees.good.products[0]).toMatchObject({ canonicalBlankKey: first, blueprintId: 71, title: 'Curated', colors: [], images: [], imageUrl: null, cost: null });
   await expect(catalogTierProducts(f.db, 'invalid')).rejects.toThrow('Invalid catalog section');
 });
 

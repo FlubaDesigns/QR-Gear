@@ -92,3 +92,11 @@ it('surfaces malformed stored state rather than rendering a broken review', () =
   memory.set('qrgear-owner-checkout', '{}'); mount();
   expect(state.buildError).toContain('could not be restored'); expect(state.simpleStep).toBe('product');
 });
+it('sends each owner placement choice with the canonical build input', async () => {
+ await prepare('qr-plus');
+ act(() => { state.setSelectedPlacements(['front','back']); state.setCurrentPlacementIndex(1); });
+ act(() => state.setPlacementGraphicChoice('qr-only'));
+ await act(async () => { await state.generateRealMockup(); });
+ const call = request.mock.calls.filter(([url]) => url.endsWith('/builds')).at(-1)!;
+ expect(JSON.parse(call[1].body).perPlacementConfigs.back.graphicChoice).toBe('qr-only');
+});

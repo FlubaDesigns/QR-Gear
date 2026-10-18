@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import AdminShell from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Settings,
   Key,
@@ -29,7 +31,7 @@ interface ApiKeyStatus {
   printful: {
     masked: string;
     status: "valid" | "invalid" | "unknown" | "not_configured" | "not_checked";
-    source: string;
+    source: "dashboard" | "env";
     updatedAt: string | null;
   };
   printify: {
@@ -95,7 +97,7 @@ export default function AdminSettings() {
   return (
     <AdminShell
       title="Settings"
-      subtitle="Provider status and integration settings"
+      subtitle="Manage API keys and integrations"
       icon={Settings}
       backHref="/admin"
       backLabel="RUN"
@@ -126,7 +128,7 @@ export default function AdminSettings() {
                       {keyStatus?.printful.masked || "(not set)"}
                     </code>
                     <span className="text-xs text-muted-foreground">
-                      (Managed by Fluba Cortex)
+                      ({keyStatus?.printful.source === "dashboard" ? "Set from dashboard" : "From environment"})
                     </span>
                   </div>
                   {keyStatus?.printful.updatedAt && (
@@ -154,8 +156,9 @@ export default function AdminSettings() {
                 </div>
 
                 <div className="border-t pt-4 space-y-3">
-                  <p className="text-sm">Provider credentials are managed in Fluba Cortex.</p>
-                  <a href="https://flubadesigns.com/admin/cortex" target="_blank" rel="noopener noreferrer" className="underline" data-testid="link-cortex-provider-keys">Manage provider keys in Fluba Cortex</a>
+                  <p className="text-sm font-medium">Provider keys are managed in Fluba Cortex</p>
+                  <p className="text-sm text-muted-foreground">Update the Printful connection there. QR Gear reads the shared provider key and shows its current status here.</p>
+                  <Button asChild className="min-h-12"><a href="https://flubadesigns.com/admin/cortex" target="_blank" rel="noopener noreferrer">Open Fluba Cortex</a></Button>
                 </div>
               </>
             )}
@@ -176,10 +179,10 @@ export default function AdminSettings() {
               <code className="bg-muted px-2 py-1 rounded text-xs font-mono" data-testid="text-printify-key-masked">
                 {keyStatus?.printify.masked || "(not set)"}
               </code>
-              <span className="text-xs text-muted-foreground">(Managed by Fluba Cortex)</span>
+              <span className="text-xs text-muted-foreground">(From environment)</span>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Manage the Printify key in Fluba Cortex using the link above.
+              The Printify key is managed through environment variables. Contact support to update.
             </p>
           </CardContent>
         </Card>

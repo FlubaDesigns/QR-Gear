@@ -1,5 +1,6 @@
-import { uploadMemberVideo, saveMemberVideo } from '@/lib/memberVideo';
-import { publishMemberBuild } from '@/lib/memberBuild';
+import { saveMemberVideo } from '@/lib/memberVideo';
+import { requireMemberMediaUpload } from '@shared/memberMedia';
+import { previewMemberBuild, publishMemberBuild } from '@/lib/memberBuild';
 import {
   generateQRCodeUrl,
   normalizeWizardProduct,
@@ -17,6 +18,36 @@ export function executeGeneratePreviewQrCode(ctx: any): string {
   ctx.setQrGraphic(qrApiUrl);
   ctx.setProductGraphic(qrApiUrl);
   return qrApiUrl;
+}
+
+export async function resolvePendingVideo(ctx: any): Promise<string> {
+  let resolvedVideoUrl = ctx.playVideoUrl;
+    if (ctx.pendingVideoFile && ctx.playVideoUrl?.startsWith('blob:')) {
+      const formData = new FormData();
+      formData.append('file', ctx.pendingVideoFile);
+      formData.append('storeType', 'member');
+      const uploadData = await memberFetch<any>(`/${ctx.user.id}/media`, {
+        method: 'POST',
+        body: formData,
+      });
+      const uploaded = requireMemberMediaUpload(uploadData);
+      resolvedVideoUrl = uploaded.url;
+      ctx.setPlayVideoUrl(resolvedVideoUrl);
+      ctx.setVideoUrl(resolvedVideoUrl);
+      ctx.setPendingVideoFile(null);
+    }
+
+  return resolvedVideoUrl;
+}
+
+export async function previewCanonicalMemberContext(ctx: any) {
+  if (!ctx.user?.id) throw new Error('Sign in before generating your product preview.');
+  if (ctx.selectedChannel?.id === 'temp-channel') {
+    const channel = await ctx.api.createChannel(ctx.user.id, ctx.selectedChannel.name || 'My Products');
+    ctx.setSelectedChannel(channel); ctx = { ...ctx, selectedChannel: channel };
+  }
+  const video = await resolvePendingVideo(ctx);
+  return previewMemberBuild(ctx.user.id, memberBuildInput(ctx, undefined, video));
 }
 
 export async function executeSimplePublish(ctx: any): Promise<boolean> {
@@ -42,13 +73,7 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
       ctx.setSelectedChannel({ id: resolvedChannelId, name: ctx.selectedChannel.name || 'My Products' });
     }
 
-    if (ctx.pendingVideoFile && ctx.playVideoUrl?.startsWith('blob:')) {
-      resolvedVideoUrl = await uploadMemberVideo(ctx.user.id, ctx.pendingVideoFile, `${ctx.simpleTitle || 'QR Play'} - Video`);
-      ctx.setPlayVideoUrl(resolvedVideoUrl);
-      ctx.setVideoUrl(resolvedVideoUrl);
-      URL.revokeObjectURL(ctx.playVideoUrl);
-      ctx.setPendingVideoFile(null);
-    }
+    resolvedVideoUrl = await resolvePendingVideo(ctx);
 
     const packetData = memberBuildInput(ctx, resolvedChannelId, resolvedVideoUrl);
 
@@ -252,11 +277,62 @@ export async function executeVideoFileUpload(ctx: any, file: File): Promise<void
   ctx.setVideoUploadProgress(0);
 
   try {
-    const url = await uploadMemberVideo(ctx.user.id, file, `${ctx.simpleTitle || 'QR Play'} - Video`);
-    ctx.setPlayVideoUrl(url);
-    ctx.setVideoUrl(url);
-    ctx.setVideoUploadProgress(100);
+    const memberId = ctx.user.id;
+    const authHeaders = await getAuthHeaders();
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('storeType', 'member');
+
+    const result = await new Promise<{ url: string }>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          ctx.setVideoUploadProgress(pct);
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            resolve(requireMemberMediaUpload(data));
+          } catch {
+            reject(new Error('Invalid server response'));
+          }
+        } else {
+          let msg = 'Upload failed';
+          try {
+            const errData = JSON.parse(xhr.responseText);
+            msg = errData.error || msg;
+          } catch {}
+          reject(new Error(msg));
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        reject(new Error('Network error - check your connection and try again'));
+      });
+
+      xhr.addEventListener('abort', () => {
+        reject(new Error('Upload was cancelled'));
+      });
+
+      xhr.open('POST', `/api/members/${memberId}/media`);
+      const authHeader = (authHeaders as any)['Authorization'];
+      if (authHeader) {
+        xhr.setRequestHeader('Authorization', authHeader);
+      }
+      xhr.send(formData);
+    });
+
+    ctx.setPlayVideoUrl(result.url);
+    ctx.setVideoUrl(result.url);
     ctx.setVideoUploadSuccess(true);
+    console.log('[QR Play] Video uploaded successfully:', result.url);
+
   } catch (error: any) {
     console.error('[QR Play] Video upload error:', error);
     ctx.setVideoUploadError(error?.message || 'Failed to upload video. Please try again.');
@@ -271,9 +347,11 @@ export async function executeSavePlayToLibrary(ctx: any): Promise<void> {
 
   ctx.setIsPlaySaving(true);
   try {
-    if (ctx.playVideoUrl) await saveMemberVideo(ctx.user.id, ctx.playVideoUrl, `${ctx.simpleTitle || 'QR Play'} - Video`);
+    if (!ctx.playVideoUrl) throw new Error('Choose a video first.');
+    await saveMemberVideo(ctx.user.id, ctx.playVideoUrl, `${ctx.simpleTitle || 'QR Play'} - Video`);
   } catch (error) {
-    ctx.toast({ title: 'Video save failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+    ctx.toast({ title: 'Video was not saved to the library', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+    throw error;
   } finally {
     ctx.setIsPlaySaving(false);
   }
@@ -292,68 +370,17 @@ export async function executeFetchPublishedCanvasPlayItems(ctx: any): Promise<vo
   }
 }
 
-export async function executeGenerateProductMockup(
-  ctx: any,
-  type: string,
-  setMockup: (url: string) => void,
-): Promise<void> {
+export async function executeGenerateProductMockup(ctx: any, type: string, setMockup: (url: string) => void): Promise<boolean> {
   try {
-    const previewUrl = `${window.location.origin}/preview/${Date.now()}`;
-    const qrApiUrl = generateQRCodeUrl(previewUrl, 200);
-    ctx.setQrGraphic(qrApiUrl);
-    console.log(`[${type}] Generated qrGraphic:`, qrApiUrl);
-
-    console.log(`[${type}] Generating productGraphic with textLayoutChoice:`, ctx.textLayoutChoice);
-    const productGraphicResult = await ctx.api.generateProductGraphic({
-      qrUrl: previewUrl,
-      headerStyle: ctx.headerStyle,
-      footerStyle: ctx.footerStyle,
-      textLayoutChoice: ctx.textLayoutChoice,
-      qrColor: 'black',
-    });
-
-    let artworkForMockup = qrApiUrl;
-    if (productGraphicResult.success && productGraphicResult.productGraphic) {
-      ctx.setProductGraphic(productGraphicResult.productGraphic);
-      artworkForMockup = productGraphicResult.productGraphic;
-      console.log(`[${type}] Generated productGraphic (composite), length:`, productGraphicResult.productGraphic.length);
-    } else {
-      console.warn(`[${type}] productGraphic generation failed, using qrGraphic as fallback`);
-      ctx.setProductGraphic(qrApiUrl);
-    }
-
-    const isPrintful = ctx.selectedProductType?.fulfillmentProvider === 'printful';
-    if (ctx.selectedProductType?.blueprintId && (ctx.selectedProductType?.printProviderId || isPrintful) && ctx.selectedColor) {
-      const effectiveQrSize = (ctx.graphicSize === 'small' || ctx.graphicSize === 'medium' || ctx.graphicSize === 'large') ? ctx.graphicSize : 'medium';
-      console.log(`[${type}] Generating mockup with graphicSize:`, ctx.graphicSize, '→ effectiveQrSize:', effectiveQrSize, 'provider:', isPrintful ? 'printful' : 'printify');
-
-      const mockupResult = await ctx.api.generateMockup({
-        canonicalBlankKey: ctx.selectedProductType?.canonicalBlankKey,
-        blueprintId: ctx.selectedProductType.blueprintId,
-        printProviderId: ctx.selectedProductType.printProviderId || 99,
-        colorName: ctx.selectedColor,
-        artworkUrl: artworkForMockup,
-        placement: 'front',
-        qrSize: effectiveQrSize,
-        fulfillmentProvider: isPrintful ? 'printful' : 'printify',
-      });
-
-      const bestUrl = mockupResult.lifestyleMockupUrl || mockupResult.mockupUrl;
-      if (mockupResult.success && bestUrl) {
-        console.log(`[${type}] SUCCESS - Setting mockup to:`, bestUrl);
-        setMockup(bestUrl);
-      } else {
-        console.warn(`[${type}] FAILED - Using QR fallback. Error:`, mockupResult.error);
-        setMockup(qrApiUrl);
-      }
-    } else {
-      console.warn(`[${type}] Missing product info for mockup`);
-      setMockup(qrApiUrl);
-    }
+    const result = await previewCanonicalMemberContext({ ...ctx, qrType: type });
+    const url = result.lifestyleMockupUrl || result.mockupUrl;
+    if (!url) throw new Error('The supplier did not return a product preview. Please retry.');
+    setMockup(url); ctx.setProductGraphic(result.productGraphic);
+    return true;
   } catch (error) {
-    console.error(`[${type}] Error generating mockup:`, error);
-    const fallbackUrl = generateQRCodeUrl('placeholder', 200);
-    setMockup(fallbackUrl);
+    setMockup('');
+    ctx.toast({ title: 'Preview failed', description: error instanceof Error ? error.message : 'Please retry.', variant: 'destructive' });
+    return false;
   }
 }
 

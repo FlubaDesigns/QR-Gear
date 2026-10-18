@@ -1,3 +1,4 @@
+import { claimedItemLifecycle } from '../../../shared/claimedItems';
 import { giftExpiry } from '../services/gift-validation';
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { Request, Response, NextFunction } from 'express';
@@ -179,7 +180,8 @@ app.get('/claimed-instances', requireAuth, async (req: Request, res: Response): 
       .limit(100)
       .get();
 
-    const instances = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+    const instances = snapshot.docs.map(doc => { const value = doc.data(); return { ...value, id: doc.id, hostingExpiresAt: value.hostingExpiresAt?.toDate?.().toISOString() || value.hostingExpiresAt || null }; });
+    res.setHeader('Cache-Control', 'private, no-store');
     res.json(instances);
   } catch (error: any) {
     console.error('[Claim] Get instances error:', error);
@@ -200,7 +202,7 @@ app.get('/claimed-instances/:instanceId', requireAuth, async (req: Request, res:
 
     const instance = doc.data();
     if (instance?.ownerUserId !== (req as any).user.uid) { res.status(403).json({ error: 'This item belongs to another account.' }); return; }
-    const isActive = instance?.status === 'static' || (instance?.status === 'active' && new Date(instance?.hostingExpiresAt) > new Date());
+    const { isActive } = claimedItemLifecycle({ status: instance?.status, hostingExpiresAt: instance?.hostingExpiresAt?.toDate?.().toISOString() || instance?.hostingExpiresAt });
 
     res.json({ instance: { ...instance, id: instanceId }, isActive });
   } catch (error: any) {

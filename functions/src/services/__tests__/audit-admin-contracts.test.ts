@@ -47,7 +47,7 @@ it('rejects duplicate triggers on concurrent create, PUT and PATCH, including di
   const other = await request(app).post('/admin/email-templates').set('x-admin', 'yes').send({ trigger: 'order_shipped', subject: 'Shipped' });
   for (const method of ['put', 'patch'] as const) expect((await request(app)[method](`/admin/email-templates/${other.body.id}`).set('x-admin', 'yes').send({ trigger: 'order_confirmation', isEnabled: false })).status).toBe(409);
   const retained = [...store].filter(([path, value]) => path.startsWith('email_templates/') && value.trigger === 'order_confirmation');
-  expect(retained).toHaveLength(1); expect(store.get('system/email-template-writes').revision).toBe(2);
+  expect(retained).toHaveLength(1); expect(store.get('emailTemplateTriggers/order_confirmation').templateId).toBe(retained[0][0].split('/')[1]);
 });
 it('verifies real widget signatures and expiry without echoing arbitrary bearer input', async () => {
   for (const token of ['not-a-jwt', jwt.sign({ businessName: 'Fixture' }, 'wrong-secret'), jwt.sign({ businessName: 'Fixture' }, 'fixture-widget-secret', { expiresIn: -1 })]) {

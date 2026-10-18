@@ -10,16 +10,16 @@ import { listStoreChannels, listStoreCollections, deleteStoreCollection, registe
 import { updateCatalogInstance } from '../catalog-instance-update';
 const blank = (provider: string, id: number) => ({ qrgBlankId: '11101', canonicalTitle: 'Canonical shirt', minPrice: 10, isActive: true,
   providerMappings: { [provider]: provider === 'printful' ? { productId: id } : { blueprintId: id, printProviderId: 99 } },
-  qrgVariants: { '0301': { sizeLabel: 'M', colorLabel: 'Black' } },
+  qrgVariants: { '0301': { sizeLabel: 'M', colorLabel: 'Black', providerVariants: { [provider]: { productId: id, variantId: 123, blueprintId: id, printProviderId: 99 } } } },
 });
-function fixture() { return database({ 'stores/a': { name: 'A', roleType: 'marketplace' },
+function fixture() { return database({ 'settings/admin': { defaultFulfillmentProvider: 'printful' }, 'stores/a': { name: 'A', roleType: 'marketplace' },
   'master_catalog/qrg_11101': blank('printify', 6), 'master_catalog/qrg_11102': blank('printful', 71) }); }
 const auth = (req: any,res: any,next: any) => req.headers['x-admin'] ? next() : res.status(401).json({ error:'Unauthorized' });
-it('saves QRG references, reads both providers and preserves explicit empty choices', async () => {
+it('saves QRG references, uses the configured provider and preserves explicit empty choices', async () => {
   const {db,store}=fixture();
   await saveStoreProducts(db,'a',[{canonicalBlankKey:'qrg_11101',colors:[],sizes:[],title:'Stale'},{canonicalBlankKey:'qrg_11102'}]);
   expect(store.get('storeAllowedProducts/a').products).toEqual([{canonicalBlankKey:'qrg_11101',colors:[],sizes:[]},{canonicalBlankKey:'qrg_11102'}]);
-  const {products}=await readStoreProducts(db,'a');expect(products.map(p=>p.provider)).toEqual(['printify','printful']);
+  const {products}=await readStoreProducts(db,'a');expect(products.map(p=>p.provider)).toEqual(['printful','printful']);
   expect(products[0].title).toBe('Canonical shirt');expect(products[0].colors).toEqual([]);expect(products[0].sizes).toEqual([]);expect(products[0].availableColors).toEqual([]);expect(products[0].availableSizes).toEqual([]);
   expect(products[1].colors[0].name).toBe('Black');expect(products[1].sizes).toEqual(['M']);
   expect([...store.keys()].filter(k=>k.startsWith('printify')||k.startsWith('printful'))).toEqual([]);

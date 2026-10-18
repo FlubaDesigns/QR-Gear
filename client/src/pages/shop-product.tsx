@@ -594,7 +594,7 @@ export default function ShopProductPage() {
                   variant="outline"
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
-                  data-testid="button-quantity-decrease"
+                  aria-label="Decrease quantity" data-testid="button-quantity-decrease"
                 >
                   <Minus className="h-4 w-4" />
                 </Button>
@@ -605,7 +605,7 @@ export default function ShopProductPage() {
                   size="icon"
                   variant="outline"
                   onClick={() => setQuantity(quantity + 1)}
-                  data-testid="button-quantity-increase"
+                  aria-label="Increase quantity" data-testid="button-quantity-increase"
                 >
                   <Plus className="h-4 w-4" />
                 </Button>

@@ -85,9 +85,9 @@ export default function PrivacyPolicy() {
             <h2 className="text-xl font-semibold mb-3">5. QR Code Data</h2>
             <p className="text-muted-foreground leading-relaxed">
               QR codes on our products may link to URLs, images, videos, or other digital content that you
-              configure. For dynamic QR products (QR Plus, QR Canvas, QR Play, QR Compose), we store the
+              configure. For hosted QR products (QR Canvas, QR Play, QR Compose), we store the
               destination data you provide so it can be served when the QR code is scanned. You can update
-              or remove this data at any time through your account. Static QR codes (QR Basic) encode data
+              or remove this data at any time through your account. Static QR codes (QR Basic and QR Plus) encode data
               directly into the code itself, and we do not track scans of static QR codes.
             </p>
           </section>

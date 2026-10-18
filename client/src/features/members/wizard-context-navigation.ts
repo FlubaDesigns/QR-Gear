@@ -1,5 +1,5 @@
 import { previewMemberBuild } from '@/lib/memberBuild';
-import { memberBuildInput } from './wizard-context-actions';
+import { memberBuildInput, previewCanonicalMemberContext } from './wizard-context-actions';
 import {
   generateQRCodeUrl,
   SIMPLE_WIZARD_STEPS, QR_BASIC_STEPS, QR_PLUS_STEPS, QR_PLAY_STEPS, QR_COMPOSE_STEPS,
@@ -66,16 +66,16 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
       return;
     }
     ctx.setIsGeneratingPlayMockup(true);
-    ctx.setSimpleStep('play-mockup');
     try {
-      await ctx.generateProductMockupForType('qr-play', ctx.setQrPlayMockup);
+      if (await ctx.generateProductMockupForType('qr-play', ctx.setQrPlayMockup)) ctx.setSimpleStep('play-mockup');
     } finally {
       ctx.setIsGeneratingPlayMockup(false);
     }
     return;
   }
   if (ctx.simpleStep === 'play-mockup') {
-    ctx.setSimpleStep('play-publish');
+    const result = await refreshMemberPreview(ctx);
+    if (result && !result.changed) ctx.setSimpleStep('play-publish');
     return;
   }
   if (ctx.simpleStep === 'play-publish') {
@@ -83,6 +83,7 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'play-save-choice') {
+    try { await ctx.savePlayToLibrary(); } catch { return; }
     ctx.handlePlayDone();
     return;
   }
@@ -93,16 +94,16 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
       return;
     }
     ctx.setIsGeneratingCanvasMockup(true);
-    ctx.setSimpleStep('canvas-mockup');
     try {
-      await ctx.generateProductMockupForType('qr-canvas', ctx.setQrCanvasMockup);
+      if (await ctx.generateProductMockupForType('qr-canvas', ctx.setQrCanvasMockup)) ctx.setSimpleStep('canvas-mockup');
     } finally {
       ctx.setIsGeneratingCanvasMockup(false);
     }
     return;
   }
   if (ctx.simpleStep === 'canvas-mockup') {
-    ctx.setSimpleStep('url-publish');
+    const result = await refreshMemberPreview(ctx);
+    if (result && !result.changed) ctx.setSimpleStep('url-publish');
     return;
   }
 
@@ -139,22 +140,22 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     return;
   }
   if (ctx.simpleStep === 'compose-hosting') {
-    if (!ctx.composeHostingTerm) return;
+    if (!ctx.pricingSettings?.hostingTiers.some((tier: any) => tier.code === ctx.composeHostingTerm.replace('-', '_'))) return;
     if (!ctx.user?.id) {
       ctx.setShowSignInToPublish(true);
       return;
     }
     ctx.setIsGeneratingComposeMockup(true);
-    ctx.setSimpleStep('compose-mockup');
     try {
-      await ctx.generateProductMockupForType('qr-compose', ctx.setComposeMockup);
+      if (await ctx.generateProductMockupForType('qr-compose', ctx.setComposeMockup)) ctx.setSimpleStep('compose-mockup');
     } finally {
       ctx.setIsGeneratingComposeMockup(false);
     }
     return;
   }
   if (ctx.simpleStep === 'compose-mockup') {
-    ctx.setSimpleStep('compose-preview');
+    const result = await refreshMemberPreview(ctx);
+    if (result && !result.changed) ctx.setSimpleStep('compose-preview');
     return;
   }
   if (ctx.simpleStep === 'compose-preview') {
@@ -230,6 +231,7 @@ export async function executeSimpleNext(ctx: any): Promise<void> {
     ctx.setPerPlacementConfigs((prev: any) => ({
       ...prev,
       [ctx.currentPlacement]: {
+        ...prev[ctx.currentPlacement],
         graphicChoice: ctx.placementGraphicChoice,
         size: savedSize
       }
@@ -395,20 +397,21 @@ export function executeSimpleBack(ctx: any): void {
 /** Preview and publish use the same QRG snapshot, artwork and supplier request. */
 export async function refreshMemberPreview(ctx: any) {
   if (!ctx.user?.id) { ctx.setShowSignInToPublish(true); return null; }
-  const plus = ctx.qrType === 'qr-plus';
-  const setGenerating = plus ? ctx.setIsGeneratingPlusMockup : ctx.setIsGeneratingBasicMockup;
+  const setters: Record<string, [any, any]> = {
+    'qr-basic': [ctx.setIsGeneratingBasicMockup, ctx.setQrBasicMockup],
+    'qr-plus': [ctx.setIsGeneratingPlusMockup, ctx.setQrPlusMockup],
+    'qr-canvas': [ctx.setIsGeneratingCanvasMockup, ctx.setQrCanvasMockup],
+    'qr-play': [ctx.setIsGeneratingPlayMockup, ctx.setQrPlayMockup],
+    'qr-compose': [ctx.setIsGeneratingComposeMockup, ctx.setComposeMockup],
+  };
+  const [setGenerating, setMockup] = setters[ctx.qrType] || setters['qr-basic'];
   setGenerating(true);
   try {
-    if (ctx.selectedChannel?.id === 'temp-channel') {
-      const channel = await ctx.api.createChannel(ctx.user.id, ctx.selectedChannel.name || 'My Products');
-      ctx.setSelectedChannel(channel);
-      ctx = { ...ctx, selectedChannel: channel };
-    }
-    const result = await previewMemberBuild(ctx.user.id, memberBuildInput(ctx));
+    const result = await previewCanonicalMemberContext(ctx);
     const url = result.lifestyleMockupUrl || result.mockupUrl;
     if (!url) throw new Error('Could not generate the product preview. Please retry.');
-    if (plus) ctx.setQrPlusMockup(url); else ctx.setQrBasicMockup(url);
-    ctx.setQrGraphic(generateQRCodeUrl(ctx.qrBasicContent, 1000));
+    setMockup(url);
+    if (['qr-basic', 'qr-plus'].includes(ctx.qrType)) ctx.setQrGraphic(generateQRCodeUrl(ctx.qrBasicContent, 1000));
     ctx.setProductGraphic(result.productGraphic);
     if (result.changed && ctx.simpleStep.endsWith('-mockup')) ctx.toast({ title: 'Preview updated', description: 'Review your updated design, then choose Next.' });
     return result;

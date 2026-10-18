@@ -46,7 +46,7 @@ interface SetupResponse {
   generatedAt: string;
 }
 
-// ─── Static advisory items (code-level risks not in env checklist) ────────────
+// ─── Manual reminders (not measured configuration blockers) ────────────
 
 interface Advisory {
   id: string;
@@ -59,60 +59,15 @@ interface Advisory {
 }
 
 const ADVISORIES: Advisory[] = [
-  {
-    id: "printify-fulfillment-manual",
-    label: "Printify order submission is semi-manual",
-    severity: "risk",
-    description: "After a customer pays, orders must be manually submitted to Printify on some paths. Verify the Stripe webhook auto-submits before your first real order.",
-    action: "Test a real checkout end-to-end in Stripe test mode. Confirm the order appears in Printify automatically.",
-    href: "/admin/orders",
-    group: "Fulfillment",
-  },
-  {
-    id: "no-stock-check",
-    label: "No inventory check at add-to-cart",
-    severity: "risk",
-    description: "Stock validation happens at Printify submission, not at checkout. If a blank goes out of stock, you'll receive the payment and then have to cancel and refund manually.",
-    action: "Monitor Printify stock levels before launching. Have a refund process ready.",
-    href: "/admin/orders",
-    group: "Fulfillment",
-  },
-  {
-    id: "admin-bypass-flag",
-    label: "ADMIN_BYPASS flag must be false in production",
-    severity: "blocker",
-    description: "The ADMIN_BYPASS environment variable bypasses all admin authentication if set to 'true'. Confirm it is not set in your Firebase Functions config.",
-    action: "Run: firebase functions:config:get | grep bypass — it should return nothing.",
-    href: "/admin/settings",
-    group: "Platform",
-  },
-  {
-    id: "client-hardcoded-admin-uids",
-    label: "Admin UIDs hardcoded in client code",
-    severity: "risk",
-    description: "useAuth.ts contains a hardcoded ADMIN_UIDS array on the frontend. Anyone who knows a UID from this list sees the admin UI. Backend auth is still enforced.",
-    action: "Remove the hardcoded UIDs from useAuth.ts and rely solely on the backend ADMIN_USER_IDS env check.",
-    href: "/admin/settings",
-    group: "Platform",
-  },
-  {
-    id: "stripe-webhook-registered",
-    label: "Stripe webhook endpoint must be registered",
-    severity: "blocker",
-    description: "The STRIPE_WEBHOOK_SECRET alone isn't enough — you must also register the endpoint URL in the Stripe dashboard. Without this, order confirmations and payouts won't trigger.",
-    action: "In Stripe Dashboard → Developers → Webhooks, add: https://us-central1-qrgear-c1ffd.cloudfunctions.net/api/webhooks/stripe — events: checkout.session.completed, account.updated",
-    href: "/admin/settings",
-    group: "Payments",
-  },
-  {
-    id: "functions-deployed",
-    label: "Firebase Functions must be deployed",
-    severity: "blocker",
-    description: "The backend (payments, emails, fulfillment, QR dynamics) runs on Firebase Functions. If functions haven't been deployed, nothing works except the static frontend.",
-    action: "Run: firebase deploy --only functions --project qrgear-c1ffd from your local machine.",
-    href: "/admin/health",
-    group: "Platform",
-  },
+  { id: 'provider-acceptance', label: 'Review physical fulfillment before launch', severity: 'risk',
+    description: 'Automated configuration and regression checks do not prove physical print quality or delivery.',
+    action: 'Review the approved artwork and provider acceptance evidence for products you plan to sell.', href: '/admin/orders', group: 'Fulfillment' },
+  { id: 'webhook-review', label: 'Review payment and refund operations', severity: 'risk',
+    description: 'Check the intended Stripe webhook destination and the process for handling held or refunded orders.',
+    action: 'Review the deployment checks and payment provider dashboard.', href: '/admin/settings', group: 'Payments' },
+  { id: 'customer-acceptance', label: 'Review the customer journey', severity: 'risk',
+    description: 'Manually review product content, selected hosting terms and customer support information before launch.',
+    action: 'Open the public shop and review its current products.', href: '/gallery', group: 'Platform' },
 ];
 
 // ─── Config ──────────────────────────────────────────────────────────────────
@@ -232,7 +187,7 @@ function Section({ title, count, children }: { title: string; count: number; chi
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminLaunchPage() {
-  const { data, isLoading, refetch, isFetching } = useQuery<SetupResponse>({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery<SetupResponse>({
     queryKey: ["/api/admin/dashboard/setup"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/admin/dashboard/setup");
@@ -248,21 +203,21 @@ export default function AdminLaunchPage() {
   const envRisks = envItems.filter(i => (i.status === "warning" || i.status === "partial") || (i.status === "missing" && !["payments", "email"].includes(i.group)));
   const envOk = envItems.filter(i => i.status === "ok");
 
-  const advisoryBlockers = ADVISORIES.filter(a => a.severity === "blocker");
-  const advisoryRisks = ADVISORIES.filter(a => a.severity === "risk");
+  const advisoryBlockers = ADVISORIES.filter(() => false);
+  const advisoryRisks = ADVISORIES.filter(a => a.severity !== "info").map(a => ({ ...a, severity: "risk" as const }));
 
   const totalBlockers = envBlockers.length + advisoryBlockers.length;
   const totalRisks = envRisks.length + advisoryRisks.length;
-  const isReady = !isLoading && totalBlockers === 0;
+  const isReady = !!data && !isLoading && !isError && totalBlockers === 0;
   const isLive = isReady && totalRisks === 0;
 
-  const statusLabel = isLoading
+  const statusLabel = isError ? "Setup checks unavailable — retry" : isLoading
     ? "Checking..."
     : totalBlockers > 0
     ? `${totalBlockers} blocker${totalBlockers === 1 ? "" : "s"} — not ready`
     : totalRisks > 0
     ? "Blockers clear — review risks"
-    : "Go for launch";
+    : "Measured checks passed — complete manual review";
 
   const statusColor = isLoading
     ? "text-muted-foreground"
@@ -374,7 +329,7 @@ export default function AdminLaunchPage() {
 
         {/* Risk items */}
         {(envRisks.length > 0 || advisoryRisks.length > 0) && (
-          <Section title="Risk Items — Should Address Before Launch" count={totalRisks}>
+          <Section title="Manual Review and Risk Items" count={totalRisks}>
             {envRisks.map(item => {
               const cfg = STATUS_CONFIG[item.status];
               return (

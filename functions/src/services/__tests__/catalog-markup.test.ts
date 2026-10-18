@@ -1,6 +1,7 @@
 vi.mock('../../core', () => ({ db: {}, QR_GEAR_BRANDED_TAG_URL:'https://files.example/brand.png' }));
-vi.mock('../printful', () => ({ printfulClient: {}, getPrintfulApiKeyAsync: vi.fn() }));
+vi.mock('../printful', () => ({ printfulClient: { getProduct: vi.fn() }, getPrintfulApiKeyAsync: vi.fn() }));
 vi.mock('../printify', () => ({ printifyClient: {} }));
+import { printfulClient } from '../printful';
 import { parseGrfId } from '../../../../shared/GRF_engine';
 import { buildWorkingSnapshot } from '../../../../shared/builderSnapshot';
 import { expect, it, vi } from 'vitest';
@@ -12,6 +13,7 @@ const settings = { markupPercent: 0, markupFixed: 0, additionalPlacementCost: 0,
 const labelId='GRF-11442-000002';
 const labelSpec={id:'label_inside',provider:'printful',providerPlacementId:'label_inside',dimensions:{widthPx:900,heightPx:900,dpi:300}};
 function fixture() {
+  vi.mocked(printfulClient.getProduct).mockResolvedValue({variants:[{price:'20'}]} as any);
   const pricing = { baseProductCost: 12, subtotal: 20, customerPrice: 25, markupPercent: 25, markupFixed: 0, markupAmount: 5, shippingCost: 4.95 };
   return database({ 'testSettings/pricing': settings,
     'admin_catalog_instances/a': { baseSnapshot: { title: 'Army', pricing }, resolved: { title: 'Army', pricing }, overrides: {}, version: 3, currentPacketId: 'p', storeId: 's' },
@@ -39,7 +41,7 @@ it.each(['markup', 'product', 'shipping', 'lookup cost'])('rejects a stale %s pr
   const { db, store } = fixture(); const preview = await syncCatalogMarkup(db, 'now', 'owner');
   if (what === 'markup') store.get('testSettings/pricing').markupPercent = 50;
   else if (what === 'shipping') store.get('testSettings/pricing').builtInShippingCost = 3;
-  else if (what === 'lookup cost') store.get('printful_products/71').maxPrice = 23;
+  else if (what === 'lookup cost') vi.mocked(printfulClient.getProduct).mockResolvedValue({variants:[{price:'23'}]} as any);
   else store.get('admin_catalog_instances/a').version++;
   const before = structuredClone(store);
   await expect(syncCatalogMarkup(db, 'now', 'owner', preview.previewToken)).rejects.toThrow('Preview again');
@@ -68,7 +70,7 @@ it('restores missing inside label and registered artwork only when the preview i
   const {db,store}=fixture();const packet=store.get('productPackets/p');
   packet.builderSnapshot.layoutConfig.selectedPlacements=['front'];delete packet.placementGrfIds;delete packet.placementGraphicUrls;
   const before=structuredClone(packet),preview=await syncCatalogMarkup(db,'now','owner');
-  expect(preview.products[0].restoreInsideLabel).toBe(true);expect(store.get('productPackets/p')).toEqual(before);
+  expect(preview.products[0].restoreBrandLabel).toBe('label_inside');expect(store.get('productPackets/p')).toEqual(before);
   await syncCatalogMarkup(db,'now','owner',preview.previewToken);
   const saved=store.get('productPackets/p');expect(saved.builderSnapshot.layoutConfig.selectedPlacements).toEqual(['front','label_inside']);
   expect(saved.placementGraphicUrls.label_inside).toBe('https://files.example/brand.png');

@@ -68,7 +68,9 @@ app.get('/widget/session', async (req: Request, res: Response): Promise<void> =>
       };
     });
 
+    res.setHeader('Cache-Control', 'private, no-store');
     res.json({
+      capabilities: { canCreate: false, canManage: false },
       businessName: payload.businessName,
       businessLogoUrl: payload.businessLogoUrl,
       kcListingUrl: payload.kcListingUrl,
@@ -236,9 +238,10 @@ app.get('/widget/verify', async (req: Request, res: Response): Promise<void> => 
   try {
     const token = req.query.token as string;
     if (!token) { res.json({ valid: false, error: "No token" }); return; }
-    const payload = typeof token === 'string' ? verifyWidgetToken(token) : null;
-    if (!payload) { res.json({ valid: false, error: 'Invalid or expired token' }); return; }
-    res.json({ valid: true, payload });
+    const payload = verifyWidgetToken(token);
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (!payload) { res.status(401).json({ valid: false, error: 'Invalid or expired token' }); return; }
+    res.json({ valid: true, expiresAt: payload.exp || null, payload: { businessName: payload.businessName, exp: payload.exp } });
   } catch (e: any) { res.json({ valid: false, error: e.message }); }
 });
 

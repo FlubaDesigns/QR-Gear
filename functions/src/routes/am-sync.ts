@@ -1,4 +1,4 @@
-import { changeEmailTemplate } from '../services/email-template-settings';
+import { saveEmailTemplate } from '../services/email-template-store';
 import { readOwnedDocument } from '../services/owned-document';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { savePartner, rotatePartnerKey, authenticatePartner, partnerProducts } from '../services/partner-api';
@@ -594,7 +594,7 @@ app.get('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Re
 });
 
 app.patch('/admin/email-templates/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
-  try { res.json(await changeEmailTemplate(db, 'update', req.params.id, req.body)); }
+  try { res.json(await saveEmailTemplate(req.body, req.params.id)); }
   catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 

@@ -222,7 +222,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       return;
     }
     if (simpleStep === 'qr-basic-type') { setSimpleStep('generate'); setWantsHeaderFooter(null); return; }
-    if (simpleStep === 'text-choice') { setSimpleStep('generate'); setWantsHeaderFooter(null); return; }
+    if (simpleStep === 'text-choice') { setSimpleStep('layout-mode'); return; }
 
     const backMap: Record<string, SimpleWizardStep> = {
       'product-congrats': 'product',
@@ -233,6 +233,7 @@ export function useOwnerWizardNav(state: NavState, setters: NavSetters) {
       'placement-count': preSelectedType ? 'size' : 'type',
       'graphic-size': 'placement-count',
       'generate': 'graphic-size',
+      'layout-mode': 'generate',
       'text-edit-header': 'text-choice',
       'text-edit-footer': textLayoutChoice === 'both' ? 'text-edit-header' : 'text-choice',
       'placement-config': textLayoutChoice === 'both' ? 'text-edit-footer' : (textLayoutChoice === 'footer' ? 'text-edit-footer' : 'text-edit-header'),

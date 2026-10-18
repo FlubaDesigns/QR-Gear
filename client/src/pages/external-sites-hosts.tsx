@@ -1,3 +1,5 @@
+import { ExternalReadError } from '@/components/admin/ExternalReadError';
+import { ExternalPolicyFields } from '@/components/admin/ExternalPolicyFields';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -17,6 +19,8 @@ import {
 } from "lucide-react";
 
 interface BuilderHost {
+  defaultPricingPolicyId?: string;
+  defaultRevenueSplitId?: string;
   id: string;
   name: string;
   ownerUserId: string;
@@ -61,10 +65,10 @@ export function HostsSection() {
     contactEmail: "",
     contactName: "",
     notes: "",
-    status: "active",
+    status: "active", defaultPricingPolicyId: "", defaultRevenueSplitId: "",
   });
 
-  const { data: hosts = [], isLoading } = useQuery<BuilderHost[]>({
+  const { data: hosts = [], isLoading, isError: hostsReadError, refetch: retryhosts } = useQuery<BuilderHost[]>({
     queryKey: ["/api/admin/external/hosts"],
   });
 
@@ -109,7 +113,7 @@ export function HostsSection() {
   const resetForm = () => {
     setShowForm(false);
     setEditingHost(null);
-    setFormData({ name: "", ownerUserId: "", allowedDomains: "", contactEmail: "", contactName: "", notes: "", status: "active" });
+    setFormData({ name: "", ownerUserId: "", allowedDomains: "", contactEmail: "", contactName: "", notes: "", status: "active", defaultPricingPolicyId: "", defaultRevenueSplitId: "" });
   };
 
   const openEdit = (host: BuilderHost) => {
@@ -122,6 +126,9 @@ export function HostsSection() {
       contactName: host.contactName || "",
       notes: host.notes || "",
       status: host.status || "active",
+      defaultPricingPolicyId: host.defaultPricingPolicyId || "",
+      defaultRevenueSplitId: host.defaultRevenueSplitId || "",
+
     });
     setShowForm(true);
   };
@@ -140,6 +147,7 @@ export function HostsSection() {
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-hosts" /></div>;
 
+  if (hostsReadError) return <ExternalReadError retry={() => { void retryhosts(); }} />;
   return (
     <AdminSectionCard
       title={`Builder Hosts (${hosts.length})`}
@@ -206,6 +214,7 @@ export function HostsSection() {
               </Select>
             </div>
           </div>
+          <ExternalPolicyFields pricingId={formData.defaultPricingPolicyId} revenueId={formData.defaultRevenueSplitId} inherited={false} onChange={(kind, id) => setFormData(prev => ({ ...prev, [kind === 'pricing' ? 'defaultPricingPolicyId' : 'defaultRevenueSplitId']: id }))} />
           <DialogFooter>
             <Button variant="outline" onClick={resetForm} data-testid="button-cancel-host">Cancel</Button>
             <Button onClick={handleSubmit} disabled={!formData.name.trim() || createMutation.isPending || updateMutation.isPending} data-testid="button-save-host">
@@ -244,7 +253,7 @@ export function ProfilesSection() {
     allowBuyNow: true,
   });
 
-  const { data: profiles = [], isLoading } = useQuery<BuilderProfile[]>({
+  const { data: profiles = [], isLoading, isError: profilesReadError, refetch: retryprofiles } = useQuery<BuilderProfile[]>({
     queryKey: ["/api/admin/external/profiles"],
   });
 
@@ -353,6 +362,7 @@ export function ProfilesSection() {
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-profiles" /></div>;
 
+  if (profilesReadError) return <ExternalReadError retry={() => { void retryprofiles(); }} />;
   return (
     <AdminSectionCard
       title={`Builder Profiles (${profiles.length})`}

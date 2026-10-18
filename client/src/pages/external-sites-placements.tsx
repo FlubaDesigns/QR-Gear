@@ -1,3 +1,5 @@
+import { ExternalReadError } from '@/components/admin/ExternalReadError';
+import { ExternalPolicyFields } from '@/components/admin/ExternalPolicyFields';
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -29,6 +31,8 @@ interface BuilderProfile {
 }
 
 interface BuilderPlacement {
+  pricingPolicyId?: string;
+  revenueSplitId?: string;
   id: string;
   builderHostId: string;
   builderProfileId: string;
@@ -83,12 +87,12 @@ export function PlacementsSection() {
     slug: "",
     domainHint: "",
     embedMode: "store",
-    status: "active",
+    status: "active", pricingPolicyId: "", revenueSplitId: "",
   });
 
-  const { data: placements = [], isLoading } = useQuery<BuilderPlacement[]>({ queryKey: ["/api/admin/external/placements"] });
-  const { data: hosts = [] } = useQuery<BuilderHost[]>({ queryKey: ["/api/admin/external/hosts"] });
-  const { data: profiles = [] } = useQuery<BuilderProfile[]>({ queryKey: ["/api/admin/external/profiles"] });
+  const { data: placements = [], isLoading, isError: placementsReadError, refetch: retryplacements } = useQuery<BuilderPlacement[]>({ queryKey: ["/api/admin/external/placements"] });
+  const { data: hosts = [], isError: hostsReadError, refetch: retryhosts } = useQuery<BuilderHost[]>({ queryKey: ["/api/admin/external/hosts"] });
+  const { data: profiles = [], isError: profilesReadError, refetch: retryprofiles } = useQuery<BuilderProfile[]>({ queryKey: ["/api/admin/external/profiles"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -131,7 +135,7 @@ export function PlacementsSection() {
   const resetForm = () => {
     setShowForm(false);
     setEditingPlacement(null);
-    setFormData({ builderHostId: "", builderProfileId: "", surfaceId: "", placementName: "", slug: "", domainHint: "", embedMode: "store", status: "active" });
+    setFormData({ builderHostId: "", builderProfileId: "", surfaceId: "", placementName: "", slug: "", domainHint: "", embedMode: "store", status: "active", pricingPolicyId: "", revenueSplitId: "" });
   };
 
   const openEdit = (p: BuilderPlacement) => {
@@ -145,6 +149,9 @@ export function PlacementsSection() {
       domainHint: p.domainHint || "",
       embedMode: p.embedMode || "store",
       status: p.status || "active",
+      pricingPolicyId: p.pricingPolicyId || "",
+      revenueSplitId: p.revenueSplitId || "",
+
     });
     setShowForm(true);
   };
@@ -162,6 +169,7 @@ export function PlacementsSection() {
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-placements" /></div>;
 
+  if (placementsReadError || hostsReadError || profilesReadError) return <ExternalReadError retry={() => { void retryplacements(); void retryhosts(); void retryprofiles(); }} />;
   return (
     <AdminSectionCard
       title={`Builder Placements (${placements.length})`}
@@ -259,6 +267,7 @@ export function PlacementsSection() {
               </Select>
             </div>
           </div>
+          <ExternalPolicyFields pricingId={formData.pricingPolicyId} revenueId={formData.revenueSplitId} inherited={true} onChange={(kind, id) => setFormData(prev => ({ ...prev, [kind === 'pricing' ? 'pricingPolicyId' : 'revenueSplitId']: id }))} />
           <DialogFooter>
             <Button variant="outline" onClick={resetForm} data-testid="button-cancel-placement">Cancel</Button>
             <Button onClick={handleSubmit} disabled={!formData.placementName.trim() || !formData.builderHostId || createMutation.isPending || updateMutation.isPending} data-testid="button-save-placement">
@@ -288,7 +297,7 @@ export function PricingSection() {
     status: "draft",
   });
 
-  const { data: policies = [], isLoading } = useQuery<PricingPolicy[]>({ queryKey: ["/api/admin/external/pricing-policies"] });
+  const { data: policies = [], isLoading, isError: policiesReadError, refetch: retrypolicies } = useQuery<PricingPolicy[]>({ queryKey: ["/api/admin/external/pricing-policies"] });
 
   const createMutation = useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
@@ -360,6 +369,7 @@ export function PricingSection() {
 
   if (isLoading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin" data-testid="loader-pricing" /></div>;
 
+  if (policiesReadError) return <ExternalReadError retry={() => { void retrypolicies(); }} />;
   return (
     <AdminSectionCard
       title={`Pricing Policies (${policies.length})`}

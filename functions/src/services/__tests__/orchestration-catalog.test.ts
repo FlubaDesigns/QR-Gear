@@ -12,10 +12,10 @@ const app=express();app.use(express.json());register(app);
 let store:Map<string,any>;
 beforeEach(()=>{
  const fixture=database({
-  'master_catalog/qrg_11111':{title:'Supplier blank'},
+  'master_catalog/qrg_11111':{title:'Supplier blank',qrgPrintSpecs:{printful:{locations:[{id:'label_inside',provider:'printful',providerPlacementId:'label_inside',dimensions:{widthPx:900,heightPx:900,dpi:300}}]}}},
   'admin_catalog_instances/shirt':{resolved:{title:'Army',pricing:{customerPrice:43.58,subtotal:34.864}},qrgBaseCode:'QRG-11111-I-000001',status:'active',currentPacketId:'p'},
   'admin_catalog_instances/old':{status:'deleted'},
-  'productPackets/p':{ownerInstanceId:'shirt',pricing:{customerPrice:43.58,subtotal:34.864},fulfillmentProvider:'printful',placementGrfIds:{label_inside:'GRF-21111-000001'},builderSnapshot:{metadata:{fulfillmentProvider:'printful'},layoutConfig:{selectedPlacements:['front','label_inside']}}},
+  'productPackets/p':{ownerInstanceId:'shirt',pricing:{customerPrice:43.58,subtotal:34.864},fulfillmentProvider:'printful',placementGrfIds:{label_inside:'GRF-21111-000001'},builderSnapshot:{graphics:{content:{graphicLayoutMode:'zone',qrSizePercent:50}},qrConfig:{qrProductState:'qr_basics'},metadata:{fulfillmentProvider:'printful',selectedProductDocId:'qrg_11111'},layoutConfig:{selectedPlacements:['front','label_inside']}}},
  });m.db=fixture.db;store=fixture.store;
 });
 it('lists the actual saved catalog, excludes blanks and deleted products, and never writes',async()=>{
