@@ -1,406 +1,504 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { users, hostedImages } from "./schema-users";
-import { products, qrDesigns, dynamicContentSets } from "./schema-products";
-import { masterProducts } from "./schema-stores";
-
-// Contract for the existing testSettings/pricing document. Amounts are owned
-// by Admin Pricing; validation must never substitute a business default.
+// Shared Firestore/API contracts. Persistence is owned by Firebase services.
 const pricingAmount = z.number().finite().nonnegative();
 export const pricingSettingsSchema = z.object({
-  markupPercent: pricingAmount,
-  markupFixed: pricingAmount,
-  additionalPlacementCost: pricingAmount,
-  textLineUpcharge: pricingAmount,
-  centerGraphicUpcharge: pricingAmount,
-  memberProfitShare: pricingAmount.max(1),
-  builtInShippingCost: pricingAmount,
-  sizeUpcharges: z.record(pricingAmount),
-  hostingTiers: z.array(z.object({ code: z.string().trim().min(1), name: z.string().trim().min(1), price: pricingAmount }))
-    .refine(tiers => new Set(tiers.map(t => t.code)).size === tiers.length, 'Hosting tier codes must be unique'),
-  brandLabelPricing: z.object({ printifyInside: pricingAmount, printifyOutside: pricingAmount, printfulInside: pricingAmount, printfulOutside: pricingAmount }),
-  preferredLabelPosition: z.enum(['inside', 'outside']),
+    markupPercent: pricingAmount,
+    markupFixed: pricingAmount,
+    additionalPlacementCost: pricingAmount,
+    textLineUpcharge: pricingAmount,
+    centerGraphicUpcharge: pricingAmount,
+    memberProfitShare: pricingAmount.max(1),
+    builtInShippingCost: pricingAmount,
+    sizeUpcharges: z.record(pricingAmount),
+    hostingTiers: z.array(z.object({ code: z.string().trim().min(1), name: z.string().trim().min(1), price: pricingAmount }))
+        .refine(tiers => new Set(tiers.map(t => t.code)).size === tiers.length, 'Hosting tier codes must be unique'),
+    brandLabelPricing: z.object({ printifyInside: pricingAmount, printifyOutside: pricingAmount, printfulInside: pricingAmount, printfulOutside: pricingAmount }),
+    preferredLabelPosition: z.enum(['inside', 'outside']),
 });
 export type PricingSettings = z.infer<typeof pricingSettingsSchema>;
-
-export const giftBackgrounds = pgTable("gift_backgrounds", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  category: text("category"),
-  thumbnailUrl: text("thumbnail_url").notNull(),
-  fullImageUrl: text("full_image_url").notNull(),
-  storageUrl: text("storage_url").notNull(),
-  isActive: boolean("is_active").default(true),
-  isFeatured: boolean("is_featured").default(false),
-  sortOrder: integer("sort_order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertCartItemSchema = z.object({
+    "userId": z.string(),
+    "designId": z.string().nullable().optional(),
+    "productId": z.string(),
+    "quantity": z.number().min(-2147483648).max(2147483647).int().optional(),
+    "customization": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]),
+    "price": z.string(),
 });
-
-export const hostingTiers = pgTable("hosting_tiers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  description: text("description"),
-  durationDays: integer("duration_days").notNull(),
-  isIncluded: boolean("is_included").default(false),
-  priceUpcharge: decimal("price_upcharge", { precision: 10, scale: 2 }).default("0"),
-  videoPriceUpcharge: decimal("video_price_upcharge", { precision: 10, scale: 2 }).default("0"),
-  isActive: boolean("is_active").default(true),
-  sortOrder: integer("sort_order").default(0),
+export const insertOrderSchema = z.object({
+    "userId": z.string(),
+    "status": z.string(),
+    "totalAmount": z.string(),
+    "stripePaymentId": z.string().nullable().optional(),
+    "stripeSessionId": z.string().nullable().optional(),
+    "stripePaymentIntentId": z.string().nullable().optional(),
+    "printifyOrderId": z.string().nullable().optional(),
+    "shippingAddress": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "trackingNumber": z.string().nullable().optional(),
+    "carrier": z.string().nullable().optional(),
 });
-
-export const coupons = pgTable("coupons", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  discountType: text("discount_type").notNull(),
-  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
-  currency: text("currency").default("usd"),
-  minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }),
-  maxRedemptions: integer("max_redemptions"),
-  redemptionCount: integer("redemption_count").default(0),
-  validFrom: timestamp("valid_from"),
-  validUntil: timestamp("valid_until"),
-  stripeCouponId: text("stripe_coupon_id"),
-  stripePromotionCodeId: text("stripe_promotion_code_id"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertOrderItemSchema = z.object({
+    "orderId": z.string(),
+    "productId": z.string(),
+    "quantity": z.number().min(-2147483648).max(2147483647).int(),
+    "customization": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]),
+    "price": z.string(),
+    "printifyItemId": z.string().nullable().optional(),
 });
-
-export const customGifts = pgTable("custom_gifts", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id),
-  slug: text("slug").notNull().unique(),
-  backgroundSource: text("background_source").notNull(),
-  backgroundId: varchar("background_id").references(() => giftBackgrounds.id),
-  uploadedImageId: varchar("uploaded_image_id").references(() => hostedImages.id),
-  compositeImageUrl: text("composite_image_url"),
-  overlayConfig: jsonb("overlay_config"),
-  textAboveQr: text("text_above_qr"),
-  textBelowQr: text("text_below_qr"),
-  qrTextContent: text("qr_text_content"),
-  hostingTierId: varchar("hosting_tier_id").references(() => hostingTiers.id),
-  disclaimerAccepted: boolean("disclaimer_accepted").default(false),
-  disclaimerAcceptedAt: timestamp("disclaimer_accepted_at"),
-  pricingSnapshot: jsonb("pricing_snapshot"),
-  views: integer("views").default(0),
-  status: text("status").default("active"),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertGiftBackgroundSchema = z.object({
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "category": z.string().nullable().optional(),
+    "thumbnailUrl": z.string(),
+    "fullImageUrl": z.string(),
+    "storageUrl": z.string(),
+    "isActive": z.boolean().nullable().optional(),
+    "isFeatured": z.boolean().nullable().optional(),
+    "sortOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
 });
-
-export const hostingReminders = pgTable("hosting_reminders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  customGiftId: varchar("custom_gift_id").notNull().references(() => customGifts.id),
-  userId: varchar("user_id").references(() => users.id),
-  reminderType: text("reminder_type").notNull(),
-  scheduledFor: timestamp("scheduled_for").notNull(),
-  sentAt: timestamp("sent_at"),
-  emailAddress: text("email_address"),
-  status: text("status").default("pending"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertHostingTierSchema = z.object({
+    "code": z.string(),
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "durationDays": z.number().min(-2147483648).max(2147483647).int(),
+    "isIncluded": z.boolean().nullable().optional(),
+    "priceUpcharge": z.string().nullable().optional(),
+    "videoPriceUpcharge": z.string().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "sortOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
 });
-
-export const dynamicPages = pgTable("dynamic_pages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  slug: text("slug").notNull().unique(),
-  title: text("title").notNull(),
-  description: text("description"),
-  activeAssetId: varchar("active_asset_id"),
-  hostingTierId: varchar("hosting_tier_id").references(() => hostingTiers.id),
-  views: integer("views").default(0),
-  status: text("status").default("active"),
-  expiresAt: timestamp("expires_at"),
-  renewalReminderSent: boolean("renewal_reminder_sent").default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertCouponSchema = z.object({
+    "code": z.string(),
+    "name": z.string(),
+    "discountType": z.string(),
+    "discountValue": z.string(),
+    "currency": z.string().nullable().optional(),
+    "minOrderAmount": z.string().nullable().optional(),
+    "maxRedemptions": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "validFrom": z.date().nullable().optional(),
+    "validUntil": z.date().nullable().optional(),
+    "stripeCouponId": z.string().nullable().optional(),
+    "stripePromotionCodeId": z.string().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
 });
-
-export const dynamicPageAssets = pgTable("dynamic_page_assets", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  pageId: varchar("page_id").notNull().references(() => dynamicPages.id),
-  hostedImageId: varchar("hosted_image_id").notNull().references(() => hostedImages.id),
-  title: text("title"),
-  isActive: boolean("is_active").default(false),
-  activatedAt: timestamp("activated_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertCustomGiftSchema = z.object({
+    "userId": z.string().nullable().optional(),
+    "slug": z.string(),
+    "backgroundSource": z.string(),
+    "backgroundId": z.string().nullable().optional(),
+    "uploadedImageId": z.string().nullable().optional(),
+    "compositeImageUrl": z.string().nullable().optional(),
+    "overlayConfig": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "textAboveQr": z.string().nullable().optional(),
+    "textBelowQr": z.string().nullable().optional(),
+    "qrTextContent": z.string().nullable().optional(),
+    "hostingTierId": z.string().nullable().optional(),
+    "disclaimerAccepted": z.boolean().nullable().optional(),
+    "disclaimerAcceptedAt": z.date().nullable().optional(),
+    "pricingSnapshot": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "status": z.string().nullable().optional(),
+    "expiresAt": z.date().nullable().optional(),
 });
-
-export const cartItems = pgTable("cart_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  designId: varchar("design_id").references(() => qrDesigns.id),
-  productId: varchar("product_id").notNull().references(() => products.id),
-  quantity: integer("quantity").notNull().default(1),
-  customization: jsonb("customization").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertHostingReminderSchema = z.object({
+    "customGiftId": z.string(),
+    "userId": z.string().nullable().optional(),
+    "reminderType": z.string(),
+    "scheduledFor": z.date(),
+    "sentAt": z.date().nullable().optional(),
+    "emailAddress": z.string().nullable().optional(),
+    "status": z.string().nullable().optional(),
 });
-
-export const orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").notNull().references(() => users.id),
-  status: text("status").notNull(),
-  totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  stripePaymentId: text("stripe_payment_id"),
-  stripeSessionId: text("stripe_session_id"),
-  stripePaymentIntentId: text("stripe_payment_intent_id"),
-  printifyOrderId: text("printify_order_id"),
-  shippingAddress: jsonb("shipping_address"),
-  trackingNumber: text("tracking_number"),
-  carrier: text("carrier"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertDynamicPageSchema = z.object({
+    "userId": z.string(),
+    "slug": z.string(),
+    "title": z.string(),
+    "description": z.string().nullable().optional(),
+    "activeAssetId": z.string().nullable().optional(),
+    "hostingTierId": z.string().nullable().optional(),
+    "status": z.string().nullable().optional(),
+    "expiresAt": z.date().nullable().optional(),
+    "renewalReminderSent": z.boolean().nullable().optional(),
 });
-
-export const orderItems = pgTable("order_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id").notNull().references(() => orders.id),
-  productId: varchar("product_id").notNull().references(() => products.id),
-  quantity: integer("quantity").notNull(),
-  customization: jsonb("customization").notNull(),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  printifyItemId: text("printify_item_id"),
+export const insertDynamicPageAssetSchema = z.object({
+    "pageId": z.string(),
+    "hostedImageId": z.string(),
+    "title": z.string().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "activatedAt": z.date().nullable().optional(),
 });
-
-export const pricingRules = pgTable("pricing_rules", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  scope: text("scope").notNull(),
-  scopeValue: text("scope_value"),
-  markupType: text("markup_type").notNull(),
-  markupValue: decimal("markup_value", { precision: 10, scale: 2 }).notNull(),
-  qrProductionCost: decimal("qr_production_cost", { precision: 10, scale: 2 }).default("0"),
-  priority: integer("priority").default(0),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertPricingRuleSchema = z.object({
+    "name": z.string(),
+    "scope": z.string(),
+    "scopeValue": z.string().nullable().optional(),
+    "markupType": z.string(),
+    "markupValue": z.string(),
+    "qrProductionCost": z.string().nullable().optional(),
+    "priority": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
 });
-
-export const adminSettings = pgTable("admin_settings", {
-  id: varchar("id").primaryKey().default("default"),
-  globalMarkupPercent: decimal("global_markup_percent", { precision: 5, scale: 2 }).default("25"),
-  globalMarkupFixed: decimal("global_markup_fixed", { precision: 10, scale: 2 }).default("0"),
-  globalQrProductionCost: decimal("global_qr_production_cost", { precision: 10, scale: 2 }).default("2"),
-  additionalPlacementCost: decimal("additional_placement_cost", { precision: 10, scale: 2 }).default("4"),
-  textAboveUpcharge: decimal("text_above_upcharge", { precision: 10, scale: 2 }).default("2"),
-  textBelowUpcharge: decimal("text_below_upcharge", { precision: 10, scale: 2 }).default("2"),
-  imageHostingUpcharge: decimal("image_hosting_upcharge", { precision: 10, scale: 2 }).default("5"),
-  dynamicQrUpcharge: decimal("dynamic_qr_upcharge", { precision: 10, scale: 2 }).default("25"),
-  showPricesBeforeCustomization: boolean("show_prices_before_customization").default(false),
-  defaultFulfillmentProvider: text("default_fulfillment_provider").default("printful"),
-  defaultMockupProvider: text("default_mockup_provider").default("printful"),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertAdminSettingsSchema = z.object({
+    "id": z.string().optional(),
+    "globalMarkupPercent": z.string().nullable().optional(),
+    "globalMarkupFixed": z.string().nullable().optional(),
+    "globalQrProductionCost": z.string().nullable().optional(),
+    "additionalPlacementCost": z.string().nullable().optional(),
+    "textAboveUpcharge": z.string().nullable().optional(),
+    "textBelowUpcharge": z.string().nullable().optional(),
+    "imageHostingUpcharge": z.string().nullable().optional(),
+    "dynamicQrUpcharge": z.string().nullable().optional(),
+    "showPricesBeforeCustomization": z.boolean().nullable().optional(),
+    "defaultFulfillmentProvider": z.string().nullable().optional(),
+    "defaultMockupProvider": z.string().nullable().optional(),
 });
-
-export const productBundles = pgTable("product_bundles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  bundleType: text("bundle_type").notNull().default("fixed"),
-  displayImage: text("display_image"),
-  displayOrder: integer("display_order").default(0),
-  pricingType: text("pricing_type").notNull().default("discount_percent"),
-  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
-  fixedPrice: decimal("fixed_price", { precision: 10, scale: 2 }),
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
-  minItems: integer("min_items"),
-  maxItems: integer("max_items"),
-  isActive: boolean("is_active").default(true),
-  displayLocations: text("display_locations").array().default(sql`ARRAY['cart']::text[]`),
-  triggerProductIds: text("trigger_product_ids").array(),
-  startDate: timestamp("start_date"),
-  endDate: timestamp("end_date"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertProductBundleSchema = z.object({
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "bundleType": z.string().optional(),
+    "displayImage": z.string().nullable().optional(),
+    "displayOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "pricingType": z.string().optional(),
+    "discountPercent": z.string().nullable().optional(),
+    "fixedPrice": z.string().nullable().optional(),
+    "discountAmount": z.string().nullable().optional(),
+    "minItems": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "maxItems": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "displayLocations": z.array(z.string()).nullable().optional(),
+    "triggerProductIds": z.array(z.string()).nullable().optional(),
+    "startDate": z.date().nullable().optional(),
+    "endDate": z.date().nullable().optional(),
 });
-
-export const bundleItems = pgTable("bundle_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  bundleId: varchar("bundle_id").notNull().references(() => productBundles.id, { onDelete: "cascade" }),
-  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
-  productId: integer("product_id"),
-  displayOrder: integer("display_order").default(0),
-  quantity: integer("quantity").default(1),
-  isRequired: boolean("is_required").default(false),
-  itemDiscountPercent: decimal("item_discount_percent", { precision: 5, scale: 2 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertBundleItemSchema = z.object({
+    "bundleId": z.string(),
+    "masterProductId": z.string().nullable().optional(),
+    "productId": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "displayOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "quantity": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isRequired": z.boolean().nullable().optional(),
+    "itemDiscountPercent": z.string().nullable().optional(),
 });
-
-export const giftPackages = pgTable("gift_packages", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  giftType: text("gift_type").notNull().default("product"),
-  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
-  dynamicsTier: text("dynamics_tier"),
-  dynamicsMonths: integer("dynamics_months"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  allowColorChoice: boolean("allow_color_choice").default(true),
-  allowSizeChoice: boolean("allow_size_choice").default(true),
-  allowQrCustomization: boolean("allow_qr_customization").default(true),
-  includePersonalMessage: boolean("include_personal_message").default(true),
-  redemptionValidDays: integer("redemption_valid_days").default(365),
-  displayImage: text("display_image"),
-  isFreePromotion: boolean("is_free_promotion").default(false),
-  isActive: boolean("is_active").default(true),
-  sortOrder: integer("sort_order").default(0),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertGiftPackageSchema = z.object({
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "giftType": z.string().optional(),
+    "masterProductId": z.string().nullable().optional(),
+    "dynamicsTier": z.string().nullable().optional(),
+    "dynamicsMonths": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "price": z.string(),
+    "allowColorChoice": z.boolean().nullable().optional(),
+    "allowSizeChoice": z.boolean().nullable().optional(),
+    "allowQrCustomization": z.boolean().nullable().optional(),
+    "includePersonalMessage": z.boolean().nullable().optional(),
+    "redemptionValidDays": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "displayImage": z.string().nullable().optional(),
+    "isFreePromotion": z.boolean().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "sortOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
 });
-
-export const giftCodes = pgTable("gift_codes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  code: varchar("code", { length: 32 }).notNull().unique(),
-  giftPackageId: varchar("gift_package_id").notNull().references(() => giftPackages.id),
-  buyerUserId: varchar("buyer_user_id").references(() => users.id),
-  buyerEmail: text("buyer_email"),
-  buyerName: text("buyer_name"),
-  personalMessage: text("personal_message"),
-  orderId: varchar("order_id"),
-  stripePaymentId: text("stripe_payment_id"),
-  purchasedAt: timestamp("purchased_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  status: text("status").notNull().default("active"),
-  lastEmailedTo: text("last_emailed_to"),
-  lastEmailedAt: timestamp("last_emailed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertGiftCodeSchema = z.object({
+    "code": z.string().max(32),
+    "giftPackageId": z.string(),
+    "buyerUserId": z.string().nullable().optional(),
+    "buyerEmail": z.string().nullable().optional(),
+    "buyerName": z.string().nullable().optional(),
+    "personalMessage": z.string().nullable().optional(),
+    "orderId": z.string().nullable().optional(),
+    "stripePaymentId": z.string().nullable().optional(),
+    "purchasedAt": z.date().optional(),
+    "expiresAt": z.date(),
+    "status": z.string().optional(),
+    "lastEmailedTo": z.string().nullable().optional(),
+    "lastEmailedAt": z.date().nullable().optional(),
 });
-
-export const giftRedemptions = pgTable("gift_redemptions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  giftCodeId: varchar("gift_code_id").notNull().references(() => giftCodes.id),
-  recipientUserId: varchar("recipient_user_id").references(() => users.id),
-  recipientEmail: text("recipient_email"),
-  recipientName: text("recipient_name"),
-  selectedColor: text("selected_color"),
-  selectedSize: text("selected_size"),
-  qrContent: text("qr_content"),
-  qrStyle: jsonb("qr_style"),
-  shippingAddress: jsonb("shipping_address"),
-  dynamicsSubscriptionId: varchar("dynamics_subscription_id"),
-  dynamicsContentSetId: varchar("dynamics_content_set_id").references(() => dynamicContentSets.id),
-  fulfillmentOrderId: varchar("fulfillment_order_id"),
-  fulfillmentProvider: text("fulfillment_provider"),
-  fulfillmentStatus: text("fulfillment_status").default("pending"),
-  trackingNumber: text("tracking_number"),
-  trackingUrl: text("tracking_url"),
-  redeemedAt: timestamp("redeemed_at").defaultNow().notNull(),
-  fulfilledAt: timestamp("fulfilled_at"),
-  shippedAt: timestamp("shipped_at"),
-  deliveredAt: timestamp("delivered_at"),
+export const insertGiftRedemptionSchema = z.object({
+    "giftCodeId": z.string(),
+    "recipientUserId": z.string().nullable().optional(),
+    "recipientEmail": z.string().nullable().optional(),
+    "recipientName": z.string().nullable().optional(),
+    "selectedColor": z.string().nullable().optional(),
+    "selectedSize": z.string().nullable().optional(),
+    "qrContent": z.string().nullable().optional(),
+    "qrStyle": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "shippingAddress": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "dynamicsSubscriptionId": z.string().nullable().optional(),
+    "dynamicsContentSetId": z.string().nullable().optional(),
+    "fulfillmentOrderId": z.string().nullable().optional(),
+    "fulfillmentProvider": z.string().nullable().optional(),
+    "fulfillmentStatus": z.string().nullable().optional(),
+    "trackingNumber": z.string().nullable().optional(),
+    "trackingUrl": z.string().nullable().optional(),
+    "redeemedAt": z.date().optional(),
+    "fulfilledAt": z.date().nullable().optional(),
+    "shippedAt": z.date().nullable().optional(),
+    "deliveredAt": z.date().nullable().optional(),
 });
-
-export const insertCartItemSchema = createInsertSchema(cartItems).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertOrderSchema = createInsertSchema(orders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
-  id: true,
-});
-export const insertGiftBackgroundSchema = createInsertSchema(giftBackgrounds).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertHostingTierSchema = createInsertSchema(hostingTiers).omit({
-  id: true,
-});
-export const insertCouponSchema = createInsertSchema(coupons).omit({
-  id: true,
-  redemptionCount: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertCustomGiftSchema = createInsertSchema(customGifts).omit({
-  id: true,
-  views: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertHostingReminderSchema = createInsertSchema(hostingReminders).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertDynamicPageSchema = createInsertSchema(dynamicPages).omit({
-  id: true,
-  views: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertDynamicPageAssetSchema = createInsertSchema(dynamicPageAssets).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertPricingRuleSchema = createInsertSchema(pricingRules).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertAdminSettingsSchema = createInsertSchema(adminSettings).omit({
-  updatedAt: true,
-});
-export const insertProductBundleSchema = createInsertSchema(productBundles).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertBundleItemSchema = createInsertSchema(bundleItems).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertGiftPackageSchema = createInsertSchema(giftPackages).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertGiftCodeSchema = createInsertSchema(giftCodes).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertGiftRedemptionSchema = createInsertSchema(giftRedemptions).omit({
-  id: true,
-});
-
-export type CartItem = typeof cartItems.$inferSelect;
+export type CartItem = {
+    id: string;
+    createdAt: Date;
+    userId: string;
+    productId: string;
+    price: string;
+    designId: string | null;
+    quantity: number;
+    customization: unknown;
+};
 export type InsertCartItem = z.infer<typeof insertCartItemSchema>;
-export type Order = typeof orders.$inferSelect;
+export type Order = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    status: string;
+    totalAmount: string;
+    stripePaymentId: string | null;
+    stripeSessionId: string | null;
+    stripePaymentIntentId: string | null;
+    printifyOrderId: string | null;
+    shippingAddress: unknown;
+    trackingNumber: string | null;
+    carrier: string | null;
+};
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
-export type OrderItem = typeof orderItems.$inferSelect;
+export type OrderItem = {
+    id: string;
+    orderId: string;
+    productId: string;
+    price: string;
+    quantity: number;
+    customization: unknown;
+    printifyItemId: string | null;
+};
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
-export type GiftBackground = typeof giftBackgrounds.$inferSelect;
+export type GiftBackground = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    storageUrl: string;
+    description: string | null;
+    isActive: boolean | null;
+    thumbnailUrl: string;
+    sortOrder: number | null;
+    category: string | null;
+    isFeatured: boolean | null;
+    fullImageUrl: string;
+};
 export type InsertGiftBackground = z.infer<typeof insertGiftBackgroundSchema>;
-export type HostingTier = typeof hostingTiers.$inferSelect;
+export type HostingTier = {
+    id: string;
+    name: string;
+    description: string | null;
+    isActive: boolean | null;
+    sortOrder: number | null;
+    priceUpcharge: string | null;
+    code: string;
+    durationDays: number;
+    isIncluded: boolean | null;
+    videoPriceUpcharge: string | null;
+};
 export type InsertHostingTier = z.infer<typeof insertHostingTierSchema>;
-export type Coupon = typeof coupons.$inferSelect;
+export type Coupon = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isActive: boolean | null;
+    code: string;
+    discountType: string;
+    discountValue: string;
+    currency: string | null;
+    minOrderAmount: string | null;
+    maxRedemptions: number | null;
+    redemptionCount: number | null;
+    validFrom: Date | null;
+    validUntil: Date | null;
+    stripeCouponId: string | null;
+    stripePromotionCodeId: string | null;
+};
 export type InsertCoupon = z.infer<typeof insertCouponSchema>;
-export type CustomGift = typeof customGifts.$inferSelect;
+export type CustomGift = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string | null;
+    views: number | null;
+    expiresAt: Date | null;
+    status: string | null;
+    slug: string;
+    backgroundSource: string;
+    backgroundId: string | null;
+    uploadedImageId: string | null;
+    compositeImageUrl: string | null;
+    overlayConfig: unknown;
+    textAboveQr: string | null;
+    textBelowQr: string | null;
+    qrTextContent: string | null;
+    hostingTierId: string | null;
+    disclaimerAccepted: boolean | null;
+    disclaimerAcceptedAt: Date | null;
+    pricingSnapshot: unknown;
+};
 export type InsertCustomGift = z.infer<typeof insertCustomGiftSchema>;
-export type HostingReminder = typeof hostingReminders.$inferSelect;
+export type HostingReminder = {
+    id: string;
+    createdAt: Date;
+    userId: string | null;
+    status: string | null;
+    sentAt: Date | null;
+    customGiftId: string;
+    reminderType: string;
+    scheduledFor: Date;
+    emailAddress: string | null;
+};
 export type InsertHostingReminder = z.infer<typeof insertHostingReminderSchema>;
-export type DynamicPage = typeof dynamicPages.$inferSelect;
+export type DynamicPage = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    userId: string;
+    title: string;
+    description: string | null;
+    views: number | null;
+    expiresAt: Date | null;
+    status: string | null;
+    slug: string;
+    hostingTierId: string | null;
+    activeAssetId: string | null;
+    renewalReminderSent: boolean | null;
+};
 export type InsertDynamicPage = z.infer<typeof insertDynamicPageSchema>;
-export type DynamicPageAsset = typeof dynamicPageAssets.$inferSelect;
+export type DynamicPageAsset = {
+    id: string;
+    createdAt: Date;
+    title: string | null;
+    isActive: boolean | null;
+    pageId: string;
+    hostedImageId: string;
+    activatedAt: Date | null;
+};
 export type InsertDynamicPageAsset = z.infer<typeof insertDynamicPageAssetSchema>;
-export type PricingRule = typeof pricingRules.$inferSelect;
+export type PricingRule = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    isActive: boolean | null;
+    qrProductionCost: string | null;
+    scope: string;
+    scopeValue: string | null;
+    markupType: string;
+    markupValue: string;
+    priority: number | null;
+};
 export type InsertPricingRule = z.infer<typeof insertPricingRuleSchema>;
-export type AdminSettings = typeof adminSettings.$inferSelect;
+export type AdminSettings = {
+    id: string;
+    updatedAt: Date;
+    globalMarkupPercent: string | null;
+    globalMarkupFixed: string | null;
+    globalQrProductionCost: string | null;
+    additionalPlacementCost: string | null;
+    textAboveUpcharge: string | null;
+    textBelowUpcharge: string | null;
+    imageHostingUpcharge: string | null;
+    dynamicQrUpcharge: string | null;
+    showPricesBeforeCustomization: boolean | null;
+    defaultFulfillmentProvider: string | null;
+    defaultMockupProvider: string | null;
+};
 export type InsertAdminSettings = z.infer<typeof insertAdminSettingsSchema>;
-export type ProductBundle = typeof productBundles.$inferSelect;
+export type ProductBundle = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    description: string | null;
+    isActive: boolean | null;
+    startDate: Date | null;
+    endDate: Date | null;
+    bundleType: string;
+    displayImage: string | null;
+    displayOrder: number | null;
+    pricingType: string;
+    discountPercent: string | null;
+    fixedPrice: string | null;
+    discountAmount: string | null;
+    minItems: number | null;
+    maxItems: number | null;
+    displayLocations: string[] | null;
+    triggerProductIds: string[] | null;
+};
 export type InsertProductBundle = z.infer<typeof insertProductBundleSchema>;
-export type BundleItem = typeof bundleItems.$inferSelect;
+export type BundleItem = {
+    id: string;
+    createdAt: Date;
+    productId: number | null;
+    quantity: number | null;
+    displayOrder: number | null;
+    bundleId: string;
+    masterProductId: string | null;
+    isRequired: boolean | null;
+    itemDiscountPercent: string | null;
+};
 export type InsertBundleItem = z.infer<typeof insertBundleItemSchema>;
-export type GiftPackage = typeof giftPackages.$inferSelect;
+export type GiftPackage = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    description: string | null;
+    isActive: boolean | null;
+    sortOrder: number | null;
+    price: string;
+    displayImage: string | null;
+    masterProductId: string | null;
+    giftType: string;
+    dynamicsTier: string | null;
+    dynamicsMonths: number | null;
+    allowColorChoice: boolean | null;
+    allowSizeChoice: boolean | null;
+    allowQrCustomization: boolean | null;
+    includePersonalMessage: boolean | null;
+    redemptionValidDays: number | null;
+    isFreePromotion: boolean | null;
+};
 export type InsertGiftPackage = z.infer<typeof insertGiftPackageSchema>;
-export type GiftCode = typeof giftCodes.$inferSelect;
+export type GiftCode = {
+    id: string;
+    createdAt: Date;
+    expiresAt: Date;
+    status: string;
+    orderId: string | null;
+    stripePaymentId: string | null;
+    code: string;
+    giftPackageId: string;
+    buyerUserId: string | null;
+    buyerEmail: string | null;
+    buyerName: string | null;
+    personalMessage: string | null;
+    purchasedAt: Date;
+    lastEmailedTo: string | null;
+    lastEmailedAt: Date | null;
+};
 export type InsertGiftCode = z.infer<typeof insertGiftCodeSchema>;
-export type GiftRedemption = typeof giftRedemptions.$inferSelect;
+export type GiftRedemption = {
+    id: string;
+    recipientEmail: string | null;
+    qrContent: string | null;
+    qrStyle: unknown;
+    shippingAddress: unknown;
+    trackingNumber: string | null;
+    giftCodeId: string;
+    recipientUserId: string | null;
+    recipientName: string | null;
+    selectedColor: string | null;
+    selectedSize: string | null;
+    dynamicsSubscriptionId: string | null;
+    dynamicsContentSetId: string | null;
+    fulfillmentOrderId: string | null;
+    fulfillmentProvider: string | null;
+    fulfillmentStatus: string | null;
+    trackingUrl: string | null;
+    redeemedAt: Date;
+    fulfilledAt: Date | null;
+    shippedAt: Date | null;
+    deliveredAt: Date | null;
+};
 export type InsertGiftRedemption = z.infer<typeof insertGiftRedemptionSchema>;

@@ -1960,3 +1960,8 @@ Removed the remaining Replit database module/integration, legacy Replit login in
 ## Final audit reconciliation — QRG-041–074
 
 The combined release preserves the claims array, retired widget page and `perPlacementConfigs` snapshot field from QRG-041–050. Multipart video uploads now acknowledge the server-created library record; URL references use the validated video-reference route. Reports use the shared paid-net calculation and template writes use trigger reservations. The full client/shared/Functions regression suite gates release. See `docs/AUDIT_REPAIRS.md` for every retained item and verification limits.
+
+
+## Replit and SQL dependency retirement — October 20, 2026
+
+Removed the remaining Replit build plugins/runtime settings and replaced the Drizzle table declarations with plain shared TypeScript contracts and Zod validators. Existing exported API field types, insert validation and the saved-pricing refinement remain unchanged. Cloud Functions and Firestore continue to own persistence. The backend boundary check now rejects Replit and SQL packages in the root, Functions and mockup-tool manifests. No canonical identity definitions, saved records, pricing formulas or provider operations are changed. Source checks and production release evidence are reported separately.

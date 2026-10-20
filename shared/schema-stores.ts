@@ -1,318 +1,403 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean, unique } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { products } from "./schema-products";
-
-export const partnerStores = pgTable("partner_stores", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  slug: text("slug").notNull().unique(),
-  name: text("name").notNull(),
-  description: text("description"),
-  logoUrl: text("logo_url"),
-  websiteUrl: text("website_url"),
-  businessPageUrlPattern: text("business_page_url_pattern"),
-  apiKey: text("api_key").notNull(),
-  allowedOrigins: text("allowed_origins").array(),
-  primaryColor: text("primary_color"),
-  accentColor: text("accent_color"),
-  commissionPercent: decimal("commission_percent", { precision: 5, scale: 2 }).default("0"),
-  availableSegments: text("available_segments").array(),
-  isInternal: boolean("is_internal").default(false),
-  annualMemberPerk: jsonb("annual_member_perk"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+// Shared Firestore/API contracts. Persistence is owned by Firebase services.
+export const insertPartnerStoreSchema = z.object({
+    "slug": z.string(),
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "logoUrl": z.string().nullable().optional(),
+    "websiteUrl": z.string().nullable().optional(),
+    "businessPageUrlPattern": z.string().nullable().optional(),
+    "apiKey": z.string(),
+    "allowedOrigins": z.array(z.string()).nullable().optional(),
+    "primaryColor": z.string().nullable().optional(),
+    "accentColor": z.string().nullable().optional(),
+    "commissionPercent": z.string().nullable().optional(),
+    "availableSegments": z.array(z.string()).nullable().optional(),
+    "isInternal": z.boolean().nullable().optional(),
+    "annualMemberPerk": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
 });
-
-export const partnerStoreProducts = pgTable("partner_store_products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  partnerStoreId: varchar("partner_store_id").notNull().references(() => partnerStores.id),
-  productId: varchar("product_id").notNull().references(() => products.id),
-  customPrice: decimal("custom_price", { precision: 10, scale: 2 }),
-  customName: text("custom_name"),
-  kcPlacements: text("kc_placements").array(),
-  kcBusinessSlug: text("kc_business_slug"),
-  enabledSizes: text("enabled_sizes").array(),
-  enabledColors: text("enabled_colors").array(),
-  defaultColor: text("default_color"),
-  mockupsByColor: jsonb("mockups_by_color"),
-  sortOrder: integer("sort_order").default(0),
-  isEnabled: boolean("is_enabled").default(true),
+export const insertPartnerStoreProductSchema = z.object({
+    "partnerStoreId": z.string(),
+    "productId": z.string(),
+    "customPrice": z.string().nullable().optional(),
+    "customName": z.string().nullable().optional(),
+    "kcPlacements": z.array(z.string()).nullable().optional(),
+    "kcBusinessSlug": z.string().nullable().optional(),
+    "enabledSizes": z.array(z.string()).nullable().optional(),
+    "enabledColors": z.array(z.string()).nullable().optional(),
+    "defaultColor": z.string().nullable().optional(),
+    "mockupsByColor": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "sortOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isEnabled": z.boolean().nullable().optional(),
 });
-
-export const masterProducts = pgTable("master_products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sku: text("sku").notNull().unique(),
-  title: text("title").notNull(),
-  description: text("description"),
-  productType: text("product_type").notNull(),
-  currentDesignVersionId: varchar("current_design_version_id"),
-  pricingProfileId: varchar("pricing_profile_id"),
-  baseCost: decimal("base_cost", { precision: 10, scale: 2 }),
-  retailPrice: decimal("retail_price", { precision: 10, scale: 2 }),
-  status: text("status").default("draft"),
-  channels: jsonb("channels"),
-  tags: text("tags").array(),
-  bundleParentId: varchar("bundle_parent_id"),
-  bundleDiscount: decimal("bundle_discount", { precision: 5, scale: 2 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertMasterProductSchema = z.object({
+    "sku": z.string(),
+    "title": z.string(),
+    "description": z.string().nullable().optional(),
+    "productType": z.string(),
+    "currentDesignVersionId": z.string().nullable().optional(),
+    "pricingProfileId": z.string().nullable().optional(),
+    "baseCost": z.string().nullable().optional(),
+    "retailPrice": z.string().nullable().optional(),
+    "status": z.string().nullable().optional(),
+    "channels": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "tags": z.array(z.string()).nullable().optional(),
+    "bundleParentId": z.string().nullable().optional(),
+    "bundleDiscount": z.string().nullable().optional(),
 });
-
-export const productDesignVersions = pgTable("product_design_versions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  masterProductId: varchar("master_product_id").notNull().references(() => masterProducts.id, { onDelete: "cascade" }),
-  versionNumber: integer("version_number").notNull().default(1),
-  headerText: text("header_text"),
-  headerStyle: jsonb("header_style"),
-  footerText: text("footer_text"),
-  footerStyle: jsonb("footer_style"),
-  qrUrl: text("qr_url").notNull(),
-  renderedPngUrl: text("rendered_png_url"),
-  renderedSvgUrl: text("rendered_svg_url"),
-  qrCodeUrl: text("qr_code_url"),
-  placementImages: jsonb("placement_images"),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertProductDesignVersionSchema = z.object({
+    "masterProductId": z.string(),
+    "versionNumber": z.number().min(-2147483648).max(2147483647).int().optional(),
+    "headerText": z.string().nullable().optional(),
+    "headerStyle": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "footerText": z.string().nullable().optional(),
+    "footerStyle": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "qrUrl": z.string(),
+    "renderedPngUrl": z.string().nullable().optional(),
+    "renderedSvgUrl": z.string().nullable().optional(),
+    "qrCodeUrl": z.string().nullable().optional(),
+    "placementImages": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
 });
-
-export const channelConfigs = pgTable("channel_configs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  channelType: text("channel_type").notNull().unique(),
-  displayName: text("display_name").notNull(),
-  isEnabled: boolean("is_enabled").default(false),
-  apiKeySecretName: text("api_key_secret_name"),
-  apiSecretSecretName: text("api_secret_secret_name"),
-  shopId: text("shop_id"),
-  rateLimit: integer("rate_limit").default(60),
-  rateLimitWindow: integer("rate_limit_window").default(60),
-  webhookSecret: text("webhook_secret"),
-  webhookUrl: text("webhook_url"),
-  lastHealthCheck: timestamp("last_health_check"),
-  settings: jsonb("settings"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertChannelConfigSchema = z.object({
+    "channelType": z.string(),
+    "displayName": z.string(),
+    "isEnabled": z.boolean().nullable().optional(),
+    "apiKeySecretName": z.string().nullable().optional(),
+    "apiSecretSecretName": z.string().nullable().optional(),
+    "shopId": z.string().nullable().optional(),
+    "rateLimit": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "rateLimitWindow": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "webhookSecret": z.string().nullable().optional(),
+    "webhookUrl": z.string().nullable().optional(),
+    "lastHealthCheck": z.date().nullable().optional(),
+    "settings": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
 });
-
-export const channelPublishStates = pgTable("channel_publish_states", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  masterProductId: varchar("master_product_id").notNull().references(() => masterProducts.id, { onDelete: "cascade" }),
-  channelType: text("channel_type").notNull(),
-  externalProductId: text("external_product_id"),
-  externalListingId: text("external_listing_id"),
-  externalVariantIds: jsonb("external_variant_ids"),
-  status: text("status").default("unpublished"),
-  lastPublishedAt: timestamp("last_published_at"),
-  lastSyncedAt: timestamp("last_synced_at"),
-  lastError: text("last_error"),
-  publishedDesignVersionId: varchar("published_design_version_id"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => ({
-  productChannelUnique: unique().on(table.masterProductId, table.channelType),
-}));
-
-export const providerQuotes = pgTable("provider_quotes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  masterProductId: varchar("master_product_id").notNull().references(() => masterProducts.id, { onDelete: "cascade" }),
-  providerType: text("provider_type").notNull(),
-  productionCost: decimal("production_cost", { precision: 10, scale: 2 }).notNull(),
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
-  estimatedDays: integer("estimated_days"),
-  isAvailable: boolean("is_available").default(true),
-  quotedAt: timestamp("quoted_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at"),
+export const insertChannelPublishStateSchema = z.object({
+    "masterProductId": z.string(),
+    "channelType": z.string(),
+    "externalProductId": z.string().nullable().optional(),
+    "externalListingId": z.string().nullable().optional(),
+    "externalVariantIds": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "status": z.string().nullable().optional(),
+    "lastPublishedAt": z.date().nullable().optional(),
+    "lastSyncedAt": z.date().nullable().optional(),
+    "lastError": z.string().nullable().optional(),
+    "publishedDesignVersionId": z.string().nullable().optional(),
 });
-
-export const pricingProfiles = pgTable("pricing_profiles", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  markupType: text("markup_type").notNull().default("percentage"),
-  markupPercent: decimal("markup_percent", { precision: 5, scale: 2 }),
-  markupFixed: decimal("markup_fixed", { precision: 10, scale: 2 }),
-  minMarginPercent: decimal("min_margin_percent", { precision: 5, scale: 2 }).default("40"),
-  channelAdjustments: jsonb("channel_adjustments"),
-  autoRepriceEnabled: boolean("auto_reprice_enabled").default(false),
-  autoRepriceMinMargin: decimal("auto_reprice_min_margin", { precision: 5, scale: 2 }),
-  isDefault: boolean("is_default").default(false),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertProviderQuoteSchema = z.object({
+    "masterProductId": z.string(),
+    "providerType": z.string(),
+    "productionCost": z.string(),
+    "shippingCost": z.string().nullable().optional(),
+    "estimatedDays": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isAvailable": z.boolean().nullable().optional(),
+    "quotedAt": z.date().optional(),
+    "expiresAt": z.date().nullable().optional(),
 });
-
-export const ordersUnified = pgTable("orders_unified", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sourceChannel: text("source_channel").notNull(),
-  externalOrderId: text("external_order_id"),
-  customerEmail: text("customer_email"),
-  customerName: text("customer_name"),
-  shippingAddress: jsonb("shipping_address"),
-  items: jsonb("items").notNull(),
-  subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
-  shippingTotal: decimal("shipping_total", { precision: 10, scale: 2 }),
-  taxTotal: decimal("tax_total", { precision: 10, scale: 2 }),
-  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
-  routedProvider: text("routed_provider"),
-  providerOrderId: text("provider_order_id"),
-  status: text("status").default("pending"),
-  statusHistory: jsonb("status_history"),
-  trackingNumber: text("tracking_number"),
-  trackingUrl: text("tracking_url"),
-  shippedAt: timestamp("shipped_at"),
-  deliveredAt: timestamp("delivered_at"),
-  productionCost: decimal("production_cost", { precision: 10, scale: 2 }),
-  profit: decimal("profit", { precision: 10, scale: 2 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertPricingProfileSchema = z.object({
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "markupType": z.string().optional(),
+    "markupPercent": z.string().nullable().optional(),
+    "markupFixed": z.string().nullable().optional(),
+    "minMarginPercent": z.string().nullable().optional(),
+    "channelAdjustments": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "autoRepriceEnabled": z.boolean().nullable().optional(),
+    "autoRepriceMinMargin": z.string().nullable().optional(),
+    "isDefault": z.boolean().nullable().optional(),
 });
-
-export const qrScanEvents = pgTable("qr_scan_events", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
-  customDesignId: varchar("custom_design_id"),
-  qrUrl: text("qr_url"),
-  scanDate: timestamp("scan_date").defaultNow().notNull(),
-  scanCount: integer("scan_count").default(1),
-  country: text("country"),
-  region: text("region"),
-  deviceType: text("device_type"),
-  userAgent: text("user_agent"),
+export const insertOrderUnifiedSchema = z.object({
+    "sourceChannel": z.string(),
+    "externalOrderId": z.string().nullable().optional(),
+    "customerEmail": z.string().nullable().optional(),
+    "customerName": z.string().nullable().optional(),
+    "shippingAddress": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "items": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]),
+    "subtotal": z.string(),
+    "shippingTotal": z.string().nullable().optional(),
+    "taxTotal": z.string().nullable().optional(),
+    "total": z.string(),
+    "routedProvider": z.string().nullable().optional(),
+    "providerOrderId": z.string().nullable().optional(),
+    "status": z.string().nullable().optional(),
+    "statusHistory": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "trackingNumber": z.string().nullable().optional(),
+    "trackingUrl": z.string().nullable().optional(),
+    "shippedAt": z.date().nullable().optional(),
+    "deliveredAt": z.date().nullable().optional(),
+    "productionCost": z.string().nullable().optional(),
+    "profit": z.string().nullable().optional(),
 });
-
-export const providerHealthLog = pgTable("provider_health_log", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  providerType: text("provider_type").notNull(),
-  checkTime: timestamp("check_time").defaultNow().notNull(),
-  isHealthy: boolean("is_healthy").default(true),
-  responseTimeMs: integer("response_time_ms"),
-  errorMessage: text("error_message"),
-  errorCode: text("error_code"),
-  uptimePercent24h: decimal("uptime_percent_24h", { precision: 5, scale: 2 }),
-  avgResponseTime24h: integer("avg_response_time_24h"),
+export const insertQrScanEventSchema = z.object({
+    "masterProductId": z.string().nullable().optional(),
+    "customDesignId": z.string().nullable().optional(),
+    "qrUrl": z.string().nullable().optional(),
+    "scanDate": z.date().optional(),
+    "scanCount": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "country": z.string().nullable().optional(),
+    "region": z.string().nullable().optional(),
+    "deviceType": z.string().nullable().optional(),
+    "userAgent": z.string().nullable().optional(),
 });
-
-export const repricingRules = pgTable("repricing_rules", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  description: text("description"),
-  isActive: boolean("is_active").default(true),
-  priority: integer("priority").default(0),
-  conditions: jsonb("conditions").default({}).$type<{
-    marginBelow?: number;
-    marginAbove?: number;
-    channel?: string;
-    productCategory?: string;
-    costIncreasePercent?: number;
-    competitorPriceBelow?: number;
-  }>(),
-  actionType: text("action_type").notNull(),
-  actionParams: jsonb("action_params").default({}).$type<{
-    targetMarginPercent?: number;
-    adjustPercent?: number;
-    minPrice?: number;
-    maxPrice?: number;
-    roundTo?: number;
-  }>(),
-  appliesTo: text("applies_to").default("all"),
-  appliesToIds: text("applies_to_ids").array(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertProviderHealthLogSchema = z.object({
+    "providerType": z.string(),
+    "checkTime": z.date().optional(),
+    "isHealthy": z.boolean().nullable().optional(),
+    "responseTimeMs": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "errorMessage": z.string().nullable().optional(),
+    "errorCode": z.string().nullable().optional(),
+    "uptimePercent24h": z.string().nullable().optional(),
+    "avgResponseTime24h": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
 });
-
-export const repricingHistory = pgTable("repricing_history", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  ruleId: varchar("rule_id").references(() => repricingRules.id),
-  masterProductId: varchar("master_product_id").references(() => masterProducts.id),
-  channel: text("channel"),
-  previousPrice: decimal("previous_price", { precision: 10, scale: 2 }).notNull(),
-  newPrice: decimal("new_price", { precision: 10, scale: 2 }).notNull(),
-  reason: text("reason").notNull(),
-  previousMargin: decimal("previous_margin", { precision: 5, scale: 2 }),
-  newMargin: decimal("new_margin", { precision: 5, scale: 2 }),
-  appliedAt: timestamp("applied_at").defaultNow().notNull(),
-  wasAutomatic: boolean("was_automatic").default(true),
+export const insertRepricingRuleSchema = z.object({
+    "name": z.string(),
+    "description": z.string().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "priority": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "conditions": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "actionType": z.string(),
+    "actionParams": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "appliesTo": z.string().nullable().optional(),
+    "appliesToIds": z.array(z.string()).nullable().optional(),
 });
-
-export const insertPartnerStoreSchema = createInsertSchema(partnerStores).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
+export const insertRepricingHistorySchema = z.object({
+    "ruleId": z.string().nullable().optional(),
+    "masterProductId": z.string().nullable().optional(),
+    "channel": z.string().nullable().optional(),
+    "previousPrice": z.string(),
+    "newPrice": z.string(),
+    "reason": z.string(),
+    "previousMargin": z.string().nullable().optional(),
+    "newMargin": z.string().nullable().optional(),
+    "wasAutomatic": z.boolean().nullable().optional(),
 });
-export const insertPartnerStoreProductSchema = createInsertSchema(partnerStoreProducts).omit({
-  id: true,
-});
-export const insertMasterProductSchema = createInsertSchema(masterProducts).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertProductDesignVersionSchema = createInsertSchema(productDesignVersions).omit({
-  id: true,
-  createdAt: true,
-});
-export const insertChannelConfigSchema = createInsertSchema(channelConfigs).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertChannelPublishStateSchema = createInsertSchema(channelPublishStates).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertProviderQuoteSchema = createInsertSchema(providerQuotes).omit({
-  id: true,
-});
-export const insertPricingProfileSchema = createInsertSchema(pricingProfiles).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertOrderUnifiedSchema = createInsertSchema(ordersUnified).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertQrScanEventSchema = createInsertSchema(qrScanEvents).omit({
-  id: true,
-});
-export const insertProviderHealthLogSchema = createInsertSchema(providerHealthLog).omit({
-  id: true,
-});
-export const insertRepricingRuleSchema = createInsertSchema(repricingRules).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-export const insertRepricingHistorySchema = createInsertSchema(repricingHistory).omit({
-  id: true,
-  appliedAt: true,
-});
-
-export type PartnerStore = typeof partnerStores.$inferSelect;
+export type PartnerStore = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    description: string | null;
+    isActive: boolean | null;
+    slug: string;
+    logoUrl: string | null;
+    websiteUrl: string | null;
+    businessPageUrlPattern: string | null;
+    apiKey: string;
+    allowedOrigins: string[] | null;
+    primaryColor: string | null;
+    accentColor: string | null;
+    commissionPercent: string | null;
+    availableSegments: string[] | null;
+    isInternal: boolean | null;
+    annualMemberPerk: unknown;
+};
 export type InsertPartnerStore = z.infer<typeof insertPartnerStoreSchema>;
-export type PartnerStoreProduct = typeof partnerStoreProducts.$inferSelect;
+export type PartnerStoreProduct = {
+    id: string;
+    isEnabled: boolean | null;
+    productId: string;
+    sortOrder: number | null;
+    defaultColor: string | null;
+    mockupsByColor: unknown;
+    partnerStoreId: string;
+    customPrice: string | null;
+    customName: string | null;
+    kcPlacements: string[] | null;
+    kcBusinessSlug: string | null;
+    enabledSizes: string[] | null;
+    enabledColors: string[] | null;
+};
 export type InsertPartnerStoreProduct = z.infer<typeof insertPartnerStoreProductSchema>;
-export type MasterProduct = typeof masterProducts.$inferSelect;
+export type MasterProduct = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    title: string;
+    description: string | null;
+    status: string | null;
+    tags: string[] | null;
+    sku: string;
+    productType: string;
+    currentDesignVersionId: string | null;
+    pricingProfileId: string | null;
+    baseCost: string | null;
+    retailPrice: string | null;
+    channels: unknown;
+    bundleParentId: string | null;
+    bundleDiscount: string | null;
+};
 export type InsertMasterProduct = z.infer<typeof insertMasterProductSchema>;
-export type ProductDesignVersion = typeof productDesignVersions.$inferSelect;
+export type ProductDesignVersion = {
+    id: string;
+    createdAt: Date;
+    isActive: boolean | null;
+    placementImages: unknown;
+    qrCodeUrl: string | null;
+    masterProductId: string;
+    versionNumber: number;
+    headerText: string | null;
+    headerStyle: unknown;
+    footerText: string | null;
+    footerStyle: unknown;
+    qrUrl: string;
+    renderedPngUrl: string | null;
+    renderedSvgUrl: string | null;
+};
 export type InsertProductDesignVersion = z.infer<typeof insertProductDesignVersionSchema>;
-export type ChannelConfig = typeof channelConfigs.$inferSelect;
+export type ChannelConfig = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isEnabled: boolean | null;
+    channelType: string;
+    displayName: string;
+    apiKeySecretName: string | null;
+    apiSecretSecretName: string | null;
+    shopId: string | null;
+    rateLimit: number | null;
+    rateLimitWindow: number | null;
+    webhookSecret: string | null;
+    webhookUrl: string | null;
+    lastHealthCheck: Date | null;
+    settings: unknown;
+};
 export type InsertChannelConfig = z.infer<typeof insertChannelConfigSchema>;
-export type ChannelPublishState = typeof channelPublishStates.$inferSelect;
+export type ChannelPublishState = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    status: string | null;
+    lastSyncedAt: Date | null;
+    masterProductId: string;
+    channelType: string;
+    externalProductId: string | null;
+    externalListingId: string | null;
+    externalVariantIds: unknown;
+    lastPublishedAt: Date | null;
+    lastError: string | null;
+    publishedDesignVersionId: string | null;
+};
 export type InsertChannelPublishState = z.infer<typeof insertChannelPublishStateSchema>;
-export type ProviderQuote = typeof providerQuotes.$inferSelect;
+export type ProviderQuote = {
+    id: string;
+    expiresAt: Date | null;
+    masterProductId: string;
+    providerType: string;
+    productionCost: string;
+    shippingCost: string | null;
+    estimatedDays: number | null;
+    isAvailable: boolean | null;
+    quotedAt: Date;
+};
 export type InsertProviderQuote = z.infer<typeof insertProviderQuoteSchema>;
-export type PricingProfile = typeof pricingProfiles.$inferSelect;
+export type PricingProfile = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    description: string | null;
+    markupPercent: string | null;
+    markupFixed: string | null;
+    markupType: string;
+    minMarginPercent: string | null;
+    channelAdjustments: unknown;
+    autoRepriceEnabled: boolean | null;
+    autoRepriceMinMargin: string | null;
+    isDefault: boolean | null;
+};
 export type InsertPricingProfile = z.infer<typeof insertPricingProfileSchema>;
-export type OrderUnified = typeof ordersUnified.$inferSelect;
+export type OrderUnified = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    status: string | null;
+    shippingAddress: unknown;
+    trackingNumber: string | null;
+    trackingUrl: string | null;
+    shippedAt: Date | null;
+    deliveredAt: Date | null;
+    productionCost: string | null;
+    sourceChannel: string;
+    externalOrderId: string | null;
+    customerEmail: string | null;
+    customerName: string | null;
+    items: unknown;
+    subtotal: string;
+    shippingTotal: string | null;
+    taxTotal: string | null;
+    total: string;
+    routedProvider: string | null;
+    providerOrderId: string | null;
+    statusHistory: unknown;
+    profit: string | null;
+};
 export type InsertOrderUnified = z.infer<typeof insertOrderUnifiedSchema>;
-export type QrScanEvent = typeof qrScanEvents.$inferSelect;
+export type QrScanEvent = {
+    id: string;
+    country: string | null;
+    masterProductId: string | null;
+    qrUrl: string | null;
+    customDesignId: string | null;
+    scanDate: Date;
+    scanCount: number | null;
+    region: string | null;
+    deviceType: string | null;
+    userAgent: string | null;
+};
 export type InsertQrScanEvent = z.infer<typeof insertQrScanEventSchema>;
-export type ProviderHealthLog = typeof providerHealthLog.$inferSelect;
+export type ProviderHealthLog = {
+    id: string;
+    errorMessage: string | null;
+    providerType: string;
+    checkTime: Date;
+    isHealthy: boolean | null;
+    responseTimeMs: number | null;
+    errorCode: string | null;
+    uptimePercent24h: string | null;
+    avgResponseTime24h: number | null;
+};
 export type InsertProviderHealthLog = z.infer<typeof insertProviderHealthLogSchema>;
-export type RepricingRule = typeof repricingRules.$inferSelect;
+export type RepricingRule = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    description: string | null;
+    isActive: boolean | null;
+    priority: number | null;
+    conditions: {
+        marginBelow?: number;
+        marginAbove?: number;
+        channel?: string;
+        productCategory?: string;
+        costIncreasePercent?: number;
+        competitorPriceBelow?: number;
+    } | null;
+    actionType: string;
+    actionParams: {
+        targetMarginPercent?: number;
+        adjustPercent?: number;
+        minPrice?: number;
+        maxPrice?: number;
+        roundTo?: number;
+    } | null;
+    appliesTo: string | null;
+    appliesToIds: string[] | null;
+};
 export type InsertRepricingRule = z.infer<typeof insertRepricingRuleSchema>;
-export type RepricingHistoryEntry = typeof repricingHistory.$inferSelect;
+export type RepricingHistoryEntry = {
+    id: string;
+    masterProductId: string | null;
+    ruleId: string | null;
+    channel: string | null;
+    previousPrice: string;
+    newPrice: string;
+    reason: string;
+    previousMargin: string | null;
+    newMargin: string | null;
+    appliedAt: Date;
+    wasAutomatic: boolean | null;
+};
 export type InsertRepricingHistoryEntry = z.infer<typeof insertRepricingHistorySchema>;

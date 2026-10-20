@@ -1096,3 +1096,8 @@ Purchased physical copies retain their individual QRG/packet/Assembly and receiv
 The activation result displays the server-saved date. Static Basic/Plus keep their direct payload and no hosting term. Cart payment webhooks deliver each copy's activation code with accepted-send tracking and retry incomplete delivery. Guest/member-share purchases retain their existing code delivery. No price, renewal, sender-address, commercial feature or maintenance switch is changed. This corrects the activation clock only; the free-year price and full expiry/renewal lifecycle remain separate launch work.
 
 Validation: focused claim/scan/concurrency, multi-year/static, per-unit allocation/retry, email-failure recovery and client code-entry/date regressions; full regression suite, TypeScript, Functions and production builds. Deployment receipt and live marker must be reported separately.
+
+
+## Replit and SQL dependency retirement — October 20, 2026
+
+Removed the remaining Replit build plugins/runtime settings and replaced the Drizzle table declarations with plain shared TypeScript contracts and Zod validators. Existing exported API field types, insert validation and the saved-pricing refinement remain unchanged. Cloud Functions and Firestore continue to own persistence. The backend boundary check now rejects Replit and SQL packages in the root, Functions and mockup-tool manifests. No canonical identity definitions, saved records, pricing formulas or provider operations are changed. Source checks and production release evidence are reported separately.

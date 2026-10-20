@@ -1,212 +1,285 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, decimal, timestamp, integer, boolean, unique, index } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { products } from "./schema-products";
-
-export const canonicalPlacements = pgTable("canonical_placements", {
-  id: varchar("id").primaryKey(),
-  label: text("label").notNull(),
-  description: text("description"),
-  category: text("category").notNull(),
-  previewX: decimal("preview_x", { precision: 5, scale: 3 }).default("0.5"),
-  previewY: decimal("preview_y", { precision: 5, scale: 3 }).default("0.4"),
-  previewScale: decimal("preview_scale", { precision: 5, scale: 3 }).default("0.3"),
-  sortOrder: integer("sort_order").default(0),
-  isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Shared Firestore/API contracts. Persistence is owned by Firebase services.
+export const insertCanonicalPlacementSchema = z.object({
+    "id": z.string(),
+    "label": z.string(),
+    "description": z.string().nullable().optional(),
+    "category": z.string(),
+    "previewX": z.string().nullable().optional(),
+    "previewY": z.string().nullable().optional(),
+    "previewScale": z.string().nullable().optional(),
+    "sortOrder": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
 });
-
-export const podProviders = pgTable("pod_providers", {
-  id: varchar("id").primaryKey(),
-  name: text("name").notNull(),
-  logoUrl: text("logo_url"),
-  websiteUrl: text("website_url"),
-  apiBaseUrl: text("api_base_url"),
-  supportsWhiteLabel: boolean("supports_white_label").default(false),
-  supportsRush: boolean("supports_rush").default(false),
-  averageShipDays: integer("average_ship_days"),
-  isActive: boolean("is_active").default(true),
-  healthStatus: text("health_status").default("unknown"),
-  lastHealthCheck: timestamp("last_health_check"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+export const insertPodProviderSchema = z.object({
+    "id": z.string(),
+    "name": z.string(),
+    "logoUrl": z.string().nullable().optional(),
+    "websiteUrl": z.string().nullable().optional(),
+    "apiBaseUrl": z.string().nullable().optional(),
+    "supportsWhiteLabel": z.boolean().nullable().optional(),
+    "supportsRush": z.boolean().nullable().optional(),
+    "averageShipDays": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "healthStatus": z.string().nullable().optional(),
+    "lastHealthCheck": z.date().nullable().optional(),
 });
-
-export const providerPlacementMappings = pgTable("provider_placement_mappings", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  podProviderId: varchar("pod_provider_id").notNull().references(() => podProviders.id),
-  canonicalPlacementId: varchar("canonical_placement_id").notNull().references(() => canonicalPlacements.id),
-  providerPlacementKey: text("provider_placement_key").notNull(),
-  overrideX: decimal("override_x", { precision: 5, scale: 3 }),
-  overrideY: decimal("override_y", { precision: 5, scale: 3 }),
-  overrideScale: decimal("override_scale", { precision: 5, scale: 3 }),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  unique("provider_placement_unique").on(table.podProviderId, table.providerPlacementKey),
-]);
-
-export const productPlacementAvailability = pgTable("product_placement_availability", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: varchar("product_id").notNull().references(() => products.id),
-  canonicalPlacementId: varchar("canonical_placement_id").notNull().references(() => canonicalPlacements.id),
-  artworkBlackUrl: text("artwork_black_url"),
-  artworkWhiteUrl: text("artwork_white_url"),
-  isPrimary: boolean("is_primary").default(false),
-  isEnabled: boolean("is_enabled").default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  unique("product_placement_unique").on(table.productId, table.canonicalPlacementId),
-]);
-
-export const mockupCache = pgTable("mockup_cache", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: varchar("product_id").references(() => products.id),
-  blueprintId: integer("blueprint_id"),
-  printProviderId: integer("print_provider_id"),
-  colorName: text("color_name").notNull(),
-  colorHex: text("color_hex"),
-  canonicalPlacementId: varchar("canonical_placement_id").references(() => canonicalPlacements.id),
-  qrSize: text("qr_size").notNull().default("medium"),
-  artworkUrl: text("artwork_url"),
-  artworkVariant: text("artwork_variant").default("black"),
-  mockupUrl: text("mockup_url").notNull(),
-  mockupUrlHq: text("mockup_url_hq"),
-  lifestyleMockupUrl: text("lifestyle_mockup_url"),
-  podProviderId: varchar("pod_provider_id").references(() => podProviders.id),
-  providerMockupId: text("provider_mockup_id"),
-  status: text("status").default("active"),
-  generatedAt: timestamp("generated_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  unique("mockup_cache_unique_v2").on(
-    table.blueprintId, 
-    table.printProviderId, 
-    table.colorName, 
-    table.canonicalPlacementId, 
-    table.artworkVariant,
-    table.qrSize
-  ),
-]);
-
-export const printifyPrintfulMapping = pgTable("printify_printful_mapping", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  printifyBlueprintId: integer("printify_blueprint_id").notNull(),
-  printifyPrintProviderId: integer("printify_print_provider_id"),
-  printifyBrand: text("printify_brand"),
-  printifyModel: text("printify_model"),
-  printfulProductId: integer("printful_product_id").notNull(),
-  printfulBrand: text("printful_brand"),
-  printfulModel: text("printful_model"),
-  placementMapping: jsonb("placement_mapping"),
-  colorMapping: jsonb("color_mapping"),
-  isActive: boolean("is_active").default(true),
-  matchConfidence: text("match_confidence").default("auto"),
-  notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (table) => [
-  unique("printify_printful_unique").on(table.printifyBlueprintId, table.printifyPrintProviderId),
-]);
-
-export const printfulProducts = pgTable("printful_products", {
-  id: integer("id").primaryKey(),
-  type: text("type").notNull(),
-  typeName: text("type_name").notNull(),
-  brand: text("brand"),
-  model: text("model"),
-  title: text("title").notNull(),
-  image: text("image"),
-  variantCount: integer("variant_count").default(0),
-  currency: text("currency").default("USD"),
-  minPrice: decimal("min_price", { precision: 10, scale: 2 }),
-  maxPrice: decimal("max_price", { precision: 10, scale: 2 }),
-  printfileWidth: integer("printfile_width"),
-  printfileHeight: integer("printfile_height"),
-  printfileDpi: integer("printfile_dpi"),
-  description: text("description"),
-  avgFulfillmentTime: integer("avg_fulfillment_time"),
-  originCountry: text("origin_country"),
-  isDiscontinued: boolean("is_discontinued").default(false),
-  availablePlacements: text("available_placements").array(),
-  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const insertProviderPlacementMappingSchema = z.object({
+    "podProviderId": z.string(),
+    "canonicalPlacementId": z.string(),
+    "providerPlacementKey": z.string(),
+    "overrideX": z.string().nullable().optional(),
+    "overrideY": z.string().nullable().optional(),
+    "overrideScale": z.string().nullable().optional(),
+    "metadata": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
 });
-
-export const printfulVariants = pgTable("printful_variants", {
-  id: integer("id").primaryKey(),
-  productId: integer("product_id").notNull().references(() => printfulProducts.id),
-  name: text("name").notNull(),
-  size: text("size"),
-  color: text("color"),
-  colorCode: text("color_code"),
-  colorCode2: text("color_code2"),
-  image: text("image"),
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  inStock: boolean("in_stock").default(true),
-  availabilityStatus: text("availability_status"),
-  lastSyncedAt: timestamp("last_synced_at").defaultNow().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => [
-  index("printful_variants_product_idx").on(table.productId),
-  index("printful_variants_color_idx").on(table.color),
-]);
-
-export const mockupJobs = pgTable("mockup_jobs", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: varchar("product_id").notNull(),
-  colorName: text("color_name").notNull(),
-  qrSize: text("qr_size").notNull().default("medium"),
-  placement: text("placement").notNull().default("front"),
-  jobData: jsonb("job_data").notNull(),
-  status: text("status").notNull().default("pending"),
-  priority: integer("priority").default(10),
-  attempts: integer("attempts").default(0),
-  maxAttempts: integer("max_attempts").default(5),
-  priorityUpdatedAt: timestamp("priority_updated_at"),
-  priorityOwner: varchar("priority_owner"),
-  priorityExpiresAt: timestamp("priority_expires_at"),
-  resultData: jsonb("result_data"),
-  errorMessage: text("error_message"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  nextRetryAt: timestamp("next_retry_at"),
-}, (table) => [
-  index("mockup_jobs_status_idx").on(table.status),
-  index("mockup_jobs_product_idx").on(table.productId),
-  index("mockup_jobs_next_retry_idx").on(table.nextRetryAt),
-  index("mockup_jobs_priority_idx").on(table.priority, table.priorityUpdatedAt),
-  index("mockup_jobs_lookup_idx").on(table.productId, table.colorName, table.qrSize, table.placement),
-]);
-
-export const insertCanonicalPlacementSchema = createInsertSchema(canonicalPlacements).omit({ createdAt: true });
-export const insertPodProviderSchema = createInsertSchema(podProviders).omit({ createdAt: true, updatedAt: true });
-export const insertProviderPlacementMappingSchema = createInsertSchema(providerPlacementMappings).omit({ id: true, createdAt: true });
-export const insertProductPlacementAvailabilitySchema = createInsertSchema(productPlacementAvailability).omit({ id: true, createdAt: true });
-export const insertMockupCacheSchema = createInsertSchema(mockupCache).omit({ id: true, createdAt: true });
-export const insertPrintifyPrintfulMappingSchema = createInsertSchema(printifyPrintfulMapping).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertPrintfulProductSchema = createInsertSchema(printfulProducts).omit({ createdAt: true });
-export const insertPrintfulVariantSchema = createInsertSchema(printfulVariants).omit({ createdAt: true });
-export const insertMockupJobSchema = createInsertSchema(mockupJobs).omit({ id: true, createdAt: true });
-
-export type CanonicalPlacement = typeof canonicalPlacements.$inferSelect;
+export const insertProductPlacementAvailabilitySchema = z.object({
+    "productId": z.string(),
+    "canonicalPlacementId": z.string(),
+    "artworkBlackUrl": z.string().nullable().optional(),
+    "artworkWhiteUrl": z.string().nullable().optional(),
+    "isPrimary": z.boolean().nullable().optional(),
+    "isEnabled": z.boolean().nullable().optional(),
+});
+export const insertMockupCacheSchema = z.object({
+    "productId": z.string().nullable().optional(),
+    "blueprintId": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "printProviderId": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "colorName": z.string(),
+    "colorHex": z.string().nullable().optional(),
+    "canonicalPlacementId": z.string().nullable().optional(),
+    "qrSize": z.string().optional(),
+    "artworkUrl": z.string().nullable().optional(),
+    "artworkVariant": z.string().nullable().optional(),
+    "mockupUrl": z.string(),
+    "mockupUrlHq": z.string().nullable().optional(),
+    "lifestyleMockupUrl": z.string().nullable().optional(),
+    "podProviderId": z.string().nullable().optional(),
+    "providerMockupId": z.string().nullable().optional(),
+    "status": z.string().nullable().optional(),
+    "generatedAt": z.date().optional(),
+    "expiresAt": z.date().nullable().optional(),
+});
+export const insertPrintifyPrintfulMappingSchema = z.object({
+    "printifyBlueprintId": z.number().min(-2147483648).max(2147483647).int(),
+    "printifyPrintProviderId": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "printifyBrand": z.string().nullable().optional(),
+    "printifyModel": z.string().nullable().optional(),
+    "printfulProductId": z.number().min(-2147483648).max(2147483647).int(),
+    "printfulBrand": z.string().nullable().optional(),
+    "printfulModel": z.string().nullable().optional(),
+    "placementMapping": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "colorMapping": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "isActive": z.boolean().nullable().optional(),
+    "matchConfidence": z.string().nullable().optional(),
+    "notes": z.string().nullable().optional(),
+});
+export const insertPrintfulProductSchema = z.object({
+    "id": z.number().min(-2147483648).max(2147483647).int(),
+    "type": z.string(),
+    "typeName": z.string(),
+    "brand": z.string().nullable().optional(),
+    "model": z.string().nullable().optional(),
+    "title": z.string(),
+    "image": z.string().nullable().optional(),
+    "variantCount": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "currency": z.string().nullable().optional(),
+    "minPrice": z.string().nullable().optional(),
+    "maxPrice": z.string().nullable().optional(),
+    "printfileWidth": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "printfileHeight": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "printfileDpi": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "description": z.string().nullable().optional(),
+    "avgFulfillmentTime": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "originCountry": z.string().nullable().optional(),
+    "isDiscontinued": z.boolean().nullable().optional(),
+    "availablePlacements": z.array(z.string()).nullable().optional(),
+    "lastSyncedAt": z.date().optional(),
+});
+export const insertPrintfulVariantSchema = z.object({
+    "id": z.number().min(-2147483648).max(2147483647).int(),
+    "productId": z.number().min(-2147483648).max(2147483647).int(),
+    "name": z.string(),
+    "size": z.string().nullable().optional(),
+    "color": z.string().nullable().optional(),
+    "colorCode": z.string().nullable().optional(),
+    "colorCode2": z.string().nullable().optional(),
+    "image": z.string().nullable().optional(),
+    "price": z.string(),
+    "inStock": z.boolean().nullable().optional(),
+    "availabilityStatus": z.string().nullable().optional(),
+    "lastSyncedAt": z.date().optional(),
+});
+export const insertMockupJobSchema = z.object({
+    "productId": z.string(),
+    "colorName": z.string(),
+    "qrSize": z.string().optional(),
+    "placement": z.string().optional(),
+    "jobData": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]),
+    "status": z.string().optional(),
+    "priority": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "attempts": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "maxAttempts": z.number().min(-2147483648).max(2147483647).int().nullable().optional(),
+    "priorityUpdatedAt": z.date().nullable().optional(),
+    "priorityOwner": z.string().nullable().optional(),
+    "priorityExpiresAt": z.date().nullable().optional(),
+    "resultData": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
+    "errorMessage": z.string().nullable().optional(),
+    "startedAt": z.date().nullable().optional(),
+    "completedAt": z.date().nullable().optional(),
+    "nextRetryAt": z.date().nullable().optional(),
+});
+export type CanonicalPlacement = {
+    id: string;
+    createdAt: Date;
+    description: string | null;
+    isActive: boolean | null;
+    sortOrder: number | null;
+    category: string;
+    label: string;
+    previewX: string | null;
+    previewY: string | null;
+    previewScale: string | null;
+};
 export type InsertCanonicalPlacement = z.infer<typeof insertCanonicalPlacementSchema>;
-export type PodProvider = typeof podProviders.$inferSelect;
+export type PodProvider = {
+    id: string;
+    name: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isActive: boolean | null;
+    logoUrl: string | null;
+    websiteUrl: string | null;
+    lastHealthCheck: Date | null;
+    apiBaseUrl: string | null;
+    supportsWhiteLabel: boolean | null;
+    supportsRush: boolean | null;
+    averageShipDays: number | null;
+    healthStatus: string | null;
+};
 export type InsertPodProvider = z.infer<typeof insertPodProviderSchema>;
-export type ProviderPlacementMapping = typeof providerPlacementMappings.$inferSelect;
+export type ProviderPlacementMapping = {
+    id: string;
+    createdAt: Date;
+    metadata: unknown;
+    podProviderId: string;
+    canonicalPlacementId: string;
+    providerPlacementKey: string;
+    overrideX: string | null;
+    overrideY: string | null;
+    overrideScale: string | null;
+};
 export type InsertProviderPlacementMapping = z.infer<typeof insertProviderPlacementMappingSchema>;
-export type ProductPlacementAvailability = typeof productPlacementAvailability.$inferSelect;
+export type ProductPlacementAvailability = {
+    id: string;
+    createdAt: Date;
+    isEnabled: boolean | null;
+    productId: string;
+    canonicalPlacementId: string;
+    artworkBlackUrl: string | null;
+    artworkWhiteUrl: string | null;
+    isPrimary: boolean | null;
+};
 export type InsertProductPlacementAvailability = z.infer<typeof insertProductPlacementAvailabilitySchema>;
-export type MockupCache = typeof mockupCache.$inferSelect;
+export type MockupCache = {
+    id: string;
+    createdAt: Date;
+    expiresAt: Date | null;
+    status: string | null;
+    productId: string | null;
+    blueprintId: number | null;
+    printProviderId: number | null;
+    colorHex: string | null;
+    podProviderId: string | null;
+    canonicalPlacementId: string | null;
+    colorName: string;
+    qrSize: string;
+    artworkUrl: string | null;
+    artworkVariant: string | null;
+    mockupUrl: string;
+    mockupUrlHq: string | null;
+    lifestyleMockupUrl: string | null;
+    providerMockupId: string | null;
+    generatedAt: Date;
+};
 export type InsertMockupCache = z.infer<typeof insertMockupCacheSchema>;
-export type PrintifyPrintfulMapping = typeof printifyPrintfulMapping.$inferSelect;
+export type PrintifyPrintfulMapping = {
+    id: string;
+    createdAt: Date;
+    updatedAt: Date;
+    isActive: boolean | null;
+    printifyBlueprintId: number;
+    printifyPrintProviderId: number | null;
+    printifyBrand: string | null;
+    printifyModel: string | null;
+    printfulProductId: number;
+    printfulBrand: string | null;
+    printfulModel: string | null;
+    placementMapping: unknown;
+    colorMapping: unknown;
+    matchConfidence: string | null;
+    notes: string | null;
+};
 export type InsertPrintifyPrintfulMapping = z.infer<typeof insertPrintifyPrintfulMappingSchema>;
-export type PrintfulProduct = typeof printfulProducts.$inferSelect;
+export type PrintfulProduct = {
+    id: number;
+    brand: string | null;
+    createdAt: Date;
+    title: string;
+    description: string | null;
+    availablePlacements: string[] | null;
+    model: string | null;
+    lastSyncedAt: Date;
+    currency: string | null;
+    type: string;
+    typeName: string;
+    image: string | null;
+    variantCount: number | null;
+    minPrice: string | null;
+    maxPrice: string | null;
+    printfileWidth: number | null;
+    printfileHeight: number | null;
+    printfileDpi: number | null;
+    avgFulfillmentTime: number | null;
+    originCountry: string | null;
+    isDiscontinued: boolean | null;
+};
 export type InsertPrintfulProduct = z.infer<typeof insertPrintfulProductSchema>;
-export type PrintfulVariant = typeof printfulVariants.$inferSelect;
+export type PrintfulVariant = {
+    id: number;
+    name: string;
+    createdAt: Date;
+    size: string | null;
+    productId: number;
+    color: string | null;
+    price: string;
+    lastSyncedAt: Date;
+    image: string | null;
+    colorCode: string | null;
+    colorCode2: string | null;
+    inStock: boolean | null;
+    availabilityStatus: string | null;
+};
 export type InsertPrintfulVariant = z.infer<typeof insertPrintfulVariantSchema>;
-export type MockupJob = typeof mockupJobs.$inferSelect;
+export type MockupJob = {
+    id: string;
+    createdAt: Date;
+    status: string;
+    errorMessage: string | null;
+    productId: string;
+    placement: string;
+    startedAt: Date | null;
+    completedAt: Date | null;
+    priority: number | null;
+    colorName: string;
+    qrSize: string;
+    jobData: unknown;
+    attempts: number | null;
+    maxAttempts: number | null;
+    priorityUpdatedAt: Date | null;
+    priorityOwner: string | null;
+    priorityExpiresAt: Date | null;
+    resultData: unknown;
+    nextRetryAt: Date | null;
+};
 export type InsertMockupJob = z.infer<typeof insertMockupJobSchema>;
