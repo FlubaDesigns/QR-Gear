@@ -10,6 +10,7 @@ vi.mock('stripe', () => ({ default: class { paymentIntents = { retrieve: m.payme
 vi.mock('../brand-label-artwork', () => ({ renderUnitBrandLabel: async () => Buffer.from('label-fixture') }));
 vi.mock('../grf-registrar', () => ({ registerGrfAsset: async (input: any) => ({ publicUrl: `https://files.example/label-${input.packetId}.png` }), registerPacketGrfAssets: async () => ({}) }));
 vi.mock('../bld-builder', () => ({ writeAutoAssembly: async () => ({}) }));
+vi.mock('../qr-artwork', () => ({ personalizeQrArtwork: async () => Buffer.from('verified-unit-art') }));
 import { printfulClient, PrintfulApiError } from '../printful';
 import { fulfillOrder, syncFulfillment } from '../order-fulfillment';
 import { prepareCartOrder, finalizeCartPayment, readCartQuote } from '../order-service';
@@ -145,4 +146,24 @@ describe('reviewed bundle orders', () => {
     await expect(prepareCartOrder('buyer', '', undefined, quote.quoteToken)).rejects.toThrow('changed');
     expect([...store.keys()].some(key => key.startsWith('orders/'))).toBe(false);
   });
+});
+
+it('a signed-in quantity-two hosted purchase allocates two emailed codes with no running term', async () => {
+  const packet = store.get('productPackets/packet');
+  packet.qrContent = 'https://qrgear.com/m/source';
+  packet.builderSnapshot.qrConfig.qrProductState = 'qr_canvas';
+  packet.builderSnapshot.graphics.content.hostingTierCode = '1_year';
+  const prepared = await paidOrder();
+  await fulfillOrder(prepared.orderId);
+  const units = [...store.entries()].filter(([key]) => key.startsWith('qr_dynamics_instances/')).map(([, value]) => value);
+  expect(units).toHaveLength(2);
+  expect(new Set(units.map(unit => unit.qrgBaseCode)).size).toBe(2);
+  expect(new Set(units.map(unit => unit.claimCode)).size).toBe(2);
+  for (const unit of units) {
+    expect(unit).toMatchObject({ ownerId: null, claimedAt: null, hostingExpiresAt: null, hostingTierCode: '1_year', status: 'active' });
+    expect(store.get('claimCodes/' + unit.claimCode).instanceId).toBe(unit.instanceId);
+  }
+  getOrder.mockResolvedValue({ id: 77, external_id: prepared.orderId, status: 'pending' });
+  await fulfillOrder(prepared.orderId);
+  expect([...store.keys()].filter(key => key.startsWith('qr_dynamics_instances/'))).toHaveLength(2);
 });

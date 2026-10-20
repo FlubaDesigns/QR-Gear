@@ -10,7 +10,7 @@ import { personalizeQrArtwork } from './qr-artwork';
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { GRF_PACKET_SLOTS } from '../../../shared/GRF_engine';
 import { resolveRuntimeConfig } from '../runtime-config';
-import { dynamicsHostingExpiry } from './qr-dynamics';
+import { isComposeHostingCode } from '../../../shared/composeHosting';
 
 /** Freeze references, never expose the admin's builder snapshot through a cart response. */
 export function dynamicsPrintSource(packet: Record<string, any>) {
@@ -66,6 +66,9 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
     const snapshot = requireBuilderSnapshot(source.builderSnapshot);
     const hosted = ['qr_canvas', 'qr_play', 'qr_compose'].includes(snapshot.qrConfig.qrProductState);
     const compose = snapshot.qrConfig.qrProductState === 'qr_compose';
+    const hostingTierCode = hosted ? (compose && snapshot.graphics.content.composeHostingTerm
+      ? snapshot.graphics.content.composeHostingTerm.replace('-', '_') : snapshot.graphics.content.hostingTierCode) : null;
+    if (hosted && !isComposeHostingCode(hostingTierCode || '')) throw new Error('The purchased hosting term is unavailable.');
     const template = item.qrExperience;
     if (compose && !template.slots?.length) throw new Error('The purchased Compose sequence is unavailable.');
     for (let index = 0; index < item.quantity; index++) {
@@ -76,21 +79,21 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
         const ref = db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc();
         const packetRef = db.collection('productPackets').doc();
         const epoch = Math.floor(paidAt.getTime() / 1000);
-        const claimCode = ownerId ? null : randomBytes(12).toString('hex').toUpperCase();
+        const claimCode = randomBytes(12).toString('hex').toUpperCase();
         instanceId = await db.runTransaction(async tx => {
           const current = (await tx.get(line.ref)).data()!;
           if (current.dynamicsInstanceIds?.[index]) return current.dynamicsInstanceIds[index];
           const ids = current.dynamicsInstanceIds || [];
           if (ids.length !== index) throw new Error('Purchased item sequence changed; retry the order.');
-          tx.create(ref, { instanceId: ref.id, ...identity, ownerId, ownerType: 'owner', orderId, orderItemId: line.id,
-            title: item.productTitle, claimCode, hostingExpiresAt: hosted ? dynamicsHostingExpiry(snapshot.graphics.content.hostingTierCode, paidAt) : null,
+          tx.create(ref, { instanceId: ref.id, ...identity, ownerId: null, ownerType: 'owner', orderId, orderItemId: line.id,
+            title: item.productTitle, claimCode, hostingTierCode, hostingExpiresAt: null, claimedAt: null,
             unitIndex: index, packetId: packetRef.id, sourcePacketId: item.packetId,
             sourcePacketIds: hosted ? (compose ? template.slots.map((s: any) => s.packetId) : [packetRef.id]) : [],
             status: 'preparing', mode: 'loop', composeMode: template.composeMode || 'auto-rotate',
             createdAt: epoch, startTimestamp: epoch,
             slots: hosted ? (compose ? template.slots : [{ packetId: packetRef.id, durationSeconds: 86400, order: 1 }]) : [],
             staticContent: hosted ? null : source.qrContent });
-          tx.create(packetRef, { ...source, ...identity, ownerType: 'owner', ownerId,
+          tx.create(packetRef, { ...source, ...identity, ownerType: 'owner', ownerId: null,
             ownerInstanceId: null, sourcePacketId: item.packetId, orderId, orderItemId: line.id,
             storeId: null, channelId: null, collectionId: null, collectionName: null,
             assemblyId: null, status: 'building', composeInstanceId: ref.id,
@@ -105,7 +108,7 @@ export async function prepareDynamicsOrderItems(orderId: string, ownerId: string
       }
       const dynamicsRef = db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId);
       const instance = (await dynamicsRef.get()).data()!;
-      if ((ownerId && instance.ownerId !== ownerId) || instance.orderId !== orderId || instance.orderItemId !== line.id) throw new Error('Purchased item ownership does not match the order.');
+      if (instance.orderId !== orderId || instance.orderItemId !== line.id) throw new Error('Purchased item ownership does not match the order.');
       const packetRef = db.collection('productPackets').doc(instance.packetId);
       let packet = (await packetRef.get()).data()!;
       if (instance.status === 'preparing') {

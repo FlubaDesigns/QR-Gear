@@ -3,11 +3,11 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import Stripe from 'stripe';
-const m = vi.hoisted(() => ({ finalize: vi.fn(), fulfill: vi.fn(), confirmEmbed: vi.fn(), email: vi.fn() }));
+const m = vi.hoisted(() => ({ finalize: vi.fn(), fulfill: vi.fn(), confirmEmbed: vi.fn(), email: vi.fn(), activation: vi.fn() }));
 vi.mock('../../core', () => ({ db: {} }));
 vi.mock('../order-service', () => ({ finalizeCartPayment: m.finalize, confirmEmbedOrderPayout: m.confirmEmbed, writePayoutAttribution: vi.fn() }));
 vi.mock('../order-fulfillment', () => ({ fulfillOrder: m.fulfill }));
-vi.mock('../email', () => ({ sendOrderConfirmation: m.email }));
+vi.mock('../email', () => ({ sendOrderConfirmation: m.email, sendOrderActivationEmails: m.activation }));
 import { register } from '../../routes/stripe-webhooks';
 const app = express(); app.use(express.json({ verify: (req, _res, body) => { (req as any).rawBody = body; } })); register(app);
 const stripe = new Stripe('sk_test_fixture');
@@ -18,7 +18,7 @@ function send(payload = event(), signature = stripe.webhooks.generateTestHeaderS
 }
 beforeEach(() => {
   process.env.STRIPE_SECRET_KEY = 'sk_test_fixture'; process.env.STRIPE_WEBHOOK_SECRET = secret; vi.resetAllMocks();
-  m.finalize.mockResolvedValue({ orderId: 'order', order: {}, items: [] }); m.fulfill.mockResolvedValue({ success: true });
+  m.finalize.mockResolvedValue({ orderId: 'order', order: {}, items: [] }); m.fulfill.mockResolvedValue({ success: true }); m.activation.mockResolvedValue({ success: true });
 });
 describe('Stripe signature and production delivery', () => {
   it('verifies exact bytes and resumes fulfillment on repeated notifications', async () => {
@@ -39,4 +39,11 @@ describe('Stripe signature and production delivery', () => {
     m.finalize.mockRejectedValue(new Error('Payment does not match'));
     expect((await send()).status).toBe(500); expect(m.fulfill).not.toHaveBeenCalled();
   });
+});
+
+it('retries failed activation delivery without treating the hosted item as activated', async () => {
+ m.activation.mockResolvedValueOnce({ success: false, reason: 'Email temporarily unavailable' });
+ expect((await send()).status).toBe(500);
+ expect((await send()).status).toBe(200);
+ expect(m.activation).toHaveBeenCalledTimes(2);
 });

@@ -1,3 +1,4 @@
+import { dynamicsHostingExpiry } from '../services/qr-dynamics';
 import { claimedItemLifecycle } from '../../../shared/claimedItems';
 import { giftExpiry } from '../services/gift-validation';
 import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
@@ -56,6 +57,9 @@ app.get('/claim/validate/:claimCode', async (req: Request, res: Response): Promi
     }
 
     const claimData = doc.data() as ClaimCode;
+    if (req.query.instanceId && claimData.instanceId !== req.query.instanceId) {
+      res.json({ valid: false, reason: 'This code belongs to a different item. Use the activation code for the item you scanned.' }); return;
+    }
 
     if (claimData.status === 'claimed') {
       res.json({ valid: false, reason: 'This item has already been claimed' });
@@ -96,6 +100,9 @@ app.post('/claim/:claimCode', requireAuth, async (req: Request, res: Response): 
 
     const claimData = doc.data() as ClaimCode;
 
+    if (req.body.instanceId && claimData.instanceId !== req.body.instanceId) {
+      res.status(409).json({ error: 'This activation code belongs to a different item.' }); return;
+    }
     if (claimData.status !== 'unclaimed') {
       res.status(400).json({ error: 'This item has already been claimed or expired' });
       return;
@@ -105,27 +112,34 @@ app.post('/claim/:claimCode', requireAuth, async (req: Request, res: Response): 
     // Claim transfers that record; it must never allocate another item identity.
     if (claimData.instanceId) {
       const instanceId = claimData.instanceId;
-      await db.runTransaction(async tx => {
+      const activation = await db.runTransaction(async tx => {
         const claimRef = db.collection('claimCodes').doc(claimCode);
         const current = (await tx.get(claimRef)).data();
         const instanceRef = db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(instanceId);
         const item = (await tx.get(instanceRef)).data();
-        if (!current || current.status !== 'unclaimed' || (current.expiresAt && (!giftExpiry(current.expiresAt) || giftExpiry(current.expiresAt)! <= new Date()))) throw new Error('This claim code is no longer available.');
-        if (!item || item.ownerId || !['active', 'static'].includes(item.status) || item.claimCode !== claimCode) throw new Error('This purchased item is not available to claim.');
+        if (!current || current.instanceId !== instanceId || current.status !== 'unclaimed' || (current.expiresAt && (!giftExpiry(current.expiresAt) || giftExpiry(current.expiresAt)! <= new Date()))) throw new Error('This claim code is no longer available.');
+        if (!item || item.claimedAt || (item.ownerId && item.ownerId !== userId) || !['active', 'static'].includes(item.status) || item.claimCode !== claimCode) throw new Error('This purchased item is not available to claim.');
         const packetRef = db.collection('productPackets').doc(item.packetId);
         const packet = (await tx.get(packetRef)).data();
         if (!packet || packet.qrgBaseCode !== item.qrgBaseCode || packet.composeInstanceId !== instanceId) throw new Error('Purchased item identity does not match.');
-        const now = new Date().toISOString();
-        tx.update(instanceRef, { ownerId: userId, claimedAt: now });
+        const activated = new Date(), now = activated.toISOString();
+        const content = packet.builderSnapshot?.graphics?.content;
+        // Older unclaimed copies retain their purchased term from the saved packet, never a guessed duration.
+        const term = item.hostingTierCode || (packet.builderSnapshot?.qrConfig?.qrProductState === 'qr_compose' && content?.composeHostingTerm
+          ? content.composeHostingTerm.replace('-', '_') : content?.hostingTierCode);
+        const hostingExpiresAt = item.status === 'active' ? dynamicsHostingExpiry(term, activated) : null;
+        tx.update(instanceRef, { ownerId: userId, claimedAt: now, hostingExpiresAt,
+          ...(item.status === 'active' ? { hostingTierCode: term, startTimestamp: Math.floor(activated.getTime() / 1000) } : {}) });
         tx.update(packetRef, { ownerId: userId, updatedAt: now });
         tx.update(claimRef, { status: 'claimed', claimedByUserId: userId, claimedAt: now });
         tx.set(db.collection('claimedInstances').doc(instanceId), { instanceId, qrgBaseCode: item.qrgBaseCode,
           ownerUserId: userId, productName: item.title, packetType: claimData.packetType,
           instanceUrl: item.status === 'active' ? `/qr/d/${instanceId}` : null,
-          dynamicsInstanceId: instanceId, hostingExpiresAt: item.hostingExpiresAt, status: item.status,
+          dynamicsInstanceId: instanceId, hostingExpiresAt, status: item.status,
           claimedAt: now, createdAt: now, updatedAt: now });
+        return { hostingExpiresAt, status: item.status };
       });
-      res.json({ success: true, instanceId }); return;
+      res.json({ success: true, instanceId, ...activation }); return;
     }
 
     const instanceId = generateNanoId(16);
@@ -162,8 +176,8 @@ app.post('/claim/:claimCode', requireAuth, async (req: Request, res: Response): 
       tx.update(claimRef, { status: 'claimed', instanceId, claimedByUserId: userId, claimedAt: now.toISOString() });
     });
 
-    console.log(`[Claim] Item claimed: ${claimCode} -> Instance: ${instanceId} by User: ${userId}`);
-    res.json({ success: true, instanceId });
+    console.log(`[Claim] Item activated: ${instanceId}`);
+    res.json({ success: true, instanceId, hostingExpiresAt: oneYearFromNow.toISOString(), status: 'active' });
   } catch (error: any) {
     console.error('[Claim] Error:', error);
     res.status(error.status || 500).json({ error: error.message });

@@ -169,6 +169,7 @@ function Router() {
       <Route path="/renew/:instanceId" component={RenewPage} />
       <Route path="/renew/:instanceId/success" component={RenewPage} />
       <Route path="/claim/:claimCode" component={ClaimPage} />
+      <Route path="/claim" component={ClaimPage} />
       <Route path="/my-item/:instanceId" component={MyItemPage} />
       <Route path="/view/:id" component={ViewImage} />
       <Route path="/dynamic/:slug" component={ViewDynamic} />

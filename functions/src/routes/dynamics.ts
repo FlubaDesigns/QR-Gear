@@ -355,6 +355,11 @@ app.get('/qr/item/:instanceId', async (req: Request, res: Response) => {
 app.get('/qr/d/:instanceId', async (req: Request, res: Response) => {
   res.set('Cache-Control', 'no-store');
   try {
+    if (!/^[A-Za-z0-9_-]{1,200}$/.test(req.params.instanceId)) { res.status(404).type('text').send('Item not found.'); return; }
+    const pending = (await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(req.params.instanceId).get()).data();
+    if (pending?.orderId && pending.claimCode && pending.status === 'active' && !pending.claimedAt) {
+      res.redirect(302, `/claim?instanceId=${encodeURIComponent(req.params.instanceId)}`); return;
+    }
     const { instance, result, targets } = await resolveDynamicsInstance(req.params.instanceId);
     if (instance.composeMode === 'scan-to-reveal') {
       const urls = JSON.stringify(targets).replace(/</g, '\\u003c');

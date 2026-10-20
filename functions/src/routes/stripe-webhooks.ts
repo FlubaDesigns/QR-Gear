@@ -6,7 +6,7 @@ import { Request, Response } from 'express';
   import { db } from '../core';
   import { finalizeCartPayment, confirmEmbedOrderPayout, finalizeMemberPayment } from '../services/order-service';
 import Stripe from 'stripe';
-import { sendOrderConfirmation } from '../services/email';
+import { sendOrderConfirmation, sendOrderActivationEmails } from '../services/email';
 import { fulfillOrder } from '../services/order-fulfillment';
 
   export function register(app: express.Express): void {
@@ -70,6 +70,8 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
         // Retry fulfillment even when the payment/order was already recorded.
         // Failures remain on the order and return 500 so Stripe can retry.
         await fulfillOrder(orderId);
+        const activation = await sendOrderActivationEmails(db, orderId);
+        if (!activation.success) throw new Error(activation.reason || 'Item activation email needs retry.');
         break;
       }
       case 'account.updated': {

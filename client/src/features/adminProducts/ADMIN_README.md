@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 18, 2026
+Last updated: October 20, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -431,6 +431,15 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+## Purchased item hosting begins at activation — October 20, 2026
+
+Purchased physical copies retain their individual QRG/packet/Assembly and receive an emailed, item-bound claim code even for signed-in cart purchases. Their hosting term is saved without an expiration date. Scanning an unclaimed hosted copy opens the existing claim screen for code entry; scanning or validating a code does not start the clock. Authenticated successful redemption sets the owner, claim timestamp, actual term expiry, and rotation start in one transaction. A code for another scanned item is rejected. Repeated/concurrent claims cannot extend hosting or replace the owner. Already claimed items and historical auto-owned copies without a claim code are not migrated or reset; older unclaimed copies recover only their recorded purchased term from the saved packet.
+
+The activation result displays the server-saved date. Static Basic/Plus keep their direct payload and no hosting term. Cart payment webhooks deliver each copy's activation code with accepted-send tracking and retry incomplete delivery. Guest/member-share purchases retain their existing code delivery. No price, renewal, sender-address, commercial feature or maintenance switch is changed. This corrects the activation clock only; the free-year price and full expiry/renewal lifecycle remain separate launch work.
+
+Validation: focused claim/scan/concurrency, multi-year/static, per-unit allocation/retry, email-failure recovery and client code-entry/date regressions; full regression suite, TypeScript, Functions and production builds. Deployment receipt and live marker must be reported separately.
+
 
 ### October 18, 2026 — Dependency security follow-up
 

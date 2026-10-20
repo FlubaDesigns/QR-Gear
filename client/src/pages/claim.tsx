@@ -1,6 +1,6 @@
 import { apiRequest } from '@/lib/queryClient';
 import { useState, useEffect } from "react";
-import { useParams, useLocation } from "wouter";
+import { useParams, useLocation, useSearch } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,23 +21,51 @@ type ClaimStep = 'welcome' | 'auth' | 'confirm' | 'success';
 
 export default function ClaimPage() {
   const { claimCode } = useParams<{ claimCode: string }>();
+  const search = useSearch();
+  const instanceId = new URLSearchParams(search).get('instanceId');
+  return claimCode ? <ClaimFlow key={`${claimCode}:${instanceId || ""}`} claimCode={claimCode} expectedInstanceId={instanceId} /> : <ClaimCodeEntry instanceId={instanceId} />;
+}
+
+function ClaimCodeEntry({ instanceId }: { instanceId: string | null }) {
+  const [code, setCode] = useState('');
+  const [, navigate] = useLocation();
+  return <div className="row py-8"><Card className="max-w-md mx-auto"><CardHeader>
+    <CardTitle>Activate Your QR Item</CardTitle>
+    <CardDescription>Enter the activation code from your purchase email. Your hosting starts when you finish activation.</CardDescription>
+  </CardHeader><CardContent><form className="space-y-4" onSubmit={event => {
+    event.preventDefault();
+    if (code.trim()) navigate(`/claim/${encodeURIComponent(code.trim())}${instanceId ? `?instanceId=${encodeURIComponent(instanceId)}` : ''}`);
+  }}><label className="block" htmlFor="activation-code">Activation code</label>
+    <input id="activation-code" className="w-full min-h-12 rounded border bg-background p-3" value={code} onChange={event => setCode(event.target.value)} autoCapitalize="characters" autoCorrect="off" required maxLength={100} />
+    <Button type="submit" className="w-full min-h-12" disabled={!code.trim()}>Continue to Activate</Button>
+  </form></CardContent></Card></div>;
+}
+
+function ClaimFlow({ claimCode, expectedInstanceId }: { claimCode: string; expectedInstanceId: string | null }) {
   const [, setLocation] = useLocation();
   const { user, isLoading: authLoading } = useAuth();
   const [step, setStep] = useState<ClaimStep>('welcome');
   const [instanceId, setInstanceId] = useState<string | null>(null);
+  const [activation, setActivation] = useState<{ hostingExpiresAt: string | null; status: string } | null>(null);
 
   const { data, isLoading, error } = useQuery<{ valid: boolean; reason?: string; claimData?: ClaimData }>({
-    queryKey: ['/api/claim/validate', claimCode],
+    queryKey: ['/api/claim/validate', claimCode, { expectedInstanceId }],
+    queryFn: async () => {
+      const response = await fetch(`/api/claim/validate/${encodeURIComponent(claimCode)}${expectedInstanceId ? `?instanceId=${encodeURIComponent(expectedInstanceId)}` : ''}`, { cache: 'no-store' });
+      if (!response.ok) throw new Error('Could not check your activation code. Please retry.');
+      return response.json();
+    },
     enabled: !!claimCode,
   });
 
   const claimMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', `/api/claim/${claimCode}`, {});
+      const response = await apiRequest('POST', `/api/claim/${encodeURIComponent(claimCode)}`, { instanceId: expectedInstanceId });
       return response.json();
     },
     onSuccess: (data) => {
       setInstanceId(data.instanceId);
+      setActivation({ hostingExpiresAt: data.hostingExpiresAt, status: data.status });
       setStep('success');
     },
   });
@@ -163,7 +191,7 @@ export default function ClaimPage() {
             <div className="flex flex-col gap-3">
               <Button 
                 className="w-full" 
-                onClick={() => setLocation(`/login?redirect=/claim/${claimCode}`)}
+                onClick={() => setLocation(`/login?redirect=${encodeURIComponent(`/claim/${encodeURIComponent(claimCode)}${expectedInstanceId ? `?instanceId=${encodeURIComponent(expectedInstanceId)}` : ''}`)}`)}
                 data-testid="btn-login"
               >
                 Sign In
@@ -171,7 +199,7 @@ export default function ClaimPage() {
               <Button 
                 variant="outline"
                 className="w-full" 
-                onClick={() => setLocation(`/members?redirect=/claim/${claimCode}`)}
+                onClick={() => setLocation(`/members?redirect=${encodeURIComponent(`/claim/${encodeURIComponent(claimCode)}${expectedInstanceId ? `?instanceId=${encodeURIComponent(expectedInstanceId)}` : ''}`)}`)}
                 data-testid="btn-register"
               >
                 Create Account
@@ -220,8 +248,7 @@ export default function ClaimPage() {
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              By activating, you agree to our Terms of Service. After the first year, 
-              hosting is $4.99 for 3 additional years.
+              By activating, you agree to our Terms of Service. Your included hosting starts only after successful activation.
             </p>
 
             <Button 
@@ -261,8 +288,7 @@ export default function ClaimPage() {
   }
 
   if (step === 'success') {
-    const expirationDate = new Date();
-    expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+    const expirationDate = activation?.hostingExpiresAt ? new Date(activation.hostingExpiresAt) : null;
 
     return (
       <div className="flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
@@ -281,13 +307,13 @@ export default function ClaimPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 text-center">
-              <p className="text-sm text-green-400 mb-1">Free Hosting Until</p>
+              <p className="text-sm text-green-400 mb-1">{activation?.status === 'static' ? 'Static QR' : 'Hosting Active Until'}</p>
               <p className="text-lg font-semibold text-green-300">
-                {expirationDate.toLocaleDateString('en-US', {
+                {expirationDate ? expirationDate.toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
-                })}
+                }) : 'No hosting term required'}
               </p>
             </div>
 
@@ -313,8 +339,7 @@ export default function ClaimPage() {
             </div>
 
             <p className="text-xs text-muted-foreground text-center">
-              Your 1-year hosting period has started. Visit your item page 
-              to customize your QR content and manage your instance.
+              {activation?.status === 'static' ? 'Your item is linked to your account. Static QR codes do not require hosting.' : 'Your hosting period has started. Visit your item page to manage your QR experience.'}
             </p>
           </CardContent>
         </Card>
