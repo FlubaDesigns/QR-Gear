@@ -9,11 +9,18 @@ assert(!existsSync(path.join(root, 'server')), 'The retired standalone backend m
 const pkg = JSON.parse(read('package.json'));
 assert(!existsSync(path.join(root, 'migrations')), 'Retired SQL migrations must not be restored');
 assert(!existsSync(path.join(root, 'drizzle.config.ts')), 'Retired database configuration must not be restored');
-assert(!/postgresql|javascript_database|javascript_log_in_with_replit|STORAGE_MODE/.test(read('.replit')), 'Retired database/login integrations must not be restored');
-for (const name of ['pg', 'postgres', '@neondatabase/serverless', 'connect-pg-simple', 'drizzle-kit', 'stripe-replit-sync']) {
+assert(!existsSync(path.join(root, '.replit')), 'Retired Replit runtime configuration must not be restored');
+for (const name of ['pg', 'postgres', '@neondatabase/serverless', 'connect-pg-simple', 'drizzle-kit', 'drizzle-orm', 'drizzle-zod', 'stripe-replit-sync']) {
   assert(!pkg.dependencies?.[name] && !pkg.devDependencies?.[name], `Retired backend dependency: ${name}`);
 }
 assert(!pkg.scripts['db:push'], 'Retired database push command must not be restored');
+
+for (const manifest of ['package.json', 'functions/package.json', 'artifacts/mockup-sandbox/package.json']) {
+  const current = JSON.parse(read(manifest));
+  for (const name of [...Object.keys(current.dependencies || {}), ...Object.keys(current.devDependencies || {})]) {
+    assert(!name.startsWith('@replit/') && !['pg', 'postgres', 'connect-pg-simple', '@neondatabase/serverless', 'drizzle-kit', 'drizzle-orm', 'drizzle-zod', 'stripe-replit-sync'].includes(name), `${manifest} restores a retired dependency: ${name}`);
+  }
+}
 
 for (const [name, command] of Object.entries(pkg.scripts)) {
   assert(!/server\/|dist\/index\.js/.test(command), `${name} launches or builds the retired backend`);
