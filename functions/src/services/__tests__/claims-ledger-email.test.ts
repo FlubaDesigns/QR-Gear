@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { database } from './composition-fixture';
@@ -8,11 +8,13 @@ vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'fi
 vi.mock('resend', () => ({ Resend: class { emails = { send: m.send }; } }));
 import { register as claims } from '../../routes/claims';
 import { registerExternalSitesPublicRoutes as embed } from '../../routes/external-sites-public';
-import { sendActivationEmail } from '../email';
+import { sendActivationEmail, sendOrderActivationEmails } from '../email';
 import { writePayoutAttribution } from '../order-service';
+import { resolveDynamicsInstance } from '../qr-dynamics';
+import { register as dynamics } from '../../routes/dynamics';
 import { BUILDER_SESSIONS_COLLECTION } from '../../constants';
 let store: Map<string, any>;
-const app = () => { const a = express(); a.use(express.json()); claims(a); embed(a); return a; };
+const app = () => { const a = express(); a.use(express.json()); claims(a); embed(a); dynamics(a); return a; };
 beforeEach(() => { vi.clearAllMocks(); const f = database({
   'claimCodes/legacy': { status: 'unclaimed', productName: 'Gift', packetType: 'qr_basics', expiresAt: '2099-01-01' },
   'referrals/original': { buyerKey: 'buyer@example.test', referrerId: 'first', profitSharePercent: 25, createdAt: '2020-01-01' },
@@ -60,4 +62,64 @@ it('returns an owned claimed-item array with IDs and keeps static items active',
  const result = await request(app()).get('/claimed-instances').set('Authorization', 'Bearer first');
  expect(result.status).toBe(200); expect(result.body).toHaveLength(1); expect(result.body[0].id).toBe('static-item');
  const detail = await request(app()).get('/claimed-instances/static-item').set('Authorization', 'Bearer first'); expect(detail.body.isActive).toBe(true);
+});
+
+afterEach(() => vi.useRealTimers());
+function purchased(term = '1_year', status = 'active') {
+  store.set('claimCodes/PURCHASED', { status: 'unclaimed', instanceId: 'unit', packetType: status === 'static' ? 'qr_basics' : 'qr_canvas', productName: 'My shirt' });
+  store.set('qr_dynamics_instances/unit', { instanceId: 'unit', orderId: 'paid-order', orderItemId: 'line', ownerId: null, packetId: 'unit-packet',
+    qrgBaseCode: 'QRG-11111-O-000042', title: 'My shirt', status, claimCode: 'PURCHASED', hostingTierCode: term,
+    hostingExpiresAt: null, claimedAt: null, startTimestamp: 1, slots: [{ packetId: 'unit-packet', durationSeconds: 86400, order: 1 }] });
+  store.set('productPackets/unit-packet', { status: 'published', ownerType: 'owner', ownerId: null, qrgBaseCode: 'QRG-11111-O-000042',
+    composeInstanceId: 'unit', landingPageSlug: 'my-shirt', packetType: 'qr-canvas' });
+}
+it('first scan asks for the emailed code without exposing it or starting hosting', async () => {
+  purchased();
+  const before = structuredClone(store.get('qr_dynamics_instances/unit'));
+  const r = await request(app()).get('/qr/d/unit');
+  expect(r.status).toBe(302); expect(r.headers.location).toBe('/claim?instanceId=unit');
+  expect(r.text).not.toContain('PURCHASED'); expect(store.get('qr_dynamics_instances/unit')).toEqual(before);
+  await expect(resolveDynamicsInstance('unit')).rejects.toThrow('Activate this item');
+});
+it('starts one calendar year on verified activation, preserving permanent identities and not restarting on replay', async () => {
+  purchased(); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2028-02-29T12:00:00Z'));
+  const r = await request(app()).post('/claim/PURCHASED').set('Authorization', 'Bearer first').send({ instanceId: 'unit' });
+  expect(r.status).toBe(200); expect(r.body.hostingExpiresAt).toBe('2029-03-01T12:00:00.000Z');
+  const instance = store.get('qr_dynamics_instances/unit');
+  expect(instance).toMatchObject({ ownerId: 'first', claimedAt: '2028-02-29T12:00:00.000Z', hostingExpiresAt: r.body.hostingExpiresAt, qrgBaseCode: 'QRG-11111-O-000042', packetId: 'unit-packet' });
+  expect(store.get('claimedInstances/unit').hostingExpiresAt).toBe(r.body.hostingExpiresAt);
+  expect(store.get('productPackets/unit-packet').ownerId).toBe('first');
+  vi.setSystemTime(new Date('2028-09-01T00:00:00Z'));
+  expect((await request(app()).post('/claim/PURCHASED').set('Authorization', 'Bearer first')).status).not.toBe(200);
+  expect(store.get('qr_dynamics_instances/unit').hostingExpiresAt).toBe(r.body.hostingExpiresAt);
+});
+it('retains prepaid multi-year terms and rejects a code belonging to a different scanned item', async () => {
+  purchased('3_year'); vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-12-01T00:00:00Z'));
+  const wrong = await request(app()).post('/claim/PURCHASED').set('Authorization', 'Bearer first').send({ instanceId: 'other-unit' });
+  expect(wrong.status).toBe(409); expect(store.get('qr_dynamics_instances/unit').claimedAt).toBeNull();
+  const check = await request(app()).get('/claim/validate/PURCHASED?instanceId=other-unit'); expect(check.body.valid).toBe(false);
+  const r = await request(app()).post('/claim/PURCHASED').set('Authorization', 'Bearer first');
+  expect(r.body.hostingExpiresAt).toBe('2029-12-01T00:00:00.000Z');
+});
+it('concurrent claims grant one owner and static QR items never acquire a hosting clock', async () => {
+  purchased('1_year', 'static');
+  const rs = await Promise.all(['first', 'second'].map(uid => request(app()).post('/claim/PURCHASED').set('Authorization', `Bearer ${uid}`)));
+  expect(rs.filter(r => r.status === 200)).toHaveLength(1);
+  expect(store.get('qr_dynamics_instances/unit').hostingExpiresAt).toBeNull();
+  expect(store.get('claimedInstances/unit').status).toBe('static');
+});
+it('delivers a distinct activation code for every cart unit and retries only undelivered copies', async () => {
+  purchased(); const instance = store.get('qr_dynamics_instances/unit');
+  store.set('qr_dynamics_instances/unit2', { ...instance, instanceId: 'unit2', claimCode: 'SECOND' });
+  store.set('orders/paid-order', { paymentStatus: 'paid', customerEmail: 'buyer@example.test', customerName: 'Buyer' });
+  store.set('orderItems/line', { orderId: 'paid-order', productTitle: 'My shirt', quantity: 2, dynamicsInstanceIds: ['unit', 'unit2'] });
+  m.send.mockResolvedValueOnce({ data: { id: 'accepted' } }).mockResolvedValueOnce({ error: { message: 'temporary failure' } });
+  expect((await sendOrderActivationEmails(m.db, 'paid-order')).success).toBe(false);
+  expect(store.get('qr_dynamics_instances/unit').activationEmailSentAt).toBeTruthy();
+  expect(store.get('qr_dynamics_instances/unit2').activationEmailSentAt).toBeUndefined();
+  m.send.mockResolvedValue({ data: { id: 'retry' } });
+  expect((await sendOrderActivationEmails(m.db, 'paid-order')).success).toBe(true);
+  expect(m.send).toHaveBeenCalledTimes(3);
+  expect(m.send.mock.calls[2][0].html).toContain('SECOND');
+  expect(store.get('qr_dynamics_instances/unit2').hostingExpiresAt).toBeNull();
 });

@@ -1,3 +1,4 @@
+import { QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
 import { readFlubaProviderKey } from './fluba-provider-keys';
 import { requireLiveCommerce } from '../runtime-config';
 import { Resend } from 'resend';
@@ -97,6 +98,7 @@ async function sendActivationEmail(data: ActivationEmailData): Promise<boolean> 
               <li>Open the activation link below</li>
               <li>Sign in or create your account</li>
               <li>Claim your item with this code</li>
+              <li>For hosted products, successful activation starts your included hosting; buying or scanning alone does not start the clock</li>
               <li>Manage supported QR experiences in your member area</li>
             </ol>
           </div>
@@ -224,4 +226,31 @@ export function sendShippingNotification(
     `Your Order Has Shipped — #${orderNumber}`,
     `Hello ${customerName},\n\nYour order #${orderNumber} has shipped.\nCarrier: ${carrier}\nTracking: ${trackingNumber}${safeTrackingUrl ? `\n${safeTrackingUrl}` : ''}`,
     trackingNumber, options);
+}
+
+/** Deliver the existing per-item claim code for every copy in a signed-in cart purchase. */
+export async function sendOrderActivationEmails(database: Firestore, orderId: string): Promise<SendResult> {
+  try {
+    const order = (await database.collection('orders').doc(orderId).get()).data();
+    if (!order || order.paymentStatus !== 'paid' || !order.customerEmail) throw new Error('A paid order and customer email are required for activation delivery.');
+    const lines = await database.collection('orderItems').where('orderId', '==', orderId).get();
+    for (const line of lines.docs) {
+      const item = line.data();
+      if (!Array.isArray(item.dynamicsInstanceIds) || item.dynamicsInstanceIds.length !== item.quantity) throw new Error('Individual item activation codes are not ready.');
+      for (const id of item.dynamicsInstanceIds) {
+        const ref = database.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(id), instance = (await ref.get()).data();
+        if (!instance || instance.orderId !== orderId || instance.orderItemId !== line.id) throw new Error('Item activation does not match this order.');
+        if (instance.activationEmailSentAt || instance.claimedAt) continue;
+        if (!instance.claimCode) throw new Error('This historical item needs its activation code reconciled.');
+        const sent = await sendActivationEmail({ customerEmail: order.customerEmail, customerName: order.customerName || 'Customer',
+          activationCode: instance.claimCode, productName: item.productTitle, previewImageUrl: order.mockupUrl, orderId });
+        if (!sent) throw new Error('The email provider did not accept the item activation email.');
+        await ref.update({ activationEmailSentAt: new Date().toISOString() });
+      }
+    }
+    return { success: true };
+  } catch (error) {
+    console.error('[Email] Order activation delivery failed', { orderId });
+    return { success: false, reason: error instanceof Error ? error.message : 'Activation delivery failed' };
+  }
 }

@@ -64,6 +64,7 @@ export async function updateDynamicsSlots(ownerId: string, id: string, input: an
 export async function resolveDynamicsInstance(id: string) {
   const instance = (await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(documentId(id)).get()).data();
   if (!instance || instance.status !== 'active') fail('QR experience is not available.', 404);
+  if (instance.orderId && instance.claimCode && !instance.claimedAt) fail('Activate this item with the code from your email before opening its QR experience.', 409);
   if (!/^QRG-[1-6][1-9]\d{3}-[IMEO]-\d{6}$/.test(instance.qrgBaseCode || '')) fail('QR item identity is not connected.', 409);
   const bound = (await db.collection(PRODUCT_PACKETS_COLLECTION).doc(documentId(instance.packetId)).get()).data();
   if (!bound || !await isPublicPacket(instance.packetId, bound) || bound.qrgBaseCode !== instance.qrgBaseCode || bound.composeInstanceId !== id) fail('QR experience and physical item are not connected.', 409);
