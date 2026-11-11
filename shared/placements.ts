@@ -31,6 +31,7 @@ const PRINTFUL_TO_INTERNAL: Record<string, InternalPlacement> = {
   'front': 'front',
   'front_large': 'front',
   'front_dtf': 'front',
+  'front_dtf_hat': 'front',
   'back': 'back',
   'back_dtf': 'back',
   'sleeve_left': 'left_sleeve',
@@ -85,6 +86,7 @@ export function toProviderPlacement(
   printMethod?: PrintMethod
 ): string {
   if (provider === 'printful' && printMethod === 'dtf') {
+    if (internal === 'front' && availablePlacements?.includes('front_dtf_hat')) return 'front_dtf_hat';
     const dtfMapped = INTERNAL_TO_PRINTFUL_DTF[internal];
     if (dtfMapped && (!availablePlacements || availablePlacements.includes(dtfMapped))) {
       return dtfMapped;
@@ -128,7 +130,7 @@ export function isEmbroideryPlacement(providerPlacement: string): boolean {
 export type PrintMethod = 'dtg' | 'dtf';
 
 export function detectPrintMethod(providerPlacement: string): PrintMethod {
-  if (providerPlacement.endsWith('_dtf')) return 'dtf';
+  if (/(?:^|_)dtf(?:_|$)/.test(providerPlacement)) return 'dtf';
   return 'dtg';
 }
 

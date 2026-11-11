@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261111-fluba-catalog-binding';
+const _BUILD_ID = '20261111-cap-print-technique';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

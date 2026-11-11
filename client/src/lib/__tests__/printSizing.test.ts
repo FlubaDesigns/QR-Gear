@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { printArtworkFrame } from '@shared/printSizing';
-import { projectQrgPrintfiles, qrgPrintfulProductId } from '../../../../functions/src/services/qrg-print-specs';
+import { projectQrgPrintfiles, qrgPrintfulProductId, resolveQrgPrintSpecs } from '../../../../functions/src/services/qrg-print-specs';
+import { normalizePlacement, detectPrintMethod, toProviderPlacement } from '@shared/placements';
+import { catalogSaleVariants } from '../../../../functions/src/services/catalog-sale-variants';
 
 describe('Physical print sizing', () => {
   it('centers a 10-inch design within a 12-inch canvas, preserving the full file', () => {
@@ -13,6 +15,41 @@ describe('Physical print sizing', () => {
     expect(frame.artworkWidthIn).toBe(10); expect(frame.left).toBe(150);
     expect(printArtworkFrame({ dimensions: { widthPx: 1200, heightPx: 1600 } }).widthIn).toBeNull();
     expect(() => printArtworkFrame({})).toThrow('missing');
+  });
+});
+
+describe('Printed caps with an embroidery default', () => {
+  const capFiles = (placement: string) => ({ printfiles: [{ printfile_id: 10, width: 1500, height: 600, dpi: 300 }],
+    variant_printfiles: [1, 2].map(variant_id => ({ variant_id, placements: { [placement]: 10 } })) });
+  it('requests the advertised DTF technique and preserves its exact supplier placement', async () => {
+    const getFiles = vi.fn(async (_id, technique) => capFiles(technique ? 'front_dtf_hat' : 'embroidery_front_large'));
+    const getProduct = vi.fn(async () => ({ product: { id: 71, techniques: [{key:'EMBROIDERY',is_default:true},{key:'DTFILM',is_default:false}] } }));
+    const update = vi.fn(), fresh = structuredClone(product);
+    const locations = await resolveQrgPrintSpecs(fresh, {update}, getFiles, false, getProduct);
+    expect(getFiles.mock.calls).toEqual([[71], [71, 'DTFILM']]);
+    expect(locations[0]).toMatchObject({ id:'front', providerPlacementId:'front_dtf_hat', technique:'DTFILM', dimensions:{widthIn:5,heightIn:2} });
+    expect(update).toHaveBeenCalledOnce();
+    expect(await resolveQrgPrintSpecs(fresh, {update}, getFiles, false, getProduct)).toEqual(locations);
+    expect(getFiles).toHaveBeenCalledTimes(2);
+    expect(normalizePlacement('printful','front_dtf_hat')).toBe('front');
+    expect(detectPrintMethod('front_dtf_hat')).toBe('dtf');
+    expect(toProviderPlacement('printful','front',['front_dtf_hat'],'dtf')).toBe('front_dtf_hat');
+  });
+  it('does not guess an unadvertised technique or persist incomplete variant coverage', async () => {
+    const update = vi.fn();
+    await expect(resolveQrgPrintSpecs(structuredClone(product),{update},async()=>capFiles('embroidery_front_large'),false,
+      async()=>({product:{id:71,techniques:[{key:'EMBROIDERY',is_default:true}]}}))).rejects.toThrow('shared verified');
+    await expect(resolveQrgPrintSpecs(structuredClone(product),{update},async(_id,technique)=> {
+      const files=capFiles(technique?'front_dtf_hat':'embroidery_front_large');
+      if(technique) files.variant_printfiles.pop();
+      return files;
+    },false,async()=>({product:{id:71,techniques:[{key:'DTFILM',is_default:false}]}}))).rejects.toThrow('all QRG variants');
+    expect(update).not.toHaveBeenCalled();
+  });
+  it('keeps known out-of-stock supplier variants out of selectable offers', () => {
+    const master={qrgVariants:{black:{sizeLabel:'One size',colorLabel:'Black',providerVariants:{printful:{productId:864,variantId:22663,inStock:true}}},
+      royal:{sizeLabel:'One size',colorLabel:'Royal',providerVariants:{printful:{productId:864,variantId:22668,inStock:false}}}}};
+    expect(catalogSaleVariants({enabledColors:['Black','Royal'],enabledSizes:['One size']},master,'printful').map(v=>v.color)).toEqual(['Black']);
   });
 });
 const product = { providerMappings: { printful: { productId: 71 } }, qrgVariants: {

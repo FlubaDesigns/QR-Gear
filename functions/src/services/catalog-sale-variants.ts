@@ -12,7 +12,7 @@ export function catalogSaleVariants(instance: any, master: any, provider: string
   const colors = new Set(labels(instance.enabledColors || instance.resolved?.colors || []));
   const variants = Object.entries(master?.qrgVariants || {}).flatMap(([key, value]) => {
     const row = value as any, mapping = row.providerVariants?.[provider];
-    if (typeof row.sizeLabel !== 'string' || !sizes.has(normalizeSize(row.sizeLabel)) || !colors.has(row.colorLabel) || row.isActive === false || row.available === false) return [];
+    if (typeof row.sizeLabel !== 'string' || !sizes.has(normalizeSize(row.sizeLabel)) || !colors.has(row.colorLabel) || row.isActive === false || row.available === false || mapping?.inStock === false) return [];
     if (!Number.isSafeInteger(Number(mapping?.variantId)) || Number(mapping.variantId) <= 0 || !Number.isSafeInteger(Number(mapping?.productId)) || Number(mapping.productId) <= 0) return [];
     return [{ key, size: normalizeSize(row.sizeLabel), color: row.colorLabel as string, mapping }];
   });

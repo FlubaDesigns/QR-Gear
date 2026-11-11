@@ -1985,3 +1985,7 @@ The combined release preserves the claims array, retired widget page and `perPla
 ## Replit and SQL dependency retirement — October 20, 2026
 
 Removed the remaining Replit build plugins/runtime settings and replaced the Drizzle table declarations with plain shared TypeScript contracts and Zod validators. Existing exported API field types, insert validation and the saved-pricing refinement remain unchanged. Cloud Functions and Firestore continue to own persistence. The backend boundary check now rejects Replit and SQL packages in the root, Functions and mockup-tool manifests. No canonical identity definitions, saved records, pricing formulas or provider operations are changed. Source checks and production release evidence are reported separately.
+
+### Printed caps
+
+Reload QRG printer specifications for a cap to import a supplier-advertised printing technique when embroidery is its default. The saved QRG layout retains the supplier placement and verifies the complete size/color mapping. The refreshed stock flags remove unavailable variants from product choices. Embroidery-only or incompatible products remain blocked.

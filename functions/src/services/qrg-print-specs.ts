@@ -2,6 +2,7 @@ import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../.
 import { printfulClient } from './printful';
 import { normalizePlacement, isEmbroideryPlacement } from '../../../shared/placements';
 
+class NoCompatiblePrintArea extends Error {}
 
 /** One supplier row per existing SSCC identity. Never let an alias overwrite the
  * canonical color, or pair one color label with a different supplier variant. */
@@ -35,7 +36,7 @@ async function refreshQrgVariants(product: any, productId: number) {
     const size = getQrgSizeCode(row.size)!, color = getQrgColorCode(row.color)!, key = size.slice(-2) + color;
     if (!Number.isSafeInteger(Number(row.id)) || Number(row.id) <= 0) throw new Error('QRG supplier variant ID is invalid.');
     variants[key] = { ...variants[key], sizeCode: size.slice(-2), colorCode: color, sizeLabel: SIZE_LABELS[size], colorLabel: row.color,
-      providerVariants: { ...variants[key]?.providerVariants, printful: { productId: String(productId), variantId: String(row.id) } },
+      providerVariants: { ...variants[key]?.providerVariants, printful: { productId: String(productId), variantId: String(row.id), ...(typeof row.in_stock === 'boolean' ? { inStock: row.in_stock } : {}) } },
       availableVia: Array.from(new Set([...(variants[key]?.availableVia || []), 'printful'])) };
   }
   product.qrgVariants = variants;
@@ -76,11 +77,13 @@ export function projectQrgPrintfiles(product: any, data: any) {
       verifiedVariantIds: Array.from(new Set(variants)),
     });
   }
-  if (!locations.length) throw new Error('QRG needs a shared verified print area for the offered sizes; no compatible placement was returned.');
+  if (!locations.length) throw new NoCompatiblePrintArea('QRG needs a shared verified print area for the offered sizes; no compatible placement was returned.');
   return locations;
 }
 
-export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles: (id: number) => Promise<any> = id => printfulClient.getPrintfiles(id), refresh = false) {
+export async function resolveQrgPrintSpecs(product: any, ref: any,
+  getPrintfiles: (id: number, technique?: string) => Promise<any> = (id, technique) => printfulClient.getPrintfiles(id, technique),
+  refresh = false, getProduct: (id: number) => Promise<any> = id => printfulClient.getProduct(id)) {
   const productId = qrgPrintfulProductId(product);
   if (!productId) throw new Error('QRG is missing its printer product mapping.');
   if (refresh) await refreshQrgVariants(product, productId);
@@ -88,8 +91,23 @@ export async function resolveQrgPrintSpecs(product: any, ref: any, getPrintfiles
   const variantIds = Array.from(new Set(Object.values(product.qrgVariants || {}).map((v: any) => Number(v.providerVariants?.printful?.variantId)).filter(n => n > 0))).sort((a,b) => a-b);
   if (!refresh && cache?.productId === productId && cache?.locations?.length &&
       JSON.stringify(cache.variantIds) === JSON.stringify(variantIds)) return cache.locations;
-  const locations = projectQrgPrintfiles(product, await getPrintfiles(productId));
-  const specs = { productId, variantIds, locations, checkedAt: new Date().toISOString() };
+  let locations: any[], technique: string | null = null;
+  // Embroidery may be a cap's default. Request a different technique only when
+  // the supplier explicitly advertises one supported printing technique.
+  const defaultFiles = await getPrintfiles(productId);
+  try { locations = projectQrgPrintfiles(product, defaultFiles); }
+  catch (error) {
+    if (!(error instanceof NoCompatiblePrintArea)) throw error;
+    const detail = await getProduct(productId);
+    if (Number(detail.product?.id) !== productId) throw new Error('Printer technique lookup returned the wrong product.');
+    const alternatives = (detail.product.techniques || []).filter((t: any) =>
+      !t.is_default && ['DTG', 'DTFILM'].includes(t.key));
+    if (alternatives.length !== 1) throw error;
+    technique = alternatives[0].key;
+    locations = projectQrgPrintfiles(product, await getPrintfiles(productId, technique!))
+      .map(location => ({ ...location, technique }));
+  }
+  const specs = { productId, variantIds, locations, technique, checkedAt: new Date().toISOString() };
   await ref.update({ ...(refresh ? { qrgVariants: product.qrgVariants } : {}), 'qrgPrintSpecs.printful': specs });
   product.qrgPrintSpecs = { ...product.qrgPrintSpecs, printful: specs };
   return locations;
