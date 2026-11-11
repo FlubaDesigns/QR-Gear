@@ -24,6 +24,21 @@ it('saves QRG references, uses the configured provider and preserves explicit em
   expect(products[1].colors[0].name).toBe('Black');expect(products[1].sizes).toEqual(['M']);
   expect([...store.keys()].filter(k=>k.startsWith('printify')||k.startsWith('printful'))).toEqual([]);
 });
+it('saves only a catalog reference and reflects later catalog edits immediately', async () => {
+  const {db,store}=fixture();
+  store.set('catalogs/rewards',{name:'Rewards',blankIds:['qrg_11102'],blankTitles:{qrg_11102:'Reward shirt'}});
+  await saveStoreProducts(db,'a',undefined,'rewards');
+  expect(store.get('storeAllowedProducts/a')).toMatchObject({storeId:'a',catalogId:'rewards'});
+  expect(store.get('storeAllowedProducts/a')).not.toHaveProperty('products');
+  let result=await readStoreProducts(db,'a');
+  expect(result.catalogId).toBe('rewards');expect(result.products[0].title).toBe('Reward shirt');
+  store.get('catalogs/rewards').blankIds=[];
+  expect((await readStoreProducts(db,'a')).products).toEqual([]);
+  await expect(saveStoreProducts(db,'a',[],'missing')).rejects.toThrow('existing catalog');
+  expect(store.get('storeAllowedProducts/a').catalogId).toBe('rewards');
+  await saveStoreProducts(db,'a',[]);
+  expect(store.get('storeAllowedProducts/a')).not.toHaveProperty('catalogId');
+});
 it('rejects invalid choices without overwriting saved data', async () => {
   const {db,store}=fixture();await saveStoreProducts(db,'a',[]);
   await expect(saveStoreProducts(db,'a',[{canonicalBlankKey:'qrg_11101',colors:['Blue']}])).rejects.toThrow('Invalid colors');

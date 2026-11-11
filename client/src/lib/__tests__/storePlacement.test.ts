@@ -32,6 +32,18 @@ it('retains failed edits and blocks duplicate saves',async()=>{
  await act(async()=>{save.props.onClick();save.props.onClick();await flush();});expect(mocks.admin.mock.calls.filter(c=>c[1]?.method==='POST')).toHaveLength(1);
  await act(async()=>{reject(new Error('Offline'));await flush();});expect(text()).toContain('Save failed: Offline');expect(tree.root.findByProps({type:'checkbox'}).props.checked).toBe(true);
 });
+it('saves a catalog reference without copying products and keeps it after a failed save',async()=>{
+ mocks.admin.mockImplementation(async(path:string,options:any)=>{
+  if(options?.method==='POST')throw new Error('Offline');
+  return path==='/catalogs'?{catalogs:[{id:'rewards',name:'Rewards',blankIds:['qrg_11101']}]}:{products:[]};
+ });
+ await mount(React.createElement(AllowedProductsEditor,{storeId:'a'}));
+ act(()=>tree.root.findByProps({'aria-label':'Store product catalog'}).props.onChange({target:{value:'rewards'}}));
+ expect(tree.root.findAllByProps({type:'checkbox'})).toHaveLength(0);
+ await act(async()=>{buttons().find(b=>b.children.includes('Save catalog connection'))!.props.onClick();await flush();});
+ expect(mocks.admin).toHaveBeenCalledWith('/stores/a/allowed-products',{method:'POST',json:{catalogId:'rewards'}});
+ expect(text()).toContain('Save failed: Offline');expect(tree.root.findByProps({'aria-label':'Store product catalog'}).props.value).toBe('rewards');
+});
 it('keeps explicit empty colors disabled and prevents rapid competing updates',async()=>{
  const instance={id:'i',enabledColors:[],enabledSizes:[],resolved:{title:'Item',colors:['Black'],sizes:['M']}};
  await mount(React.createElement(InstanceCard,{instance,onDeleted:()=>{},onMoved:()=>{}}));

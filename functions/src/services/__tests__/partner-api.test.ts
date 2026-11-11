@@ -70,6 +70,78 @@ describe('partner API ownership and admin persistence', () => {
     const result=publicPartner({...seed['partnerStores/a'],secret:'private',apiKeyHash:'private'});
     expect(JSON.stringify(result)).not.toContain(key); expect(result).not.toHaveProperty('secret'); expect(result).not.toHaveProperty('apiKeyHash');
   });
+  it('links one partner to an existing active external store without copying its catalog', async () => {
+    const {db, rows}=database({...seed, 'stores/fluba': {name:'Fluba',roleType:'external',isActive:true}});
+    await savePartner(db,{storeId:'fluba'},'a');
+    expect(rows['partnerStores/a'].storeId).toBe('fluba');
+    expect(publicPartner(await authenticatePartner(db,req('a'))).storeId).toBe('fluba');
+    expect(Object.keys(rows).filter(p=>p.startsWith('stores/'))).toEqual(['stores/fluba']);
+    await expect(savePartner(db,{storeId:'fluba'},'b')).rejects.toMatchObject({status:409});
+    await expect(savePartner(db,{isInternal:true},'a')).rejects.toMatchObject({status:400});
+    rows['stores/fluba'].isActive=false;
+    await expect(authenticatePartner(db,req('a'))).rejects.toMatchObject({status:409});
+    delete rows['stores/fluba'];
+    await expect(authenticatePartner(db,req('a'))).rejects.toMatchObject({status:409});
+  });
+  it('rejects invalid, missing, internal and inactive Store Builder bindings', async () => {
+    const {db}=database({...seed,
+      'stores/internal':{roleType:'internal',isActive:true},
+      'stores/inactive':{roleType:'external',isActive:false},
+    });
+    for(const storeId of ['../other','missing','internal','inactive']) await expect(savePartner(db,{storeId},'a')).rejects.toMatchObject({status:400});
+  });
+  it('uses one store allowlist and canonical variants, including explicit empty restrictions', async () => {
+    const {db,rows}=database({...seed,
+      'stores/fluba':{roleType:'external',isActive:true},
+      'storeChannels/rewards':{storeId:'fluba',isActive:true},
+      'storeChannels/legacy':{storeId:'a',isActive:true},
+      'storeAllowedProducts/fluba':{products:[{canonicalBlankKey:'qrg_11001',colors:['Black'],sizes:['M']}]},
+      'admin_catalog_instances/shirt':{storeId:'fluba',channelId:'rewards',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
+      'admin_catalog_instances/legacy':{storeId:'a',currentPacketId:'pkt'},
+      'productPackets/pkt':{sourceMasterId:'qrg_11001',fulfillmentProvider:'printful'},
+      'master_catalog/qrg_11001':{qrgVariants:{
+        '0401':{sizeLabel:'M',colorLabel:'Black',providerVariants:{printful:{variantId:123,productId:456}}},
+        '0402':{sizeLabel:'L',colorLabel:'White',providerVariants:{printful:{variantId:124,productId:456}}},
+      }},
+    });
+    const partner={id:'a',storeId:'fluba'};
+    const result=await partnerProducts(db,partner,{channelId:'rewards'});
+    expect(result.products).toHaveLength(1);
+    expect(result.products[0]).toMatchObject({id:'shirt',storeId:'fluba',availableVariants:[{size:'M',color:'Black'}],availableColors:['Black'],availableSizes:['M']});
+    await expect(partnerProducts(db,partner,{channelId:'legacy'})).rejects.toMatchObject({status:404});
+    rows['storeChannels/rewards'].isActive=false;
+    await expect(partnerProducts(db,partner,{channelId:'rewards'})).rejects.toMatchObject({status:404});
+    rows['storeAllowedProducts/fluba'].products[0].sizes=[];
+    expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+    rows['storeAllowedProducts/fluba'].products=[];
+    expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+    delete rows['storeAllowedProducts/fluba'];
+    await expect(partnerProducts(db,partner,{})).rejects.toMatchObject({status:409});
+  });
+  it('follows catalog membership and colors without copying them into the store or partner', async () => {
+    const {db,rows}=database({
+      'stores/fluba':{roleType:'external',isActive:true},
+      'storeAllowedProducts/fluba':{catalogId:'rewards'},
+      'catalogs/rewards':{name:'Rewards',blankIds:['qrg_11111'],blankColors:{qrg_11111:[{name:'Black',hex:'#000000'}]}},
+      'admin_catalog_instances/shirt':{storeId:'fluba',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
+      'productPackets/pkt':{sourceMasterId:'qrg_11111',fulfillmentProvider:'printful'},
+      'master_catalog/qrg_11111':{qrgVariants:{
+        '0401':{sizeLabel:'M',colorLabel:'Black',providerVariants:{printful:{variantId:123,productId:456}}},
+        '0402':{sizeLabel:'L',colorLabel:'White',providerVariants:{printful:{variantId:124,productId:456}}},
+      }},
+    });
+    const partner={id:'a',storeId:'fluba'};
+    expect((await partnerProducts(db,partner,{})).products[0].availableColors).toEqual(['Black']);
+    rows['catalogs/rewards'].blankColors.qrg_11111=[];
+    expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+    delete rows['catalogs/rewards'].blankColors.qrg_11111;
+    expect((await partnerProducts(db,partner,{})).products[0].availableColors).toEqual(['Black','White']);
+    rows['catalogs/rewards'].blankIds=[];
+    expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+    expect(rows['storeAllowedProducts/fluba']).toEqual({catalogId:'rewards'});
+    delete rows['catalogs/rewards'];
+    await expect(partnerProducts(db,partner,{})).rejects.toThrow('assigned catalog is missing');
+  });
   it('rejects cross-store channels and unbound member/store requests', async () => {
     const {db}=database({...seed,'storeChannels/b-channel':{storeId:'b'}});
     for(const q of [{channelId:'b-channel'},{memberId:'someone'},{storeId:'b'}]) await expect(partnerProducts(db,{id:'a'},q)).rejects.toHaveProperty('status');

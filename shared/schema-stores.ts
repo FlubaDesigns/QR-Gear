@@ -1,6 +1,7 @@
 import { z } from "zod";
 // Shared Firestore/API contracts. Persistence is owned by Firebase services.
 export const insertPartnerStoreSchema = z.object({
+    "storeId": z.string().trim().min(1).max(150).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).nullable().optional(),
     "slug": z.string(),
     "name": z.string(),
     "description": z.string().nullable().optional(),
@@ -175,6 +176,7 @@ export const insertRepricingHistorySchema = z.object({
 });
 export type PartnerStore = {
     id: string;
+    storeId?: string | null;
     name: string;
     createdAt: Date;
     updatedAt: Date;

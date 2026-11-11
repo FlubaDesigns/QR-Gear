@@ -1,6 +1,6 @@
 # QR Gear — Admin Operating Law
 
-Last updated: October 20, 2026
+Last updated: November 11, 2026
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
@@ -371,6 +371,10 @@ Storage path: `library/images/{folderName}/{timestamp}-{safeName}.{ext}`
 
 Store Builder belongs to **PLACE**, not BUILD. It is not part of the product build system.
 
+Store Builder product choices can follow a named catalog by reference. Membership and catalog colors are resolved at read time by `store-product-references.ts`; no copied blank list is persisted in this mode. The existing individual-blank mode remains available.
+
+Admin Partners can link API credentials to an existing active External store. Choose its Store Builder destination in the partner form, then maintain that store's product choices and placed offers in Store Builder. A linked partner serves only allowed QRG blanks and the intersection of saved offer and store size/color choices. Save an empty list to expose no products. Missing choices, inactive/missing stores and duplicate partner bindings are rejected. Older partners without a link continue using their existing destinations. Credentials stay in `partnerStores`; this adds no catalog or collection.
+
 **Key files:**
 - `client/src/features/adminProducts/storeBuilder/StoreBuilderHarness.tsx`
 - `client/src/features/adminProducts/storeBuilder/StoreBuilderContext.tsx`
@@ -431,6 +435,20 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 ---
 
 ## Recent Changes Log
+
+### November 11, 2026 — Partner access uses the existing Store Builder destination
+
+Added the explicit `partnerStores.storeId` reference and an Admin Partners selector. The authenticated API validates that destination and its channel ownership, then projects saved offers through the existing store allowlist and canonical QRG variant resolver. Cross-store access, invalid or duplicate bindings, disabled destinations and missing choices fail visibly. This is the first foundation for the two independent Fluba rewards, tracked only in [Fluba issue #1117](https://github.com/FlubaDesigns/fluba-designs/issues/1117); personalization and sponsored fulfillment are still pending. Candidate validation is recorded in the linked issue. Live release is a separate verification.
+
+#### Files Changed
+| File | Change |
+|---|---|
+| `shared/schema-stores.ts` | Optional validated store reference |
+| `functions/src/services/partner-api.ts` | Unique active external binding and shared product restrictions |
+| `functions/src/services/__tests__/partner-api.test.ts` | Ownership, invalidation and empty-choice regressions |
+| `client/src/pages/admin-partners.tsx` | Existing store selector and visible loading/errors |
+| `functions/src/index.ts`, Functions package and lock | Release identifier |
+| `README.md`, this guide, `MANIFEST.json`, source ZIP | Scope, handoff and synchronized source package |
 
 ## Purchased item hosting begins at activation — October 20, 2026
 
