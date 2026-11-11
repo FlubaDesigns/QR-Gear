@@ -1,7 +1,7 @@
 import { memberProductOptions } from './member-product-options';
 import { masterCatalogProduct } from '../../../shared/masterCatalog';
 import { catalogToSelectItem } from '../../../shared/adapters/catalog.adapter';
-import { CATALOG_SECTIONS } from '../../../shared/catalogs';
+import { storeProductReferences } from './store-product-references';
 import { isValidMasterCatalogDocId } from '../../../shared/qrgCodes';
 
 const fail = (message: string) => { throw Object.assign(new Error(message), { status: 400 }); };
@@ -10,22 +10,10 @@ async function parent(db: any, storeId: string) {
   const store = await db.collection('stores').doc(storeId).get();
   if (!store.exists) throw Object.assign(new Error('Store not found'), { status: 404 });
 }
-/** Saved lists contain QRG references and optional choices; titles, prices and images come from the master/catalog adapter. */
+/** Saved lists contain only references; titles, prices and images come from the catalog adapter. */
 export async function readStoreProducts(db: any, storeId: string, section?: string) {
   await parent(db, storeId);
-  if (section && !(CATALOG_SECTIONS as readonly string[]).includes(section)) fail('Invalid catalog section');
-  const saved = await db.collection('storeAllowedProducts').doc(storeId).get();
-  let catalog: any = null;
-  if (section) {
-    const assignment = await db.collection('systemSettings').doc('catalog-assignments').get();
-    const catalogId = assignment.data()?.[section];
-    if (catalogId) {
-      const doc = await db.collection('catalogs').doc(catalogId).get();
-      if (!doc.exists) fail('The assigned catalog is missing. Select a catalog in Blanks.');
-      catalog = doc.data();
-    }
-  }
-  const raw = saved.exists ? saved.data()?.products || [] : (catalog?.blankIds || []).map((canonicalBlankKey: string) => ({ canonicalBlankKey }));
+  const { products: raw, catalog, catalogId, configured } = await storeProductReferences(db, storeId, section);
   const masters = await db.collection('master_catalog').get();
   const projected = masters.docs.filter((d: any) => d.data().isActive !== false && d.data().status !== 'archived').map((d: any) => masterCatalogProduct(d.id, d.data()));
   const pricing = (await db.collection('testSettings').doc('pricing').get()).data() || {};
@@ -58,10 +46,19 @@ export async function readStoreProducts(db: any, storeId: string, section?: stri
       printProviderId: master.printProviderId, 
       ...options, colors: options.availableColors, sizes: options.availableSizes, brand: item.manufacturer, effectiveDescription: item.description, selectedColors: reference.colors, selectedSizes: reference.sizes });
   }
-  return { storeId, products, configured: saved.exists };
+  return { storeId, products, catalogId, catalogName: catalog?.name || null, configured };
 }
-export async function saveStoreProducts(db: any, storeId: string, products: unknown) {
+export async function saveStoreProducts(db: any, storeId: string, products: unknown, catalogId?: unknown) {
   await parent(db, storeId);
+  if (catalogId !== undefined && catalogId !== null && catalogId !== '') {
+    if (typeof catalogId !== 'string' || !/^[a-zA-Z0-9_-]{1,150}$/.test(catalogId)) fail('Select a valid catalog');
+    return db.runTransaction(async (tx: any) => {
+      const catalog = await tx.get(db.collection('catalogs').doc(catalogId));
+      if (!catalog.exists || !Array.isArray(catalog.data()?.blankIds)) fail('Select an existing catalog');
+      tx.set(db.collection('storeAllowedProducts').doc(storeId), { storeId, catalogId, updatedAt: new Date().toISOString() });
+      return { success: true, count: catalog.data().blankIds.length, catalogId };
+    });
+  }
   if (!Array.isArray(products)) fail('products must be an array');
   const refs: any[] = []; const seen = new Set<string>();
   for (const p of products as any[]) {
@@ -88,7 +85,7 @@ export function registerStoreProductRoutes(app: any, prefix: string, auth: any, 
     catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
   };
   const post = (id: (req: any) => string) => async (req: any, res: any) => {
-    try { res.json(await saveStoreProducts(getDb(), id(req), req.body.products)); }
+    try { res.json(await saveStoreProducts(getDb(), id(req), req.body.products, req.body.catalogId)); }
     catch (e: any) { res.status(e.status || 500).json({ error: e.message }); }
   };
   app.get(`${prefix}/admin/stores/:storeId/allowed-products`, auth, get(r => r.params.storeId));

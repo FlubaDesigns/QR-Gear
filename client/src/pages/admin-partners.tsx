@@ -18,6 +18,7 @@ import type { PartnerStore } from "@shared/schema";
 import { useAuth } from "@/hooks/useAuth";
 
 interface StoreFormData {
+  storeId: string;
   slug: string;
   name: string;
   description: string;
@@ -34,6 +35,7 @@ interface StoreFormData {
 }
 
 const defaultFormData: StoreFormData = {
+  storeId: "",
   slug: "",
   name: "",
   description: "",
@@ -61,6 +63,11 @@ export default function AdminPartners() {
   const { data: stores = [], isLoading, error, refetch } = useQuery<PartnerStore[]>({
     queryKey: ["/api/admin/partner-stores"],
     queryFn: getQueryFn({ on401: "throw" }),
+  });
+  const { data: externalStores = [], isLoading: storesLoading, error: storesError, refetch: refetchStores } = useQuery<Array<{ id: string; name: string; isActive: boolean }>>({
+    queryKey: ["/api/admin/stores?roleType=external"],
+    queryFn: getQueryFn({ on401: "throw" }),
+    enabled: showDialog,
   });
 
   const createMutation = useMutation({
@@ -138,6 +145,7 @@ export default function AdminPartners() {
     if (store) {
       setEditingStore(store);
       setFormData({
+        storeId: store.storeId || "",
         slug: store.slug,
         name: store.name,
         description: store.description || "",
@@ -169,6 +177,7 @@ export default function AdminPartners() {
       : [];
 
     const data: Record<string, any> = {
+      storeId: formData.storeId || null,
       slug: formData.slug.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
       name: formData.name,
       description: formData.description || null,
@@ -375,11 +384,23 @@ export default function AdminPartners() {
           <DialogHeader>
             <DialogTitle>{editingStore ? "Edit Partner Store" : "Add Partner Store"}</DialogTitle>
             <DialogDescription>
-              Configure partner store settings for widget embedding
+              Connect partner API access to a store and its saved product choices.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="partner-store-id">Store Builder destination</Label>
+              <select id="partner-store-id" className="h-12 w-full rounded-md border bg-background px-3 text-base"
+                value={formData.storeId} disabled={storesLoading || !!storesError}
+                onChange={e => setFormData({ ...formData, storeId: e.target.value, ...(e.target.value ? { isInternal: false } : {}) })}>
+                <option value="">Use this partner’s existing destination</option>
+                {formData.storeId && !externalStores.some(s => s.id === formData.storeId) && <option value={formData.storeId}>{formData.storeId} — unavailable</option>}
+                {externalStores.map(s => <option key={s.id} value={s.id} disabled={!s.isActive}>{s.name}{!s.isActive ? " — inactive" : ""}</option>)}
+              </select>
+              {storesError ? <div role="alert"><p>Store destinations could not be loaded.</p><Button type="button" variant="outline" className="h-12" onClick={() => refetchStores()}>Retry</Button></div>
+                : <p className="text-sm text-muted-foreground">Select the existing external store. Its channels and product choices control partner access.</p>}
+            </div>
             <div className="row layout__split-2">
               <div className="space-y-2">
                 <Label htmlFor="name">Store Name</Label>
@@ -536,6 +557,7 @@ export default function AdminPartners() {
                 <Switch
                   id="isInternal"
                   checked={formData.isInternal}
+                  disabled={!!formData.storeId}
                   onCheckedChange={(checked) => setFormData({ ...formData, isInternal: checked })}
                   data-testid="switch-internal"
                 />
@@ -559,7 +581,7 @@ export default function AdminPartners() {
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={createMutation.isPending || updateMutation.isPending || !formData.name || !formData.slug}
+              disabled={createMutation.isPending || updateMutation.isPending || storesLoading || !!storesError || !formData.name || !formData.slug}
               className="h-12"
               data-testid="button-save"
             >
@@ -610,7 +632,7 @@ export default function AdminPartners() {
               <Label>Server API request</Label>
               <Textarea readOnly rows={4} className="font-mono text-xs" value={`GET ${window.location.origin}/api/partner/products?partnerId=${encodeURIComponent(viewingStore?.id || "")}
 X-API-Key: YOUR_PARTNER_API_KEY`} />
-              <p className="text-sm text-muted-foreground">Returns this partner's saved catalog products with QRG options. Optional channelId must belong to this partner. Empty results mean no products have been placed there yet.</p>
+              <p className="text-sm text-muted-foreground">Returns the linked store's saved offers and permitted QRG sizes and colors. Optional channelId must belong to that store. Manage products in Store Builder.</p>
               <p className="text-sm text-muted-foreground">Use /api/partner/verify with the same header and partnerId to verify credentials. Member storefront provisioning and imports are not connected yet.</p>
               <Button className="h-12" variant="outline" disabled={testApiMutation.isPending || regenerateKeyMutation.isPending || !viewingStore} onClick={() => viewingStore && testApiMutation.mutate(viewingStore.id)}>{testApiMutation.isPending ? "Checking…" : "Check API setup"}</Button>
               <Link href="/admin/external-sites"><Button variant="outline" className="h-12">Website setup</Button></Link>

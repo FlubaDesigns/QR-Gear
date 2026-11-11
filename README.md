@@ -1,5 +1,13 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Fluba reward integration — November 11, 2026
+
+The implementation checklist for both sites lives in [Fluba issue #1117](https://github.com/FlubaDesigns/fluba-designs/issues/1117). The first change connects an API partner to an existing external Store Builder destination through `partnerStores.storeId`. Its existing channels, catalog instances and `storeAllowedProducts` remain authoritative. Store Builder can save a `catalogId` reference instead of copying a catalog’s blanks. The shared store-product reference resolver reads current membership and color restrictions for both Store Builder and partner access, so later catalog edits apply immediately. Admin Partners selects that reference; the server validates an active external destination and rejects duplicate partner bindings. Linked API products are narrowed by the same saved QRG blank, size and color choices; empty choices stay empty. Missing configuration and removed/inactive stores fail explicitly. Existing unbound partner destinations retain their behavior.
+
+Admin Blanks → Catalogs → Section Assignments now includes an external-store destination selector using the existing Allowed Products editor. Selecting Fluba and saving a catalog changes only `storeAllowedProducts/fluba`; the category-wide External assignment is untouched. Assigned catalogs cannot be deleted until their store references are removed. Partner product titles and descriptions are resolved on each read through the assigned catalog's canonical text adapter, so text edits do not alter saved production packets or order history. Partner color mockups use the same saved-packet projection as public product details.
+
+This foundation does not yet enable personalized reward generation or sponsored orders. Independent shirt/cap claims, customer previews, purchase/reward emails, fulfillment and live configuration remain tracked in the same issue. Validation and the selected catalog’s live configuration are recorded in the linked issue. Release and live acceptance are recorded separately.
+
 ========================================
 SYSTEM ENTRY POINT — MANDATORY READ
 
@@ -252,6 +260,7 @@ The Canonical Core is the ONLY truth.
 ---
 
 🔚 END OF README — EXECUTION BEGINS
+
 
 ## Cloud Storage upload integrity — sandbox, October 7, 2026
 

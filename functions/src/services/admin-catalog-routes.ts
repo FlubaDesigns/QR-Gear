@@ -94,6 +94,8 @@ export function registerCatalogRoutes(app: any, prefix: string, auth: any, deps:
       const defaults = (await tx.get(settings.doc('catalog-defaults'))).data() || {};
       const used = CATALOG_SECTIONS.find(section => assignments[section] === ref.id);
       if (used) throw new CatalogError(`Catalog is assigned to ${used}. Unassign it first.`, 409);
+      const stores = await tx.get(db.collection('storeAllowedProducts').where('catalogId', '==', ref.id));
+      if (stores.docs.length) throw new CatalogError('Catalog is assigned to a store. Change its catalog connection before deleting it.', 409);
       tx.delete(ref);
       if (defaults.defaultCatalogId === ref.id) tx.set(settings.doc('catalog-defaults'), { defaultCatalogId: null, updatedAt: deps.now() }, { merge: true });
     });

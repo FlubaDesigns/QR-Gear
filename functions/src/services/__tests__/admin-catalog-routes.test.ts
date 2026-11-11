@@ -30,6 +30,13 @@ function fixture(prefix: string, extra: Record<string, any> = {}) {
   return { ...f, api: request(app) };
 }
 for (const prefix of ['/admin', '/api/admin']) describe(prefix, () => {
+  it('protects a catalog assigned only to an individual store', async () => {
+    const f=fixture(prefix, {'storeAllowedProducts/fluba':{catalogId:'source'}});
+    const response=await f.api.delete(`${prefix}/catalogs/source`);
+    expect(response.status).toBe(409);
+    expect(response.body.error).toContain('assigned to a store');
+    expect(f.store.has('catalogs/source')).toBe(true);
+  });
   it('copies choices without writing master/provider tables or a hidden Primary destination', async () => {
     const f = fixture(prefix), before = [...f.store].filter(([p]) => !p.startsWith('catalogs/'));
     const created = await f.api.post(`${prefix}/catalogs`).send({ name: ' New ' });

@@ -3,6 +3,7 @@ import { act, create, type ReactTestRenderer } from 'react-test-renderer';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, afterEach, it, expect, vi } from 'vitest';
 import { AllowedProductsEditor } from '@/features/storeBuilder/AllowedProductsEditor';
+import { ExternalStoreCatalogAssignments } from '@/features/storeBuilder/ExternalStoreCatalogAssignments';
 import { InstanceCard, MoveDialog } from '@/features/adminProducts/storeManager/StoreManagerTab';
 import AdminStoreBuilderPage from '@/pages/admin-store-builder';
 const mocks = vi.hoisted(() => ({ api:vi.fn(), admin:vi.fn(), toast:vi.fn(), search:'', navigate:vi.fn() }));
@@ -31,6 +32,33 @@ it('retains failed edits and blocks duplicate saves',async()=>{
  const save=buttons().find(b=>String(b.children[0]).startsWith('Save ('))!;
  await act(async()=>{save.props.onClick();save.props.onClick();await flush();});expect(mocks.admin.mock.calls.filter(c=>c[1]?.method==='POST')).toHaveLength(1);
  await act(async()=>{reject(new Error('Offline'));await flush();});expect(text()).toContain('Save failed: Offline');expect(tree.root.findByProps({type:'checkbox'}).props.checked).toBe(true);
+});
+it('saves a catalog reference without copying products and keeps it after a failed save',async()=>{
+ mocks.admin.mockImplementation(async(path:string,options:any)=>{
+  if(options?.method==='POST')throw new Error('Offline');
+  return path==='/catalogs'?{catalogs:[{id:'rewards',name:'Rewards',blankIds:['qrg_11101']}]}:{products:[]};
+ });
+ await mount(React.createElement(AllowedProductsEditor,{storeId:'a'}));
+ act(()=>tree.root.findByProps({'aria-label':'Store product catalog'}).props.onChange({target:{value:'rewards'}}));
+ expect(tree.root.findAllByProps({type:'checkbox'})).toHaveLength(0);
+ await act(async()=>{buttons().find(b=>b.children.includes('Save catalog connection'))!.props.onClick();await flush();});
+ expect(mocks.admin).toHaveBeenCalledWith('/stores/a/allowed-products',{method:'POST',json:{catalogId:'rewards'}});
+ expect(text()).toContain('Save failed: Offline');expect(tree.root.findByProps({'aria-label':'Store product catalog'}).props.value).toBe('rewards');
+});
+it('assigns a catalog to the selected external store without changing a category-wide destination',async()=>{
+ mocks.admin.mockImplementation(async(path:string,options:any)=>{
+  if(options?.method==='POST')return {success:true};
+  if(path==='/stores?roleType=external')return [{id:'fluba',name:'Fluba',isActive:true},{id:'other',name:'Other',isActive:true}];
+  if(path==='/catalogs')return {catalogs:[{id:'rewards',name:'Fluba Auto',blankIds:['qrg_11101']}]};
+  return {products:[]};
+ });
+ await mount(React.createElement(ExternalStoreCatalogAssignments));
+ await act(async()=>{tree.root.findByProps({'aria-label':'External store catalog destination'}).props.onChange({target:{value:'fluba'}});await flush();});
+ await act(async()=>{await flush();});
+ act(()=>tree.root.findByProps({'aria-label':'Store product catalog'}).props.onChange({target:{value:'rewards'}}));
+ await act(async()=>{buttons().find(b=>b.children.includes('Save catalog connection'))!.props.onClick();await flush();});
+ expect(mocks.admin.mock.calls.filter(c=>c[1]?.method==='POST')).toEqual([['/stores/fluba/allowed-products',{method:'POST',json:{catalogId:'rewards'}}]]);
+ expect(mocks.api.mock.calls.some(c=>String(c[1]).includes('catalog-assignments'))).toBe(false);
 });
 it('keeps explicit empty colors disabled and prevents rapid competing updates',async()=>{
  const instance={id:'i',enabledColors:[],enabledSizes:[],resolved:{title:'Item',colors:['Black'],sizes:['M']}};

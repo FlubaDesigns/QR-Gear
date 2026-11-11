@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { adminFetch } from '@/lib/adminFetch';
 import { apiRequest } from '@/lib/queryClient';
 import { catalogToSelectItem } from '@shared/adapters/catalog.adapter';
+import type { AdminCatalog } from '@shared/catalogs';
 import { X } from 'lucide-react';
 import { refreshStoreViews } from './storeQueries';
 
@@ -12,6 +13,8 @@ type Selection = { canonicalBlankKey: string; colors?: string[]; sizes?: string[
 export function AllowedProductsEditor({ storeId, onClose }: { storeId: string; onClose?: () => void }) {
   const client = useQueryClient();
   const [selected, setSelected] = useState<Selection[]>([]);
+  const [catalogId, setCatalogId] = useState('');
+  const catalogs = useQuery<{ catalogs: AdminCatalog[] }>({ queryKey: ['/api/admin/catalogs'], queryFn: () => adminFetch('/catalogs') });
   const [dirty, setDirty] = useState(false), [saving, setSaving] = useState(false), [message, setMessage] = useState(''), [search, setSearch] = useState('');
   const lock = useRef(false), edited = useRef(false);
   const master = useQuery<any[]>({ queryKey: ['/api/master-catalog'], queryFn: async () => {
@@ -19,39 +22,48 @@ export function AllowedProductsEditor({ storeId, onClose }: { storeId: string; o
     if (!Array.isArray(data)) throw new Error('Invalid master catalog response'); return data;
   } });
   const key = ['/api/admin/stores', storeId, 'allowed-products'];
-  const saved = useQuery<{products: any[]}>({ queryKey: key, queryFn: () => adminFetch(`/stores/${storeId}/allowed-products`) });
+  const saved = useQuery<{products: any[]; catalogId?: string}>({ queryKey: key, queryFn: () => adminFetch(`/stores/${storeId}/allowed-products`) });
   useEffect(() => {
     if (!saved.data || edited.current) return;
+    setCatalogId(saved.data.catalogId || '');
     setSelected(saved.data.products.map(p => ({ canonicalBlankKey: p.canonicalBlankKey, ...(p.selectedColors !== undefined ? { colors: p.selectedColors } : {}), ...(p.selectedSizes !== undefined ? { sizes: p.selectedSizes } : {}) })));
   }, [saved.data]);
   const items = Array.from(new Map((master.data || []).flatMap(c => c.items || []).map(p => [p.docId, catalogToSelectItem(p)])).values());
   function edit(next: Selection[]) { if (lock.current) return; edited.current = true; setDirty(true); setSelected(next); setMessage(''); }
   async function save() {
-    if (lock.current || saved.error || master.error) return;
+    if (lock.current || saved.error || master.error || catalogs.error) return;
     lock.current = true; setSaving(true); setMessage('');
     try {
       await client.cancelQueries({ queryKey: key });
-      await adminFetch(`/stores/${storeId}/allowed-products`, { method: 'POST', json: { products: selected } });
+      await adminFetch(`/stores/${storeId}/allowed-products`, { method: 'POST', json: catalogId ? { catalogId } : { products: selected } });
       // Preserve the exact saved choices while refreshing all consumers.
       setDirty(false); edited.current = false; setMessage('Saved');
       await refreshStoreViews(client);
     } catch (e: any) { setMessage(`Save failed: ${e.message}`); }
     finally { lock.current = false; setSaving(false); }
   }
-  const closeButton = onClose && <Button className="h-12" variant="outline" disabled={saving} onClick={() => {
+  const closeButton = onClose && <Button className="w-full" variant="outline" disabled={saving} onClick={() => {
     if (lock.current) return;
     if (!edited.current || window.confirm('Discard unsaved product choices?')) onClose();
   }}><X className="mr-2 h-5 w-5" />Close product choices</Button>;
-  if (master.error || saved.error) return <div role="alert" className="space-y-3">{closeButton}<p>Could not load product choices. Your saved list has not been changed.</p><Button className="h-12" onClick={() => { void master.refetch(); void saved.refetch(); }}>Retry</Button></div>;
-  if (master.isLoading || saved.isLoading) return <div>{closeButton}<p role="status">Loading product choices…</p></div>;
-  return <div className="min-w-0 space-y-3">
+  if (master.error || saved.error || catalogs.error) return <div role="alert" className="space-y-3">{closeButton}<p>Could not load product choices. Your saved list has not been changed.</p><Button className="w-full" onClick={() => { void master.refetch(); void saved.refetch(); void catalogs.refetch(); }}>Retry</Button></div>;
+  if (master.isLoading || saved.isLoading || catalogs.isLoading) return <div>{closeButton}<p role="status">Loading product choices…</p></div>;
+  return <div className="row layout__stack min-w-0 space-y-3">
     {closeButton}
-    <p className="text-sm text-muted-foreground">Choose QRG blanks from Printful and Printify. Save applies the selections below.</p>
-    <div className="sticky top-[122px] z-20 flex flex-wrap gap-2 rounded-md border bg-background p-2">
-      <Button className="h-12" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : `Save (${selected.length})`}</Button>
-      <Button className="h-12" variant="outline" disabled={saving} onClick={() => edit([])}>Clear choices</Button>
+    <label className="row layout__stack space-y-2"><span>Product source</span>
+      <select aria-label="Store product catalog" className="h-12 w-full rounded-md border bg-background px-3 text-base" value={catalogId} disabled={saving} onChange={e => { edited.current = true; setDirty(true); setCatalogId(e.target.value); setMessage(''); }}>
+        <option value="">Choose individual blanks</option>
+        {catalogId && !catalogs.data?.catalogs.some(c => c.id === catalogId) && <option value={catalogId}>Unavailable catalog</option>}
+        {(catalogs.data?.catalogs || []).map(c => <option key={c.id} value={c.id}>{c.name} ({c.blankIds.length})</option>)}
+      </select>
+    </label>
+    <p className="text-sm text-muted-foreground">{catalogId ? 'This store follows the selected catalog. Edit its products and colors in Blanks; changes apply here automatically.' : 'Choose QRG blanks from Printful and Printify. Save applies the selections below.'}</p>
+    <div className="row layout__stack sticky top-[122px] z-20 gap-2 rounded-md border bg-background p-2">
+      <Button className="w-full" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : catalogId ? 'Save catalog connection' : `Save (${selected.length})`}</Button>
+      <Button className="w-full" variant="outline" disabled={saving || !!catalogId} onClick={() => edit([])}>Clear choices</Button>
       {message && <p role={message.startsWith('Save failed') ? 'alert' : 'status'} className="w-full text-sm [overflow-wrap:anywhere]">{message}</p>}
     </div>
+    {!catalogId && <>
     <Input className="h-12 text-base" aria-label="Find a blank" placeholder="Find a blank…" value={search} onChange={e => setSearch(e.target.value)} />
     <fieldset disabled={saving} className="min-w-0 space-y-2">
       {items.filter(item => `${item.name} ${item.id}`.toLowerCase().includes(search.toLowerCase())).map(item => {
@@ -72,5 +84,6 @@ export function AllowedProductsEditor({ storeId, onClose }: { storeId: string; o
       })}
     </fieldset>
     {!items.length && <p>No QRG blanks are available yet.</p>}
+    </>}
   </div>;
 }

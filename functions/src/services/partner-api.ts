@@ -1,9 +1,13 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
+import { storeProductReferences } from './store-product-references';
 import { insertPartnerStoreSchema } from '../../../shared/schema-stores';
 import { catalogProductOptions } from './catalog-sale-variants';
-import { buildPacketImageOrder } from '../../../shared/productImages';
+import { extractPacketMockups } from './packet-mockups';
 import { publicProductText } from '../../../shared/descriptionLayers';
+import { catalogToSelectItem } from '../../../shared/adapters/catalog.adapter';
+import { masterCatalogProduct } from '../../../shared/masterCatalog';
+import { normalizeSize, sortProductSizes } from '../../../shared/storefrontTypes';
 
 // The existing partner registry is shared by Admin Partners and Store Builder.
 export const PARTNER_STORES_COLLECTION = 'partnerStores';
@@ -21,7 +25,14 @@ const input = insertPartnerStoreSchema.omit({ apiKey: true }).extend({
 export function newPartnerApiKey() { return `psk-${randomBytes(32).toString('hex')}`; }
 export function publicPartner(store: any) {
   const { id, slug, name, description, logoUrl, websiteUrl, primaryColor, accentColor, isInternal, isActive, availableSegments } = store;
-  return { id, slug, name, description, logoUrl, websiteUrl, primaryColor, accentColor, isInternal, isActive, availableSegments };
+  return { id, storeId: store.storeId || id, slug, name, description, logoUrl, websiteUrl, primaryColor, accentColor, isInternal, isActive, availableSegments };
+}
+/** Credentials reference Store Builder's destination; they do not own another catalog. */
+export async function partnerStoreId(db: any, partner: any): Promise<string> {
+  if (!partner.storeId) return partner.id; // Preserve older partner-owned destinations.
+  const store = await db.collection('stores').doc(partner.storeId).get();
+  if (!store.exists || store.data().roleType !== 'external' || store.data().isActive !== true) fail(409, 'The linked external store is missing or inactive');
+  return store.id;
 }
 export async function savePartner(db: any, value: unknown, id?: string) {
   const parsed = (id ? input.partial() : input).safeParse(value);
@@ -34,6 +45,14 @@ export async function savePartner(db: any, value: unknown, id?: string) {
     const slug = data.slug ?? current?.data()?.slug;
     const duplicate = await tx.get(db.collection(PARTNER_STORES_COLLECTION).where('slug', '==', slug));
     if (duplicate.docs.some((d: any) => d.id !== ref.id)) fail(409, 'This partner slug is already in use');
+    const storeId = data.storeId === undefined ? current?.data()?.storeId : data.storeId;
+    if (storeId) {
+      const store = await tx.get(db.collection('stores').doc(storeId));
+      if (!store.exists || store.data().roleType !== 'external' || store.data().isActive !== true) fail(400, 'Select an active external store from Store Builder');
+      if ((data.isInternal ?? current?.data()?.isInternal) === true) fail(400, 'External store access requires an external partner');
+      const linked = await tx.get(db.collection(PARTNER_STORES_COLLECTION).where('storeId', '==', storeId));
+      if (linked.docs.some((d: any) => d.id !== ref.id)) fail(409, 'This external store is already linked to another partner');
+    }
     const now = new Date().toISOString();
     if (id) tx.update(ref, { ...data, updatedAt: now });
     else tx.create(ref, { ...data, apiKey: newPartnerApiKey(), isActive: data.isActive ?? true, isInternal: data.isInternal ?? false, createdAt: now, updatedAt: now });
@@ -67,17 +86,21 @@ export async function authenticatePartner(db: any, req: any) {
   if (typeof store.apiKey !== 'string' || !store.apiKey || !timingSafeEqual(hash(key), hash(store.apiKey))) fail(401, 'Invalid or missing partner API key');
   if (store.isActive !== true) fail(403, 'Partner is inactive');
   if (req.headers.origin && (!Array.isArray(store.allowedOrigins) || !store.allowedOrigins.includes(req.headers.origin))) fail(403, 'Origin is not allowed for this partner');
+  await partnerStoreId(db, store);
   return store;
 }
 export async function partnerProducts(db: any, store: any, query: any) {
   if (query.memberId !== undefined || query.storeId !== undefined) fail(400, 'Member storefront access requires a verified partner/member binding; it is not enabled by this endpoint');
   const channelId = query.channelId;
+  const storeId = await partnerStoreId(db, store);
+  const allowed = store.storeId ? await storeProductReferences(db, storeId) : null;
+  if (allowed && !allowed.configured) fail(409, 'Save the linked store’s product choices in Store Builder first');
   if (channelId !== undefined) {
     if (typeof channelId !== 'string' || !channelId || channelId.includes('/')) fail(400, 'Invalid channelId');
     const channel = await db.collection('storeChannels').doc(channelId).get();
-    if (!channel.exists || channel.data().storeId !== store.id) fail(404, 'Channel not found for this partner');
+    if (!channel.exists || channel.data().storeId !== storeId || channel.data().isActive === false) fail(404, 'Channel not found for this partner');
   }
-  const q = db.collection('admin_catalog_instances').where('storeId', '==', store.id);
+  const q = db.collection('admin_catalog_instances').where('storeId', '==', storeId);
   // Equality-only store query avoids a new composite index and checks every row's ownership.
   const snap = await q.get();
   const products = [];
@@ -88,14 +111,38 @@ export async function partnerProducts(db: any, store: any, query: any) {
     const packetDoc = await db.collection('productPackets').doc(instance.currentPacketId).get();
     if (!packetDoc.exists) fail(409, `Product ${doc.id} has a missing production packet`);
     const packet = packetDoc.data();
+    const masterId = packet.builderSnapshot?.metadata?.selectedProductDocId || packet.sourceMasterId;
     const options = await catalogProductOptions(db, instance, packet);
+    if (allowed) {
+      const references = allowed.products.filter((p: any) => p?.canonicalBlankKey === masterId);
+      if (!references.length) continue;
+      if (references.length !== 1) fail(409, 'The linked store has duplicate product choices; review them in Store Builder');
+      const reference = references[0];
+      for (const key of ['colors', 'sizes']) if (reference[key] !== undefined && (!Array.isArray(reference[key]) || reference[key].some((v: any) => typeof v !== 'string'))) fail(409, 'Review the linked store’s product choices in Store Builder');
+      options.availableVariants = options.availableVariants.filter(v =>
+        (reference.colors === undefined || reference.colors.includes(v.color)) &&
+        (reference.sizes === undefined || reference.sizes.map(normalizeSize).includes(v.size)));
+      options.availableColors = Array.from(new Set(options.availableVariants.map(v => v.color)));
+      options.availableSizes = sortProductSizes(Array.from(new Set(options.availableVariants.map(v => v.size))));
+      if (!options.availableVariants.length) continue;
+    }
     const price = instance.resolved?.pricing?.customerPrice ?? packet.pricing?.customerPrice;
     if (!Number.isFinite(Number(price)) || Number(price) <= 0) fail(409, `Product ${doc.id} has no valid saved price`);
-    const images = buildPacketImageOrder(packet);
-    products.push({ id: doc.id, packetId: packetDoc.id, storeId: store.id, channelId: instance.channelId ?? null,
-      name: publicProductText(instance.resolved?.title || packet.productName || ''),
-      description: publicProductText(instance.resolved?.description || ''),
-      imageUrl: images[0] ?? null, images, basePrice: Number(price), ...options,
+    const { mockupImages: images, mockupsByColor, defaultColor } = extractPacketMockups(packet);
+    let name = instance.resolved?.title || packet.productName || '';
+    let description = instance.resolved?.description || '';
+    if (allowed?.catalog) {
+      const master = await db.collection('master_catalog').doc(masterId).get();
+      if (!master.exists) fail(409, `Product ${doc.id} has no QRG master`);
+      const item = catalogToSelectItem(masterCatalogProduct(masterId, master.data()),
+        allowed.catalog.blankDescriptions?.[masterId], allowed.catalog.blankTitles?.[masterId]);
+      name = item.name;
+      description = item.description || '';
+    }
+    products.push({ id: doc.id, packetId: packetDoc.id, storeId, channelId: instance.channelId ?? null,
+      name: publicProductText(name),
+      description: publicProductText(description),
+      imageUrl: images[0] ?? null, images, mockupsByColor, defaultColor, basePrice: Number(price), ...options,
       qrgBaseCode: instance.resolved?.qrgBaseCode ?? null,
       productPath: `/shop/product/${encodeURIComponent(doc.id)}` });
   }

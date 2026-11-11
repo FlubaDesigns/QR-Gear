@@ -8,6 +8,7 @@ import { queryClient } from '@/lib/queryClient';
 import AdminBlanks from '@/pages/admin-blanks';
 
 const m = vi.hoisted(() => ({ data: {} as Record<string, any>, api: vi.fn(), toast: vi.fn() }));
+vi.mock('@/lib/adminFetch', () => ({ adminFetch: (path: string) => Promise.resolve(m.data[`/api/admin${path}`] ?? []) }));
 vi.mock('@/lib/queryClient', async () => {
   const { QueryClient } = await import('@tanstack/react-query');
   return { apiRequest: m.api, queryClient: new QueryClient({ defaultOptions: { queries: {
