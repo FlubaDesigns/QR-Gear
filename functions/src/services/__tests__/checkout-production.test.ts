@@ -167,3 +167,18 @@ it('a signed-in quantity-two hosted purchase allocates two emailed codes with no
   await fulfillOrder(prepared.orderId);
   expect([...store.keys()].filter(key => key.startsWith('qr_dynamics_instances/'))).toHaveLength(2);
 });
+
+it('uses the selected method area for production and rejects a stale template or another placement of the same method', async () => {
+  const master = store.get('master_catalog/qrg_11111');
+  const packet = store.get('productPackets/packet');
+  const dtf = { method: 'dtf', providerName: 'back_dtf', technique: 'DTFILM', dimensions: { widthPx: 1500, heightPx: 600, dpi: 300 }, verifiedVariantIds: [123], printfileIds: { '123': 9 } };
+  master.qrgPrintSpecs.printful.locations[0].methods = [{ method: 'dtg', providerName: 'back', ...layout }, dtf];
+  packet.builderSnapshot.layoutConfig.providerLayouts.back = { provider: 'printful', providerPlacementId: 'back_dtf', ...dtf };
+  const quote = await readCartQuote('buyer');
+  expect(quote.items[0].fulfillment.files[0]).toMatchObject({ type: 'back_dtf', position: { area_width: 1500, area_height: 600 } });
+  packet.builderSnapshot.layoutConfig.providerLayouts.back.printfileIds = { '123': 8 };
+  await expect(readCartQuote('buyer')).rejects.toThrow('Refresh and regenerate');
+  packet.builderSnapshot.layoutConfig.providerLayouts.back.printfileIds = { '123': 9 };
+  packet.builderSnapshot.layoutConfig.providerLayouts.back.providerPlacementId = 'front_dtf';
+  await expect(readCartQuote('buyer')).rejects.toThrow('Refresh and regenerate');
+});

@@ -1,6 +1,6 @@
 import { getQrgSizeCode, getQrgColorCode, SIZE_LABELS, COLOR_LABELS } from '../../../shared/qrgVariantMappings';
 import { printfulClient } from './printful';
-import { normalizePlacement, isEmbroideryPlacement } from '../../../shared/placements';
+import { normalizePlacement, isEmbroideryPlacement, detectPrintMethod } from '../../../shared/placements';
 
 class NoCompatiblePrintArea extends Error {}
 
@@ -68,13 +68,25 @@ export function projectQrgPrintfiles(product: any, data: any) {
     // offered variant. Do not silently stretch it onto a smaller-size template.
     if (specs.some(f => f.width / f.dpi !== first.width / first.dpi || f.height / f.dpi !== first.height / first.dpi)) continue;
     const id = normalizePlacement('printful', placement);
-    if (locations.some(p => p.id === id)) continue;
+    const method = { method: detectPrintMethod(placement), providerName: placement,
+      technique: detectPrintMethod(placement) === 'dtf' ? 'DTFILM' : 'DTG',
+      dimensions: { widthPx: first.width, heightPx: first.height, widthIn: first.width / first.dpi, heightIn: first.height / first.dpi, dpi: first.dpi },
+      printArea: { widthPx: first.width, heightPx: first.height }, dpi: first.dpi,
+      verifiedVariantIds: Array.from(new Set(variants)),
+      printfileIds: Object.fromEntries(variants.map((variant, i) => [String(variant), Number(mappings[i].placements[placement])])),
+    };
+    const existing = locations.find(p => p.id === id);
+    if (existing) {
+      if (!existing.methods.some((m: any) => m.method === method.method)) existing.methods.push(method);
+      continue;
+    }
     locations.push({ id, label: id.replace(/_/g, ' '), canonicalLocationCode: id,
       provider: 'printful', providerPlacement: placement, providerPlacementId: placement,
       sourceTable: 'master_catalog.qrgPrintSpecs.printful', layoutSource: 'qrg_verified_printfiles',
       dimensions: { widthPx: first.width, heightPx: first.height, widthIn: first.width / first.dpi, heightIn: first.height / first.dpi, dpi: first.dpi },
       printArea: { widthPx: first.width, heightPx: first.height }, dpi: first.dpi,
       verifiedVariantIds: Array.from(new Set(variants)),
+      printfileIds: method.printfileIds, technique: method.technique, methods: [method],
     });
   }
   if (!locations.length) throw new NoCompatiblePrintArea('QRG needs a shared verified print area for the offered sizes; no compatible placement was returned.');
@@ -89,7 +101,8 @@ export async function resolveQrgPrintSpecs(product: any, ref: any,
   if (refresh) await refreshQrgVariants(product, productId);
   const cache = product.qrgPrintSpecs?.printful;
   const variantIds = Array.from(new Set(Object.values(product.qrgVariants || {}).map((v: any) => Number(v.providerVariants?.printful?.variantId)).filter(n => n > 0))).sort((a,b) => a-b);
-  if (!refresh && cache?.productId === productId && cache?.locations?.length &&
+  if (!refresh && cache?.version === 2 && cache?.productId === productId && cache?.locations?.length &&
+      cache.locations.every((location: any) => location.methods?.length && (!cache.technique || location.technique === cache.technique)) &&
       JSON.stringify(cache.variantIds) === JSON.stringify(variantIds)) return cache.locations;
   let locations: any[], technique: string | null = null;
   // Embroidery may be a cap's default. Request a different technique only when
@@ -107,7 +120,7 @@ export async function resolveQrgPrintSpecs(product: any, ref: any,
     locations = projectQrgPrintfiles(product, await getPrintfiles(productId, technique!))
       .map(location => ({ ...location, technique }));
   }
-  const specs = { productId, variantIds, locations, technique, checkedAt: new Date().toISOString() };
+  const specs = { version: 2, productId, variantIds, locations, technique, checkedAt: new Date().toISOString() };
   await ref.update({ ...(refresh ? { qrgVariants: product.qrgVariants } : {}), 'qrgPrintSpecs.printful': specs });
   product.qrgPrintSpecs = { ...product.qrgPrintSpecs, printful: specs };
   return locations;

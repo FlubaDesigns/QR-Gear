@@ -20,10 +20,11 @@ beforeEach(() => {
       graphics: { content: { graphicLayoutMode: 'zone', qrSizePercent: 70 } },
       qrConfig: { selectedColor: { name: 'Navy', hex: '#1F2E5C' } },
       metadata: { selectedProductDocId: 'qrg_11111', fulfillmentProvider: 'printful' },
-      layoutConfig: { selectedPlacements: ['front','back'], providerLayouts: { back: { provider: 'printful', providerPlacementId: 'back', dimensions: { widthPx: 3600, heightPx: 4800 } } } },
+      layoutConfig: { selectedPlacements: ['front','back'], providerLayouts: { back: { provider: 'printful', providerPlacementId: 'back', dimensions: { widthPx: 3600, heightPx: 4800, dpi: 300 } } } },
     } } },
     master_catalog: { qrg_11111: { qrgVariants: { '0403': { colorLabel: 'Navy', providerVariants: { printful: { productId: '71', variantId: '123' } } } } } },
   };
+  m.rows.master_catalog.qrg_11111.qrgPrintSpecs = { printful: { locations: [{ id: 'back', verifiedVariantIds: [123], ...m.rows.productPackets.saved.builderSnapshot.layoutConfig.providerLayouts.back }] } };
 });
 describe('Saved build to provider handoff', () => {
   it('uses the saved placement artwork and QRG Navy mapping, ignoring conflicting client fields', async () => {
@@ -47,4 +48,14 @@ describe('Saved build to provider handoff', () => {
     const response = await request(app).post('/admin/mockup/priority').send({ packetId: 'saved', placement: 'back' });
     expect(response.status).toBe(502); expect(response.body.error).toBe('Printful API error: 401'); expect(response.body.success).toBe(false);
   });
+});
+
+it.each(['out-of-stock', 'stale-template', 'wrong-placement'])('blocks %s mockups before calling Printful', async problem => {
+  const master = m.rows.master_catalog.qrg_11111;
+  const saved = m.rows.productPackets.saved.builderSnapshot.layoutConfig.providerLayouts.back;
+  if (problem === 'out-of-stock') master.qrgVariants['0403'].providerVariants.printful.inStock = false;
+  if (problem === 'stale-template') { saved.printfileIds = { '123': 1 }; master.qrgPrintSpecs.printful.locations[0].printfileIds = { '123': 2 }; }
+  if (problem === 'wrong-placement') saved.providerPlacementId = 'front';
+  const response = await request(app).post('/admin/mockup/priority').send({ packetId: 'saved', placement: 'back' });
+  expect(response.status).toBe(502); expect(m.generate).not.toHaveBeenCalled();
 });

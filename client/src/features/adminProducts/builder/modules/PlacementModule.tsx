@@ -1,5 +1,6 @@
 import { ColorSwatchPicker } from "@/features/shared/components/ColorSwatchPicker";
 import { useState } from "react";
+import { selectPrintLocationMethod } from '@shared/placements';
 import { printArtworkFrame } from '@shared/printSizing';
 import { MapPin, Check, QrCode, Image, Palette, AlertCircle, Loader2, Printer, ChevronDown, ChevronRight, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -235,7 +236,7 @@ export function PlacementModule() {
             const savedPlacement = productPlacements?.find(p => (p.id || p.type) === placement.id);
             let printSizeText = 'Print dimensions unavailable — refresh from QRG.';
             try {
-              const frame = printArtworkFrame(savedPlacement || {}, placementSize);
+              const frame = printArtworkFrame(selectPrintLocationMethod(savedPlacement || {}, state.placementMethods[placement.id]), placementSize);
               const inches = (n: number) => Number(n.toFixed(2));
               printSizeText = frame.artworkWidthIn && frame.artworkHeightIn && frame.widthIn && frame.heightIn
                 ? `Design: ${inches(frame.artworkWidthIn)} × ${inches(frame.artworkHeightIn)} in · Print area: ${inches(frame.widthIn)} × ${inches(frame.heightIn)} in`

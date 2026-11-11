@@ -71,3 +71,17 @@ describe('QRG printer import', () => {
     expect(() => projectQrgPrintfiles(product, smaller)).toThrow('shared verified print area');
   });
 });
+
+it('keeps method-specific geometry and upgrades an old print cache', async () => {
+  const data = response(); data.printfiles.push({ printfile_id: 11, width: 1500, height: 600, dpi: 300 });
+  for (const row of data.variant_printfiles) (row.placements as any).front_dtf_hat = 11;
+  const fresh: any = structuredClone(product);
+  fresh.qrgPrintSpecs = { printful: { productId: 71, variantIds: [1,2], locations: [{ id: 'front', dimensions: { widthPx: 999 } }] } };
+  const fetch = vi.fn(async () => data), update = vi.fn();
+  const [location] = await resolveQrgPrintSpecs(fresh, { update }, fetch);
+  expect(location.methods).toMatchObject([
+    { method: 'dtg', providerName: 'front', dimensions: { widthIn: 12, heightIn: 16 } },
+    { method: 'dtf', providerName: 'front_dtf_hat', dimensions: { widthIn: 5, heightIn: 2 }, printfileIds: { '1': 11, '2': 11 } },
+  ]);
+  expect(fetch).toHaveBeenCalledOnce(); expect(update).toHaveBeenCalledOnce();
+});

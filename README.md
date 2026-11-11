@@ -8,6 +8,12 @@ Admin Blanks → Catalogs → Section Assignments now includes an external-store
 
 This foundation does not yet enable personalized reward generation or sponsored orders. Independent shirt/cap claims, customer previews, purchase/reward emails, fulfillment and live configuration remain tracked in the same issue. Validation and the selected catalog’s live configuration are recorded in the linked issue. Release and live acceptance are recorded separately.
 
+## Admin Products: product types and verified printing — November 11, 2026
+
+The Product type dropdown filters the existing master catalog, including T-Shirts and Hats / Caps. Category allocation and schema identity now share the same QRG definitions (13 = Hats). Printful options use only master_catalog.qrgPrintSpecs imports, forward the supplier-advertised printing technique, and upgrade old caches to retain per-method dimensions, DPI, variant coverage and template IDs. A type switch saves the current editable draft before clearing incompatible product options; reusable artwork remains. Missing printable areas fail visibly.
+
+The editor uses the selected method’s physical area, including shallow cap panels. Working snapshots preserve the exact method/technique/template geometry outside BLD. Mockup and checkout validate that saved selection against the current master, including stock and stale-template rejection. These changes enable the shared product pipeline; personalized Fluba reward builds and sponsored order integration remain tracked separately in #1117.
+
 ========================================
 SYSTEM ENTRY POINT — MANDATORY READ
 

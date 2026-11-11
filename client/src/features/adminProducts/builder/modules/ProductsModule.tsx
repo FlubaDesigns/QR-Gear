@@ -78,24 +78,6 @@ interface CatalogCategoryResponse {
   count: number;
 }
 
-// QRG super-category labels per S-digit (QRG.md §3) — display-only
-const SUPER_CATEGORY_LABELS: Record<string, string> = {
-  "1": "Apparel",
-  "2": "Houseware",
-  "3": "Print & Display",
-  "4": "Accessories",
-  "5": "Pet Products",
-  "6": "Holiday & Seasonal",
-};
-
-// Strip qrg_ prefix and return the 5-digit STNNN string.
-// digits[0] = S (super-category), digits.slice(0,2) = ST (subcategory).
-function getQrgDigits(docId: string | undefined): string {
-  if (!docId) return "";
-  const m = docId.match(/^qrg_([1-6][1-9]\d{3})$/);
-  return m ? m[1] : "";
-}
-
 // True when the item is stocked by the given provider.
 // Use the canonical master-catalog response fields, retaining legacy aliases.
 function providerStocksProduct(item: any, prov: string): boolean {
@@ -105,7 +87,7 @@ function providerStocksProduct(item: any, prov: string): boolean {
 }
 
 export function ProductsModule() {
-  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, setSelectedCatalogId, loadFromWorkingState } = useBuilderContext();
+  const { state, setCategory, setOriginFilter, setGenderFilter, selectProduct, setProductDescription, setProductTitle, setActiveSession, setActivePacketId, setSelectedCatalogId, loadFromWorkingState, saveWorking, busy, beginBuildActivity } = useBuilderContext();
   const { selectedProviders, setSelectedProviders } = useProductsContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -134,16 +116,6 @@ export function ProductsModule() {
   const [addingShelf, setAddingShelf] = useState(false);
   const [newShelfName, setNewShelfName] = useState("");
   const [savingShelf, setSavingShelf] = useState(false);
-  const [qrgSuperCategory, setQrgSuperCategory] = useState<string | null>(null);
-  const [qrgSubCategory, setQrgSubCategory] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (selectedCatalogId && selectedCatalogId !== "all") {
-      setQrgSuperCategory(null);
-      setQrgSubCategory(null);
-    }
-  }, [selectedCatalogId]);
-
   const { data: adminCatalogsData, error: catalogsError, refetch: reloadCatalogs } = useQuery<{ catalogs: AdminCatalog[] }>({
     queryKey: ["/api/admin/catalogs"],
   });
@@ -263,8 +235,9 @@ export function ProductsModule() {
 
   const handleCatalogChange = useCallback((catalogId: string) => {
     setSelectedCatalogId(catalogId);
+    setCategory(null);
     if (catalogId !== "all") selectProduct(null);
-  }, [selectProduct, setSelectedCatalogId]);
+  }, [selectProduct, setSelectedCatalogId, setCategory]);
 
   // catalogModeProducts — derived from master_catalog filtered by catalog.blankIds.
   // Mirrors the approach used by useAdminBlanksController (the working "add blanks" path):
@@ -349,29 +322,6 @@ export function ProductsModule() {
     name: cat.name, itemCount: cat.count || cat.items?.length || 0,
   }));
 
-  // QRG super-category / subcategory navigator data — derived from masterCatalogFull filtered by provider.
-  // superCategoryCode (S-digit) → Map of subCategoryCode (ST-digits) → { categoryName, count }
-  const qrgNavigatorData = useMemo(() => {
-    if (dataMode !== "all" || masterCatalogFull.length === 0) return null;
-    const superMap = new Map<string, Map<string, { categoryName: string; count: number }>>();
-    for (const cat of masterCatalogFull) {
-      for (const rawItem of (cat.items || [])) {
-        const item = rawItem as any;
-        if (!providerStocksProduct(item, provider)) continue;
-        const digits = getQrgDigits(item.docId);
-        if (digits.length < 2) continue;
-        const superCode = digits[0];
-        const subCode = digits.slice(0, 2);
-        if (!superMap.has(superCode)) superMap.set(superCode, new Map());
-        const subMap = superMap.get(superCode)!;
-        const entry = subMap.get(subCode);
-        if (!entry) subMap.set(subCode, { categoryName: cat.name, count: 1 });
-        else entry.count++;
-      }
-    }
-    return superMap;
-  }, [masterCatalogFull, provider, dataMode]);
-
   const sortedCategories = useMemo(() => {
     if (dataMode === "catalog" && activeCatalog) {
       const counts = new Map<string, number>();
@@ -412,12 +362,6 @@ export function ProductsModule() {
       });
   }, [categories, dataMode, activeCatalog, catalogModeProducts, jointCatalogProducts]);
 
-  const categoryOptions = sortedCategories.map(cat => ({
-    value: cat.name,
-    label: `${cat.name} (${cat.itemCount})`,
-    icon: <Layers className="h-4 w-4 flex-shrink-0" />,
-  }));
-
   const categoryData = masterCatalogFull.find(cat => cat.name === state.category) || null;
   const isLoading = loadingCatalogProducts;
   const error = masterError;
@@ -435,11 +379,11 @@ export function ProductsModule() {
                            (state.originFilter.showOther && !p.madeInUSA);
       const passesGender = state.genderFilter === "all" || p.gender === state.genderFilter;
       const passesSearch = !search || p.title.toLowerCase().includes(search.toLowerCase());
-      // When browsing via the QRG subcategory navigator, gate by current provider
-      const passesProvider = !qrgSubCategory || providerStocksProduct(p as any, provider);
+      // Only offer blanks supported by the selected provider.
+      const passesProvider = providerStocksProduct(p as any, provider);
       return passesOrigin && passesGender && passesSearch && passesProvider;
     });
-  }, [productsWithGender, state.originFilter, state.genderFilter, search, qrgSubCategory, provider]);
+  }, [productsWithGender, state.originFilter, state.genderFilter, search, provider]);
 
   const usaCount = products.filter(p => p.madeInUSA).length;
   const otherCount = products.filter(p => !p.madeInUSA).length;
@@ -460,7 +404,21 @@ export function ProductsModule() {
 
   const selectedProductId = state.selectedProduct ? getProductSnapshotKey(state.selectedProduct) : null;
 
-  const activeProducts = dataMode === "catalog" ? catalogModeProducts : dataMode === "joint" ? jointCatalogProducts : filteredProducts;
+  const activeProducts = dataMode === "all" ? filteredProducts
+    : (dataMode === "catalog" ? catalogModeProducts : jointCatalogProducts)
+      .filter(product => !state.category || product.qrgCategory === state.category);
+
+  const handleProductTypeChange = async (category: string) => {
+    const finish = beginBuildActivity('Changing product type…');
+    try {
+      const changingBlankType = category && state.selectedProduct && state.selectedProduct.qrgCategory !== category;
+      if (changingBlankType && state.activeSessionId && ['working', 'artifact_ready'].includes(state.sessionStatus || '')) await saveWorking();
+      if (changingBlankType) selectProduct(null);
+      setCategory(category || null);
+    } catch (error: any) {
+      toast({ title: 'Could not change product type', description: error.message, variant: 'destructive' });
+    } finally { finish(); }
+  };
 
   const selectItemMap = useMemo(() => {
     const map = new Map<string, { selectItem: ProductSelectItem; catalog: CatalogProduct & { gender: string }; blankKey: string }>();
@@ -859,6 +817,19 @@ export function ProductsModule() {
         </select>
       </div>
 
+      <div>
+        <label htmlFor="product-type" className="block text-sm font-medium mb-2">Product type</label>
+        <select id="product-type" value={state.category || ''} disabled={!!busy || loadingCatalogProducts}
+          onChange={event => { void handleProductTypeChange(event.target.value); }}
+          className="w-full min-h-12 text-base bg-background border rounded-md px-3 py-2"
+          data-testid="select-product-type">
+          <option value="">{dataMode === 'all' ? 'Choose product type' : 'All product types'}</option>
+          {sortedCategories.map(category => <option key={category.name} value={category.name}>
+            {category.name === 'Hats' ? 'Hats / Caps' : category.name} ({category.itemCount})
+          </option>)}
+        </select>
+      </div>
+
       {dataMode === "catalog" && activeCatalog && (
         <>
           {loadingCatalogProducts ? (
@@ -880,7 +851,7 @@ export function ProductsModule() {
                 // Use the master catalog category order for consistent sort order.
                 const categoryOrder = sortedCategories.map(c => c.name);
                 const sectionMap = new Map<string, CatalogProduct[]>();
-                for (const p of catalogModeProducts) {
+                for (const p of activeProducts) {
                   const cat = (p as any).qrgCategory || "Other";
                   if (!sectionMap.has(cat)) sectionMap.set(cat, []);
                   sectionMap.get(cat)!.push(p);
@@ -944,7 +915,7 @@ export function ProductsModule() {
                     items={scrollItems}
                     renderItem={(item) => renderProductCard(item as ScrollViewItem)}
                     height={isMobile ? undefined : "calc(100vh - 160px)"}
-                    emptyMessage="No products in this catalog."
+                    emptyMessage="No products of this type in this catalog."
                     footer={
                       <p className="text-sm text-muted-foreground text-center mt-3 font-medium">
                         {scrollItems.length} products available
@@ -1046,119 +1017,8 @@ export function ProductsModule() {
 
       {dataMode === "all" && (
         <>
-          <div data-testid="module-category">
-            <div className="flex items-center gap-2 mb-2">
-              <Layers className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium">Browse Catalog</p>
-            </div>
-
-            {loadingCatalogProducts && qrgNavigatorData === null ? (
-              <div className="flex gap-1 flex-wrap">
-                {[1, 2, 3].map(i => (
-                  <Skeleton key={i} className="h-7 w-20 rounded-md" />
-                ))}
-              </div>
-            ) : qrgNavigatorData && qrgNavigatorData.size > 0 ? (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1" data-testid="qrg-super-category-nav">
-                  {Array.from(qrgNavigatorData.entries())
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([superCode, subMap]) => {
-                      const totalCount = Array.from(subMap.values()).reduce((n, s) => n + s.count, 0);
-                      const isActive = qrgSuperCategory === superCode;
-                      return (
-                        <button
-                          key={superCode}
-                          type="button"
-                          className={[
-                            "text-xs px-2.5 py-1.5 rounded-md border transition-colors",
-                            isActive
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-muted/40 border-border hover-elevate",
-                          ].join(" ")}
-                          onClick={() => {
-                            if (qrgSuperCategory === superCode) {
-                              setQrgSuperCategory(null);
-                              setQrgSubCategory(null);
-                              setCategory(null);
-                            } else {
-                              setQrgSuperCategory(superCode);
-                              setQrgSubCategory(null);
-                              setCategory(null);
-                            }
-                          }}
-                          data-testid={`qrg-super-category-${superCode}`}
-                        >
-                          {SUPER_CATEGORY_LABELS[superCode] ?? superCode}
-                          <span className="ml-1 opacity-60">({totalCount})</span>
-                        </button>
-                      );
-                    })}
-                </div>
-
-                {qrgSuperCategory && qrgNavigatorData.get(qrgSuperCategory) && (
-                  <div className="flex flex-wrap gap-1 pl-2 border-l border-border" data-testid="qrg-sub-category-nav">
-                    {Array.from(qrgNavigatorData.get(qrgSuperCategory)!.entries())
-                      .sort(([a], [b]) => a.localeCompare(b))
-                      .map(([subCode, { categoryName, count }]) => {
-                        const isActive = qrgSubCategory === subCode;
-                        return (
-                          <button
-                            key={subCode}
-                            type="button"
-                            className={[
-                              "text-xs px-2.5 py-1.5 rounded-md border transition-colors",
-                              isActive
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-muted/40 border-border hover-elevate",
-                            ].join(" ")}
-                            onClick={() => {
-                              if (qrgSubCategory === subCode) {
-                                setQrgSubCategory(null);
-                                setCategory(null);
-                              } else {
-                                setQrgSubCategory(subCode);
-                                setCategory(categoryName);
-                              }
-                            }}
-                            data-testid={`qrg-sub-category-${subCode}`}
-                          >
-                            {categoryName}
-                            <span className="ml-1 opacity-60">({count})</span>
-                          </button>
-                        );
-                      })}
-                  </div>
-                )}
-
-                {qrgSuperCategory && !qrgNavigatorData.get(qrgSuperCategory)?.size && (
-                  <p className="text-xs text-muted-foreground pl-2">
-                    No subcategories available via {provider} for this category.
-                  </p>
-                )}
-              </div>
-            ) : (
-              !loadingCatalogProducts && (
-                <p className="text-xs text-muted-foreground">
-                  No catalog data available via {provider}.
-                </p>
-              )
-            )}
-          </div>
-
-          {!qrgSuperCategory && !loadingCatalogProducts && (
-            <p className="text-xs text-muted-foreground" data-testid="hint-select-super-category">
-              Select a category above to browse by product type.
-            </p>
-          )}
-
-          {qrgSuperCategory && !qrgSubCategory && (
-            <p className="text-xs text-muted-foreground" data-testid="hint-select-sub-category">
-              Select a subcategory to see products.
-            </p>
-          )}
-
-          {qrgSubCategory && state.category && (
+          {!state.category && <p className="text-sm text-muted-foreground">Choose a product type above.</p>}
+          {state.category && (
             <>
               <div className="relative">
                 <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

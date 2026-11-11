@@ -148,7 +148,7 @@ async function cfGenerateCompositeImage(options: {
     // QR content size: driven by qrSizePercent / 2 to match client-side graphicLayout.ts
     // Default 75 → 37.5% of safe width; same formula as frontend zone mode.
     const zoneQrPct = Math.min(Math.max(qrSizePercent / 2, 15), 55);
-    const qrContentSizeZone = Math.round(safeW * (zoneQrPct / 100));
+    const qrContentSizeZone = Math.round(Math.min(safeW, safeH) * (zoneQrPct / 100));
     const qrBgSizeZone = qrContentSizeZone + bgPaddingZone * 2;
 
     // QR background box centered on canvas

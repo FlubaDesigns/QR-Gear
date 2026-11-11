@@ -4,6 +4,7 @@ import { fetchBuildCatalog, resolveBuildProduct } from './restoreProduct';
 import { isQRGBlankId } from '@shared/blankKeys';
 import { normalizeProductColors, normalizeProductSizes } from '@shared/adapters/catalog.adapter';
 import { buildWorkingSnapshot, sanitizeSnapshot, requireBuilderSnapshot } from '@shared/builderSnapshot';
+import { selectPrintLocationMethod, type PrintMethod } from '@shared/placements';
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useProductsContext } from "../ProductsContext";
 import { adminFetch } from "@/lib/adminFetch";
@@ -109,9 +110,9 @@ const initialState: BuilderState = {
   loadedGraphic: null,
   loadedBackground: null,
   fulfillmentProvider: null,
-  category: "T-Shirts",
-  originFilter: { showUSA: true, showOther: false },
-  genderFilter: "mens",
+  category: null,
+  originFilter: { showUSA: true, showOther: true },
+  genderFilter: "all",
   selectedProduct: null,
   masterTitle: null,
   adminCatalogTitle: null,
@@ -158,10 +159,15 @@ interface BuilderProviderProps {
   children: React.ReactNode;
 }
 
-function getProviderLayout(product: CatalogProduct | null, placementId?: string): ProviderLayout | null {
-  const placement = product?.placements?.find(p => p.id === placementId);
-  if (!placement?.provider || !placement.dimensions) return null;
+function getProviderLayout(product: CatalogProduct | null, placementId?: string, method?: PrintMethod): ProviderLayout | null {
+  const location = product?.placements?.find(p => p.id === placementId);
+  if (!location?.provider || !location.dimensions) return null;
+  const placement = selectPrintLocationMethod(location, method);
+  if (!placement.provider || !placement.dimensions) return null;
   return {
+    technique: placement.technique,
+    printfileIds: placement.printfileIds,
+    verifiedVariantIds: placement.verifiedVariantIds,
     provider: placement.provider,
     schemaFamily: product?.schemaFamily || '',
     schemaType: product?.schemaType || '',
@@ -612,7 +618,10 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             type: pl.id,
             title: pl.label || pl.id.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
             additionalPrice: 0,
-            methods: [],
+            methods: pl.methods || [],
+            technique: pl.technique,
+            printfileIds: pl.printfileIds,
+            verifiedVariantIds: pl.verifiedVariantIds,
             provider: pl.provider,
             providerPlacement: pl.providerPlacement,
             providerPlacementId: pl.providerPlacementId || pl.providerPlacement || pl.id,
@@ -654,6 +663,15 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
           const restoredSelected = prev.selectedPlacements || [];
           const invalidRestored = restoredSelected.filter(id => !validPlacementIds.has(id));
           const validSelected = restoredSelected.filter(id => validPlacementIds.has(id));
+          const placementMethods: PrintMethodSelection = {};
+          for (const id of validSelected) {
+            const methods = printLocations.find(p => p.id === id)?.methods || [];
+            const previous = prev.placementMethods[id];
+            if (methods.length) placementMethods[id] = methods.find(m => m.method === previous)?.method || methods[0].method;
+            else if (previous) placementMethods[id] = previous;
+          }
+          const providerLayout = getProviderLayout(merged, validSelected[0], placementMethods[validSelected[0]]);
+          const layoutChanged = !!prev.providerLayout && JSON.stringify(prev.providerLayout) !== JSON.stringify(providerLayout);
           const restoreWarning = (invalidRestored.length > 0 && restoredSelected.length > 0)
             ? `Saved placement${invalidRestored.length > 1 ? 's' : ''} "${invalidRestored.join('", "')}" ${invalidRestored.length > 1 ? 'are' : 'is'} not available for this product. ${invalidRestored.length > 1 ? 'They have' : 'It has'} been deselected — please reselect a placement.`
             : null;
@@ -667,8 +685,9 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
             selectedPlacements: validSelected,
             placementConfig: Object.fromEntries(Object.entries(prev.placementConfig).filter(([id]) => validPlacementIds.has(id))),
             placementSizes: Object.fromEntries(Object.entries(prev.placementSizes).filter(([id]) => validPlacementIds.has(id))),
-            placementMethods: Object.fromEntries(Object.entries(prev.placementMethods).filter(([id]) => validPlacementIds.has(id))),
-            providerLayout: getProviderLayout(merged, validSelected[0]),
+            placementMethods,
+            providerLayout,
+            ...(layoutChanged ? { activePacketId: null, loadedGraphic: null } : {}),
             selectedColor: merged.availableColors.find(color => color.name === prev.selectedColor?.name) ?? null,
           };
         });
@@ -783,6 +802,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
 
   const togglePlacement = useCallback((placementId: string) => {
     setState(prev => {
+      if (prev.placementsLoading || !prev.selectedProduct?.placements?.some(p => p.id === placementId)) return prev;
       const isSelected = prev.selectedPlacements.includes(placementId);
       const newPlacements = isSelected
         ? prev.selectedPlacements.filter(p => p !== placementId)
@@ -804,7 +824,7 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
         delete newMethods[placementId];
       }
 
-      const newProviderLayout = getProviderLayout(prev.selectedProduct, newPlacements[0]);
+      const newProviderLayout = getProviderLayout(prev.selectedProduct, newPlacements[0], newMethods[newPlacements[0]]);
 
       return {
         ...prev,
@@ -838,13 +858,16 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }, []);
 
   const setPlacementMethod = useCallback((placementId: string, method: 'dtg' | 'dtf') => {
-    setState(prev => ({
-      ...prev,
-      placementMethods: {
-        ...prev.placementMethods,
-        [placementId]: method,
-      },
-    }));
+    setState(prev => {
+      const placement = prev.selectedProduct?.placements?.find(p => p.id === placementId);
+      if (prev.placementsLoading || !placement || !prev.selectedPlacements.includes(placementId)) return prev;
+      if (placement.methods?.length && !placement.methods.some(option => option.method === method)) return prev;
+      if (prev.placementMethods[placementId] === method) return prev;
+      const methods = { ...prev.placementMethods, [placementId]: method };
+      return { ...prev, placementMethods: methods,
+        providerLayout: getProviderLayout(prev.selectedProduct, prev.selectedPlacements[0], methods[prev.selectedPlacements[0]]),
+        activePacketId: null, loadedGraphic: null };
+    });
   }, []);
 
   const setSelectedColor = useCallback((color: SelectedColor | null) => {
