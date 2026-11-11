@@ -122,7 +122,11 @@ describe('partner API ownership and admin persistence', () => {
     const {db,rows}=database({
       'stores/fluba':{roleType:'external',isActive:true},
       'storeAllowedProducts/fluba':{catalogId:'rewards'},
-      'catalogs/rewards':{name:'Rewards',blankIds:['qrg_11111'],blankColors:{qrg_11111:[{name:'Black',hex:'#000000'}]}},
+      'catalogs/rewards':{name:'Rewards',blankIds:['qrg_11111'],blankColors:{qrg_11111:[{name:'Black',hex:'#000000'}]},blankTitles:{qrg_11111:'Fluba shirt'},blankDescriptions:{qrg_11111:'Fluba description'}},
+      'stores/other':{roleType:'external',isActive:true},
+      'storeAllowedProducts/other':{catalogId:'other'},
+      'catalogs/other':{name:'Other',blankIds:['qrg_11111'],blankTitles:{qrg_11111:'Other shirt'},blankDescriptions:{qrg_11111:'Other description'}},
+      'admin_catalog_instances/other-shirt':{storeId:'other',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
       'admin_catalog_instances/shirt':{storeId:'fluba',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
       'productPackets/pkt':{sourceMasterId:'qrg_11111',fulfillmentProvider:'printful'},
       'master_catalog/qrg_11111':{qrgVariants:{
@@ -132,6 +136,15 @@ describe('partner API ownership and admin persistence', () => {
     });
     const partner={id:'a',storeId:'fluba'};
     expect((await partnerProducts(db,partner,{})).products[0].availableColors).toEqual(['Black']);
+    const packetBefore=structuredClone(rows['productPackets/pkt']);
+    expect((await partnerProducts(db,partner,{})).products[0]).toMatchObject({name:'Fluba shirt',description:'Fluba description'});
+    rows['catalogs/rewards'].blankTitles.qrg_11111='Updated title';
+    rows['catalogs/rewards'].blankDescriptions.qrg_11111='Updated description';
+    expect((await partnerProducts(db,partner,{})).products[0]).toMatchObject({name:'Updated title',description:'Updated description'});
+    const other=await partnerProducts(db,{id:'b',storeId:'other'},{});
+    expect(other.products).toHaveLength(1);
+    expect(other.products[0]).toMatchObject({id:'other-shirt',name:'Other shirt',description:'Other description'});
+    expect(rows['productPackets/pkt']).toEqual(packetBefore);
     rows['catalogs/rewards'].blankColors.qrg_11111=[];
     expect((await partnerProducts(db,partner,{})).products).toEqual([]);
     delete rows['catalogs/rewards'].blankColors.qrg_11111;
@@ -151,10 +164,10 @@ describe('partner API ownership and admin persistence', () => {
       'admin_catalog_instances/item':{storeId:'a',currentPacketId:'pkt',enabledColors:['Black'],enabledSizes:['M'],resolved:{title:'Saved product',pricing:{customerPrice:35}}},
       'admin_catalog_instances/hidden':{storeId:'a',isVisible:false},
       'admin_catalog_instances/foreign':{storeId:'b'},
-      'productPackets/pkt':{builderSnapshot:{metadata:{selectedProductDocId:'qrg_11001'}},fulfillmentProvider:'printful',priorityMockupUrl:'https://example.com/saved.png'},
+      'productPackets/pkt':{builderSnapshot:{metadata:{selectedProductDocId:'qrg_11001'}},fulfillmentProvider:'printful',priorityMockupUrl:'https://example.com/saved.png',mockupsByColor:{Black:{front:{standard:'https://example.com/black.png'}}}},
       'master_catalog/qrg_11001':{qrgVariants:{'0401':{sizeLabel:'M',colorLabel:'Black',providerVariants:{printful:{variantId:123,productId:456}}}}},
     });
     const result=await partnerProducts(db,{id:'a'},{});
-    expect(result.products).toHaveLength(1);expect(result.products[0]).toMatchObject({id:'item',basePrice:35,availableVariants:[{size:'M',color:'Black'}]});
+    expect(result.products).toHaveLength(1);expect(result.products[0]).toMatchObject({id:'item',basePrice:35,mockupsByColor:{Black:{front:'https://example.com/black.png'}},availableVariants:[{size:'M',color:'Black'}]});
   });
 });

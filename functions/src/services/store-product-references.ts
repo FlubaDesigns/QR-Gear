@@ -21,6 +21,7 @@ export async function storeProductReferences(db: any, storeId: string, section?:
   if (!Array.isArray(raw)) fail('Review the saved store product choices.');
   const products = raw.filter((r: any) => !catalog || catalog.blankIds.includes(r.canonicalBlankKey)).map((r: any) => {
     const colors = catalog?.blankColors?.[r.canonicalBlankKey];
+    if (colors !== undefined && (!Array.isArray(colors) || colors.some((c: any) => !c || typeof c.name !== 'string'))) fail('Review the assigned catalog color choices.');
     return colors === undefined ? r : { ...r, colors: colors.map((c: any) => c.name).filter((c: string) => r.colors === undefined || r.colors.includes(c)) };
   });
   return { products, catalog, catalogId: selection.catalogId || null, configured: saved.exists };

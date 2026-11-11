@@ -3,8 +3,10 @@ import { z } from 'zod';
 import { storeProductReferences } from './store-product-references';
 import { insertPartnerStoreSchema } from '../../../shared/schema-stores';
 import { catalogProductOptions } from './catalog-sale-variants';
-import { buildPacketImageOrder } from '../../../shared/productImages';
+import { extractPacketMockups } from './packet-mockups';
 import { publicProductText } from '../../../shared/descriptionLayers';
+import { catalogToSelectItem } from '../../../shared/adapters/catalog.adapter';
+import { masterCatalogProduct } from '../../../shared/masterCatalog';
 import { normalizeSize, sortProductSizes } from '../../../shared/storefrontTypes';
 
 // The existing partner registry is shared by Admin Partners and Store Builder.
@@ -109,9 +111,9 @@ export async function partnerProducts(db: any, store: any, query: any) {
     const packetDoc = await db.collection('productPackets').doc(instance.currentPacketId).get();
     if (!packetDoc.exists) fail(409, `Product ${doc.id} has a missing production packet`);
     const packet = packetDoc.data();
+    const masterId = packet.builderSnapshot?.metadata?.selectedProductDocId || packet.sourceMasterId;
     const options = await catalogProductOptions(db, instance, packet);
     if (allowed) {
-      const masterId = packet.builderSnapshot?.metadata?.selectedProductDocId || packet.sourceMasterId;
       const references = allowed.products.filter((p: any) => p?.canonicalBlankKey === masterId);
       if (!references.length) continue;
       if (references.length !== 1) fail(409, 'The linked store has duplicate product choices; review them in Store Builder');
@@ -126,11 +128,21 @@ export async function partnerProducts(db: any, store: any, query: any) {
     }
     const price = instance.resolved?.pricing?.customerPrice ?? packet.pricing?.customerPrice;
     if (!Number.isFinite(Number(price)) || Number(price) <= 0) fail(409, `Product ${doc.id} has no valid saved price`);
-    const images = buildPacketImageOrder(packet);
+    const { mockupImages: images, mockupsByColor, defaultColor } = extractPacketMockups(packet);
+    let name = instance.resolved?.title || packet.productName || '';
+    let description = instance.resolved?.description || '';
+    if (allowed?.catalog) {
+      const master = await db.collection('master_catalog').doc(masterId).get();
+      if (!master.exists) fail(409, `Product ${doc.id} has no QRG master`);
+      const item = catalogToSelectItem(masterCatalogProduct(masterId, master.data()),
+        allowed.catalog.blankDescriptions?.[masterId], allowed.catalog.blankTitles?.[masterId]);
+      name = item.name;
+      description = item.description || '';
+    }
     products.push({ id: doc.id, packetId: packetDoc.id, storeId, channelId: instance.channelId ?? null,
-      name: publicProductText(instance.resolved?.title || packet.productName || ''),
-      description: publicProductText(instance.resolved?.description || ''),
-      imageUrl: images[0] ?? null, images, basePrice: Number(price), ...options,
+      name: publicProductText(name),
+      description: publicProductText(description),
+      imageUrl: images[0] ?? null, images, mockupsByColor, defaultColor, basePrice: Number(price), ...options,
       qrgBaseCode: instance.resolved?.qrgBaseCode ?? null,
       productPath: `/shop/product/${encodeURIComponent(doc.id)}` });
   }

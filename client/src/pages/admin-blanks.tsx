@@ -26,6 +26,7 @@ import type { ScrollViewItem } from "@/features/shared/components/views/index";
 import { useAdminBlanksController, type AdminCatalog, type LocationFilter } from "@/features/adminProducts/controllers/useAdminBlanksController";
 
 import { masterBlankImages } from "@shared/productImages";
+import { ExternalStoreCatalogAssignments } from '@/features/storeBuilder/ExternalStoreCatalogAssignments';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "@/components/ui/alert-dialog";
 
 interface CatalogAssignments {
@@ -433,6 +434,7 @@ function CatalogsTab({ onOpenCatalog, showCreate, setShowCreate }: { onOpenCatal
               );
             })
           )}
+          <ExternalStoreCatalogAssignments />
         </CardContent>
       </Card>
     </div>

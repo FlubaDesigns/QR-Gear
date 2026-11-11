@@ -450,6 +450,8 @@ Added the explicit `partnerStores.storeId` reference and an Admin Partners selec
 | `functions/src/index.ts`, Functions package and lock | Release identifier |
 | `README.md`, this guide, `MANIFEST.json`, source ZIP | Scope, handoff and synchronized source package |
 
+Admin Blanks → Catalogs → Section Assignments now includes an external-store destination selector using the existing Allowed Products editor. Selecting Fluba and saving a catalog changes only `storeAllowedProducts/fluba`; the category-wide External assignment is untouched. Assigned catalogs cannot be deleted until their store references are removed. Partner product titles and descriptions are resolved on each read through the assigned catalog's canonical text adapter, so text edits do not alter saved production packets or order history. Partner color mockups use the same saved-packet projection as public product details.
+
 ## Purchased item hosting begins at activation — October 20, 2026
 
 Purchased physical copies retain their individual QRG/packet/Assembly and receive an emailed, item-bound claim code even for signed-in cart purchases. Their hosting term is saved without an expiration date. Scanning an unclaimed hosted copy opens the existing claim screen for code entry; scanning or validating a code does not start the clock. Authenticated successful redemption sets the owner, claim timestamp, actual term expiry, and rotation start in one transaction. A code for another scanned item is rejected. Repeated/concurrent claims cannot extend hosting or replace the owner. Already claimed items and historical auto-owned copies without a claim code are not migrated or reset; older unclaimed copies recover only their recorded purchased term from the saved packet.

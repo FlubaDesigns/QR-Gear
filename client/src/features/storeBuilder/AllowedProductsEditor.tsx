@@ -42,15 +42,15 @@ export function AllowedProductsEditor({ storeId, onClose }: { storeId: string; o
     } catch (e: any) { setMessage(`Save failed: ${e.message}`); }
     finally { lock.current = false; setSaving(false); }
   }
-  const closeButton = onClose && <Button className="h-12" variant="outline" disabled={saving} onClick={() => {
+  const closeButton = onClose && <Button className="w-full" variant="outline" disabled={saving} onClick={() => {
     if (lock.current) return;
     if (!edited.current || window.confirm('Discard unsaved product choices?')) onClose();
   }}><X className="mr-2 h-5 w-5" />Close product choices</Button>;
-  if (master.error || saved.error || catalogs.error) return <div role="alert" className="space-y-3">{closeButton}<p>Could not load product choices. Your saved list has not been changed.</p><Button className="h-12" onClick={() => { void master.refetch(); void saved.refetch(); void catalogs.refetch(); }}>Retry</Button></div>;
+  if (master.error || saved.error || catalogs.error) return <div role="alert" className="space-y-3">{closeButton}<p>Could not load product choices. Your saved list has not been changed.</p><Button className="w-full" onClick={() => { void master.refetch(); void saved.refetch(); void catalogs.refetch(); }}>Retry</Button></div>;
   if (master.isLoading || saved.isLoading || catalogs.isLoading) return <div>{closeButton}<p role="status">Loading product choices…</p></div>;
-  return <div className="min-w-0 space-y-3">
+  return <div className="row layout__stack min-w-0 space-y-3">
     {closeButton}
-    <label className="block space-y-2"><span>Product source</span>
+    <label className="row layout__stack space-y-2"><span>Product source</span>
       <select aria-label="Store product catalog" className="h-12 w-full rounded-md border bg-background px-3 text-base" value={catalogId} disabled={saving} onChange={e => { edited.current = true; setDirty(true); setCatalogId(e.target.value); setMessage(''); }}>
         <option value="">Choose individual blanks</option>
         {catalogId && !catalogs.data?.catalogs.some(c => c.id === catalogId) && <option value={catalogId}>Unavailable catalog</option>}
@@ -58,9 +58,9 @@ export function AllowedProductsEditor({ storeId, onClose }: { storeId: string; o
       </select>
     </label>
     <p className="text-sm text-muted-foreground">{catalogId ? 'This store follows the selected catalog. Edit its products and colors in Blanks; changes apply here automatically.' : 'Choose QRG blanks from Printful and Printify. Save applies the selections below.'}</p>
-    <div className="sticky top-[122px] z-20 flex flex-wrap gap-2 rounded-md border bg-background p-2">
-      <Button className="h-12" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : catalogId ? 'Save catalog connection' : `Save (${selected.length})`}</Button>
-      <Button className="h-12" variant="outline" disabled={saving || !!catalogId} onClick={() => edit([])}>Clear choices</Button>
+    <div className="row layout__stack sticky top-[122px] z-20 gap-2 rounded-md border bg-background p-2">
+      <Button className="w-full" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : catalogId ? 'Save catalog connection' : `Save (${selected.length})`}</Button>
+      <Button className="w-full" variant="outline" disabled={saving || !!catalogId} onClick={() => edit([])}>Clear choices</Button>
       {message && <p role={message.startsWith('Save failed') ? 'alert' : 'status'} className="w-full text-sm [overflow-wrap:anywhere]">{message}</p>}
     </div>
     {!catalogId && <>

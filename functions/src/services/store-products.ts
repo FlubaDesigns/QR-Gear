@@ -52,10 +52,12 @@ export async function saveStoreProducts(db: any, storeId: string, products: unkn
   await parent(db, storeId);
   if (catalogId !== undefined && catalogId !== null && catalogId !== '') {
     if (typeof catalogId !== 'string' || !/^[a-zA-Z0-9_-]{1,150}$/.test(catalogId)) fail('Select a valid catalog');
-    const catalog = await db.collection('catalogs').doc(catalogId).get();
-    if (!catalog.exists || !Array.isArray(catalog.data()?.blankIds)) fail('Select an existing catalog');
-    await db.collection('storeAllowedProducts').doc(storeId).set({ storeId, catalogId, updatedAt: new Date().toISOString() });
-    return { success: true, count: catalog.data().blankIds.length, catalogId };
+    return db.runTransaction(async (tx: any) => {
+      const catalog = await tx.get(db.collection('catalogs').doc(catalogId));
+      if (!catalog.exists || !Array.isArray(catalog.data()?.blankIds)) fail('Select an existing catalog');
+      tx.set(db.collection('storeAllowedProducts').doc(storeId), { storeId, catalogId, updatedAt: new Date().toISOString() });
+      return { success: true, count: catalog.data().blankIds.length, catalogId };
+    });
   }
   if (!Array.isArray(products)) fail('products must be an array');
   const refs: any[] = []; const seen = new Set<string>();
