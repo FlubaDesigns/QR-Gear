@@ -1,6 +1,7 @@
 import { printArtworkFrame, type PrintSize } from '../printSizing';
 import { getGraphicLayout, clamp, GRAPHIC_LAYOUT_DEFAULTS } from './graphicLayout';
 import { productGraphicZoneContext, computeTextX, computeTextStartY, wrapTextMeasured } from './textRenderEngine';
+import { resolvePrintTextStyle, resolvePrintTextColor, type PrintTextColorMode, type PrintTextBackground } from '../printTextColor';
 export interface TextStyle {
   text: string;
   enabled?: boolean;
@@ -8,6 +9,7 @@ export interface TextStyle {
   fontSize: string;
   fontWeight?: string;
   color: string;
+  colorMode?: PrintTextColorMode;
   letterSpacing?: number;
   strokeColor?: string;
   strokeWidth?: number;
@@ -44,6 +46,7 @@ export interface RenderOptions {
   headerStyle?: TextStyle | null;
   footerStyle?: TextStyle | null;
   backgroundColor?: string;
+  textColorBackground?: PrintTextBackground | null;
   transparent?: boolean;
   placement?: string;
   placementSize?: PrintSize;
@@ -60,6 +63,7 @@ export interface RenderOptions {
   subBottomEnabled?: boolean;
   subBottomText?: string;
   subBottomColor?: string;
+  subBottomColorMode?: PrintTextColorMode;
   subBottomFontSize?: string;
   subBottomFontFamily?: string;
   subBottomFontWeight?: string;
@@ -217,9 +221,14 @@ function drawTextInZone(
 }
 
 async function renderProductGraphic(options: RenderOptions): Promise<string> {
+  const textBackground = options.textColorBackground ?? { hex: options.backgroundColor };
+  options = { ...options,
+    headerStyle: options.headerStyle ? resolvePrintTextStyle(options.headerStyle, textBackground) : null,
+    footerStyle: options.footerStyle ? resolvePrintTextStyle(options.footerStyle, textBackground) : null,
+    ...(options.subBottomEnabled && options.subBottomText ? { subBottomColor: resolvePrintTextColor({ color: options.subBottomColor, colorMode: options.subBottomColorMode }, textBackground) } : {}),
+  };
   const {
     qrContent,
-    qrColor = "black",
     headerStyle,
     footerStyle,
     backgroundColor,
@@ -243,6 +252,8 @@ async function renderProductGraphic(options: RenderOptions): Promise<string> {
     bldZones,
     providerLayout,
   } = options;
+  // Garment contrast never changes QR polarity or its white quiet zone.
+  const qrColor = 'black' as const;
 
   // Provider layout dims take priority over hardcoded fallback.
   // providerLayout.dimensions come from the print_placements crosswalk via BLD.
@@ -363,7 +374,7 @@ async function renderProductGraphic(options: RenderOptions): Promise<string> {
     );
   }
 
-  const qrBgColor = qrColor === "white" ? "#000000" : "#FFFFFF";
+  const qrBgColor = "#FFFFFF";
   ctx.fillStyle = qrBgColor;
   ctx.beginPath();
   ctx.roundRect(qrBgX, qrBgY, qrBgWidth, qrBgHeight, bgRadius);

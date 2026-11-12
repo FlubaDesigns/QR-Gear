@@ -455,7 +455,7 @@ export default function AdminBlanks() {
     search, setSearch, categoryFilter, setCategoryFilter,
     locationFilter, setLocationFilter, categoryNames,
     catalogItems, sourceItemMap, scrollItems, blankTiers, blankColors,
-    onAddToCatalog, onImageDelete, onImageRestore, onImagesBulkSave, onSaveDescription, onSaveTitle, onSaveColors, onTierChange,
+    onAddToCatalog, onImageDelete, onImageRestore, onImagesBulkSave, onSaveDescription, onSaveTitle, onSaveColors, onTierChange, onTextColorSave, textColorSaving,
     getItemMappingBadge, resolveBlankKey,
     allProductMap, catalogBlankSet, removeBlanksMutation, addBlanksMutation, saveDescriptionMutation, saveTitleMutation, saveColorsMutation,
     totalProductCount, filteredCount, categoryCounts,
@@ -516,6 +516,7 @@ export default function AdminBlanks() {
             savedColors={blankColors[blankKey]}
             onColorsSave={(id: string, colors: Array<{name: string; hex: string}>) => onSaveColors(id, colors, blankKey)}
             colorsSaving={saveColorsMutation.isPending}
+            onTextColorSave={onTextColorSave} textColorSaving={textColorSaving}
             selectLabel={validSelectedCatalogId ? `Add to ${targetName}` : undefined}
             selectedLabel={validSelectedCatalogId ? `In ${targetName}` : undefined}
             disableWhenSelected={!!validSelectedCatalogId}
@@ -540,7 +541,7 @@ export default function AdminBlanks() {
     [sourceItemMap, allProductMap, catalogBlankSet, onAddToCatalog, blankTiers, onTierChange,
      validSelectedCatalogId, targetName, getItemMappingBadge, onSaveDescription, saveDescriptionMutation.isPending,
      onSaveTitle, saveTitleMutation.isPending, resolveBlankKey, blankColors, onSaveColors,
-     saveColorsMutation.isPending, onImageDelete, onImageRestore, onImagesBulkSave, addBlanksMutation.isPending]
+     saveColorsMutation.isPending, onTextColorSave, textColorSaving, onImageDelete, onImageRestore, onImagesBulkSave, addBlanksMutation.isPending]
   );
 
   const handleOpenCatalog = useCallback((catalogId: string) => {

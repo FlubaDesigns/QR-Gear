@@ -12,6 +12,7 @@ import { validatePacketComposition } from './assembly-store';
 import { getCatalogInstancePrice, getSizeUpcharges, validateBrandLabel } from './pricing';
 import { freezeProductionSource, prepareDynamicsOrderItems } from './dynamics-order';
 import { MEMBER_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
+import { resolvePacketColorArtwork } from './packet-color-artwork';
 
 /** Freeze server-owned catalog data, never cart-supplied prices or provider IDs. */
 export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string; ownerId: string }) {
@@ -26,7 +27,7 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   if (ownerBuild && (instance.ownerType !== 'owner' || instance.ownerId !== ownerBuild.ownerId || instance.status !== 'ready')) throw new Error('This owner build is not ready for your checkout.');
   const packetId = ownerBuild ? instanceId : memberPacketId ? instance.productionPacketId : instance.currentPacketId;
   if (!packetId) throw new Error('Product has no saved production packet.');
-  const packet = (await db.collection('productPackets').doc(packetId).get()).data();
+  let packet = (await db.collection('productPackets').doc(packetId).get()).data();
   if (!packet) throw new Error('Production packet is missing.');
   if (memberPacketId && (packet.status !== 'published' || packet.memberId !== instance.memberId || packet.memberPacketId !== memberPacketId)) throw new Error('Member production ownership does not match.');
   const composition = await validatePacketComposition(db, packetId, packet);
@@ -42,6 +43,9 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   const size = c.productSize, color = c.productColor;
   if (typeof size !== 'string' || !size || typeof color !== 'string' || !color) throw new Error('Choose a size and color.');
   const { key: variantKey, mapping } = selectCatalogSaleVariant(ownerBuild || memberPacketId ? { enabledColors: [packet.selectedColor], enabledSizes: [size] } : instance, master, provider, size, color);
+  // Personalized builds retain their reviewed print files. Catalog buyers resolve
+  // current fabric policy before reviewing and freezing their own proof.
+  if (!ownerBuild && !memberPacketId) packet = await resolvePacketColorArtwork(packetId, packet, master, color);
   const files: PrintfulOrderFile[] = [];
   for (const placement of snapshot.layoutConfig.selectedPlacements) {
     const layout = snapshot.layoutConfig.providerLayouts?.[placement];
@@ -63,8 +67,8 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   if (!productTitle) throw new Error('Product needs a saved title.');
   const dynamics = packet.composeInstanceId ? (await db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc(packet.composeInstanceId).get()).data() : null;
   if (snapshot.qrConfig.qrProductState === 'qr_compose' && (!dynamics || dynamics.status !== 'active')) throw new Error('The QR Compose sequence is unavailable.');
-  const frozenProduction = freezeProductionSource(packet, composition.assembly.qrgId);
-  return { frozenProduction, cartItemId: cart.id, productId: instanceId, packetId, masterId, assemblyId: packet.assemblyId,
+  const frozenProduction = freezeProductionSource({ ...packet, selectedColor: color, selectedShirtSize: size, selectedVariantKey: variantKey }, composition.assembly.qrgId);
+  return { frozenProduction, proofApproval: packet.proofApproval || null, cartItemId: cart.id, productId: instanceId, packetId, masterId, assemblyId: packet.assemblyId,
     qrExperience: { version: 2, sourceHash: frozenProduction.sourceHash, composeMode: dynamics?.composeMode || 'auto-rotate', slots: dynamics?.slots || [] },
     productCost: Number(packet.pricing?.subtotal || 0), creatorMemberId: memberPacketId ? instance.memberId : '',
     productTitle, quantity: cart.quantity, unitAmount, price: (unitAmount / 100).toFixed(2),

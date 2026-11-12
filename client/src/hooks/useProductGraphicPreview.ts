@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
+import { PrintTextBackgroundContext } from '@/features/shared/components/PrintTextColorControl';
 import {
   renderProductGraphic,
   type RenderOptions,
@@ -28,6 +29,7 @@ interface UseProductGraphicPreviewOptions {
     enabled?: boolean;
     text?: string;
     color?: string;
+    colorMode?: import('@shared/printTextColor').PrintTextColorMode;
     fontSize?: string;
     fontFamily?: string;
     fontWeight?: string;
@@ -71,6 +73,8 @@ export function useProductGraphicPreview(
     debounceMs = 400,
   } = options;
   const renderOptionsKey = options.renderOptions ? JSON.stringify(options.renderOptions) : null;
+  const selectedBackground = useContext(PrintTextBackgroundContext);
+  const textBackgroundKey = JSON.stringify(selectedBackground === undefined ? { hex: backgroundColor } : selectedBackground ?? { contrastHex: null });
 
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -113,7 +117,8 @@ export function useProductGraphicPreview(
           qrColor,
           headerStyle: headerStyle?.enabled !== false ? headerStyle : null,
           footerStyle: footerStyle?.enabled !== false ? footerStyle : null,
-          backgroundColor,
+          backgroundColor: selectedBackground?.hex || backgroundColor,
+          textColorBackground: JSON.parse(textBackgroundKey),
           transparent,
           placement,
           qrPositionX,
@@ -129,6 +134,7 @@ export function useProductGraphicPreview(
           subBottomEnabled: subBottomStyle?.enabled,
           subBottomText: subBottomStyle?.text,
           subBottomColor: subBottomStyle?.color,
+          subBottomColorMode: subBottomStyle?.colorMode,
           subBottomFontSize: subBottomStyle?.fontSize,
           subBottomFontFamily: subBottomStyle?.fontFamily,
           subBottomFontWeight: subBottomStyle?.fontWeight,
@@ -156,6 +162,10 @@ export function useProductGraphicPreview(
       }
     };
   }, [
+    textBackgroundKey,
+    headerStyle?.colorMode,
+    footerStyle?.colorMode,
+    subBottomStyle?.colorMode,
     renderOptionsKey,
     qrContent,
     qrColor,

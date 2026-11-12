@@ -4,6 +4,8 @@ import { partnerStoreId, publicPartner } from './partner-api';
 import { readStoreProducts } from './store-products';
 import { preparePartnerBuild, saveMemberArtwork, commitOwnerBuild } from './member-build';
 import { renderSavedProductGraphic } from './product-graphic-renderer';
+import { normalizePrintHex } from '../../../shared/printTextColor';
+import { saveProductProof, approveProductProof } from './product-proof';
 import { resolveRuntimeConfig } from '../runtime-config';
 import { resolveSaleItem, verifyProviderItems, fulfillOrder, syncFulfillment } from './order-fulfillment';
 import { decodeLibraryImage } from './image-validation';
@@ -36,6 +38,10 @@ function previewInput(input: any) {
   for (const name of ['claimId', 'customerRef', 'channelId', 'productId', 'sourceHash']) if (!validId(input[name])) fail(`Invalid ${name}.`, 400);
   if (typeof input.color !== 'string' || !input.color || input.color.length > 120 || typeof input.size !== 'string' || !input.size || input.size.length > 40) fail('Choose a color and size.', 400);
   if (!['full', 'qr-only'].includes(input.graphicChoice)) fail('Choose full graphic or QR code only.', 400);
+  const textColorMode = input.graphicChoice === 'qr-only' ? 'auto' : input.textColorMode ?? 'auto';
+  if (!['auto', 'light', 'dark', 'custom'].includes(textColorMode)) fail('Choose a valid text color mode.', 400);
+  const textColor = textColorMode === 'custom' ? normalizePrintHex(input.textColor) : null;
+  if (textColorMode === 'custom' && !textColor) fail('Choose a valid custom text color.', 400);
   let url: URL;
   try { url = new URL(input.websiteUrl); } catch { return fail('A verified live website URL is required.', 400); }
   if (url.protocol !== 'https:' || url.username || url.password || url.href.length > 500) fail('Use the verified HTTPS website.', 400);
@@ -43,10 +49,11 @@ function previewInput(input: any) {
   if (Buffer.from(logo.imageData, 'base64').length > 3_000_000) fail('The approved logo is too large.', 400);
   return { claimId: input.claimId as string, customerRef: input.customerRef as string, channelId: input.channelId as string,
     graphicChoice: input.graphicChoice as string, sourceHash: input.sourceHash as string, productId: input.productId as string, color: input.color as string, size: input.size as string,
-    websiteUrl: url.href, logoData: `data:image/png;base64,${logo.imageData}` };
+    websiteUrl: url.href, textColorMode, textColor, logoData: `data:image/png;base64,${logo.imageData}` };
 }
 function projectReceipt(value: any) {
   return { claimId: value.claimId, status: value.status, previewId: value.revision, packetId: value.status === 'ready' || value.orderId ? value.packetId : null,
+    proofId: value.proofId || null, proofApproval: value.proofApproval || null, warnings: value.warnings || [], textColorMode: value.textColorMode || 'auto', textColor: value.textColor || null,
     graphicChoice: value.graphicChoice, sourceHash: value.sourceHash, productId: value.productId, color: value.color, size: value.size, websiteUrl: value.websiteUrl,
     mockupUrl: value.status === 'ready' || value.orderId ? value.mockupUrl || null : null,
     artworkUrl: value.status === 'ready' || value.orderId ? value.artworkUrl || null : null,
@@ -80,13 +87,19 @@ export async function partnerRewardPreview(partner: any, raw: any) {
   const product = (await readStoreProducts(db, partner.storeId)).products.find((p: any) => p.id === input.productId)!;
   const placement = product.placements.find((p: any) => p.id === 'front');
   if (!placement || product.fulfillmentProvider !== 'printful') fail('This reward needs a verified Printful front print area.');
-  const revision = digest(JSON.stringify({ ...input, catalogId: offers.catalogId, layout: placement, recipeVersion: 1 }));
+  const revision = digest(JSON.stringify({ ...input, catalogId: offers.catalogId, layout: placement,
+    textBackground: product.availableColors.find((c: any) => c.name === input.color), recipeVersion: 2 }));
   const packetId = `reward-${digest(`${partner.id}:${input.claimId}:${revision}`).slice(0, 48)}`;
   const ref = receiptRef(partner, input.claimId), lease = randomUUID();
   const claimed = await db.runTransaction(async tx => {
     const old = (await tx.get(ref)).data();
     if (old && old.customerRef !== input.customerRef) fail('Reward belongs to another customer.', 403);
-    if (old?.orderId) { if (old.revision !== revision) fail('This reward has already been approved.'); return old; }
+    if (old?.orderId) {
+      // A renderer/policy update cannot replace an approved order or break its retry.
+      if (['channelId', 'graphicChoice', 'sourceHash', 'productId', 'color', 'size', 'websiteUrl'].some(key => old[key] !== (input as any)[key])) fail('This reward has already been approved.');
+      if ((old.textColorMode || 'auto') !== input.textColorMode || (old.textColor || null) !== input.textColor) fail('This reward has already been approved.');
+      return old;
+    }
     if (old?.revision === revision && old.status === 'ready') return old;
     if (old && old.leaseUntil > Date.now()) { if (old.revision !== revision) fail('Your previous preview is still generating. Retry shortly.'); return { ...old, status: 'pending' }; }
     const { logoData, ...savedInput } = input;
@@ -99,6 +112,7 @@ export async function partnerRewardPreview(partner: any, raw: any) {
     const owner = ownerRef(partner, input.customerRef);
     const logo = await registerGrfAsset({ sourceUrl: input.logoData, ...originalGrfParams('image/png'), mimeType: 'image/png', createdBy: owner });
     const graphic = rewardGraphicInput(placement, input.websiteUrl, logo.publicUrl, `${resolveRuntimeConfig().origin}/img/qr-gear-mark.png`);
+    Object.assign(graphic.headerStyle, { colorMode: input.textColorMode, ...(input.textColor ? { color: input.textColor } : {}) });
     const build = await preparePartnerBuild(owner, {
       packetType: 'qr-plus', boundProduct: { canonicalBlankKey: input.productId }, title: offer.name, description: offer.description,
       selectedColor: input.color, selectedShirtSize: input.size, selectedPlacements: ['front'], graphicSize: 'large',
@@ -114,7 +128,8 @@ export async function partnerRewardPreview(partner: any, raw: any) {
       }
     }
     const built = await commitOwnerBuild(owner, packetId);
-    const result = { status: 'ready', mockupUrl: built.mockupUrl, artworkUrl: built.compositeUrl, lease: null, leaseUntil: 0, updatedAt: new Date().toISOString() };
+    const proof = await saveProductProof(packetId, built, built);
+    const result = { status: 'ready', proofId: proof.proofId, warnings: proof.warnings, mockupUrl: built.mockupUrl, artworkUrl: built.compositeUrl, lease: null, leaseUntil: 0, updatedAt: new Date().toISOString() };
     await db.runTransaction(async tx => { const latest = (await tx.get(ref)).data(); if (latest?.lease !== lease) fail('Reward preview changed. Refresh to resume.'); tx.update(ref, result); });
     return projectReceipt({ ...input, revision, packetId, ...result });
   } catch (error) {
@@ -146,6 +161,8 @@ export async function approvePartnerReward(partner: any, input: any) {
   // Printful external_id is limited to 32 characters (developers.printful.com/docs/#tag/Orders-API).
   const orderId = `reward-${digest(`${partner.id}:${input.claimId}`).slice(0,25)}`, orderRef = db.collection('orders').doc(orderId);
   if (!saved.orderId) {
+    if (!saved.proofId || input.proofApproval?.proofId !== saved.proofId) fail('Review and approve the current product proof first.');
+    const proofApproval = await approveProductProof(saved.packetId, { id: ownerRef(partner, saved.customerRef), type: 'owner' }, input.proofApproval);
     const item = await resolveSaleItem({ id: orderId, quantity: 1, customization: { productColor: saved.color, productSize: saved.size } }, { packetId: saved.packetId, ownerId: ownerRef(partner, saved.customerRef) });
     await verifyProviderItems([item]);
     const { frozenProduction, ...line } = item;
@@ -157,11 +174,11 @@ export async function approvePartnerReward(partner: any, input: any) {
       if (existing.exists) { if (existing.data()?.funding?.claimId !== input.claimId) fail('Order identity differs.'); return; }
       tx.create(orderRef, { id: orderId, source: 'partner_reward', sourceChannel: 'partner', userId: ownerRef(partner, saved.customerRef), checkoutVersion: 1,
         paymentStatus: 'sponsored', funding: { type: 'partner_sponsored', partnerId: partner.id, claimId: input.claimId, previewId: input.previewId, authorization, authorizedAt: now },
-        status: 'approved', fulfillmentState: 'pending', amountTotalCents: 0, currency: 'usd', customerChargeCents: 0,
+        status: 'approved', proofApproval, fulfillmentState: 'pending', amountTotalCents: 0, currency: 'usd', customerChargeCents: 0,
         shippingAddress: { ...address, zip: address.postalCode }, productTitle: item.productTitle, createdAt: now, updatedAt: now });
       tx.create(db.collection('orderItems').doc(orderId), { ...line, id: orderId, orderId });
       tx.create(db.collection('orderProductionSources').doc(orderId), { ...frozenProduction, orderId });
-      tx.update(ref, { orderId, status: 'approved', approvedAt: now });
+      tx.update(ref, { orderId, status: 'approved', proofApproval, approvedAt: now });
     });
   }
   await fulfillOrder(orderId);

@@ -1,4 +1,5 @@
 import { QrCode } from "lucide-react";
+import { usePrintTextPreview } from './PrintTextColorControl';
 import type { TextStyleConfig } from "@/features/shared/components/TextStyleEditor";
 
 interface TextStyleProp {
@@ -7,6 +8,7 @@ interface TextStyleProp {
   fontFamily?: string;
   fontSize?: string;
   color?: string;
+  colorMode?: import('@shared/printTextColor').PrintTextColorMode;
   verticalOffset?: number;
   horizontalOffset?: number;
 }
@@ -52,6 +54,11 @@ export function ZoneLayout({
   subBottomEnabled = false,
   subBottomText,
 }: ZoneLayoutProps) {
+  const header = usePrintTextPreview(headerStyle, backgroundColor);
+  const footer = usePrintTextPreview(footerStyle, backgroundColor);
+  const error = (headerText && headerStyle?.enabled && header.error) || (footerText && footerStyle?.enabled && footer.error);
+  if (error) return <p role="alert" className="text-sm text-destructive">{error}</p>;
+  backgroundColor = header.background?.hex || backgroundColor;
   const getFont = fontScale === 'mid' ? getMidFont : getMiniFont;
 
   return (
@@ -71,7 +78,7 @@ export function ZoneLayout({
               className="max-w-full"
               style={{
                 position: 'absolute',
-                color: (headerStyle as any)?.color || '#ffffff',
+                color: header.color,
                 fontSize: getFont((headerStyle as any)?.fontSize),
                 fontFamily: (headerStyle as any)?.fontFamily || 'sans-serif',
                 fontWeight: 'bold',
@@ -107,7 +114,7 @@ export function ZoneLayout({
               className="max-w-full"
               style={{
                 position: 'absolute',
-                color: (footerStyle as any)?.color || '#ffffff',
+                color: footer.color,
                 fontSize: getFont((footerStyle as any)?.fontSize),
                 fontFamily: (footerStyle as any)?.fontFamily || 'sans-serif',
                 fontWeight: 'bold',

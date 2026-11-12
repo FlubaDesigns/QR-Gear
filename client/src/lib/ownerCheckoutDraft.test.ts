@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 vi.mock('@tanstack/react-query', () => ({ useQuery: () => ({ data: { sizeUpcharges: { L: 0 }, markupPercent: 0 } }) }));
 vi.mock('@/features/shared/graphics/productGraphicRenderer', () => ({ renderProductGraphic: vi.fn(async () => 'test-artwork') }));
 vi.mock('@shared/builderSnapshot', () => ({ productGraphicOptions: vi.fn(() => ({})) }));
-vi.mock('@/features/shared/components/TextStyleEditor', () => ({ defaultTextStyle: { text: '', enabled: false } }));
+vi.mock('@/features/shared/components/TextStyleEditor', () => ({ defaultPrintTextStyle: { text: '', enabled: false, colorMode: 'auto' } }));
 import { useOwnerWizardState } from '@/features/owner/useOwnerWizardState';
 import { readOwnerCheckoutDraft, clearOwnerCheckoutDraft } from './ownerCheckoutDraft';
 let state: ReturnType<typeof useOwnerWizardState>;
@@ -28,7 +28,7 @@ beforeEach(() => {
   request.mockImplementation(async (url: string) => ({ ok: true, json: async () => {
     if (url.endsWith('/builds')) return { packetId: 'saved-packet', buildToken: 'a'.repeat(64),
       builderSnapshot: { layoutConfig: { selectedPlacements: ['front'] } }, pricing: { customerPrice: 22.33, sizeUpcharges: { L: 0 } } };
-    if (url.endsWith('/preview')) return { mockupUrl: 'https://example.com/mockup.png' };
+    if (url.endsWith('/preview')) return { mockupUrl: 'https://example.com/mockup.png', proofId: 'reviewed-proof', warnings: [] };
     if (url.endsWith('/checkout')) return { url: 'https://checkout.stripe.com/c/pay/cs_test_fixture' };
     return { success: true };
   } }));
@@ -48,6 +48,7 @@ async function prepare(type: 'qr-basic' | 'qr-plus' = 'qr-basic') {
     state.setSimpleStep(type === 'qr-plus' ? 'qr-plus-mockup' : 'qr-basic-mockup');
   });
   await act(async () => { expect(await state.generateRealMockup()).toBe(true); });
+  act(() => state.setProofApproved(true));
 }
 it.each(['qr-basic', 'qr-plus'] as const)('restores the exact %s review after leaving Stripe and can retry with its saved packet', async type => {
   await prepare(type);
@@ -61,9 +62,11 @@ it.each(['qr-basic', 'qr-plus'] as const)('restores the exact %s review after le
   expect(state.realMockupUrl).toBe('https://example.com/mockup.png'); expect(state.runningCost).toBe(22.33);
   expect(state.guidedQueue).toEqual([]); expect(state.checkoutRestored).toBe(true);
   expect(state.isCheckingOut).toBe(false);
+  expect(state.proofApproved).toBe(false);
+  act(() => state.setProofApproved(true));
   await act(async () => { await state.handlePublicCheckout(); });
   expect(request).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({packetId: 'saved-packet'});
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({packetId: 'saved-packet', proofApproval: {approved:true, proofId:'reviewed-proof'}});
 });
 it('invalidates the old preview and saved checkout when the restored design changes', async () => {
   await prepare(); await act(async () => { await state.handlePublicCheckout(); }); unmount(); mount();
@@ -99,4 +102,11 @@ it('sends each owner placement choice with the canonical build input', async () 
  await act(async () => { await state.generateRealMockup(); });
  const call = request.mock.calls.filter(([url]) => url.endsWith('/builds')).at(-1)!;
  expect(JSON.parse(call[1].body).perPlacementConfigs.back.graphicChoice).toBe('qr-only');
+});
+
+it('requires explicit proof approval and clears it after a new preview or edited color',async()=>{
+ await prepare('qr-plus');act(()=>state.setProofApproved(false));request.mockClear();
+ await act(async()=>{await state.handlePublicCheckout();});expect(request).not.toHaveBeenCalled();expect(state.buildError).toContain('approve this proof');
+ act(()=>state.setProofApproved(true));await act(async()=>{await state.generateRealMockup();});expect(state.proofApproved).toBe(false);
+ act(()=>{state.setProofApproved(true);state.setSelectedColor('White');});expect(state.proofApproved).toBe(false);expect(state.realMockupUrl).toBeNull();
 });

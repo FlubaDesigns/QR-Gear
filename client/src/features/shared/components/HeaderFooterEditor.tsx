@@ -37,7 +37,7 @@ export function HeaderFooterEditor({
             <Type className="h-4 w-4 text-blue-400" />
             <span className="text-sm font-medium text-white">Header Text</span>
           </div>
-          <TextStyleEditor
+          <TextStyleEditor printText
             style={headerStyle}
             onChange={onHeaderChange}
             label="Header Text"
@@ -69,7 +69,7 @@ export function HeaderFooterEditor({
             <Type className="h-4 w-4 text-blue-400" />
             <span className="text-sm font-medium text-white">Footer Text</span>
           </div>
-          <TextStyleEditor
+          <TextStyleEditor printText
             style={footerStyle}
             onChange={onFooterChange}
             label="Footer Text"

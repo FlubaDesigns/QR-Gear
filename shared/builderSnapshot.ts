@@ -1,5 +1,6 @@
 import { builderBldLayoutMode, extractBldInstances, validateBldStructure } from './bldCodes';
 import { selectPrintLocationMethod, requireVerifiedPrintLayout } from './placements';
+import { resolveSnapshotPrintText, hasAutomaticPrintText } from './printTextColor';
 
 export interface BuilderSnapshotContext { selectedRole: string | null; selectedStore: Record<string, any> | null; selectedChannel: Record<string, any> | null; selectedCollection: Record<string, any> | null; }
 /** Structural draft uses the same extraction as the server commit. */
@@ -98,7 +99,7 @@ export function requireBuilderSnapshot(value: any): Record<string, any> {
   if (!value?.graphics?.content || !value.qrConfig || !Array.isArray(value.layoutConfig?.selectedPlacements) || !value.metadata) {
     throw new Error('Build snapshot is incomplete. Open the draft and generate the packet again.');
   }
-  const snapshot = sanitizeSnapshot(value);
+  const snapshot = resolveSnapshotPrintText(sanitizeSnapshot(value));
   // Derive structure from the input; never trust a second, supplied BLD draft.
   snapshot.bldDraft = buildBldDraft({ content: snapshot.graphics.content, loadedBackground: snapshot.graphics.loadedBackground });
   const error = validateBldStructure(snapshot.bldDraft);
@@ -156,12 +157,14 @@ export function productGraphicOptions(value: any, qrContent: string, placement?:
     headerStyle: !qrOnly && c.headerStyle?.enabled ? c.headerStyle : null,
     footerStyle: !qrOnly && c.footerStyle?.enabled ? c.footerStyle : null,
     backgroundColor: snapshot.qrConfig.selectedColor?.hex,
+    textColorBackground: snapshot.qrConfig.selectedColor,
     graphicLayoutMode: artwork.qrPositionX != null || artwork.qrPositionY != null ? "freeform" : c.graphicLayoutMode,
     qrPositionX: artwork.qrPositionX ?? c.qrPositionX, qrPositionY: artwork.qrPositionY ?? c.qrPositionY, qrSizePercent: c.qrSizePercent,
     areaImageUrl: qrOnly ? null : c.areaImageUrl, areaImageMode: c.areaImageMode,
     areaImageOffsetX: c.areaImageOffsetX, areaImageOffsetY: c.areaImageOffsetY, areaImageScale: c.areaImageScale,
     subBottomEnabled: !qrOnly && sb.enabled, subBottomText: sb.text, subBottomFontFamily: sb.fontFamily,
     subBottomFontSize: sb.fontSize, subBottomFontWeight: sb.fontWeight, subBottomColor: sb.color,
+    subBottomColorMode: sb.colorMode,
     subBottomLetterSpacing: sb.letterSpacing,
     providerLayout: snapshot.layoutConfig.providerLayouts?.[placement || snapshot.layoutConfig.selectedPlacements[0]] || snapshot.providerLayout,
   };
@@ -174,12 +177,13 @@ export function packetMockupSourceId(packet: Record<string, any>): string {
   return sourceId;
 }
 
-/** A color change changes the shirt variant, never the saved placement artwork. */
+/** Automatic text requires the registered artwork resolved for this garment color. */
 export function buildPacketMockupRequest(packet: Record<string, any>, master: Record<string, any>, placement: string, colorName?: string) {
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   if (!snapshot.layoutConfig.selectedPlacements.includes(placement)) throw new Error('Placement does not belong to this saved build');
   const selectedColor = colorName || snapshot.qrConfig.selectedColor?.name;
   if (!selectedColor) throw new Error('Saved build has no selected color');
+  if (hasAutomaticPrintText(snapshot) && selectedColor !== snapshot.qrConfig.selectedColor?.name) throw new Error('Resolve Automatic text artwork for the selected color before requesting a mockup.');
   const variants = Object.values(master.qrgVariants || {}) as any[];
   const layout = snapshot.layoutConfig.providerLayouts?.[placement];
   const variant = variants.find(v => v.colorLabel === selectedColor && v.providerVariants?.printful?.variantId &&

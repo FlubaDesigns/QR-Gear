@@ -5,6 +5,7 @@ import { sendActivationEmail } from './email';
 import { getSizeUpcharges } from './pricing';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
+import { saleItemProof, recordProofApproval } from './product-proof';
 import { quoteCartBundle } from './product-bundles';
 import { createHash } from 'crypto';
 import Stripe from 'stripe';
@@ -189,10 +190,14 @@ export async function readCartQuote(userId: string, selection?: { bundleId?: str
   return { ...quote, quoteToken };
 }
 
-export async function prepareCartOrder(userId: string, referrerId = '', selection?: { bundleId?: string; selectedItems?: string[] }, expectedQuoteToken?: string) {
+export async function prepareCartOrder(userId: string, referrerId = '', selection?: { bundleId?: string; selectedItems?: string[] }, expectedQuoteToken?: string, approvals?: Record<string, any>) {
   const quote = await readCartQuote(userId, selection);
   if (expectedQuoteToken && quote.quoteToken !== expectedQuoteToken) throw new Error('Your cart or bundle price changed. Return to checkout and review the new total.');
   const { items, amount } = quote;
+  for (const item of items) {
+    item.proofApproval = recordProofApproval(item.packetId, await saleItemProof(item), { id: userId, type: 'customer' }, approvals?.[item.cartItemId]);
+    item.frozenProduction.packet.proofApproval = item.proofApproval;
+  }
   await verifyProviderItems(items);
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Checkout requires a positive order total.');
   const ref = db.collection('orders').doc(), now = new Date().toISOString();
@@ -247,21 +252,28 @@ export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
 }
 
 /** Member sales use the same frozen production contract as catalog sales. */
-export async function prepareMemberOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string) {
-  return prepareProductOrder(packetId, packet, size, referrerId);
+export async function prepareMemberOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, proofApproval?: any) {
+  return prepareProductOrder(packetId, packet, size, referrerId, undefined, proofApproval);
 }
 export async function prepareOwnerOrder(packetId: string, packet: Record<string, any>, ownerId: string) {
+  const { requireApprovedProductProof } = await import('./product-proof');
+  requireApprovedProductProof(packet);
   return prepareProductOrder(packetId, packet, packet.selectedShirtSize, '', ownerId);
 }
-async function prepareProductOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, ownerId?: string) {
+async function prepareProductOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, ownerId?: string, approval?: any) {
   const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: ownerId ? null : packetId, productSize: size, productColor: packet.selectedColor } }, ownerId ? { packetId, ownerId } : undefined);
   await verifyProviderItems([item]);
   const memberCompensation = item.creatorMemberId ? await freezeMemberCompensation(item.unitAmount, item.productCost) : null;
   const ref = db.collection('orders').doc(), now = new Date().toISOString();
+  if (!ownerId) {
+    item.proofApproval = recordProofApproval(item.packetId, await saleItemProof(item), { id: ref.id, type: 'guest' }, approval);
+    item.frozenProduction.packet.proofApproval = item.proofApproval;
+  }
   const batch = db.batch();
   batch.create(ref, { userId: null, source: ownerId ? 'public_wizard' : 'packet_share', sourceChannel: ownerId ? 'owner' : 'member', checkoutVersion: 1,
     packetId, productTitle: item.productTitle, qrType: packet.packetType, selectedSize: size, selectedColor: packet.selectedColor,
     mockupUrl: packet.mockupUrl || packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost, memberCompensation,
+    proofApproval: item.proofApproval,
     status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
     amountTotalCents: item.unitAmount, currency: 'usd', totalAmount: (item.unitAmount / 100).toFixed(2),
     referrerId, routedProvider: item.fulfillment.provider, createdAt: now, updatedAt: now });

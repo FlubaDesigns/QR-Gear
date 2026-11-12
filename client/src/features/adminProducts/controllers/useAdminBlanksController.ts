@@ -1,3 +1,4 @@
+import type { PrintTextColorOverride } from '@shared/printTextColor';
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -169,6 +170,13 @@ export function useAdminBlanksController({ targetCatalogId }: { targetCatalogId?
   const saveColorsMutation = useMutation({ mutationFn: ({ id, colors }: { id: string; colors: Array<{name: string; hex: string}> }) => save('blank-colors', id, { colors }), onSuccess: refresh, onError: mutationError });
   const saveImagesMutation = useMutation({ mutationFn: ({ id, images, restore = false }: { id: string; images: string[]; restore?: boolean }) => save('blank-images', id, { images, restore }), onSuccess: refresh, onError: mutationError });
   const saveTierMutation = useMutation({ mutationFn: ({ id, tier }: { id: string; tier: string | null }) => save('blank-tier', id, { tier }), onSuccess: refresh, onError: mutationError });
+  const saveTextColorMutation = useMutation({
+    mutationFn: async ({ id, colorName, mode }: { id: string; colorName: string; mode: PrintTextColorOverride }) => {
+      const res = await apiRequest('PATCH', `/api/admin/master-catalog/products/${id}`, { printTextColorOverride: { colorName, mode } }); return res.json();
+    },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['/api/master-catalog'] }); },
+    onError: mutationError,
+  });
   const onAddToCatalog = (id: string) => {
     if (!validSelectedCatalogId) { toast({ title: 'Select a catalog first', variant: 'destructive' }); return; }
     if (!isValidMasterCatalogDocId(id)) { toast({ title: 'Choose a classified QRG blank', variant: 'destructive' }); return; }
@@ -186,6 +194,8 @@ export function useAdminBlanksController({ targetCatalogId }: { targetCatalogId?
     onAddToCatalog, resolveBlankKey: (id: string, p?: CatalogProduct) => p?.docId || id,
     onSaveDescription: async (id: string, description: string, canonicalKey?: string, restore = false) => { await saveDescriptionMutation.mutateAsync({ id: canonicalKey || id, description, restore }); },
     onSaveTitle: async (id: string, title: string, canonicalKey?: string) => { await saveTitleMutation.mutateAsync({ id: canonicalKey || id, title }); },
+    textColorSaving: saveTextColorMutation.isPending,
+    onTextColorSave: async (id: string, colorName: string, mode: PrintTextColorOverride) => { await saveTextColorMutation.mutateAsync({ id, colorName, mode }); },
     onSaveColors: async (id: string, colors: Array<{name: string; hex: string}>, canonicalKey?: string) => { await saveColorsMutation.mutateAsync({ id: canonicalKey || id, colors }); },
     onImagesBulkSave: async (id: string, images: string[]) => { await saveImagesMutation.mutateAsync({ id, images }); },
     onImageRestore: async (id: string) => { await saveImagesMutation.mutateAsync({ id, images: [], restore: true }); },

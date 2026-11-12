@@ -1,9 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest';
-const m = vi.hoisted(() => ({ preview: vi.fn(), fetch: vi.fn() }));
-vi.mock('@/lib/memberBuild', () => ({ previewMemberBuild: m.preview, publishMemberBuild: vi.fn() }));
+const m = vi.hoisted(() => ({ preview: vi.fn(), publish: vi.fn(), fetch: vi.fn() }));
+vi.mock('@/lib/memberBuild', () => ({ previewMemberBuild: m.preview, publishMemberBuild: m.publish }));
 vi.mock('@/lib/firebase', () => ({ auth: { currentUser: null } }));
 vi.mock('@/lib/memberFetch', () => ({ memberFetch: m.fetch }));
-import { executeGenerateProductMockup } from '@/features/members/wizard-context-actions';
+import { executeGenerateProductMockup, executeSimplePublish } from '@/features/members/wizard-context-actions';
 import { executeSimpleNext } from '@/features/members/wizard-context-navigation';
 afterEach(() => { vi.clearAllMocks(); vi.unstubAllGlobals(); });
 it('passes hosted artwork and placement inputs through the canonical preview and never substitutes a QR for failed mockups', async () => {
@@ -26,4 +26,13 @@ it('does not advance a restored Compose draft with an unsupported configured hos
  const ctx: any = { user: {id:'owner'}, simpleStep:'compose-hosting', composeHostingTerm:'2-year', pricingSettings:{hostingTiers:[{code:'2_year'},{code:'3_year'}]}, setSimpleStep:vi.fn(), setIsGeneratingComposeMockup:vi.fn(), generateProductMockupForType:vi.fn(async()=>true) };
  await executeSimpleNext(ctx); expect(ctx.generateProductMockupForType).not.toHaveBeenCalled(); expect(ctx.setSimpleStep).not.toHaveBeenCalled();
  ctx.composeHostingTerm='3-year'; await executeSimpleNext(ctx); expect(ctx.generateProductMockupForType).toHaveBeenCalledTimes(1); expect(ctx.setSimpleStep).toHaveBeenCalledWith('compose-mockup');
+});
+
+it.each(['qr-basic','qr-plus','qr-canvas','qr-play','qr-compose'])('shared member publication requires consent for %s', async qrType => {
+ const ctx:any={user:{id:'member'},qrType,selectedChannel:{id:'channel'},selectedProductType:{canonicalBlankKey:'qrg_11111',fulfillmentProvider:'printful'},selectedColor:'Black',selectedShirtSize:'M',selectedPlacements:['front'],perPlacementConfigs:{},perPlacementSizes:{},headerStyle:{text:'Example',enabled:true,colorMode:'auto'},footerStyle:{enabled:false},api:{invalidateMembers:vi.fn()}};
+ for(const name of ['setIsPublishing','setPublishedBuild','setPublishedPacketId','setCurrentPacketId','incrementPublishCount','setSimpleStep','setComposeInstanceId','setPublishedQrGraphicUrl','setPublishedProductGraphicUrl','toast'])ctx[name]=vi.fn();
+ const proof={proofId:'exact-proof',mockupUrl:'https://example.test/proof.png'};m.preview.mockResolvedValue(proof);m.publish.mockResolvedValue({id:'published'});
+ ctx.requestProofApproval=vi.fn(async()=>null);expect(await executeSimplePublish(ctx)).toBe(false);expect(m.publish).not.toHaveBeenCalled();
+ ctx.requestProofApproval.mockResolvedValue({approved:true,proofId:proof.proofId});expect(await executeSimplePublish(ctx)).toBe(true);
+ expect(ctx.requestProofApproval).toHaveBeenLastCalledWith(proof);expect(m.publish).toHaveBeenCalledWith('member',expect.objectContaining({headerStyle:ctx.headerStyle}),{approved:true,proofId:'exact-proof'});
 });

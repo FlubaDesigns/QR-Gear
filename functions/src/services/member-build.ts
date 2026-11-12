@@ -16,6 +16,7 @@ import { writeBldDefinition, writeAutoAssembly } from './bld-builder';
 import { allocateQrgInstance } from './qrg-instance-allocator';
 import { validatePacketComposition } from './assembly-store';
 import { resolveRuntimeConfig } from '../runtime-config';
+import { saveProductProof, requireApprovedProductProof, renderProductProof } from './product-proof';
 
 function fail(message: string, status = 400): never { throw Object.assign(new Error(message), { status }); }
 const modes: Record<string, string> = { 'qr-basic': 'qr_basics', 'qr-plus': 'qr_plus', 'qr-canvas': 'qr_canvas', 'qr-play': 'qr_play', 'qr-compose': 'qr_compose' };
@@ -141,7 +142,7 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
   }));
   const rawSnapshot = requireBuilderSnapshot({ title, description: String(input.description || ''),
     graphics: { loadedBackground: input.background ? { url: input.background } : null, content: {
-      headerStyle: input.headerStyle, footerStyle: input.footerStyle, areaImageUrl: input.areaImageUrl || '',
+      headerStyle: input.headerStyle, footerStyle: input.footerStyle, subBottomStyle: input.subBottomStyle, areaImageUrl: input.areaImageUrl || '',
       areaImageOffsetX: input.areaImageOffsetX ?? 50, areaImageOffsetY: input.areaImageOffsetY ?? 50, areaImageScale: input.areaImageScale ?? 100,
       graphicLayoutMode: input.graphicLayoutMode || 'zone', qrPositionX: input.qrPositionX ?? 50,
       qrPositionY: input.qrPositionY ?? 50, qrSizePercent: input.qrSizePercent ?? 75,
@@ -199,7 +200,7 @@ export async function saveMemberArtwork(memberId: string, id: string, placement:
   const dims = snapshot.layoutConfig.providerLayouts[placement]?.dimensions;
   if (bytes.length < 24 || bytes.readUInt32BE(16) !== dims?.widthPx || bytes.readUInt32BE(20) !== dims?.heightPx) fail('Rendered artwork dimensions do not match the saved QRG print area.');
   const asset = await registerGrfAsset({ ...image, ...GRF_PACKET_SLOTS.qrComposite, packetId: id, createdBy: memberId });
-  await ref.update({ [`placementGraphicUrls.${placement}`]: asset.publicUrl, updatedAt: new Date().toISOString() });
+  await ref.update({ [`placementGraphicUrls.${placement}`]: asset.publicUrl, reviewProof: null, proofApproval: null, updatedAt: new Date().toISOString() });
   return { publicUrl: asset.publicUrl };
 }
 
@@ -211,8 +212,8 @@ export async function previewMemberBuild(memberId: string, id: string, ownerType
   const master = (await db.collection('master_catalog').doc(packet.sourceMasterId).get()).data()!;
   const mapping = master.qrgVariants?.[packet.selectedVariantKey]?.providerVariants?.printful;
   if (packet.fulfillmentProvider !== 'printful' || !mapping) fail('This saved build needs its QRG Printful mockup mapping.');
-  const result = await generateMockupFromPrintful({ ...buildPacketMockupRequest(packet, master, primary), printfulVariantId: Number(mapping.variantId) });
-  return { ...result, productGraphic: packet.placementGraphicUrls[primary] };
+  const result = await renderProductProof(packet, master, Number(mapping.variantId));
+  return { ...result, ...await saveProductProof(id, packet, result), productGraphic: packet.placementGraphicUrls[primary] };
 }
 
 export async function commitMemberBuild(memberId: string, id: string) {
@@ -221,6 +222,7 @@ export async function commitMemberBuild(memberId: string, id: string) {
   let packet = owned.packet;
   if (packet.status === 'published') return { id: packet.memberPacketId, ...await memberBuildProjection(packet.memberPacketId) };
   if (packet.status !== 'building') fail('This build is not ready to publish.');
+  requireApprovedProductProof(packet);
   let snapshot = requireBuilderSnapshot(packet.builderSnapshot);
   for (const placement of snapshot.layoutConfig.selectedPlacements) if (!packet.placementGraphicUrls?.[placement]) fail(`Generate the ${placement} artwork before publishing.`);
   const selectedFiles = await publishMemberFileUrls(memberId, id, { builderSnapshot: snapshot, playMediaUrl: packet.playMediaUrl });

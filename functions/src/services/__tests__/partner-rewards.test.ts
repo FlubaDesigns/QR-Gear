@@ -9,7 +9,7 @@ vi.mock('../partner-api',()=>({partnerStoreId:async(_db:any,p:any)=>p.storeId,pu
 vi.mock('../store-products',()=>({readStoreProducts:async(_db:any,id:string)=>m.catalogs[id]}));
 vi.mock('../member-build',()=>({preparePartnerBuild:(...args:any[])=>m.build(...args),saveMemberArtwork:async(_owner:string,id:string,place:string)=>{m.rows['productPackets/'+id].placementGraphicUrls={[place]:'https://qrgear.test/graphic.png'};},commitOwnerBuild:(...args:any[])=>m.commit(...args)}));
 vi.mock('../product-graphic-renderer',()=>({renderSavedProductGraphic:(...args:any[])=>m.render(...args)}));
-vi.mock('../reward-graphic-input',()=>({rewardGraphicInput:()=>({})}));
+vi.mock('../reward-graphic-input',()=>({rewardGraphicInput:()=>({headerStyle:{enabled:true,text:'customer.example',colorMode:'auto'}})}));
 vi.mock('../grf-registrar',()=>({registerGrfAsset:async()=>({publicUrl:'https://qrgear.test/logo.png'})}));
 vi.mock('../../runtime-config',()=>({resolveRuntimeConfig:()=>({origin:'https://qrgear.test'})}));
 vi.mock('../order-fulfillment',()=>({resolveSaleItem:async()=>({productTitle:'Catalog shirt',frozenProduction:{sourceHash:'saved-artwork'},fulfillment:{provider:'printful'},quantity:1}),verifyProviderItems:async()=>{},syncFulfillment:async()=>{},fulfillOrder:async(id:string)=>{const order=m.rows['orders/'+id];if(order.fulfillmentState!=='submitted'){m.providerOrders++;order.fulfillmentState='submitted';}}}));
@@ -24,7 +24,7 @@ beforeEach(()=>{
  vi.clearAllMocks();m.rows={'storeChannels/rewards':{storeId:'fluba-store',isActive:true},'partnerStores/fluba':partner};m.providerOrders=0;
  const product={id:'qrg_11111',canonicalBlankKey:'qrg_11111',title:'Live catalog title',description:'',availableColors:[{name:'Black'}],availableVariants:[{color:'Black',size:'M'}],fulfillmentProvider:'printful',placements:[{id:'front',dimensions:{widthPx:3600,heightPx:4800},dpi:300}]};
  m.catalogs={'fluba-store':{configured:true,catalogId:'fluba-auto',products:[product]},'other-store':{configured:true,catalogId:'other',products:[]}};
- m.build.mockImplementation(async(_owner:any,recipe:any,scope:any)=>{const packet={builderSnapshot:{layoutConfig:{selectedPlacements:['front'],perPlacementConfigs:recipe.perPlacementConfigs}},qrContent:input.websiteUrl,status:'building'};m.rows['productPackets/'+scope.packetId]??=packet;return m.rows['productPackets/'+scope.packetId];});
+ m.build.mockImplementation(async(owner:any,recipe:any,scope:any)=>{const packet={ownerId:owner,ownerType:'owner',selectedColor:recipe.selectedColor,selectedShirtSize:recipe.selectedShirtSize,builderSnapshot:{graphics:{content:{headerStyle:recipe.headerStyle}},qrConfig:{selectedColor:{name:recipe.selectedColor,hex:'#000000'}},layoutConfig:{selectedPlacements:['front'],perPlacementConfigs:recipe.perPlacementConfigs}},qrContent:input.websiteUrl,status:'building'};m.rows['productPackets/'+scope.packetId]??=packet;return m.rows['productPackets/'+scope.packetId];});
  m.render.mockResolvedValue('rendered-png');
  m.commit.mockImplementation(async(_owner:any,id:string)=>{Object.assign(m.rows['productPackets/'+id],{status:'ready',mockupUrl:'https://qrgear.test/exact-variant.png',compositeUrl:'https://qrgear.test/graphic.png'});return m.rows['productPackets/'+id];});
 });
@@ -48,11 +48,14 @@ it('records explicit failure and resumes the same packet after interrupted gener
 it('blocks unavailable variants, stale approval and unapproved sponsor funding; reuses one production order',async()=>{
  await expect(partnerRewardPreview(partner,{...input,color:'Unavailable'})).rejects.toThrow('unavailable');expect(m.build).not.toHaveBeenCalled();
  const preview=await partnerRewardPreview(partner,input);
- const approval={claimId:input.claimId,customerRef:input.customerRef,previewId:preview.previewId,shipping:address,authorization:{websiteOrderId:'website-paid-order',verifiedAt:'2026-11-12T00:00:00Z'}};
+ const approval={claimId:input.claimId,customerRef:input.customerRef,previewId:preview.previewId,proofApproval:{approved:true,proofId:preview.proofId},shipping:address,authorization:{websiteOrderId:'website-paid-order',verifiedAt:'2026-11-12T00:00:00Z'}};
  await expect(approvePartnerReward({...partner,sponsoredRewards:false},approval)).rejects.toMatchObject({status:403});
  await expect(approvePartnerReward(partner,{...approval,previewId:'stale'})).rejects.toThrow('current personalized preview');
+ await expect(approvePartnerReward(partner,{...approval,proofApproval:{approved:false,proofId:preview.proofId}})).rejects.toThrow('approve this proof');
+ expect(m.providerOrders).toBe(0);
  const first=await approvePartnerReward(partner,approval),again=await approvePartnerReward(partner,approval);expect(again.orderId).toBe(first.orderId);expect(first.orderId!.length).toBeLessThanOrEqual(32);expect(m.providerOrders).toBe(1);
  const order=m.rows['orders/'+first.orderId];expect(order.paymentStatus).toBe('sponsored');expect(order.stripePaymentIntentId).toBeUndefined();expect(order.customerChargeCents).toBe(0);
+ expect(order.proofApproval).toMatchObject({approved:true,proofId:preview.proofId,method:'proof_checkbox'});
  await expect(assertProductionPayment(order)).resolves.toBeUndefined();expect(m.stripe).not.toHaveBeenCalled();
  m.rows['partnerStores/fluba']={...partner,sponsoredRewards:false};await expect(assertProductionPayment(order)).rejects.toThrow('no longer authorized');
  await expect(partnerRewardPreview(partner,{...input,graphicChoice:'qr-only'})).rejects.toThrow('already been approved');

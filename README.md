@@ -1,5 +1,16 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Automatic print text and mandatory proof approval — November 12, 2026
+
+New physical text defaults to Automatic. `shared/printTextColor.ts` chooses black or white using linear sRGB contrast and owns low-contrast warnings. Each text block can use Light, Dark or a Custom color. Legacy fixed colors and lettering inside uploaded images are preserved. QR modules stay black on a white surface. Exact fabric exceptions live only in `master_catalog.printTextColorOverrides`; catalogs and partner options project that authority.
+
+Builder snapshots retain the chosen mode and resolved color; BLD stays structural and Assembly contains resolved static values. Catalog color changes resolve registered GRF artwork and a matching static Assembly through `packet-color-artwork.ts`; storefront preview and checkout share that path. Personalized reviewed builds and funded order snapshots retain their existing print files. Unknown fabric colors require an explicit choice or Admin exception.
+
+`product-proof.ts` owns proof fingerprints, warnings and approval records for member publication, owner checkout, catalog checkout, member-share purchases and partner rewards. Review covers all non-label print placements. A required checkbox sends explicit approval for the current proof; the server rejects missing/false/stale approvals and cross-account builder approvals. The saved `proofApproval` includes the flag, time, actor/account or guest checkout reference, exact proof ID, selected color/size, mockup URLs and warnings, and follows the frozen order. Changed design files, QR content, color or size require approval again. Fluba and BlastyBiz consume QR Gear results and forward the proof ID; they do not calculate contrast.
+
+Implementation and release evidence: [QR Gear #30](https://github.com/FlubaDesigns/QR-Gear/issues/30). Automated checks cover contrast crossover, real PNG pixels and QR decoding, legacy persistence, exact blank exceptions, alternate-artwork caching/Assembly links, proof authorization and checkout freezing. Deployment and actual-site acceptance are recorded separately in the issue and existing Authorization Engine workflows.
+
+
 ## Reward cap size selection — November 12, 2026
 
 Member, owner and partner product options now derive their size list directly from the canonical resolved variants. This preserves `One size`/`ONE SIZE` and apparel aliases such as `XXL`/`2XL` across catalog display and saved builds, while retaining stock and catalog restrictions. The Fluba reward acceptance run verifies the existing personalized cap preview path after release; no separate cap builder or size authority is introduced.

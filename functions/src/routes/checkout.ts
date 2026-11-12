@@ -9,8 +9,20 @@ import { sendActivationEmail } from '../services/email';
 import { MEMBER_PACKETS_COLLECTION } from '../constants';
 import Stripe from 'stripe';
 import { retrieveOwnedConnectAccount } from '../services/connect-accounts';
+import { saleItemProof } from '../services/product-proof';
+import { resolveSaleItem } from '../services/order-fulfillment';
 
   export function register(app: express.Express): void {
+
+app.post('/public/packet-proof', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { packetId, selectedShirtSize } = req.body;
+    if (typeof packetId !== 'string' || !packetId || packetId.includes('/')) throw new Error('Choose a saved product.');
+    const packet = await memberBuildProjection(packetId);
+    const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: packetId, productColor: packet.selectedColor, productSize: selectedShirtSize } });
+    res.json(await saleItemProof(item));
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
+});
 
 app.post('/public/packet-checkout', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -32,7 +44,7 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     }
 
     const size = selectedShirtSize || packet.selectedShirtSize || 'M';
-    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId);
+    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId, req.body.proofApproval);
     const serverTotal = prepared.amount / 100;
 
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));

@@ -1,3 +1,4 @@
+import { PrintTextColorControl } from '../PrintTextColorControl';
 import { resolveColorHex } from '@shared/colorUtils';
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -219,12 +220,13 @@ export function HeaderTextEditStep({
             )}
           </div>
 
+          <PrintTextColorControl style={headerStyle} onChange={updateHeader} id="header" />
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-slate-500">Color:</span>
             {SHIRT_TEXT_COLORS.map((color) => (
               <button
                 key={color}
-                onClick={() => updateHeader({ color })}
+                onClick={() => updateHeader({ color, colorMode: 'custom' })}
                 className={`w-5 h-5 rounded-full border-2 transition-all ${
                   headerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
                 }`}
@@ -495,12 +497,13 @@ export function FooterTextEditStep({
             )}
           </div>
 
+          <PrintTextColorControl style={footerStyle} onChange={updateFooter} id="footer" />
           <div className="flex flex-wrap items-center gap-1">
             <span className="text-xs text-slate-500">Color:</span>
             {SHIRT_TEXT_COLORS.map((color) => (
               <button
                 key={color}
-                onClick={() => updateFooter({ color })}
+                onClick={() => updateFooter({ color, colorMode: 'custom' })}
                 className={`w-5 h-5 rounded-full border-2 transition-all ${
                   footerStyle.color === color ? 'border-white scale-110' : 'border-slate-600'
                 }`}

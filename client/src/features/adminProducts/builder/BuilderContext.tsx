@@ -1,3 +1,4 @@
+import { PrintTextBackgroundContext } from '@/features/shared/components/PrintTextColorControl';
 import { applyAiProductProposal, type AiProductProposal } from '@shared/aiProductBuilder';
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchBuildCatalog, resolveBuildProduct } from './restoreProduct';
@@ -71,8 +72,8 @@ const initialContent: ContentData = {
   overlayPosition: "top",
   overlayColor: "#FFFFFF",
   overlayFontFamily: "Arial",
-  headerStyle: { ...defaultTextStyle, verticalOffset: 80, horizontalOffset: 50, color: '#000000' },
-  footerStyle: { ...defaultTextStyle, verticalOffset: 80, horizontalOffset: 50, color: '#000000' },
+  headerStyle: { ...defaultTextStyle, colorMode: 'auto', verticalOffset: 80, horizontalOffset: 50, color: '#000000' },
+  footerStyle: { ...defaultTextStyle, colorMode: 'auto', verticalOffset: 80, horizontalOffset: 50, color: '#000000' },
   titleStyle: { ...defaultTextStyle, text: "", verticalOffset: 84, horizontalOffset: 8 },
   descriptionStyle: { ...defaultTextStyle, text: "", verticalOffset: 72, horizontalOffset: 10 },
   landingTextBlocks: [],
@@ -91,7 +92,7 @@ const initialContent: ContentData = {
   areaImageOffsetX: 50,
   areaImageOffsetY: 50,
   areaImageScale: 100,
-  subBottomStyle: { ...defaultTextStyle, enabled: false, text: '', fontFamily: 'Arial', fontWeight: '400', fontSize: '14', color: '#666666', mode: 'text' as const },
+  subBottomStyle: { ...defaultTextStyle, colorMode: 'auto', enabled: false, text: '', fontFamily: 'Arial', fontWeight: '400', fontSize: '14', color: '#666666', mode: 'text' as const },
   graphicLayoutMode: "" as "" | "zone" | "freeform",
   qrBasicInputType: 'text' as 'text' | 'url',
   composeItems: [],
@@ -1103,12 +1104,12 @@ export function BuilderProvider({ children }: BuilderProviderProps) {
   }), [state, qrTypePreferenceSaving, qrTypePreferenceError, retryQRTypePreference, busy, beginBuildActivity, applyAiProposal, saveDraft, resumeSession, startFromTemplate, autoSaveFailed, autoSaveError, selectedProviders, selectedRole, selectedStore, selectedChannel, selectedCollection, setSourceType, loadTemplate, loadGraphic, loadBackground, setFulfillmentProvider, setCategory, setSelectedCatalogId, setOriginFilter, setGenderFilter, selectProduct, setQRProductState, setContent, togglePlacement, setPlacementType, setPlacementSize, setPlacementMethod, setSelectedColor, refreshPlacements, setActivePacketId, setActiveSession, setProductDescription, setProductTitle, resetBuilder, saveWorking, loadFromPacketData, loadFromWorkingState, api]);
 
   return (
-    <BuilderContext.Provider value={value}>
+    <BuilderContext.Provider value={value}><PrintTextBackgroundContext.Provider value={state.selectedColor}>
       {children}
       {busy && <div role="status" aria-live="polite" className="fixed inset-0 z-[1000] flex items-center justify-center bg-background/60" data-testid="builder-busy">
         <div className="rounded-md border bg-background p-4 shadow-lg">{busy}</div>
       </div>}
-    </BuilderContext.Provider>
+    </PrintTextBackgroundContext.Provider></BuilderContext.Provider>
   );
 }
 

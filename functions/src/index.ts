@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261112-cap-preview-size';
+const _BUILD_ID = '20261112-auto-text-proof-46c7';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

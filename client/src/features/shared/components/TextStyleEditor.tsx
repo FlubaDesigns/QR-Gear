@@ -9,6 +9,8 @@ import { FontPicker } from "@/components/ui/font-picker";
 import { ChevronDown, ChevronRight, Type, ImageIcon, Upload, X, FolderOpen, Save, Mic, MicOff } from "lucide-react";
 import { TextStyleViewer } from "./TextStyleViewer";
 import { useFonts, loadGoogleFonts } from "@/hooks/use-fonts";
+import type { PrintTextColorMode } from '@shared/printTextColor';
+import { PrintTextColorControl } from './PrintTextColorControl';
 
 export interface TextStyleConfig {
   text: string;
@@ -17,6 +19,7 @@ export interface TextStyleConfig {
   fontSize: string;
   fontWeight?: string;
   color: string;
+  colorMode?: PrintTextColorMode;
   warpPreset: string;
   letterSpacing: number;
   strokeColor: string;
@@ -57,6 +60,8 @@ export const defaultTextStyle: TextStyleConfig = {
   imageUrl: "",
   imageScale: 100,
 };
+
+export const defaultPrintTextStyle: TextStyleConfig = { ...defaultTextStyle, colorMode: 'auto' };
 
 const PRESET_COLORS = [
   '#ffffff', '#f0f0eb', '#d4d4d4', '#888888', '#444444', '#000000', '#dc2626', '#ea580c',
@@ -168,6 +173,7 @@ function ColorPickerRow({ value, onChange, testIdPrefix, label = "Color" }: Colo
 }
 
 interface TextStyleEditorProps {
+  printText?: boolean;
   label: string;
   sublabel?: string;
   maxLength: number;
@@ -186,6 +192,7 @@ interface TextStyleEditorProps {
 }
 
 export function TextStyleEditor({ 
+  printText = false,
   label, 
   sublabel,
   maxLength, 
@@ -462,9 +469,10 @@ export function TextStyleEditor({
                 </span>
               </div>
 
+              {printText && <PrintTextColorControl style={style} onChange={onChange} id={testIdPrefix} />}
               <ColorPickerRow
                 value={style.color}
-                onChange={(c) => onChange({ color: c })}
+                onChange={(c) => onChange({ color: c, ...(printText ? { colorMode: 'custom' as const } : {}) })}
                 testIdPrefix={testIdPrefix}
               />
 
@@ -839,9 +847,10 @@ export function TextStyleEditor({
                   {style.text.length} / {maxLength}
                 </span>
               </div>
+              {printText && <PrintTextColorControl style={style} onChange={onChange} id={testIdPrefix} />}
               <ColorPickerRow
                 value={style.color}
-                onChange={(c) => onChange({ color: c })}
+                onChange={(c) => onChange({ color: c, ...(printText ? { colorMode: 'custom' as const } : {}) })}
                 testIdPrefix={testIdPrefix}
               />
               <div
