@@ -37,7 +37,8 @@ describe('builder snapshot handoffs', () => {
     expect(s.bldDraft).toMatchObject({ context: 'S', layoutMode: 'P' });
   });
   it('uses identical geometry for packet persistence and rendering', () => {
-    const s = fixture(), packet = packetBuildFields(s), render = productGraphicOptions(s, 'https://example.test/destination');
+    const s = fixture(); s.layoutConfig.placementConfig.back = 'graphic';
+    const packet = packetBuildFields(s), render = productGraphicOptions(s, 'https://example.test/destination');
     for (const key of ['graphicLayoutMode', 'qrSizePercent', 'qrPositionX', 'qrPositionY', 'areaImageOffsetX', 'areaImageOffsetY', 'areaImageScale', 'headerStyle', 'providerLayout']) expect(render[key]).toEqual(packet[key]);
     expect(render.placement).toBe('back'); expect(packet.placements).toEqual(['back']);
     expect(packet.builderSnapshot.graphics.content.headerStyle.text).toBe('Exact words');

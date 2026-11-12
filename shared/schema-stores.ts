@@ -17,6 +17,7 @@ export const insertPartnerStoreSchema = z.object({
     "isInternal": z.boolean().nullable().optional(),
     "annualMemberPerk": z.union([z.union([z.string(), z.number(), z.boolean(), z.null()]), z.record(z.string(), z.any()), z.array(z.any())]).nullable().optional(),
     "isActive": z.boolean().nullable().optional(),
+    "sponsoredRewards": z.boolean().optional(),
 });
 export const insertPartnerStoreProductSchema = z.object({
     "partnerStoreId": z.string(),
@@ -176,6 +177,7 @@ export const insertRepricingHistorySchema = z.object({
 });
 export type PartnerStore = {
     id: string;
+    sponsoredRewards?: boolean;
     storeId?: string | null;
     name: string;
     createdAt: Date;

@@ -148,7 +148,7 @@ export function productGraphicOptions(value: any, qrContent: string, placement?:
   const c = snapshot.graphics.content, sb = c.subBottomStyle || {};
   const selected = placement || snapshot.layoutConfig.selectedPlacements[0];
   const artwork = snapshot.layoutConfig.perPlacementConfigs?.[selected] || {};
-  const qrOnly = artwork.graphicChoice === 'qr-only';
+  const qrOnly = artwork.graphicChoice ? artwork.graphicChoice === 'qr-only' : snapshot.layoutConfig.placementConfig?.[selected] === 'qr';
   return {
     qrContent, qrColor: 'black', transparent: true,
     placement: placement || snapshot.layoutConfig.selectedPlacements[0],

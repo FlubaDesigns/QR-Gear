@@ -1,4 +1,4 @@
-import { assertProductionPayment } from './payment-state';
+import { assertProductionPayment, productionFundingDate } from './payment-state';
 import { randomUUID } from 'crypto';
 import { db } from '../core';
 import { printfulClient, PrintfulApiError, type PrintfulOrder, type PrintfulOrderFile } from './printful';
@@ -101,7 +101,7 @@ export async function fulfillOrder(orderId: string) {
   const ref = db.collection('orders').doc(orderId), token = randomUUID();
   const order = await db.runTransaction(async tx => {
     const value = (await tx.get(ref)).data();
-    if (!value || value.checkoutVersion !== 1 || value.paymentStatus !== 'paid' || !value.paymentVerifiedAt) throw new Error('Order must have a verified payment and frozen checkout items.');
+    if (!value || value.checkoutVersion !== 1 || !productionFundingDate(value)) throw new Error('Order must have verified payment or approved sponsor funding and frozen checkout items.');
     if (value.fulfillmentState === 'submitted') return null;
     if (value.productionHold || value.status === 'cancelled' || value.status === 'refunded') throw new Error('Cancelled/refunded orders cannot enter production.');
     if (value.fulfillmentLeaseUntil > Date.now()) throw new Error('Fulfillment is already in progress. Retry shortly.');
@@ -127,7 +127,7 @@ export async function fulfillOrder(orderId: string) {
       const individualItems = await prepareDynamicsOrderItems(orderId, order.userId, async () => {
         await db.runTransaction(async tx => {
           const current = (await tx.get(ref)).data();
-          if (current?.paymentStatus !== 'paid' || current?.productionHold) throw new Error('Payment changed during production preparation.');
+          if (!productionFundingDate(current)) throw new Error('Funding changed during production preparation.');
           if (current?.fulfillmentLease !== token) throw new Error('Fulfillment lease changed; retry this order.');
           tx.update(ref, { fulfillmentLeaseUntil: Date.now() + 120000 });
         });

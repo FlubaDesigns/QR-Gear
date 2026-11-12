@@ -173,6 +173,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
 
       const activeDocs = rawSessions.docs
         .filter((d: any) => ['working', 'artifact_ready'].includes(d.data().status))
+        .filter((d: any) => (d.data().catalogId || d.data().working?.metadata?.selectedCatalogId || 'all') === (catalogId || 'all'))
         .sort((a: any, b: any) => {
           const aTime = a.data().updatedAt?.toMillis?.() || 0;
           const bTime = b.data().updatedAt?.toMillis?.() || 0;
@@ -196,6 +197,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
           session: {
             id: doc.id,
             ...d,
+            working: { ...d.working, metadata: { ...d.working?.metadata, selectedCatalogId: catalogId || 'all' } },
             blankKey: d.blankKey || bodyBlankKey || null,
             catalogId: d.catalogId || catalogId || null,
             createdAt: d.createdAt?.toDate?.() || null,
@@ -253,6 +255,7 @@ export function registerAdminBuildSessions(app: express.Express): void {
           // away before the 1.5-second debounce elapses or before flush-on-unmount
           // captures auth headers).
           metadata: {
+            selectedCatalogId: catalogId || 'all',
             selectedProductDocId: masterDoc.id,
             selectedProductBlueprintId: (master as any).printifyBlueprintId ?? (master as any).blueprintId ?? null,
             fulfillmentProvider: (master as any).fulfillmentProvider ?? (

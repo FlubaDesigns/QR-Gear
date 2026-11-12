@@ -31,6 +31,7 @@ interface StoreFormData {
   commissionPercent: string;
   availableSegments: string;
   isInternal: boolean;
+  sponsoredRewards: boolean;
   isActive: boolean;
 }
 
@@ -48,6 +49,7 @@ const defaultFormData: StoreFormData = {
   commissionPercent: "0",
   availableSegments: "",
   isInternal: false,
+  sponsoredRewards: false,
   isActive: true,
 };
 
@@ -158,6 +160,7 @@ export default function AdminPartners() {
         commissionPercent: store.commissionPercent || "0",
         availableSegments: (store.availableSegments || []).join(", "),
         isInternal: store.isInternal || false,
+        sponsoredRewards: store.sponsoredRewards === true,
         isActive: store.isActive ?? true,
       });
     } else {
@@ -188,6 +191,7 @@ export default function AdminPartners() {
       accentColor: formData.accentColor || null,
       commissionPercent: formData.commissionPercent || "0",
       isInternal: formData.isInternal,
+      sponsoredRewards: formData.sponsoredRewards,
       isActive: formData.isActive,
     };
 
@@ -562,6 +566,11 @@ export default function AdminPartners() {
                   data-testid="switch-internal"
                 />
                 <Label htmlFor="isInternal">Internal Store (ours, not a partner)</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Switch id="sponsoredRewards" checked={formData.sponsoredRewards} disabled={!formData.storeId}
+                  onCheckedChange={checked => setFormData({ ...formData, sponsoredRewards: checked })} />
+                <Label htmlFor="sponsoredRewards">Partner funds approved rewards (no customer charge)</Label>
               </div>
               <div className="flex items-center gap-3">
                 <Switch
