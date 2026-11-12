@@ -31,6 +31,7 @@ const PRINTFUL_TO_INTERNAL: Record<string, InternalPlacement> = {
   'front': 'front',
   'front_large': 'front',
   'front_dtf': 'front',
+  'front_dtf_hat': 'front',
   'back': 'back',
   'back_dtf': 'back',
   'sleeve_left': 'left_sleeve',
@@ -85,6 +86,7 @@ export function toProviderPlacement(
   printMethod?: PrintMethod
 ): string {
   if (provider === 'printful' && printMethod === 'dtf') {
+    if (internal === 'front' && availablePlacements?.includes('front_dtf_hat')) return 'front_dtf_hat';
     const dtfMapped = INTERNAL_TO_PRINTFUL_DTF[internal];
     if (dtfMapped && (!availablePlacements || availablePlacements.includes(dtfMapped))) {
       return dtfMapped;
@@ -128,8 +130,17 @@ export function isEmbroideryPlacement(providerPlacement: string): boolean {
 export type PrintMethod = 'dtg' | 'dtf';
 
 export function detectPrintMethod(providerPlacement: string): PrintMethod {
-  if (providerPlacement.endsWith('_dtf')) return 'dtf';
+  if (/(?:^|_)dtf(?:_|$)/.test(providerPlacement)) return 'dtf';
   return 'dtg';
+}
+
+/** Select a supplier-verified method and its geometry from one master location. */
+export function selectPrintLocationMethod<T extends { methods?: any[]; [key: string]: any }>(location: T, method?: PrintMethod): T {
+  if (!location.methods?.length) return location;
+  const selected = method ? location.methods.find(option => option.method === method) : location.methods[0];
+  if (!selected) throw new Error(`Printing method ${method} is unavailable for ${location.id || location.canonicalLocationCode}.`);
+  return { ...location, ...selected, methods: location.methods,
+    providerPlacement: selected.providerName, providerPlacementId: selected.providerName };
 }
 
 export interface PlacementWithMethods {
@@ -156,4 +167,20 @@ export function groupPlacementsByLocation(
     result.push({ internal, methods });
   });
   return result;
+}
+
+/** Preview and production must agree with the current product's verified master area. */
+export function requireVerifiedPrintLayout(master: any, placement: string, layout: any, variantId: number) {
+  const location = master.qrgPrintSpecs?.printful?.locations?.find((p: any) => p.id === placement && p.provider === 'printful');
+  const spec = location ? selectPrintLocationMethod(location, detectPrintMethod(layout?.providerPlacementId || '')) : null;
+  const saved = layout?.dimensions, target = spec?.dimensions;
+  const template = spec?.printfileIds?.[String(variantId)];
+  const savedTemplate = layout?.printfileIds?.[String(variantId)];
+  if (layout?.provider !== 'printful' || !spec || spec.providerPlacementId !== layout.providerPlacementId ||
+      !spec.verifiedVariantIds?.includes(variantId) || !(saved?.widthPx > 0 && saved.heightPx > 0 && saved.dpi > 0 && target?.dpi > 0) ||
+      saved.widthPx / saved.dpi !== target.widthPx / target.dpi || saved.heightPx / saved.dpi !== target.heightPx / target.dpi || saved.dpi < target.dpi ||
+      (savedTemplate != null && template !== savedTemplate) || (layout.technique && spec.technique !== layout.technique)) {
+    throw new Error(`Refresh and regenerate the verified Printful print area for ${placement}.`);
+  }
+  return spec;
 }

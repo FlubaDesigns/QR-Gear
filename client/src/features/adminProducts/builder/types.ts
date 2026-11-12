@@ -34,6 +34,12 @@ export interface ProductColor {
 export interface PlacementMethodOption {
   method: 'dtg' | 'dtf';
   providerName: string;
+  technique?: string;
+  dimensions?: ProductPlacement['dimensions'];
+  printArea?: ProductPlacement['printArea'];
+  dpi?: number;
+  printfileIds?: Record<string, number>;
+  verifiedVariantIds?: number[];
 }
 
 export interface ProductPlacement {
@@ -43,6 +49,9 @@ export interface ProductPlacement {
   additionalPrice?: number;
   options?: any;
   methods?: PlacementMethodOption[];
+  technique?: string;
+  printfileIds?: Record<string, number>;
+  verifiedVariantIds?: number[];
   /** Provider-specific layout data preserved from the print_placements crosswalk */
   provider?: string;
   providerPlacement?: string;
@@ -108,10 +117,13 @@ export interface QrgPrintLocation {
  * Provider-specific layout for the currently selected print placement.
  * Schema-first: schemaFamily/schemaType/canonicalProfilePath are derived from
  * QRG STNNN digits and identify the product type before any provider query.
- * Stored in builder state and persisted to BLD under bld.providerLayout.
- * Renderer reads this before falling back to hardcoded dimensions.
+ * Stored in the working snapshot and packet, outside structural BLD records.
+ * Renderer uses the selected supplier-verified dimensions.
  */
 export interface ProviderLayout {
+  technique?: string;
+  printfileIds?: Record<string, number>;
+  verifiedVariantIds?: number[];
   provider: string;
   /** QRG S-digit family — e.g. "apparel" */
   schemaFamily: string;

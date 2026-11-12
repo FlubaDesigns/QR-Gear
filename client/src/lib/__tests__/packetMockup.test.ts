@@ -7,13 +7,13 @@ const packet = (artwork: string) => ({
     qrConfig: { selectedColor: { name: 'Black', hex: '#000000' } },
     metadata: { selectedProductDocId: 'qrg_11111' },
     layoutConfig: { selectedPlacements: ['front'], providerLayouts: {
-      front: { provider: 'printful', providerPlacementId: 'front', dimensions: { widthPx: 1800, heightPx: 2400 } },
+      front: { provider: 'printful', providerPlacementId: 'front', dimensions: { widthPx: 1800, heightPx: 2400, dpi: 150 } },
     } },
   },
   placementGraphicUrls: { front: artwork },
   compositeUrl: 'wrong-legacy-art', artworkUrl: 'wrong-generic-art',
 });
-const master = { qrgVariants: {
+const master = { qrgPrintSpecs: { printful: { locations: [{ id: 'front', provider: 'printful', providerPlacementId: 'front', dimensions: { widthPx: 1800, heightPx: 2400, dpi: 150 }, verifiedVariantIds: [100,200] }] } }, qrgVariants: {
   black: { colorLabel: 'Black', providerVariants: { printful: { productId: 71, variantId: 100 } } },
   red: { colorLabel: 'Red', providerVariants: { printful: { productId: 71, variantId: 200 } } },
 } };

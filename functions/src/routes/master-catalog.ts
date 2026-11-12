@@ -1,7 +1,7 @@
 import { normalizeSize } from '../../../shared/storefrontTypes';
 import { catalogSaleVariants } from '../services/catalog-sale-variants';
 import { catalogColorOptions } from "../services/catalog-color-options";
-import { resolveQrgPrintSpecs } from '../services/qrg-print-specs';
+import { resolveQrgPrintSpecs, qrgPrintfulProductId } from '../services/qrg-print-specs';
 import { Request, Response } from 'express';
 import express from 'express';
 import { db, isEmbroideryPlacement, normalizePlacements } from '../core';
@@ -9,7 +9,7 @@ import { requireAdmin } from '../middleware';
 import { syncMasterCatalog, enrichMasterCatalog, syncPrintifyToStaging, syncPrintfulToStaging, QRG_BLANK_CATEGORIES, MASTER_CATALOG_COLLECTION, MASTER_CATALOG_SYNCS_COLLECTION } from '../services/master-catalog';
 import { printifyClient } from '../services/printify';
 import { printfulClient } from '../services/printful';
-import { buildColorSizeFromDoc } from '../../../shared/masterCatalog';
+import { buildColorSizeFromDoc, qrgProductSchema } from '../../../shared/masterCatalog';
 
 export function register(app: express.Express): void {
 
@@ -539,21 +539,8 @@ export function register(app: express.Express): void {
   // S = super-category digit, T = product-type digit (per QRG.md §3).
 
   // GET /admin/master-catalog/products/:docId/options ────────────────────────
-  // QRG-native product options resolver — schema-first, provider-refined.
-  // Resolution order:
-  //   Tier 1: canonical layout_profiles/{family}/{type} document
-  //   Tier 2: backfilled provider placements on master_catalog doc
-  //   Tier 3: live provider API call
-  //   Tier 4: generic front fallback
-  //
-  // Query params:
-  //   ?provider=printify|printful  — which provider to filter placements for (default: printify)
-  //
-  // Validation codes:
-  //   400  INVALID_QRG_DOC_ID
-  //   404  MASTER_PRODUCT_NOT_FOUND
-  //   409  PRINTIFY_MAPPING_MISSING
-  //   502  PRINTIFY_PLACEMENTS_FAILED
+  // Product identity comes from QRG. Printful geometry comes only from verified
+  // master_catalog imports; legacy Printify resolution remains provider-specific.
   app.get('/admin/master-catalog/products/:docId/options', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { docId } = req.params;
@@ -579,38 +566,7 @@ export function register(app: express.Express): void {
 
       // ── Schema-first resolution (QRG.md §3) ─────────────────────────────────
       // Parse STNNN from docId to resolve product family + type before any provider query.
-      const stnnn = docId.slice(4);           // e.g. "11001"
-      const sDigit = stnnn[0];               // S = super-category
-      const tDigit = stnnn[1];               // T = product type
-      const stKey = `${sDigit}${tDigit}`;   // e.g. "11"
-
-      const QRG_S_FAMILY: Record<string, string> = {
-        '1': 'apparel', '2': 'houseware', '3': 'print_display',
-        '4': 'accessories', '5': 'pet', '6': 'holiday',
-      };
-      const QRG_ST_TYPE: Record<string, string> = {
-        '11': 'tshirt', '12': 'hoodie', '13': 'tank', '14': 'longsleeve',
-        '15': 'jacket', '16': 'shorts', '17': 'dress', '18': 'leggings',
-        '21': 'drinkware', '22': 'kitchen', '23': 'home_decor',
-        '31': 'poster', '32': 'canvas', '33': 'card',
-        '41': 'bag', '42': 'hat', '43': 'phone_case', '44': 'jewelry',
-        '51': 'pet_apparel', '52': 'pet_accessory',
-        '61': 'ornament', '62': 'seasonal_decor',
-      };
-      const QRG_ST_COLLECTION: Record<string, string> = {
-        '11': 'tshirts', '12': 'hoodies', '13': 'tanks', '14': 'longsleeves',
-        '15': 'jackets', '16': 'shorts', '17': 'dresses', '18': 'leggings',
-        '21': 'drinkware', '22': 'kitchen', '23': 'home_decor',
-        '31': 'posters', '32': 'canvas', '33': 'cards',
-        '41': 'bags', '42': 'hats', '43': 'phone_cases', '44': 'jewelry',
-        '51': 'pet_apparel', '52': 'pet_accessories',
-        '61': 'ornaments', '62': 'seasonal_decor',
-      };
-
-      const schemaFamily = QRG_S_FAMILY[sDigit] || 'unknown';
-      const schemaType = QRG_ST_TYPE[stKey] || 'unknown';
-      const schemaCollection = QRG_ST_COLLECTION[stKey] || 'unknown';
-      const canonicalProfilePath = `layout_profiles/${schemaFamily}/${schemaCollection}`;
+      const { schemaFamily, schemaType, schemaCollection, canonicalProfilePath } = qrgProductSchema(docId);
 
       // Read cached Printify positions early — used for provider guard and placement crosswalk
       const cachedPositions: string[] = Array.isArray(product.printPositions) ? product.printPositions : [];
@@ -646,7 +602,7 @@ export function register(app: express.Express): void {
       let printProviderId: number | null = rawPrintProviderId ? parseInt(rawPrintProviderId, 10) : null;
 
       // 4. Resolve printProviderId if missing — check DB then live API (Printify only)
-      if (blueprintId !== null && !printProviderId) {
+      if (requestedProvider === 'printify' && blueprintId !== null && !printProviderId) {
         try {
           const provSnap = await db.collection('printify_providers').get();
           const matching = provSnap.docs
@@ -662,7 +618,7 @@ export function register(app: express.Express): void {
           }
         } catch (_) { /* continue — live API fallback below */ }
       }
-      if (blueprintId !== null && !printProviderId && (await printifyClient.isConfigured)) {
+      if (requestedProvider === 'printify' && blueprintId !== null && !printProviderId && (await printifyClient.isConfigured)) {
         try {
           const liveProviders = await printifyClient.getPrintProviders(blueprintId);
           if (liveProviders && liveProviders.length > 0) {
@@ -671,13 +627,6 @@ export function register(app: express.Express): void {
           }
         } catch (_) { /* handled below */ }
       }
-
-      // 5. Use the shared QRG projection for canonical SSCC and older variant keys.
-      // No supplier-table reads and no invented color/size combinations.
-      const qrgVariants: Record<string, any> = product.qrgVariants || {};
-      const { colorMap, sizeMap } = buildColorSizeFromDoc(product);
-      const availableSizes = sizeMap.map(size => ({ code: size.qrgSizeCode, label: size.sizeLabel }));
-      const availableColors = colorMap.map(color => ({ name: color.colorName, hex: color.hex }));
 
       // 6. Resolve print locations — filter by selected provider via print_placements crosswalk
       // Rule: showPlacement = print_placements[internalName].providers[requestedProvider] exists
@@ -741,31 +690,7 @@ export function register(app: express.Express): void {
       let layoutSource = 'legacy_printPositions';
       let providerProductId: string | null = null;
 
-      if (requestedProvider === 'printful' && product.printfulProductId) {
-        try {
-          providerProductId = String(product.printfulProductId);
-          const pfDoc = await db.collection('printful_products').doc(providerProductId).get();
-          if (pfDoc.exists) {
-            const pfData = pfDoc.data() as any;
-            const pfLocs: any[] = Array.isArray(pfData.printLocations) ? pfData.printLocations : [];
-            if (pfLocs.length > 0) {
-              for (const loc of pfLocs) {
-                if (loc.placement && !isEmbroideryPlacement(loc.placement)) {
-                  providerPositions.push(loc.placement);
-                  if (loc.width && loc.height) {
-                    providerDimsMap.set(loc.placement, { widthPx: loc.width, heightPx: loc.height, dpi: 300 });
-                  }
-                }
-              }
-              layoutSource = 'provider_product_locations';
-              console.log(`[MasterCatalog/options] ${docId} Printful product ${providerProductId}: ${providerPositions.length} locations`);
-            }
-          }
-        } catch (pfErr: any) {
-          console.warn(`[MasterCatalog/options] ${docId}: printful_products lookup failed:`, pfErr.message);
-        }
-      }
-
+      if (requestedProvider === 'printify') {
       // Positions to resolve: provider product data takes precedence over legacy cache
       const resolvePositions = providerPositions.length > 0 ? providerPositions : cachedPositions;
 
@@ -777,9 +702,7 @@ export function register(app: express.Express): void {
 
         const [placementsSnap, canonicalProfileDoc] = await Promise.all([
           db.collection('print_placements').get(),
-          schemaFamily !== 'unknown' && schemaCollection !== 'unknown'
-            ? canonicalProfileRef.get()
-            : Promise.resolve(null as any),
+          canonicalProfileRef.get(),
         ]);
 
         const placementMap = new Map<string, any>();
@@ -892,9 +815,7 @@ export function register(app: express.Express): void {
       // Tier 2: backfilled provider placements stored on master_catalog doc
       // These are written by POST /admin/master-catalog/backfill-placements
       if (printLocations.length === 0) {
-        const backfilled: any[] = requestedProvider === 'printful'
-          ? (Array.isArray(product.printfulPlacements) ? product.printfulPlacements : [])
-          : (Array.isArray(product.printifyPlacements) ? product.printifyPlacements : []);
+        const backfilled: any[] = Array.isArray(product.printifyPlacements) ? product.printifyPlacements : [];
 
         if (backfilled.length > 0) {
           printLocations = backfilled
@@ -964,13 +885,23 @@ export function register(app: express.Express): void {
         }];
       }
 
+      }
+
       // Product-specific dimensions are imported by QRG, never by the AI or UI.
       // A cached generic rectangle cannot certify print support for offered sizes.
       if (requestedProvider === 'printful') {
         printLocations = await resolveQrgPrintSpecs(product, doc.ref,
-          id => printfulClient.getPrintfiles(id), req.query.refreshPrintSpecs === 'true');
+          (id, technique) => printfulClient.getPrintfiles(id, technique), req.query.refreshPrintSpecs === 'true');
+        providerProductId = String(qrgPrintfulProductId(product));
         layoutSource = 'qrg_verified_printfiles';
       }
+
+      // 5. Use the shared QRG projection for canonical SSCC and older variant keys.
+      // No supplier-table reads and no invented color/size combinations.
+      const qrgVariants: Record<string, any> = product.qrgVariants || {};
+      const { colorMap, sizeMap } = buildColorSizeFromDoc(product);
+      const availableSizes = sizeMap.map(size => ({ code: size.qrgSizeCode, label: size.sizeLabel }));
+      const availableColors = colorMap.map(color => ({ name: color.colorName, hex: color.hex }));
 
       const catalogColors = await catalogColorOptions(db, req.query.catalogId, docId, availableColors);
       const saleVariants = catalogSaleVariants({ enabledColors: catalogColors, enabledSizes: availableSizes.map(s => s.label) }, product, requestedProvider);

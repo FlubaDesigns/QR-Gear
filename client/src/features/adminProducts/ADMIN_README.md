@@ -436,6 +436,21 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### November 11, 2026 — Product type selection and cap printing
+
+In Products → Product Configuration, choose Product type to filter the existing All Products or assigned catalog list. Hats / Caps uses the canonical Hats category. Selecting another type saves an editable draft before clearing its blank-specific settings and generated output while retaining creative inputs. Select a blank and a verified placement; displayed dimensions follow the chosen print method. Refresh from QRG reloads supplier print specifications and stock. Embroidery-only or missing specifications produce an error, never shirt dimensions. Saved builds preserve technique and exact template IDs, and mockup/checkout reject stale areas.
+
+#### Files Changed
+| Files | Change |
+|---|---|
+| `shared/masterCatalog.ts`, `functions/src/services/master-catalog.ts`, `functions/src/routes/master-catalog.ts` | Share QRG category/type definitions and route Printful options through verified master imports. |
+| `functions/src/services/qrg-print-specs.ts`, `shared/placements.ts` | Preserve method geometry/template provenance and validate saved areas. |
+| `client/src/features/adminProducts/builder/BuilderContext.tsx`, `modules/ProductsModule.tsx`, `modules/PlacementModule.tsx`, `types.ts` | Product type dropdown, safe switching, selected-method dimensions and restore validation. |
+| `shared/builderSnapshot.ts`, `functions/src/services/order-fulfillment.ts` | Carry and validate the same area through mockup and production. |
+| `client/src/features/shared/graphics/graphicLayout.ts`, `functions/src/services/composite-image.ts` | Size QR using the shorter print-area side for shallow caps. |
+
+
+
 ### November 11, 2026 — Partner access uses the existing Store Builder destination
 
 Added the explicit `partnerStores.storeId` reference and an Admin Partners selector. The authenticated API validates that destination and its channel ownership, then projects saved offers through the existing store allowlist and canonical QRG variant resolver. Cross-store access, invalid or duplicate bindings, disabled destinations and missing choices fail visibly. This is the first foundation for the two independent Fluba rewards, tracked only in [Fluba issue #1117](https://github.com/FlubaDesigns/fluba-designs/issues/1117); personalization and sponsored fulfillment are still pending. Candidate validation is recorded in the linked issue. Live release is a separate verification.
@@ -1985,3 +2000,7 @@ The combined release preserves the claims array, retired widget page and `perPla
 ## Replit and SQL dependency retirement — October 20, 2026
 
 Removed the remaining Replit build plugins/runtime settings and replaced the Drizzle table declarations with plain shared TypeScript contracts and Zod validators. Existing exported API field types, insert validation and the saved-pricing refinement remain unchanged. Cloud Functions and Firestore continue to own persistence. The backend boundary check now rejects Replit and SQL packages in the root, Functions and mockup-tool manifests. No canonical identity definitions, saved records, pricing formulas or provider operations are changed. Source checks and production release evidence are reported separately.
+
+### Printed caps
+
+Reload QRG printer specifications for a cap to import a supplier-advertised printing technique when embroidery is its default. The saved QRG layout retains the supplier placement and verifies the complete size/color mapping. The refreshed stock flags remove unavailable variants from product choices. Embroidery-only or incompatible products remain blocked.

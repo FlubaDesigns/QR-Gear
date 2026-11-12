@@ -22,3 +22,12 @@ describe('QR-anchored zone spacing', () => {
     expect(layout.zones.subBottom.height).toBe(0);
   });
 });
+
+it.each(['zone', 'freeform'] as const)('keeps a QR within a wide, shallow cap print area in %s mode', layoutMode => {
+  const layout = getGraphicLayout({ canvasWidth: 1500, canvasHeight: 600, headerActive: true,
+    footerActive: true, subBottomActive: true, subBottomLineHeight: 40, qrSizePercent: 75, layoutMode });
+  const qr = layout.qr.background;
+  expect(qr.x).toBeGreaterThanOrEqual(0); expect(qr.y).toBeGreaterThanOrEqual(0);
+  expect(qr.x + qr.width).toBeLessThanOrEqual(1500); expect(qr.y + qr.height).toBeLessThanOrEqual(600);
+  expect(layout.zones.subBottom.y + layout.zones.subBottom.height).toBeLessThanOrEqual(600);
+});

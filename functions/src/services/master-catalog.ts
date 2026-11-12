@@ -84,64 +84,9 @@ const PRINTIFY_PROVIDERS_COLLECTION = 'printifyPrintProviders';
 const PRINTFUL_PRODUCTS_COLLECTION = 'printful_products';
 const PRINTFUL_VARIANTS_COLLECTION = 'printful_variants';
 
-// ── QRG Top-Level Category Definitions ───────────────────────────────────────
-// Source of truth: REPLIT.md — QRG Numbering System section
-// Each top-level gets a X000 code. Subcategories get X100–X900.
-// Each subcategory holds up to 99 products (X101–X199, etc.).
-export const QRG_TOP_LEVEL_CATEGORIES = [
-  { name: 'Apparel',            code: 1000 },
-  { name: 'Houseware',          code: 2000 },
-  { name: 'Print & Display',    code: 3000 },
-  { name: 'Accessories',        code: 4000 },
-  { name: 'Pet Products',       code: 5000 },
-  { name: 'Holiday & Seasonal', code: 6000 },
-] as const;
-
-// ── QRG Blank Category Definitions (5-digit BBBBB scheme) ────────────────────
-// Structure: [category 1-6][subcategory 1-9][slot 001-999]
-// Each subcategory holds up to 999 blanks. If a subcategory ever exceeds 999,
-// allocation simply continues past rangeEnd (no hard stop — "screw it").
-export const QRG_BLANK_CATEGORIES = [
-  // ── 1x000 Apparel ─────────────────────────────────────────────────────────
-  { name: 'T-Shirts',              parent: 'Apparel',            rangeStart: 11101, rangeEnd: 11999 },
-  { name: 'Hoodies & Sweatshirts', parent: 'Apparel',            rangeStart: 12101, rangeEnd: 12999 },
-  { name: 'Hats',                  parent: 'Apparel',            rangeStart: 13101, rangeEnd: 13999 },
-  { name: 'Tank Tops',             parent: 'Apparel',            rangeStart: 14101, rangeEnd: 14999 },
-  { name: 'Long Sleeve',           parent: 'Apparel',            rangeStart: 15101, rangeEnd: 15999 },
-  { name: "Youth/Kids",            parent: 'Apparel',            rangeStart: 16101, rangeEnd: 16999 },
-  { name: "Women's",               parent: 'Apparel',            rangeStart: 17101, rangeEnd: 17999 },
-  { name: 'Specialty Apparel',     parent: 'Apparel',            rangeStart: 18101, rangeEnd: 18999 },
-  // ── 2x000 Houseware ───────────────────────────────────────────────────────
-  { name: 'Drinkware',             parent: 'Houseware',          rangeStart: 21101, rangeEnd: 21999 },
-  { name: 'Barware',               parent: 'Houseware',          rangeStart: 22101, rangeEnd: 22999 },
-  { name: 'Drinkware Accessories', parent: 'Houseware',          rangeStart: 23101, rangeEnd: 23999 },
-  { name: 'Kitchen & Dining',      parent: 'Houseware',          rangeStart: 24101, rangeEnd: 24999 },
-  { name: 'Bedding & Textiles',    parent: 'Houseware',          rangeStart: 25101, rangeEnd: 25999 },
-  { name: 'Home Décor',            parent: 'Houseware',          rangeStart: 26101, rangeEnd: 26999 },
-  // ── 3x000 Print & Display ─────────────────────────────────────────────────
-  { name: 'Wall Art & Prints',     parent: 'Print & Display',    rangeStart: 31101, rangeEnd: 31999 },
-  { name: 'Stickers & Magnets',    parent: 'Print & Display',    rangeStart: 32101, rangeEnd: 32999 },
-  { name: 'Stationery & Paper',    parent: 'Print & Display',    rangeStart: 33101, rangeEnd: 33999 },
-  { name: 'Signs & Display',       parent: 'Print & Display',    rangeStart: 34101, rangeEnd: 34999 },
-  { name: 'Books & Photo',         parent: 'Print & Display',    rangeStart: 35101, rangeEnd: 35999 },
-  { name: 'Pins & Patches',        parent: 'Print & Display',    rangeStart: 36101, rangeEnd: 36999 },
-  { name: 'Tags',                  parent: 'Print & Display',    rangeStart: 37101, rangeEnd: 37999 },
-  { name: 'Puzzles & Games',       parent: 'Print & Display',    rangeStart: 38101, rangeEnd: 38999 },
-  { name: 'Novelty',               parent: 'Print & Display',    rangeStart: 39101, rangeEnd: 39999 },
-  // ── 4x000 Accessories ─────────────────────────────────────────────────────
-  { name: 'Bags & Pouches',        parent: 'Accessories',        rangeStart: 41101, rangeEnd: 41999 },
-  { name: 'Jewelry',               parent: 'Accessories',        rangeStart: 42101, rangeEnd: 42999 },
-  { name: 'Phone & Tech Cases',    parent: 'Accessories',        rangeStart: 43101, rangeEnd: 43999 },
-  { name: 'Travel Accessories',    parent: 'Accessories',        rangeStart: 44101, rangeEnd: 44999 },
-  { name: 'Small Accessories',     parent: 'Accessories',        rangeStart: 45101, rangeEnd: 45999 },
-  // ── 5x000 Pet Products ────────────────────────────────────────────────────
-  { name: 'Pet Apparel',           parent: 'Pet Products',       rangeStart: 51101, rangeEnd: 51999 },
-  { name: 'Pet Accessories',       parent: 'Pet Products',       rangeStart: 52101, rangeEnd: 52999 },
-  // ── 6x000 Holiday & Seasonal ──────────────────────────────────────────────
-  { name: 'Ornaments & Décor',     parent: 'Holiday & Seasonal', rangeStart: 61101, rangeEnd: 61999 },
-  { name: 'Stockings & Gifting',   parent: 'Holiday & Seasonal', rangeStart: 62101, rangeEnd: 62999 },
-  { name: 'Seasonal Apparel',      parent: 'Holiday & Seasonal', rangeStart: 63101, rangeEnd: 63999 },
-] as const;
+// Category allocation and type profiles share the canonical master contract.
+import { QRG_TOP_LEVEL_CATEGORIES, QRG_BLANK_CATEGORIES } from '../../../shared/masterCatalog';
+export { QRG_TOP_LEVEL_CATEGORIES, QRG_BLANK_CATEGORIES } from '../../../shared/masterCatalog';
 
 export type QRGCategoryName = typeof QRG_BLANK_CATEGORIES[number]['name'];
 

@@ -112,10 +112,12 @@ class PrintfulClient {
     return this.request<any[]>('GET', '/products');
   }
 
-  async getPrintfiles(productId: number): Promise<any> {
+  async getPrintfiles(productId: number, technique?: string): Promise<any> {
     const storeId = getPrintfulStoreId();
-    const storeParam = storeId ? `?store_id=${storeId}` : '';
-    return this.request<any>('GET', `/mockup-generator/printfiles/${productId}${storeParam}`);
+    const query = new URLSearchParams();
+    if (storeId) query.set('store_id', storeId);
+    if (technique) query.set('technique', technique);
+    return this.request<any>('GET', `/mockup-generator/printfiles/${productId}${query.size ? '?' + query : ''}`);
   }
 
   async getVariantsByColor(productId: number, colorName: string): Promise<PrintfulVariant[]> {

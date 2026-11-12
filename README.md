@@ -8,6 +8,12 @@ Admin Blanks → Catalogs → Section Assignments now includes an external-store
 
 This foundation does not yet enable personalized reward generation or sponsored orders. Independent shirt/cap claims, customer previews, purchase/reward emails, fulfillment and live configuration remain tracked in the same issue. Validation and the selected catalog’s live configuration are recorded in the linked issue. Release and live acceptance are recorded separately.
 
+## Admin Products: product types and verified printing — November 11, 2026
+
+The Product type dropdown filters the existing master catalog, including T-Shirts and Hats / Caps. Category allocation and schema identity now share the same QRG definitions (13 = Hats). Printful options use only master_catalog.qrgPrintSpecs imports, forward the supplier-advertised printing technique, and upgrade old caches to retain per-method dimensions, DPI, variant coverage and template IDs. A type switch saves the current editable draft before clearing incompatible product options; reusable artwork remains. Missing printable areas fail visibly.
+
+The editor uses the selected method’s physical area, including shallow cap panels. Working snapshots preserve the exact method/technique/template geometry outside BLD. Mockup and checkout validate that saved selection against the current master, including stock and stale-template rejection. These changes enable the shared product pipeline; personalized Fluba reward builds and sponsored order integration remain tracked separately in #1117.
+
 ========================================
 SYSTEM ENTRY POINT — MANDATORY READ
 
@@ -1110,3 +1116,7 @@ Validation: focused claim/scan/concurrency, multi-year/static, per-unit allocati
 ## Replit and SQL dependency retirement — October 20, 2026
 
 Removed the remaining Replit build plugins/runtime settings and replaced the Drizzle table declarations with plain shared TypeScript contracts and Zod validators. Existing exported API field types, insert validation and the saved-pricing refinement remain unchanged. Cloud Functions and Firestore continue to own persistence. The backend boundary check now rejects Replit and SQL packages in the root, Functions and mockup-tool manifests. No canonical identity definitions, saved records, pricing formulas or provider operations are changed. Source checks and production release evidence are reported separately.
+
+### Printed cap technique verification (2026-11-11)
+
+QRG now reads an explicitly advertised DTFILM or DTG alternative when the supplier default provides only embroidery. The import still requires one common physical print area covering every mapped variant, and preserves the exact supplier placement (`front_dtf_hat` for the Otto 18-253) for saved artwork, mockups and production. Refreshing printer specifications also records supplier stock availability; known out-of-stock variants are excluded from selectable offers. No product IDs, dimensions or alternate techniques are guessed.

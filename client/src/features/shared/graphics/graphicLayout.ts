@@ -104,9 +104,9 @@ export function getGraphicLayout(input: GraphicLayoutInput): GraphicLayoutResult
     // 1. QR size in Zone mode is driven by qrSizePercent / 2 so the same
     //    slider value spans both modes. Default 75 → 37.5% ≈ prior hardcoded 38%.
     const zoneQrPct = clamp(qrSizePercent / 2, 15, 55);
-    const qrSize = clamp(SW * (zoneQrPct / 100), 180, SW);
+    const qrSize = clamp(Math.min(SW, SH) * (zoneQrPct / 100), Math.min(180, SW, SH), Math.min(SW, SH));
 
-    // 2. QR always at canvas center — consistent position across all shirt types
+    // 2. QR always at canvas center — consistent position across all product types
     const qrCenterX = SX + SW / 2;
     const qrCenterY = SY + SH / 2;
     const qrLeft   = qrCenterX - qrSize / 2;

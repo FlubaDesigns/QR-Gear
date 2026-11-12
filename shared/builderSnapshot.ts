@@ -1,4 +1,5 @@
 import { builderBldLayoutMode, extractBldInstances, validateBldStructure } from './bldCodes';
+import { selectPrintLocationMethod, requireVerifiedPrintLayout } from './placements';
 
 export interface BuilderSnapshotContext { selectedRole: string | null; selectedStore: Record<string, any> | null; selectedChannel: Record<string, any> | null; selectedCollection: Record<string, any> | null; }
 /** Structural draft uses the same extraction as the server commit. */
@@ -56,8 +57,10 @@ export function buildWorkingSnapshot(state: Record<string, any>, ctx: BuilderSna
       selectedPlacements: state.selectedPlacements,
       providerLayouts: Object.fromEntries((state.selectedProduct?.placements || [])
         .filter((p: any) => state.selectedPlacements?.includes(p.id) && p.dimensions)
+        .map((p: any) => selectPrintLocationMethod(p, state.placementMethods?.[p.id]))
         .map((p: any) => [p.id, { dimensions: p.dimensions, printArea: p.printArea, safeArea: p.safeArea, dpi: p.dpi,
           layoutSource: p.layoutSource, sourceTable: p.sourceTable,
+          technique: p.technique, printfileIds: p.printfileIds, verifiedVariantIds: p.verifiedVariantIds,
           providerPlacementId: p.providerPlacementId || p.providerPlacement || p.id, provider: p.provider }])),
       placementConfig: state.placementConfig,
       perPlacementConfigs: state.perPlacementConfigs,
@@ -178,20 +181,23 @@ export function buildPacketMockupRequest(packet: Record<string, any>, master: Re
   const selectedColor = colorName || snapshot.qrConfig.selectedColor?.name;
   if (!selectedColor) throw new Error('Saved build has no selected color');
   const variants = Object.values(master.qrgVariants || {}) as any[];
-  const variant = variants.find(v => v.colorLabel === selectedColor && v.providerVariants?.printful?.variantId);
+  const layout = snapshot.layoutConfig.providerLayouts?.[placement];
+  const variant = variants.find(v => v.colorLabel === selectedColor && v.providerVariants?.printful?.variantId &&
+    v.providerVariants.printful.inStock !== false && (!layout?.verifiedVariantIds || layout.verifiedVariantIds.includes(Number(v.providerVariants.printful.variantId))));
   if (!variant) throw new Error(`QRG has no Printful variant for ${selectedColor}. Refresh it through QRG table logic.`);
   const mapping = variant.providerVariants.printful;
   const productId = Number(mapping.productId), variantId = Number(mapping.variantId);
   if (!Number.isSafeInteger(productId) || productId <= 0 || !Number.isSafeInteger(variantId) || variantId <= 0) throw new Error('QRG Printful mapping is invalid');
-  const layout = snapshot.layoutConfig.providerLayouts?.[placement];
   const width = layout?.dimensions?.widthPx, height = layout?.dimensions?.heightPx;
   if (layout?.provider !== 'printful' || !layout.providerPlacementId || !Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
     throw new Error('Saved build is missing its Printful print-area dimensions');
   }
+  requireVerifiedPrintLayout(master, placement, layout, variantId);
   const artworkUrl = packet.placementGraphicUrls?.[placement];
   if (!artworkUrl) throw new Error('The saved placement has no generated print artwork');
   const label = snapshot.layoutConfig.selectedPlacements.find((p: string) => ['label_inside', 'label_outside'].includes(p));
   const labelLayout = label ? snapshot.layoutConfig.providerLayouts?.[label] : null;
+  if (label) requireVerifiedPrintLayout(master, label, labelLayout, variantId);
   const brandLabel = label ? { placement: labelLayout?.providerPlacementId, artworkUrl: packet.placementGraphicUrls?.[label],
     width: labelLayout?.dimensions?.widthPx, height: labelLayout?.dimensions?.heightPx } : null;
   if (brandLabel && (!brandLabel.artworkUrl || !brandLabel.placement || !(brandLabel.width > 0 && brandLabel.height > 0))) throw new Error('The saved brand label needs its print area and artwork.');

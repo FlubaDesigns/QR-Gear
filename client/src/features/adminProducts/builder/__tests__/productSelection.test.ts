@@ -166,8 +166,7 @@ describe('Product selection through the real builder context', () => {
     mocks.categories[0].items[1].madeInUSA = false;
     await mount(true);
     const control = (id: string) => tree.root.findAll(n => typeof n.type === 'string' && n.props['data-testid'] === id)[0];
-    await act(async () => { control('qrg-super-category-1').props.onClick(); });
-    await act(async () => { control('qrg-sub-category-11').props.onClick(); });
+    await act(async () => { await control('select-product-type').props.onChange({ target: { value: 'T-Shirts' } }); });
     await act(async () => { control('button-toggle-more-filters').props.onClick(); });
     for (const [originFilter, selected, expectedIds] of [
       [{ showUSA: true, showOther: false }, 'usa', ['qrg_11001']],
@@ -351,8 +350,7 @@ describe('Product cards and draft handoff', () => {
     const getCards = await cards();
     await act(async () => { const card = getCards()[0]; card.props.onSelect(card.props.item.id, card.props.item); });
     await act(async () => { current.setSelectedCatalogId('all'); current.setGenderFilter('all'); });
-    await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-super-category-1' }).props.onClick(); });
-    await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-sub-category-11' }).props.onClick(); });
+  await act(async () => { await tree.root.findByProps({ 'data-testid': 'select-product-type' }).props.onChange({ target: { value: 'T-Shirts' } }); });
     const count = mocks.apiRequest.mock.calls.length;
     await act(async () => {
       await getCards()[0].props.onTitleSave('qrg_11001', 'Packet title');
@@ -413,12 +411,41 @@ it.each(['printful', 'printify'])('browses canonical API products and selects th
   mocks.apiRequest.mockResolvedValue({ json: async () => ({ sessionId: 'canonical-session', session: { status: 'working' } }) });
   await mount(true);
   await act(async () => { mocks.context.setSelectedProviders([provider]); current.setSelectedCatalogId('all'); current.setGenderFilter('all'); });
-  await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-super-category-1' }).props.onClick(); });
-  await act(async () => { tree.root.findByProps({ 'data-testid': 'qrg-sub-category-11' }).props.onClick(); });
+  await act(async () => { await tree.root.findByProps({ 'data-testid': 'select-product-type' }).props.onChange({ target: { value: 'T-Shirts' } }); });
   const cards = tree.root.findAllByType('product-card' as any);
   expect(cards).toHaveLength(1);
   await act(async () => { cards[0].props.onSelect(cards[0].props.item.id, cards[0].props.item); });
   expect(current.state.selectedProduct?.docId).toBe('qrg_11001');
   expect(current.state.selectedProduct?.fulfillmentProvider).toBe(provider);
   expect(mocks.adminFetch).toHaveBeenCalledWith(`/master-catalog/products/qrg_11001/options?provider=${provider}`);
+});
+
+it('switches tee → cap → tee through the dropdown and preserves creative input without stale print options', async () => {
+  const tee = { ...blank('qrg_11101', 'printful'), qrgCategory: 'T-Shirts' };
+  const cap = { ...blank('qrg_13101', 'printful'), qrgCategory: 'Hats', madeInUSA: false };
+  mocks.categories = [{ name: 'T-Shirts', items: [tee], count: 1 }, { name: 'Hats', items: [cap], count: 1 }];
+  await mount(true);
+  const choose = async (value: string) => act(async () => { tree.root.findByProps({ 'data-testid': 'select-product-type' }).props.onChange({ target: { value } }); });
+  await choose('T-Shirts');
+  await act(async () => { current.selectProduct(tee); current.setContent({ title: 'Keep artwork' }); });
+  await resolveOptions(0, options('printful'));
+  await act(async () => { current.togglePlacement('front'); current.setActivePacketId('tee-packet'); });
+  await choose('Hats');
+  expect(current.state.selectedProduct).toBeNull(); expect(current.state.providerLayout).toBeNull();
+  expect(current.state.activePacketId).toBeNull(); expect(current.state.content.title).toBe('Keep artwork');
+  expect(tree.root.findAllByType('product-card').map(c => c.props.item.id)).toEqual(['qrg_13101']);
+  await act(async () => { current.selectProduct(cap); });
+  const capOptions: any = options('printful');
+  capOptions.schemaType = 'hat'; capOptions.canonicalProfilePath = 'layout_profiles/apparel/hats';
+  const dimensions = { widthPx: 1500, heightPx: 600, dpi: 300 };
+  Object.assign(capOptions.printLocations[0], { dimensions, providerPlacementId: 'front_dtf_hat', methods: [{ method: 'dtf', providerName: 'front_dtf_hat', dimensions, technique: 'DTFILM', printfileIds: { '1': 9 } }] });
+  await resolveOptions(1, capOptions);
+  await act(async () => { current.togglePlacement('front'); });
+  expect(current.state.placementMethods.front).toBe('dtf');
+  expect(current.state.providerLayout).toMatchObject({ schemaType: 'hat', providerPlacementId: 'front_dtf_hat', dimensions });
+  await act(async () => { current.setPlacementMethod('front', 'dtg'); });
+  expect(current.state.placementMethods.front).toBe('dtf');
+  await choose('T-Shirts');
+  expect(current.state.providerLayout).toBeNull(); expect(current.state.placementMethods).toEqual({});
+  expect(current.state.content.title).toBe('Keep artwork');
 });

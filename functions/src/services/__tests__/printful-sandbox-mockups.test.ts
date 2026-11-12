@@ -19,3 +19,10 @@ describe('Sandbox provider boundary', () => {
     expect(fetch).toHaveBeenCalledTimes(3);
   });
 });
+it('passes an explicit catalog technique to the read-only printfile lookup', async () => {
+  vi.stubEnv('QRGEAR_ENVIRONMENT','sandbox');
+  const fetch = vi.fn().mockResolvedValue({ok:true,json:async()=>({result:{printfiles:[]}})});
+  vi.stubGlobal('fetch',fetch);
+  await new PrintfulClient().getPrintfiles(864,'DTFILM');
+  expect(fetch.mock.calls[0][0]).toBe('https://api.printful.com/mockup-generator/printfiles/864?technique=DTFILM');
+});

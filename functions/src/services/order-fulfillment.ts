@@ -6,7 +6,7 @@ import { requireLiveCommerce } from '../runtime-config';
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { inspectGrfAsset } from '../../../shared/GRF_engine';
-import { detectPrintMethod } from '../../../shared/placements';
+import { requireVerifiedPrintLayout } from '../../../shared/placements';
 import { selectCatalogSaleVariant } from './catalog-sale-variants';
 import { validatePacketComposition } from './assembly-store';
 import { getCatalogInstancePrice, getSizeUpcharges, validateBrandLabel } from './pricing';
@@ -45,10 +45,8 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   const files: PrintfulOrderFile[] = [];
   for (const placement of snapshot.layoutConfig.selectedPlacements) {
     const layout = snapshot.layoutConfig.providerLayouts?.[placement];
-    const spec = master.qrgPrintSpecs?.printful?.locations?.find((p: any) => p.id === placement && p.provider === provider && typeof p.providerPlacementId === 'string' && typeof layout?.providerPlacementId === 'string' && detectPrintMethod(p.providerPlacementId) === detectPrintMethod(layout?.providerPlacementId || ''));
-    const width = layout?.dimensions?.widthPx, height = layout?.dimensions?.heightPx;
-    const dpi = layout?.dimensions?.dpi, target = spec?.dimensions;
-    if (layout?.provider !== provider || !spec?.verifiedVariantIds?.includes(Number(mapping.variantId)) || !(width > 0 && height > 0 && dpi > 0 && target?.dpi > 0) || width / dpi !== target.widthPx / target.dpi || height / dpi !== target.heightPx / target.dpi || dpi < target.dpi) throw new Error(`Refresh and regenerate the verified Printful print area for ${placement}.`);
+    const spec = requireVerifiedPrintLayout(master, placement, layout, Number(mapping.variantId));
+    const target = spec.dimensions;
     const grfId = packet.placementGrfIds?.[placement];
     const asset = grfId ? (await db.collection('grf_assets').doc(grfId).get()).data() : null;
     const url = packet.placementGraphicUrls?.[placement];

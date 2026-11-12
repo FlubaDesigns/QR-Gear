@@ -131,3 +131,76 @@ export function masterCatalogProduct(docId: string, p: Record<string, any>) {
     providerMappings,
   };
 }
+
+
+// ── QRG Top-Level Category Definitions ───────────────────────────────────────
+// Canonical category allocation definitions used by lookup, master projection and Products.
+// Each top-level gets a X000 code. Subcategories get X100–X900.
+// Each subcategory holds up to 99 products (X101–X199, etc.).
+export const QRG_TOP_LEVEL_CATEGORIES = [
+  { name: 'Apparel',            code: 1000 },
+  { name: 'Houseware',          code: 2000 },
+  { name: 'Print & Display',    code: 3000 },
+  { name: 'Accessories',        code: 4000 },
+  { name: 'Pet Products',       code: 5000 },
+  { name: 'Holiday & Seasonal', code: 6000 },
+] as const;
+
+// ── QRG Blank Category Definitions (5-digit BBBBB scheme) ────────────────────
+// Structure: [category 1-6][subcategory 1-9][slot 001-999]
+// Each subcategory holds up to 999 blanks. If a subcategory ever exceeds 999,
+// allocation simply continues past rangeEnd (no hard stop — "screw it").
+export const QRG_BLANK_CATEGORIES = [
+  // ── 1x000 Apparel ─────────────────────────────────────────────────────────
+  { name: 'T-Shirts',              parent: 'Apparel',            rangeStart: 11101, rangeEnd: 11999, schemaType: 'tshirt', schemaCollection: 'tshirts' },
+  { name: 'Hoodies & Sweatshirts', parent: 'Apparel',            rangeStart: 12101, rangeEnd: 12999, schemaType: 'hoodie', schemaCollection: 'hoodies' },
+  { name: 'Hats',                  parent: 'Apparel',            rangeStart: 13101, rangeEnd: 13999, schemaType: 'hat', schemaCollection: 'hats' },
+  { name: 'Tank Tops',             parent: 'Apparel',            rangeStart: 14101, rangeEnd: 14999, schemaType: 'tank', schemaCollection: 'tanks' },
+  { name: 'Long Sleeve',           parent: 'Apparel',            rangeStart: 15101, rangeEnd: 15999, schemaType: 'longsleeve', schemaCollection: 'longsleeves' },
+  { name: "Youth/Kids",            parent: 'Apparel',            rangeStart: 16101, rangeEnd: 16999, schemaType: 'youth', schemaCollection: 'youth' },
+  { name: "Women's",               parent: 'Apparel',            rangeStart: 17101, rangeEnd: 17999, schemaType: 'womens', schemaCollection: 'womens' },
+  { name: 'Specialty Apparel',     parent: 'Apparel',            rangeStart: 18101, rangeEnd: 18999, schemaType: 'specialty_apparel', schemaCollection: 'specialty_apparel' },
+  // ── 2x000 Houseware ───────────────────────────────────────────────────────
+  { name: 'Drinkware',             parent: 'Houseware',          rangeStart: 21101, rangeEnd: 21999, schemaType: 'drinkware', schemaCollection: 'drinkware' },
+  { name: 'Barware',               parent: 'Houseware',          rangeStart: 22101, rangeEnd: 22999, schemaType: 'barware', schemaCollection: 'barware' },
+  { name: 'Drinkware Accessories', parent: 'Houseware',          rangeStart: 23101, rangeEnd: 23999, schemaType: 'drinkware_accessory', schemaCollection: 'drinkware_accessories' },
+  { name: 'Kitchen & Dining',      parent: 'Houseware',          rangeStart: 24101, rangeEnd: 24999, schemaType: 'kitchen', schemaCollection: 'kitchen' },
+  { name: 'Bedding & Textiles',    parent: 'Houseware',          rangeStart: 25101, rangeEnd: 25999, schemaType: 'bedding', schemaCollection: 'bedding' },
+  { name: 'Home Décor',            parent: 'Houseware',          rangeStart: 26101, rangeEnd: 26999, schemaType: 'home_decor', schemaCollection: 'home_decor' },
+  // ── 3x000 Print & Display ─────────────────────────────────────────────────
+  { name: 'Wall Art & Prints',     parent: 'Print & Display',    rangeStart: 31101, rangeEnd: 31999, schemaType: 'poster', schemaCollection: 'posters' },
+  { name: 'Stickers & Magnets',    parent: 'Print & Display',    rangeStart: 32101, rangeEnd: 32999, schemaType: 'sticker', schemaCollection: 'stickers' },
+  { name: 'Stationery & Paper',    parent: 'Print & Display',    rangeStart: 33101, rangeEnd: 33999, schemaType: 'card', schemaCollection: 'cards' },
+  { name: 'Signs & Display',       parent: 'Print & Display',    rangeStart: 34101, rangeEnd: 34999, schemaType: 'sign', schemaCollection: 'signs' },
+  { name: 'Books & Photo',         parent: 'Print & Display',    rangeStart: 35101, rangeEnd: 35999, schemaType: 'book', schemaCollection: 'books' },
+  { name: 'Pins & Patches',        parent: 'Print & Display',    rangeStart: 36101, rangeEnd: 36999, schemaType: 'patch', schemaCollection: 'patches' },
+  { name: 'Tags',                  parent: 'Print & Display',    rangeStart: 37101, rangeEnd: 37999, schemaType: 'tag', schemaCollection: 'tags' },
+  { name: 'Puzzles & Games',       parent: 'Print & Display',    rangeStart: 38101, rangeEnd: 38999, schemaType: 'puzzle', schemaCollection: 'puzzles' },
+  { name: 'Novelty',               parent: 'Print & Display',    rangeStart: 39101, rangeEnd: 39999, schemaType: 'novelty', schemaCollection: 'novelty' },
+  // ── 4x000 Accessories ─────────────────────────────────────────────────────
+  { name: 'Bags & Pouches',        parent: 'Accessories',        rangeStart: 41101, rangeEnd: 41999, schemaType: 'bag', schemaCollection: 'bags' },
+  { name: 'Jewelry',               parent: 'Accessories',        rangeStart: 42101, rangeEnd: 42999, schemaType: 'jewelry', schemaCollection: 'jewelry' },
+  { name: 'Phone & Tech Cases',    parent: 'Accessories',        rangeStart: 43101, rangeEnd: 43999, schemaType: 'phone_case', schemaCollection: 'phone_cases' },
+  { name: 'Travel Accessories',    parent: 'Accessories',        rangeStart: 44101, rangeEnd: 44999, schemaType: 'travel_accessory', schemaCollection: 'travel_accessories' },
+  { name: 'Small Accessories',     parent: 'Accessories',        rangeStart: 45101, rangeEnd: 45999, schemaType: 'accessory', schemaCollection: 'accessories' },
+  // ── 5x000 Pet Products ────────────────────────────────────────────────────
+  { name: 'Pet Apparel',           parent: 'Pet Products',       rangeStart: 51101, rangeEnd: 51999, schemaType: 'pet_apparel', schemaCollection: 'pet_apparel' },
+  { name: 'Pet Accessories',       parent: 'Pet Products',       rangeStart: 52101, rangeEnd: 52999, schemaType: 'pet_accessory', schemaCollection: 'pet_accessories' },
+  // ── 6x000 Holiday & Seasonal ──────────────────────────────────────────────
+  { name: 'Ornaments & Décor',     parent: 'Holiday & Seasonal', rangeStart: 61101, rangeEnd: 61999, schemaType: 'ornament', schemaCollection: 'ornaments' },
+  { name: 'Stockings & Gifting',   parent: 'Holiday & Seasonal', rangeStart: 62101, rangeEnd: 62999, schemaType: 'stocking', schemaCollection: 'stockings' },
+  { name: 'Seasonal Apparel',      parent: 'Holiday & Seasonal', rangeStart: 63101, rangeEnd: 63999, schemaType: 'seasonal_apparel', schemaCollection: 'seasonal_apparel' },
+] as const;
+
+/** Read assigned QRG type metadata; this never allocates or changes an identity. */
+export function qrgProductSchema(docId: string) {
+  if (!/^qrg_[1-6][1-9]\d{3}$/.test(docId)) throw new Error('Invalid QRG blank identity');
+  const prefix = Number(docId.slice(4, 6));
+  const category = QRG_BLANK_CATEGORIES.find(c => Math.floor(c.rangeStart / 1000) === prefix);
+  if (!category) throw new Error('QRG product type is not defined');
+  const families: Record<string, string> = { 'Apparel': 'apparel', 'Houseware': 'houseware', 'Print & Display': 'print_display', 'Accessories': 'accessories', 'Pet Products': 'pet', 'Holiday & Seasonal': 'holiday' };
+  const schemaFamily = families[category.parent];
+  return { category: category.name, schemaFamily, schemaType: category.schemaType,
+    schemaCollection: category.schemaCollection,
+    canonicalProfilePath: `layout_profiles/${schemaFamily}/${category.schemaCollection}` };
+}
