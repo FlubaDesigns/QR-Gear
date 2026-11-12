@@ -150,6 +150,12 @@ export function registerCatalogRoutes(app: any, prefix: string, auth: any, deps:
         const overlays = catalogOverlays(data, data.blankIds);
         const map = { ...overlays[field] };
         if (field === 'blankImages') overlays[field] = updateCatalogImageSelection(map, id, value, req.body.restore === true);
+        else if (field === 'blankDescriptions') {
+          // Empty is an intentional customer-facing description; only null/restore removes the override.
+          if (req.body.description === null || req.body.restore === true) delete map[id];
+          else map[id] = value;
+          overlays[field] = map;
+        }
         else if (value === '' || value === null) { delete map[id]; overlays[field] = map; }
         else { map[id] = value; overlays[field] = map; }
         tx.update(ref, { ...overlays, updatedAt: deps.now() });

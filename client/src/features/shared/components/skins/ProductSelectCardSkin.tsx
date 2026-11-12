@@ -43,7 +43,7 @@ export interface ProductSelectCardSkinProps {
   tier?: TierValue;
   onTierChange?: (id: string, tier: TierValue) => void;
   showTierControls?: boolean;
-  onDescriptionSave?: (id: string, description: string) => Promise<void>;
+  onDescriptionSave?: (id: string, description: string, restore?: boolean) => Promise<void>;
   descriptionSaving?: boolean;
   editableDescription?: boolean;
   onTitleSave?: (id: string, title: string) => Promise<void>;
@@ -107,7 +107,7 @@ function PreviewModal({
   onOpenChange: (open: boolean) => void;
   onSelect: () => void;
   defaultColorEntry: { name: string; hex?: string } | null;
-  onDescriptionSave?: (id: string, description: string) => Promise<void>;
+  onDescriptionSave?: (id: string, description: string, restore?: boolean) => Promise<void>;
   descriptionSaving?: boolean;
   editableDescription?: boolean;
   onTitleSave?: (id: string, title: string) => Promise<void>;
@@ -186,13 +186,14 @@ function PreviewModal({
 
   const [savingText, setSavingText] = useState(false);
   const [textSaveError, setTextSaveError] = useState<string | null>(null);
-  const saveText = async (field: "title" | "description", value: string) => {
+  const saveText = async (field: "title" | "description", value: string, restore = false) => {
     const save = field === "title" ? onTitleSave : onDescriptionSave;
     if (!save || savingText) return;
     setSavingText(true);
     setTextSaveError(null);
     try {
-      await save(item.id, value);
+      if (field === "description") await onDescriptionSave!(item.id, value, restore);
+      else await onTitleSave!(item.id, value);
       if (field === "title") { setEditingTitle(false); setConfirmResetTitle(false); }
       else { setEditingDesc(false); setConfirmResetDesc(false); }
     } catch {
@@ -745,7 +746,7 @@ function PreviewModal({
                                 type="button"
                                 className="text-red-400 hover:text-red-300 underline font-medium"
                                 disabled={savingText || descriptionSaving}
-                                onClick={() => saveText("description", "")}
+                                onClick={() => saveText("description", "", true)}
                                 data-testid={`button-confirm-yes-reset-desc-${item.id}`}
                               >
                                 Yes, reset

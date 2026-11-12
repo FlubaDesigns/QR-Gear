@@ -164,7 +164,7 @@ export function useAdminBlanksController({ targetCatalogId }: { targetCatalogId?
     if (!validSelectedCatalogId || !catalogBlankSet.has(id)) throw new Error('Add the blank to a catalog before editing it.');
     const res = await apiRequest('PUT', `/api/admin/catalogs/${validSelectedCatalogId}/${endpoint}`, { blankId: id, ...value }); return res.json();
   };
-  const saveDescriptionMutation = useMutation({ mutationFn: ({ id, description }: { id: string; description: string }) => save('blank-description', id, { description }), onSuccess: refresh, onError: mutationError });
+  const saveDescriptionMutation = useMutation({ mutationFn: ({ id, description, restore = false }: { id: string; description: string; restore?: boolean }) => save('blank-description', id, { description, restore }), onSuccess: refresh, onError: mutationError });
   const saveTitleMutation = useMutation({ mutationFn: ({ id, title }: { id: string; title: string }) => save('blank-title', id, { title }), onSuccess: refresh, onError: mutationError });
   const saveColorsMutation = useMutation({ mutationFn: ({ id, colors }: { id: string; colors: Array<{name: string; hex: string}> }) => save('blank-colors', id, { colors }), onSuccess: refresh, onError: mutationError });
   const saveImagesMutation = useMutation({ mutationFn: ({ id, images, restore = false }: { id: string; images: string[]; restore?: boolean }) => save('blank-images', id, { images, restore }), onSuccess: refresh, onError: mutationError });
@@ -184,7 +184,7 @@ export function useAdminBlanksController({ targetCatalogId }: { targetCatalogId?
     categoryNames: ['all', ...activeCategories.map(c => c.name)], categoryCounts: Object.fromEntries(activeCategories.map(c => [c.name, c.count])),
     catalogItems, sourceItemMap, scrollItems, blankTiers, blankColors,
     onAddToCatalog, resolveBlankKey: (id: string, p?: CatalogProduct) => p?.docId || id,
-    onSaveDescription: async (id: string, description: string, canonicalKey?: string) => { await saveDescriptionMutation.mutateAsync({ id: canonicalKey || id, description }); },
+    onSaveDescription: async (id: string, description: string, canonicalKey?: string, restore = false) => { await saveDescriptionMutation.mutateAsync({ id: canonicalKey || id, description, restore }); },
     onSaveTitle: async (id: string, title: string, canonicalKey?: string) => { await saveTitleMutation.mutateAsync({ id: canonicalKey || id, title }); },
     onSaveColors: async (id: string, colors: Array<{name: string; hex: string}>, canonicalKey?: string) => { await saveColorsMutation.mutateAsync({ id: canonicalKey || id, colors }); },
     onImagesBulkSave: async (id: string, images: string[]) => { await saveImagesMutation.mutateAsync({ id, images }); },

@@ -452,13 +452,13 @@ export function ProductsModule() {
     return map;
   }, [activeProducts, activeCatalog, catalogKeyMap, activeCatalogBlankIdSet]);
 
-  const handleDescriptionSave = useCallback(async (id: string, description: string) => {
+  const handleDescriptionSave = useCallback(async (id: string, description: string, restore = false) => {
     const entry = selectItemMap.get(id);
     if (!entry) return;
 
     if (activeCatalog) {
       try {
-        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description.trim() });
+        await apiRequest("PUT", `/api/admin/catalogs/${activeCatalog.id}/blank-description`, { blankId: entry.blankKey, description: description.trim(), restore });
         queryClient.invalidateQueries({ queryKey: ["/api/admin/catalogs"] });
         toast({ title: "Description saved to catalog" });
       } catch (error) {
