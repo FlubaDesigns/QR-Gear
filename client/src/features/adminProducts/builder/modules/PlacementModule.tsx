@@ -289,22 +289,24 @@ export function PlacementModule() {
                           variant={placementType === "graphic" ? "default" : "outline"}
                           size="sm"
                           onClick={() => setPlacementType(placement.id, "graphic")}
-                          className="flex-1"
+                          className="flex-1 min-h-[48px]"
+                          aria-pressed={placementType === "graphic"}
                           data-testid={`placement-type-graphic-${placement.id}`}
                         >
                           <Image className="h-4 w-4 mr-2" />
-                          Graphic
+                          Full graphic
                         </Button>
                         <Button
                           type="button"
                           variant={placementType === "qr" ? "default" : "outline"}
                           size="sm"
                           onClick={() => setPlacementType(placement.id, "qr")}
-                          className="flex-1"
+                          className="flex-1 min-h-[48px]"
+                          aria-pressed={placementType === "qr"}
                           data-testid={`placement-type-qr-${placement.id}`}
                         >
                           <QrCode className="h-4 w-4 mr-2" />
-                          QR Code
+                          QR code only
                         </Button>
                       </div>
                     )}

@@ -1,3 +1,4 @@
+import { productionFundingDate } from './payment-state';
 import { createHash, randomBytes } from 'crypto';
 import { db, QR_GEAR_BRANDED_TAG_URL } from '../core';
 import { renderUnitBrandLabel } from './brand-label-artwork';
@@ -55,8 +56,9 @@ export async function renderUnitArtwork(packet: Record<string, any>, placement: 
 export async function prepareDynamicsOrderItems(orderId: string, ownerId: string | null, renewLease: () => Promise<void>) {
   ownerId = ownerId || null;
   const order = (await db.collection('orders').doc(orderId).get()).data();
-  if (order?.paymentStatus !== 'paid' || !order.paymentVerifiedAt) throw new Error('A verified paid order is required.');
-  const paidAt = new Date(order.paymentVerifiedAt);
+  const fundedAt = productionFundingDate(order);
+  if (!fundedAt) throw new Error('Verified order funding is required.');
+  const paidAt = new Date(fundedAt);
   const lines = await db.collection('orderItems').where('orderId', '==', orderId).get();
   const output: Array<{ variant_id: number; quantity: number; files: any[] }> = [];
   for (const line of lines.docs) {

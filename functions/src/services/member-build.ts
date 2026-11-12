@@ -80,10 +80,21 @@ export async function prepareOwnerBuild(ownerId: string, input: any) {
   if (!['qr-basic', 'qr-plus'].includes(input.packetType)) fail('Use the member builder for hosted QR experiences.');
   return prepareBuild(ownerId, input, 'owner');
 }
-async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 'owner') {
+/** Only the authenticated partner service supplies this resolved catalog scope. */
+export async function preparePartnerBuild(ownerId: string, input: any, scope: { product: any; packetId: string; partnerId: string; claimId: string }) {
+  if (input.packetType !== 'qr-plus') fail('Partner rewards use the existing QR Plus build.');
+  const existing = await db.collection('productPackets').doc(scope.packetId).get();
+  if (existing.exists) {
+    const packet = existing.data()!;
+    if (packet.ownerType !== 'owner' || packet.ownerId !== ownerId || packet.partnerId !== scope.partnerId || packet.partnerClaimId !== scope.claimId) fail('Reward build ownership differs.', 403);
+    return { packetId: existing.id, memberPacketId: null, builderSnapshot: packet.builderSnapshot, qrContent: packet.qrContent, pricing: packet.pricing };
+  }
+  return prepareBuild(ownerId, input, 'owner', scope);
+}
+async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 'owner', scope?: { product: any; packetId: string; partnerId: string; claimId: string }) {
   const sourceMasterId = input.boundProduct?.canonicalBlankKey;
   if (!isValidMasterCatalogDocId(sourceMasterId)) fail('Select a QRG product again before building.');
-  const choices = await (ownerType === 'member' ? memberCatalogProducts(db) : publicCatalogProducts(db));
+  const choices = scope ? [scope.product] : await (ownerType === 'member' ? memberCatalogProducts(db) : publicCatalogProducts(db));
   const product = choices.find((p: any) => p.canonicalBlankKey === sourceMasterId);
   if (!product) fail('This product is not enabled in the assigned catalog.');
   const provider = requireFulfillmentProvider(product.fulfillmentProvider);
@@ -131,6 +142,7 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
   const rawSnapshot = requireBuilderSnapshot({ title, description: String(input.description || ''),
     graphics: { loadedBackground: input.background ? { url: input.background } : null, content: {
       headerStyle: input.headerStyle, footerStyle: input.footerStyle, areaImageUrl: input.areaImageUrl || '',
+      areaImageOffsetX: input.areaImageOffsetX ?? 50, areaImageOffsetY: input.areaImageOffsetY ?? 50, areaImageScale: input.areaImageScale ?? 100,
       graphicLayoutMode: input.graphicLayoutMode || 'zone', qrPositionX: input.qrPositionX ?? 50,
       qrPositionY: input.qrPositionY ?? 50, qrSizePercent: input.qrSizePercent ?? 75,
       hostingTierCode: compose ? input.composeHostingTerm.replace('-', '_') : (input.hostingTierCode || '1_year'), playMediaUrl: input.videoUrl || '', qrBasicInputType: input.qrBasicInputType || 'url', areaImageMode: input.areaImageMode || 'cover',
@@ -144,7 +156,7 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
   const memberPacketId = ownerType === 'member' ? (input.existingPacketId || db.collection(MEMBER_PACKETS_COLLECTION).doc().id) : null;
   const previous = memberPacketId ? await db.collection(MEMBER_PACKETS_COLLECTION).doc(memberPacketId).get() : null;
   if (previous?.exists && previous.data()?.memberId !== memberId) fail('This product belongs to another member.', 403);
-  const ref = db.collection('productPackets').doc();
+  const ref = scope ? db.collection('productPackets').doc(scope.packetId) : db.collection('productPackets').doc();
   const origin = resolveRuntimeConfig().origin;
   const hosted = ['qr-canvas', 'qr-play', 'qr-compose'].includes(input.packetType);
   const dynamicsRef = hosted ? db.collection(QR_DYNAMICS_INSTANCES_COLLECTION).doc() : null;
@@ -164,6 +176,7 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
     landingPageSlug, landingPageTitle: title, landingPageDescription: String(input.description || ''),
     landingPageBackgroundUrl: input.background || null, playMediaUrl: input.videoUrl || null,
     pricing: priced.pricing, placementGraphicUrls: priced.placementGraphicUrls,
+    ...(scope ? { partnerId: scope.partnerId, partnerClaimId: scope.claimId } : {}),
     status: 'building', createdAt: now, updatedAt: now };
   const batch = db.batch();
   batch.create(ref, packet);

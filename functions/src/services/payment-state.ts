@@ -32,7 +32,28 @@ export async function recordChargeRefund(charge: Stripe.Charge) {
   }
 }
 
+/** A sponsored reward has its own authority; it never impersonates Stripe payment. */
+export function productionFundingDate(order: any): string | null {
+  if (!order || order.productionHold || order.refund?.refundedAmountCents > 0) return null;
+  if (order.paymentStatus === 'paid' && order.paymentVerifiedAt) return order.paymentVerifiedAt;
+  const funding = order.funding;
+  if (order.source !== 'partner_reward' || order.paymentStatus !== 'sponsored' || funding?.type !== 'partner_sponsored' ||
+      !order.id || !funding.partnerId || !funding.claimId || !funding.previewId || !funding.authorization?.websiteOrderId ||
+      !Number.isFinite(Date.parse(funding.authorization?.verifiedAt)) || !Number.isFinite(Date.parse(funding.authorizedAt))) return null;
+  return funding.authorizedAt;
+}
+
 export async function assertProductionPayment(order: any) {
+  if (order?.paymentStatus === 'sponsored') {
+    if (!productionFundingDate(order)) throw new Error('Reward funding evidence is incomplete or held.');
+    const sponsorRef = db.collection('partnerStores').doc(order.funding.partnerId);
+    const [sponsorDoc, claimDoc] = await Promise.all([sponsorRef.get(), sponsorRef.collection('rewardClaims').doc(order.funding.claimId).get()]);
+    const sponsor = sponsorDoc.data(), claim = claimDoc.data();
+    if (!claim || sponsor?.isActive !== true || sponsor.sponsoredRewards !== true || !sponsor.storeId || sponsor.storeId !== claim?.storeId ||
+        claim.orderId !== order.id || claim.revision !== order.funding.previewId || claim.approvedAt !== order.funding.authorizedAt ||
+        !['approved', 'ordered', 'shipped'].includes(claim.status)) throw new Error('Reward sponsor or approved claim is no longer authorized.');
+    return;
+  }
   if (order.paymentStatus !== 'paid' || order.productionHold || order.refund?.refundedAmountCents > 0) throw new Error('Refunded or held payment cannot enter production.');
   if (!order.stripePaymentIntentId) throw new Error('Order payment needs Stripe reconciliation before production.');
   const key = await readFlubaProviderKey('STRIPE_SECRET_KEY');

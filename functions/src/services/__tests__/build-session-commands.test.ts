@@ -27,6 +27,20 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllEnvs());
 describe('production build-session command routes', () => {
+  it('resumes only within the selected catalog and restores its metadata', async () => {
+    m.sessions.push({ id: 'fluba', data: () => ({ status: 'working', catalogId: 'fluba-auto', working: { title: 'My artwork', metadata: { selectedCatalogId: 'all' } } }), ref: { update: m.update } });
+    const res = await request(app).post('/admin/build-sessions/from-master').send({ sourceMasterId: 'qrg_11001', catalogId: 'fluba-auto' });
+    expect(res.status).toBe(200); expect(res.body.sessionId).toBe('fluba');
+    expect(res.body.session.working.metadata.selectedCatalogId).toBe('fluba-auto');
+    expect(res.body.session.working.title).toBe('My artwork');
+    expect(m.add).not.toHaveBeenCalled();
+  });
+  it('starts a catalog draft without overwriting another catalog’s work', async () => {
+    const res = await request(app).post('/admin/build-sessions/from-master').send({ sourceMasterId: 'qrg_11001', catalogId: 'fluba-auto' });
+    expect(res.status).toBe(200); expect(res.body.isExisting).toBe(false);
+    expect(m.saved.working.metadata.selectedCatalogId).toBe('fluba-auto');
+    expect(m.update).not.toHaveBeenCalled();
+  });
   it('preserves select-to-resume behavior for existing callers', async () => {
     const res = await request(app).post('/admin/build-sessions/from-master').send({ sourceMasterId: 'qrg_11001' });
     expect(res.status).toBe(200); expect(res.body.sessionId).toBe('old'); expect(res.body.isExisting).toBe(true); expect(m.add).not.toHaveBeenCalled();

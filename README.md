@@ -1120,3 +1120,12 @@ Removed the remaining Replit build plugins/runtime settings and replaced the Dri
 ### Printed cap technique verification (2026-11-11)
 
 QRG now reads an explicitly advertised DTFILM or DTG alternative when the supplier default provides only embroidery. The import still requires one common physical print area covering every mapped variant, and preserves the exact supplier placement (`front_dtf_hat` for the Otto 18-253) for saved artwork, mockups and production. Refreshing printer specifications also records supplier stock availability; known out-of-stock variants are excluded from selectable offers. No product IDs, dimensions or alternate techniques are guessed.
+
+
+## Personalized partner rewards — November 12, 2026
+
+Fluba's authenticated Rewards endpoints resolve the named store's assigned catalog, available variants and current catalog copy. A stable independent claim owns each personalized QR Plus build. Approved logo bytes use the GRF registrar; the saved verified print area feeds the shared browser/server renderer, BLD, Assembly and the existing exact-variant mockup generator. Pending and failed previews resume the same packet. Both shirts and caps support Full graphic or QR code only, stored per placement and used for rendering, previews and production. Admin's existing placement choice now reaches that same renderer; its touch controls are at least 48px tall. Draft resume stays within the selected catalog.
+
+A partner must explicitly enable sponsored rewards in Admin Partners. Approval binds the current preview to one deterministic canonical order, with `paymentStatus: sponsored`, partner funding evidence and no customer charge. Production revalidates the active sponsor and approved claim; ordinary sales retain live Stripe reconciliation. Existing frozen production, provider idempotency and tracking services remain authoritative. No supplier test order is required.
+
+Validation: real canvas QR scans for shirt/cap in both print modes; interrupted preview retries; independent claim/variant binding; cross-customer and cross-store rejection; sponsor revocation; unchanged Stripe boundary; focused checkout and snapshot regressions. Local verification is not a claim that customer fulfillment has been exercised live. Release evidence belongs in Fluba issue #1117.
