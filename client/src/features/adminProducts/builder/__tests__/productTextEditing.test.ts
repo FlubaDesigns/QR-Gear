@@ -48,7 +48,7 @@ describe('Catalog title and description editing', () => {
     await act(async () => { field('input-title').props.onChange({ target: { value: 'New catalog title' } }); });
     await act(async () => { field('textarea-desc').props.onChange({ target: { value: 'New catalog description' } }); });
     await click('button-save-desc');
-    expect(saves.onDescriptionSave).toHaveBeenCalledWith(item.id, 'New catalog description');
+    expect(saves.onDescriptionSave).toHaveBeenCalledWith(item.id, 'New catalog description', false);
     expect(saves.onTitleSave).not.toHaveBeenCalled();
     expect(field('input-title').props.value).toBe('New catalog title');
     await click('button-save-title');
@@ -63,7 +63,14 @@ describe('Catalog title and description editing', () => {
     await click('button-reset-to-provider');
     await click('button-confirm-yes-reset-desc');
     expect(saves.onTitleSave).toHaveBeenCalledWith(item.id, '');
-    expect(saves.onDescriptionSave).toHaveBeenCalledWith(item.id, '');
+    expect(saves.onDescriptionSave).toHaveBeenCalledWith(item.id, '', true);
+  });
+  it('saving an empty description does not request a reset', async () => {
+    const saves = await mount();
+    await click('button-edit-desc');
+    await act(async () => { field('textarea-desc').props.onChange({ target: { value: '' } }); });
+    await click('button-save-desc');
+    expect(saves.onDescriptionSave).toHaveBeenCalledWith(item.id, '', false);
   });
   it('keeps the field open with its draft when saving fails', async () => {
     const saves = await mount();
