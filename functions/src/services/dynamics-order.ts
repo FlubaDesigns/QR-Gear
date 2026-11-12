@@ -26,6 +26,7 @@ export function dynamicsPrintSource(packet: Record<string, any>) {
 export function freezeProductionSource(packet: Record<string, any>, qrgBlankId: string) {
   if (!/^[0-9]{5}$/.test(qrgBlankId || '')) throw new Error('A verified QRG blank is required for the production snapshot.');
   const source = JSON.parse(JSON.stringify(packet));
+  delete source.colorArtworks;
   for (const key of ['selectedRole', 'selectedStore', 'selectedChannel', 'selectedCollection', 'selectedCatalogId']) delete source.builderSnapshot?.metadata?.[key];
   for (const key of ['storeId', 'storeName', 'channelId', 'channelName', 'collectionId', 'collectionName', 'updatedAt', 'createdAt']) delete source[key];
   const frozen = { version: 1, packet: source, qrgBlankId, sourceHash: dynamicsPrintSource(source) };

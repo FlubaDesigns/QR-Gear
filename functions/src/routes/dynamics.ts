@@ -3,6 +3,7 @@ import { finalizeHostingRenewal } from '../services/hosting-renewal';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { randomBytes, createHash } from 'crypto';
 import { prepareOwnerBuild, ownedMemberBuild, saveMemberArtwork, previewMemberBuild, commitOwnerBuild } from '../services/member-build';
+import { approveProductProof } from '../services/product-proof';
 import { prepareOwnerOrder, finalizeMemberPayment } from '../services/order-service';
 import { resolveRuntimeConfig } from '../runtime-config';
 import { Request, Response, NextFunction } from 'express';
@@ -399,6 +400,7 @@ app.post('/public/checkout', async (req: Request, res: Response) => {
   try {
     const ownerId = ownerKey(req), packetId = req.body.packetId;
     await ownedMemberBuild(ownerId, packetId, 'owner');
+    await approveProductProof(packetId, { id: ownerId, type: 'owner' }, req.body.proofApproval);
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
     const packet = await commitOwnerBuild(ownerId, packetId);

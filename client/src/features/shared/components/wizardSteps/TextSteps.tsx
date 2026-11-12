@@ -1,3 +1,4 @@
+import { PrintTextColorControl, usePrintTextPreview } from '../PrintTextColorControl';
 import { BLD_LAYOUTS } from "@shared/bldCodes";
 import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,8 @@ function PhoneMockup({
   footerStyle?: TextStyleConfig;
   className?: string;
 }) {
+  const headerPreview = usePrintTextPreview(headerStyle);
+  const footerPreview = usePrintTextPreview(footerStyle);
   const getFontSize = (size: string) => {
     if (size === '12px' || size === 'sm') return '10px';
     if (size === '24px' || size === 'lg') return '16px';
@@ -104,7 +107,7 @@ function PhoneMockup({
               <div 
                 className="text-center mb-1 px-1 max-w-full"
                 style={{
-                  color: headerStyle.color || '#ffffff',
+                  color: headerPreview.color,
                   fontSize: getFontSize(headerStyle.fontSize),
                   fontFamily: headerStyle.fontFamily || 'sans-serif',
                   fontWeight: 'bold',
@@ -131,7 +134,7 @@ function PhoneMockup({
               <div 
                 className="text-center mt-1 px-1 max-w-full"
                 style={{
-                  color: footerStyle.color || '#ffffff',
+                  color: footerPreview.color,
                   fontSize: getFontSize(footerStyle.fontSize),
                   fontFamily: footerStyle.fontFamily || 'sans-serif',
                   fontWeight: 'bold',
@@ -542,15 +545,16 @@ export function TextStyleSection({
             className="bg-slate-700 border-slate-600 text-white h-10"
             data-testid={`input-${testIdPrefix}-text`}
           />
+          <PrintTextColorControl style={style} onChange={updateStyle} id={testIdPrefix} />
           <div className="flex items-center gap-2">
             <span className="text-xs text-slate-400 w-12">Color</span>
             <div className="flex gap-1 flex-wrap">
               {TEXT_COLORS.map((color) => (
                 <button
                   key={color}
-                  onClick={() => updateStyle({ color })}
+                  onClick={() => updateStyle({ color, colorMode: 'custom' })}
                   className={`w-6 h-6 rounded-full border-2 transition-all ${
-                    style.color === color ? 'border-white scale-110' : 'border-slate-600'
+                    (!style.colorMode || style.colorMode === 'custom') && style.color === color ? 'border-white scale-110' : 'border-slate-600'
                   }`}
                   style={{ backgroundColor: color }}
                   data-testid={`button-${testIdPrefix}-color-${color}`}

@@ -92,7 +92,10 @@ export async function executeSimplePublish(ctx: any): Promise<boolean> {
 
     packetData.existingPacketId = ctx.currentPacketId;
     packetData.graphicLayoutMode = ctx.graphicLayoutMode;
-    result = await publishMemberBuild(ctx.user.id, packetData);
+    const proof = await previewMemberBuild(ctx.user.id, packetData);
+    const approval = await ctx.requestProofApproval(proof);
+    if (!approval) return false;
+    result = await publishMemberBuild(ctx.user.id, packetData, approval);
 
     const packetId = result.id || result.packetId || ctx.currentPacketId || null;
     ctx.setPublishedBuild(result);

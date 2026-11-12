@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import { usePrintTextPreview } from '../PrintTextColorControl';
 import { useProductGraphicPreview } from "@/hooks/useProductGraphicPreview";
 import type { TextStyle, RenderOptions } from "@/features/shared/graphics/productGraphicRenderer";
 
@@ -9,6 +10,7 @@ interface TextOverlay {
   fontSize: string;
   fontWeight?: string;
   color: string;
+  colorMode?: import('@shared/printTextColor').PrintTextColorMode;
   warpPreset?: string;
   letterSpacing?: number;
   strokeColor?: string;
@@ -62,6 +64,7 @@ function toTextStyle(overlay?: TextOverlay): TextStyle | null {
     fontSize: overlay.fontSize || "18px",
     fontWeight: overlay.fontWeight,
     color: overlay.color || "#000000",
+    colorMode: overlay.colorMode,
     letterSpacing: overlay.letterSpacing,
     strokeColor: overlay.strokeColor,
     strokeWidth: overlay.strokeWidth,
@@ -95,6 +98,8 @@ export function GraphicPreviewView({
   subBottomStyle,
   graphicLayoutMode,
 }: GraphicPreviewViewProps) {
+  const { background } = usePrintTextPreview(null, backgroundColor);
+  backgroundColor = background?.hex || backgroundColor;
   const aspectClass =
     aspectRatio === "portrait" ? "aspect-[2/3]" : "aspect-square";
 
@@ -102,10 +107,7 @@ export function GraphicPreviewView({
   const { dataUrl, isLoading, error } = useProductGraphicPreview({
     renderOptions,
     qrContent: qrContent || "https://qrgear.app",
-    qrColor:
-      backgroundColor && getLuminance(backgroundColor) < 0.5
-        ? "white"
-        : "black",
+    qrColor: "black",
     headerStyle: toTextStyle(headerStyle),
     footerStyle: toTextStyle(footerStyle),
     backgroundColor,
@@ -158,13 +160,4 @@ export function GraphicPreviewView({
       )}
     </div>
   );
-}
-
-function getLuminance(hex: string): number {
-  const rgb = hex.replace("#", "").match(/.{2}/g);
-  if (!rgb) return 0;
-  const [r, g, b] = rgb.map((c) => parseInt(c, 16) / 255);
-  const toLinear = (c: number) =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
-  return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 }

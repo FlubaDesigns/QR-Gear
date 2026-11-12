@@ -1,3 +1,4 @@
+import type { PrintTextBackground } from '@shared/printTextColor';
 import type { PlacementSize as _PlacementSize, PlacementConfig as _PlacementConfig, PlacementSizeConfig as _PlacementSizeConfig, PlacementOption as _PlacementOption } from "@/features/shared/placementTypes";
 
 export type SourceType = "custom" | "product_template" | "graphic_template" | "background" | null;
@@ -26,7 +27,7 @@ export interface CatalogCategory {
   itemCount: number;
 }
 
-export interface ProductColor {
+export interface ProductColor extends PrintTextBackground {
   name: string;
   hex: string;
 }
@@ -226,6 +227,7 @@ export const QR_PRODUCT_STATES = [
 ] as const;
 
 export interface TextStyleConfig {
+  colorMode?: import('@shared/printTextColor').PrintTextColorMode;
   text: string;
   enabled: boolean;
   fontFamily: string;
@@ -339,7 +341,7 @@ export {
   DEFAULT_PLACEMENT_DIMENSIONS,
 } from "@/features/shared/placementTypes";
 
-export interface SelectedColor {
+export interface SelectedColor extends PrintTextBackground {
   name: string;
   hex: string;
 }

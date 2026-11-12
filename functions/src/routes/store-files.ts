@@ -1,3 +1,6 @@
+import { resolvePacketColorArtwork } from '../services/packet-color-artwork';
+import { hasAutomaticPrintText } from '../../../shared/printTextColor';
+import { dynamicsPrintSource } from '../services/dynamics-order';
 import { extractPacketMockups } from '../services/packet-mockups';
 import { isPublicCatalogRecord, isVisibleLegacyLink, isPublicPacket } from '../services/publication';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
@@ -70,6 +73,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
       let packetMockupImages: string[] = [];
       let packetDefaultColor: string | null = null;
       let packetQrProductType: string | null = null;
+      let automaticPrintText = false;
       let packetLandingPageSnapshotUrl: string | null = null;
       let packetCompositeUrl: string | null = null;
       let packetQrOnlyUrl: string | null = null;
@@ -81,6 +85,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
           const pDoc = await db.collection('productPackets').doc(d.currentPacketId).get();
           if (pDoc.exists) {
             const pkt = pDoc.data()!;
+            automaticPrintText = hasAutomaticPrintText(pkt.builderSnapshot);
             if (!await isPublicPacket(pDoc.id, pkt)) { res.status(404).json({ error: 'Product not published' }); return; }
             productOptions = await catalogProductOptions(db, d, pkt);
             const extracted = extractPacketMockups(pkt);
@@ -130,6 +135,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
         availableColors: bColors,
         availablePlacements: [],
         defaultColor: packetDefaultColor,
+        automaticPrintText,
         mockupsByColor: packetMockupsByColor,
         selectedGraphicSize: null,
         storeId: d.storeId || null,
@@ -817,8 +823,21 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
 
     if (!packetData) { res.status(404).json({ error: 'Product not published' }); return; }
 
+    const enabledColors = (instanceData?.enabledColors || instanceData?.resolved?.colors || [])
+      .map((value: any) => typeof value === 'string' ? value : value?.name || value?.label);
+    if (!enabledColors.includes(colorName)) {
+      res.status(400).json({ success: false, error: 'Color is not enabled for this product', colorName });
+      return;
+    }
+    const sourceMasterId = packetMockupSourceId(packetData);
+    const masterDoc = await db.collection('master_catalog').doc(sourceMasterId).get();
+    if (!masterDoc.exists) throw new Error('QRG blank not found');
+    packetData = await resolvePacketColorArtwork(packetId!, packetData, masterDoc.data()!, colorName);
+    const artworkKey = packetData!.colorArtworkKey || dynamicsPrintSource(packetData!);
+    const cacheMatchesArtwork = !hasAutomaticPrintText(packetData!.builderSnapshot) || packetData!.mockupArtworkKeys?.[targetNorm] === artworkKey;
+
     // ── Cache check — 3-level format (colorKey → placement → size → url) ──
-    if (packetData?.mockupsByColor && typeof packetData.mockupsByColor === 'object') {
+    if (cacheMatchesArtwork && packetData?.mockupsByColor && typeof packetData.mockupsByColor === 'object') {
       const raw = packetData.mockupsByColor as Record<string, any>;
       for (const [colorKey, placementsRaw] of Object.entries(raw)) {
         if (norm(colorKey) !== targetNorm) continue;
@@ -856,15 +875,6 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
       return;
     }
 
-    const enabledColors = (instanceData?.enabledColors || instanceData?.resolved?.colors || [])
-      .map((value: any) => typeof value === 'string' ? value : value?.name || value?.label);
-    if (!enabledColors.includes(colorName)) {
-      res.status(400).json({ success: false, error: 'Color is not enabled for this product', colorName });
-      return;
-    }
-    const sourceMasterId = packetMockupSourceId(packetData);
-    const masterDoc = await db.collection('master_catalog').doc(sourceMasterId).get();
-    if (!masterDoc.exists) throw new Error('QRG blank not found');
     const request = buildPacketMockupRequest(packetData, masterDoc.data()!, 'front', colorName);
     const result = await generateMockupFromPrintful(request);
     if (!result.mockupUrl) throw new Error('Printful returned no color mockup');
@@ -875,6 +885,7 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
         const colorKey = norm(colorName);
         const update: Record<string, any> = {
           [`mockupsByColor.${colorKey}.front.medium`]: result.mockupUrl,
+          [`mockupArtworkKeys.${colorKey}`]: artworkKey,
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         };
         if (result.lifestyleMockupUrl) {

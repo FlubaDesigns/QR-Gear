@@ -61,6 +61,7 @@ interface StoreProduct {
   availableColors: string[];
   availablePlacements: string[];
   defaultColor: string | null;
+  automaticPrintText?: boolean;
   mockupsByColor: Record<string, { front?: string; lifestyle?: string; angles?: string[] }> | null;
   selectedGraphicSize: string | null;
   storeId: string | null;
@@ -125,7 +126,7 @@ export default function ShopProductPage() {
     setMockupFetching(false);
     setMockupError(null);
     // Seed local mockup cache from API data
-    setLocalMockupsByColor(product.mockupsByColor ?? null);
+    setLocalMockupsByColor(product.automaticPrintText ? null : product.mockupsByColor ?? null);
 
     const colorOpt = product.options?.find(o => o.name === 'color');
     const colors = colorOpt?.values.filter(v => v.available).map(v => v.label) || product.availableColors || [];
@@ -137,12 +138,14 @@ export default function ShopProductPage() {
     setSelectedSize(sortProductSizes(sizes)[0] || null);
     setSizeError(false);
     setSizeNotice(null);
+    if (product.automaticPrintText && defaultColor) void requestColorMockup(defaultColor);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
   // Returns true if the color already has a mockup in the local cache
   const isMockupCached = (color: string): boolean => {
     if (!localMockupsByColor) return false;
+    if (product?.automaticPrintText) return !!localMockupsByColor[color]?.front;
     const target = normalizeMockupColorKey(color);
     return Object.keys(localMockupsByColor).some(
       (key) => normalizeMockupColorKey(key.split('_')[0]) === target && !!localMockupsByColor[key]?.front,
@@ -163,6 +166,10 @@ export default function ShopProductPage() {
     setMockupError(null);
     setMockupFetching(false);
     if (!linkId || isMockupCached(color)) return;
+    await requestColorMockup(color, requestId);
+  };
+
+  const requestColorMockup = async (color: string, requestId = ++mockupRequestId.current) => {
     setMockupFetching(true);
     try {
       const res = await fetch(`/api/store/product/${linkId}/mockup-for-color`, {
@@ -190,13 +197,14 @@ export default function ShopProductPage() {
   // Build gallery using local (enriched) mockup cache so color swaps are instant when cached
   const galleryImages = useMemo(
     () => buildProductGallery(
-      product ? { ...product, mockupsByColor: localMockupsByColor } : null,
+      product ? { ...product, ...(product.automaticPrintText ? {images:[],imageUrl:null,packetImageUrl:null} : {}),
+        mockupsByColor: product.automaticPrintText ? (selectedColor && localMockupsByColor?.[selectedColor] ? {[selectedColor]:localMockupsByColor[selectedColor]} : null) : localMockupsByColor } : null,
       selectedColor,
     ),
     [product, selectedColor, localMockupsByColor],
   );
 
-  const displayImage = galleryImages[0]?.url || product?.imageUrl;
+  const displayImage = galleryImages[0]?.url || (product?.automaticPrintText ? null : product?.imageUrl);
 
   const handleAddToCart = async (): Promise<boolean> => {
     if (!product || !product.price || product.optionsError) return false;

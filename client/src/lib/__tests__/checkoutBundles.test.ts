@@ -27,6 +27,7 @@ async function mount() {
   await act(async () => { tree = create(React.createElement(QueryClientProvider, { client }, React.createElement(Checkout))); await flush(); });
   await settle();
 }
+function approve() { act(() => tree.root.findByProps({'data-testid':'approve-product-proof'}).props.onChange({target:{checked:true}})); }
 async function selectOffer() { act(() => tree.root.findByType('select').props.onChange({ target: { value: 'pair' } })); await settle(); }
 beforeEach(() => {
   vi.clearAllMocks(); pick = false;
@@ -35,6 +36,7 @@ beforeEach(() => {
     if (path.endsWith('/embedded')) return { json: async () => ({ clientSecret: 'test-secret' }) };
     const chosen = !!body?.bundle;
     return { json: async () => ({ quoteToken: chosen ? 'chosen-token' : 'base-token', amount: chosen ? 13615 : 14499, subtotalCents: 14499,
+      proofs: [{cartItemId:'cart',title:'Test shirt',proofId:'proof-1',selectedColor:'Black',selectedSize:'M',mockupUrl:'https://files.test/proof.png',warnings:[]}],
       bundle: chosen ? { name: 'Pair', discountCents: 884 } : null,
       offers: [{ id: 'pair', name: 'Pair', bundleType: pick ? 'pick' : 'fixed', minItems: 2, maxItems: 2,
         items: [{ id: 'army', name: 'Army', quantity: 1 }, { id: 'lincoln', name: 'Lincoln', quantity: 1 }] }] }) };
@@ -46,12 +48,13 @@ it('shows the server total, then sends the reviewed bundle and token to payment'
   expect(tree.root.findByProps({ 'data-testid': 'checkout-quoted-total' }).children.join('')).toBe('$144.99');
   await selectOffer();
   expect(tree.root.findByProps({ 'data-testid': 'checkout-quoted-total' }).children.join('')).toBe('$136.15');
+  expect(button('Continue to payment').props.disabled).toBe(true); approve();
   expect(button('Continue to payment').props.disabled).toBe(false);
   act(() => button('Continue to payment').props.onClick());
   expect(tree.root.findByType('select').props.disabled).toBe(true);
   await act(async () => { await stripe()[0].props.options.fetchClientSecret(); });
   expect(mocks.api).toHaveBeenCalledWith('POST', '/api/checkout/embedded', {
-    returnUrl: 'https://store.example/checkout/success?session_id={CHECKOUT_SESSION_ID}', quoteToken: 'chosen-token', bundle: { bundleId: 'pair' },
+    returnUrl: 'https://store.example/checkout/success?session_id={CHECKOUT_SESSION_ID}', quoteToken: 'chosen-token', proofApprovals: {cart:{approved:true,proofId:'proof-1'}}, bundle: { bundleId: 'pair' },
   });
   act(() => button('Change order selection').props.onClick()); await settle();
   expect(stripe()).toHaveLength(0); expect(tree.root.findByType('select').props.disabled).toBe(false);
@@ -64,6 +67,7 @@ it('requires the pick count before quoting and enabling payment', async () => {
   act(() => checks[0].props.onChange({ target: { checked: true } })); await settle();
   expect(button('Continue to payment').props.disabled).toBe(true);
   act(() => checks[1].props.onChange({ target: { checked: true } })); await settle();
+  expect(button('Continue to payment').props.disabled).toBe(true); approve();
   expect(button('Continue to payment').props.disabled).toBe(false);
   expect(mocks.api).toHaveBeenCalledWith('POST', '/api/checkout/quote', { bundle: { bundleId: 'pair', selectedItems: ['army', 'lincoln'] } });
 });
@@ -73,7 +77,7 @@ it('blocks payment and exposes a failed price quote', async () => {
   expect(JSON.stringify(tree.toJSON())).toContain('Saved product price is unavailable.');
 });
 it('exposes a changed-price payment rejection and allows another review', async () => {
-  await mount(); act(() => button('Continue to payment').props.onClick());
+  await mount(); approve(); act(() => button('Continue to payment').props.onClick());
   mocks.api.mockRejectedValueOnce(new Error('Your cart or bundle price changed.'));
   await act(async () => { await expect(stripe()[0].props.options.fetchClientSecret()).rejects.toThrow('changed'); });
   expect(JSON.stringify(tree.toJSON())).toContain('Your cart or bundle price changed.');

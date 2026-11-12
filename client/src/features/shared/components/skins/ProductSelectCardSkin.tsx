@@ -1,3 +1,4 @@
+import type { PrintTextColorOverride } from '@shared/printTextColor';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "@/components/ui/alert-dialog";
 import { formatBlankId } from "@shared/blankKeys";
 import type { CanonicalProductSelectItem } from "@shared/adapters/catalog.adapter";
@@ -66,6 +67,8 @@ export interface ProductSelectCardSkinProps {
   savedColors?: Array<{name: string; hex: string}>;
   onColorsSave?: (id: string, colors: Array<{name: string; hex: string}>) => Promise<void>;
   colorsSaving?: boolean;
+  onTextColorSave?: (id: string, colorName: string, mode: PrintTextColorOverride) => Promise<void>;
+  textColorSaving?: boolean;
 }
 
 function PreviewModal({
@@ -93,6 +96,7 @@ function PreviewModal({
   savedColors,
   onColorsSave,
   colorsSaving,
+  onTextColorSave, textColorSaving,
   actionLabel,
   actionDisabled,
   priceLabel,
@@ -126,6 +130,8 @@ function PreviewModal({
   savedColors?: Array<{name: string; hex: string}>;
   onColorsSave?: (id: string, colors: Array<{name: string; hex: string}>) => Promise<void>;
   colorsSaving?: boolean;
+  onTextColorSave?: (id: string, colorName: string, mode: PrintTextColorOverride) => Promise<void>;
+  textColorSaving?: boolean;
 }) {
   const isMobile = useIsMobile();
   const [editingDesc, setEditingDesc] = useState(false);
@@ -879,6 +885,20 @@ function PreviewModal({
                 </div>
               )}
 
+              {onTextColorSave && item.availableColors.length > 0 && <details className="space-y-3">
+                <summary className="min-h-12 cursor-pointer py-3 text-sm font-medium">Automatic print text by product color</summary>
+                <p className="text-xs text-muted-foreground">Applies to new Automatic text builds of this blank in every catalog and site. Existing approved artwork stays saved.</p>
+                {item.availableColors.map(c => <label key={c.name} className="flex flex-col gap-1 text-sm">
+                  <span>{c.name}</span>
+                  <select aria-label={`Automatic text for ${c.name}`} value={c.textColorMode ?? 'auto'} disabled={textColorSaving}
+                    className="w-full min-h-12 rounded-md border bg-background px-3"
+                    onChange={event => { void onTextColorSave(item.id, c.name, event.target.value as PrintTextColorOverride).catch(() => { /* Controller reports the failed save. */ }); }}>
+                    <option value="auto">Automatic</option><option value="light">Light text (white)</option><option value="dark">Dark text (black)</option>
+                  </select>
+                  {c.contrastHex === null && (c.textColorMode ?? 'auto') === 'auto' && <span className="text-xs text-destructive">Color value unavailable. Choose Light text or Dark text.</span>}
+                </label>)}
+              </details>}
+
               {editableColors && onColorsSave && item.availableColors.length > 0 && (
                 <div className="space-y-2" data-testid={`color-controls-modal-${item.id}`}>
                   <p className="text-xs text-muted-foreground font-medium">
@@ -964,7 +984,7 @@ const TIER_LABELS: Record<string, string> = {
   best: "Best",
 };
 
-export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, priceLabel, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving }: ProductSelectCardSkinProps) {
+export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTierChange, showTierControls, onDescriptionSave, descriptionSaving, editableDescription, onTitleSave, titleSaving, editableTitle, textEditScope, priceLabel, selectLabel, selectedLabel, disableWhenSelected, selectDisabled, selectDisabledTitle, onImageDelete, onImageRestore, onImagesBulkSave, masterCatalogImages, fulfillmentProvider, mockupImageUrl, editableColors, savedColors, onColorsSave, colorsSaving, onTextColorSave, textColorSaving }: ProductSelectCardSkinProps) {
   const providerLabel = fulfillmentProvider === "both" ? "Printify + Printful"
     : fulfillmentProvider === "printful" ? "Printful" : fulfillmentProvider === "printify" ? "Printify" : fulfillmentProvider;
   const actionLabel = isSelected ? (selectedLabel ?? "Selected") : (selectLabel ?? "Select product");
@@ -1261,6 +1281,7 @@ export function ProductSelectCardSkin({ item, isSelected, onSelect, tier, onTier
         savedColors={savedColors}
         onColorsSave={onColorsSave}
         colorsSaving={colorsSaving}
+        onTextColorSave={onTextColorSave} textColorSaving={textColorSaving}
       />
     </>
   );

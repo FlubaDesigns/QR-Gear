@@ -6,6 +6,7 @@ const m = vi.hoisted(() => ({ prepare: vi.fn(), quote: vi.fn(), create: vi.fn(),
 vi.mock('../../core', () => ({ db: { collection: () => ({ doc: () => ({ update: m.update }) }) } }));
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next(), requireAuth: (req: any, _res: any, next: any) => { req.user = { uid: 'buyer' }; next(); } }));
 vi.mock('../order-service', () => ({ prepareCartOrder: m.prepare, readCartQuote: m.quote }));
+vi.mock('../product-proof', () => ({ saleItemProof: async () => ({ proofId:'proof-1',mockupUrl:'https://files.test/proof.png',selectedColor:'Navy',selectedSize:'M',warnings:[] }) }));
 vi.mock('stripe', () => ({ default: class { checkout = { sessions: { create: m.create } }; } }));
 import { registerCoreCheckoutRoutes } from '../../routes/core-routes-checkout';
 const app = express(); app.use(express.json()); registerCoreCheckoutRoutes(app);
@@ -21,8 +22,9 @@ afterEach(() => vi.unstubAllEnvs());
 describe('bundle checkout transport', () => {
   it.each(['/checkout', '/checkout/embedded'])('sends exact discounted cents to Stripe at %s', async path => {
     const bundle = { bundleId: 'pair' };
-    const response = await request(app).post(path).send({ bundle, quoteToken: 'reviewed' });
-    expect(response.status).toBe(200); expect(m.prepare).toHaveBeenCalledWith('buyer', '', bundle, 'reviewed');
+    const proofApprovals = {cart:{approved:true,proofId:'proof-1'}};
+    const response = await request(app).post(path).send({ bundle, quoteToken: 'reviewed', proofApprovals });
+    expect(response.status).toBe(200); expect(m.prepare).toHaveBeenCalledWith('buyer', '', bundle, 'reviewed', proofApprovals);
     const session = m.create.mock.calls[0][0];
     expect(session.line_items.reduce((sum: number, row: any) => sum + row.quantity * row.price_data.unit_amount, 0)).toBe(10935);
     expect(session.line_items[0]).toMatchObject({ quantity: 1, price_data: { unit_amount: 6500, product_data: { description: '2 × Navy / M — bundle price applied' } } });
@@ -31,6 +33,7 @@ describe('bundle checkout transport', () => {
     m.quote.mockResolvedValue({ quoteToken: 'reviewed', amount: 10935, subtotalCents: 11683, bundle: { id: 'pair' }, offers: [], unavailable: [], items: [{ fulfillment: { files: ['private'] } }] });
     const response = await request(app).post('/checkout/quote').send({ bundle: { bundleId: 'pair' } });
     expect(response.status).toBe(200); expect(response.body.amount).toBe(10935); expect(response.body.items).toBeUndefined();
+    expect(response.body.proofs[0]).toMatchObject({proofId:'proof-1',mockupUrl:'https://files.test/proof.png'});
   });
   it('does not create a payment session when review validation fails', async () => {
     m.prepare.mockRejectedValue(new Error('Your cart or bundle price changed.'));

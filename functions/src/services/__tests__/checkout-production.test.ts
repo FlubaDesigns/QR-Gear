@@ -15,6 +15,8 @@ import { printfulClient, PrintfulApiError } from '../printful';
 import { fulfillOrder, syncFulfillment } from '../order-fulfillment';
 import { prepareCartOrder, finalizeCartPayment, readCartQuote } from '../order-service';
 import { saveBundle } from '../product-bundles';
+import { saleItemProof } from '../product-proof';
+vi.mock('../mockup-generator', () => ({ generateMockupFromPrintful: async () => ({ mockupUrl: 'https://files.example/review.png' }) }));
 import { MEMBER_PACKETS_COLLECTION } from '../../constants';
 let store: Map<string, any>;
 const grfId = 'GRF-11442-000001';
@@ -32,7 +34,7 @@ beforeEach(() => {
     'cartItems/cart': cart, 'settings/admin': { defaultFulfillmentProvider: 'printify' },
     'testSettings/pricing': { sizeUpcharges: { M: 4 } },
     'admin_catalog_instances/instance': { currentPacketId: 'packet', enabledSizes: ['M'], enabledColors: ['Navy'], resolved: { title: 'Saved Navy Shirt', pricing: { customerPrice: 30 } } },
-    'productPackets/packet': { assemblyId: 'ASM-000001', fulfillmentProvider: 'printful', placementGrfIds: { back: grfId, label_inside:insideId }, placementGraphicUrls: { back: 'https://files.example/art.png', label_inside:'https://files.example/label.png' },
+    'productPackets/packet': { qrContent: 'https://example.test', assemblyId: 'ASM-000001', fulfillmentProvider: 'printful', placementGrfIds: { back: grfId, label_inside:insideId }, placementGraphicUrls: { back: 'https://files.example/art.png', label_inside:'https://files.example/label.png' },
       builderSnapshot: { graphics: { content: { graphicLayoutMode: 'zone', qrSizePercent: 70 } }, qrConfig: { selectedColor: { name: 'Navy' } },
         metadata: { selectedProductDocId: 'qrg_11111', fulfillmentProvider: 'printful' }, layoutConfig: { selectedPlacements: ['back','label_inside'], providerLayouts: { back: layout, label_inside:insideLayout } } } },
     [`grf_assets/${insideId}`]:{...parseGrfId(insideId),grfId:insideId,publicUrl:'https://files.example/label.png'},
@@ -48,8 +50,26 @@ beforeEach(() => {
   confirmOrder.mockImplementation(async () => ({ id: 77, external_id: [...store.keys()].find(k => k.startsWith('orders/'))!.split('/')[1], status: 'pending' }));
 });
 afterEach(() => vi.unstubAllEnvs());
-async function paidOrder() { const prepared = await prepareCartOrder('buyer'); await finalizeCartPayment(payment(prepared.orderId)); return prepared; }
+async function reviewedOrder(selection?: any, token?: string) {
+  const quote = await readCartQuote('buyer', selection);
+  const approvals = Object.fromEntries(await Promise.all(quote.items.map(async item => [item.cartItemId, { approved:true, proofId:(await saleItemProof(item)).proofId }])));
+  return prepareCartOrder('buyer', '', selection, token || quote.quoteToken, approvals);
+}
+async function paidOrder() { const prepared = await reviewedOrder(); await finalizeCartPayment(payment(prepared.orderId)); return prepared; }
 describe('Store sale to Printful production', () => {
+  it('requires each buyer proof, invalidates changed selections, and freezes the approval with production', async () => {
+    const quote = await readCartQuote('buyer');
+    const proof = await saleItemProof(quote.items[0]);
+    for (const approval of [undefined, {approved:false,proofId:proof.proofId}, {approved:true,proofId:'stale'}]) {
+      await expect(prepareCartOrder('buyer', '', undefined, quote.quoteToken, {cart:approval})).rejects.toThrow('approve this proof');
+      expect([...store.keys()].some(key => key.startsWith('orders/'))).toBe(false);
+    }
+    const prepared = await prepareCartOrder('buyer', '', undefined, quote.quoteToken, {cart:{approved:true,proofId:proof.proofId}});
+    const approval = store.get(`orderItems/${prepared.orderId}_0`).proofApproval;
+    expect(approval).toMatchObject({approved:true,approvedBy:'buyer',actorType:'customer',proofId:proof.proofId,method:'proof_checkbox',selectedColor:'Navy',selectedSize:'M'});
+    expect(store.get(`orderProductionSources/${prepared.orderId}_0`).packet.proofApproval).toEqual(approval);
+    expect(createOrder).not.toHaveBeenCalled();
+  });
   it('quotes a published member product from the canonical member collection', async () => {
     store.set(`${MEMBER_PACKETS_COLLECTION}/member`, { status: 'published', memberId: 'seller', productionPacketId: 'packet' });
     Object.assign(store.get('productPackets/packet'), { status: 'published', memberId: 'seller', memberPacketId: 'member', title: 'Member shirt', selectedColor: 'Navy', pricing: { customerPrice: 30 } });
@@ -60,7 +80,7 @@ describe('Store sale to Printful production', () => {
     await expect(readCartQuote('buyer')).rejects.toThrow('ownership does not match');
   });
   it('freezes real price, exact variant and artwork, pays and submits once despite webhook replay/cart edits', async () => {
-    const { orderId, items, amount } = await prepareCartOrder('buyer');
+    const { orderId, items, amount } = await reviewedOrder();
     expect(amount).toBe(6800); expect(items[0].productTitle).toBe('Saved Navy Shirt');
     expect(items[0].fulfillment).toMatchObject({ provider: 'printful', variantId: 123 });
     expect(m.composition).toHaveBeenCalledWith(m.db, 'packet', expect.anything());
@@ -79,11 +99,11 @@ describe('Store sale to Printful production', () => {
     expect(createOrder).toHaveBeenCalledTimes(1); expect(confirmOrder).toHaveBeenCalledTimes(1); expect(store.get('cartItems/cart').quantity).toBe(9);
   });
   it.each([{ payment_status: 'unpaid' }, { amount_total: 1 }, { currency: 'eur' }, { metadata: { source: 'direct_cart', userId: 'other', orderId: 'auto-1' } }])('rejects bad payment %j', async overrides => {
-    const { orderId } = await prepareCartOrder('buyer'); await expect(finalizeCartPayment(payment(orderId, overrides))).rejects.toThrow();
+    const { orderId } = await reviewedOrder(); await expect(finalizeCartPayment(payment(orderId, overrides))).rejects.toThrow();
     await expect(fulfillOrder(orderId)).rejects.toThrow('verified payment'); expect(createOrder).not.toHaveBeenCalled();
   });
   it('clears purchased rows and preserves new cart rows', async () => {
-    const { orderId } = await prepareCartOrder('buyer'); store.set('cartItems/later', { ...cart });
+    const { orderId } = await reviewedOrder(); store.set('cartItems/later', { ...cart });
     await finalizeCartPayment(payment(orderId)); expect(store.has('cartItems/cart')).toBe(false); expect(store.has('cartItems/later')).toBe(true);
   });
   it('recovers a draft after confirmation failure without a second create', async () => {
@@ -133,7 +153,7 @@ describe('reviewed bundle orders', () => {
       items: [{ catalogInstanceId: 'instance', quantity: 1 }, { catalogInstanceId: 'second', quantity: 1 }] });
     const selection = { bundleId: bundle.id }; const quote = await readCartQuote('buyer', selection);
     expect(quote.amount).toBe(10935); expect(quote.subtotalCents).toBe(11683);
-    const prepared = await prepareCartOrder('buyer', '', selection, quote.quoteToken);
+    const prepared = await reviewedOrder(selection, quote.quoteToken);
     expect(store.get('orders/' + prepared.orderId).bundle.discountCents).toBe(748);
     expect(prepared.items.reduce((sum, item) => sum + item.lineTotalCents, 0)).toBe(10935);
     await saveBundle(m.db, { discountPercent: 90 }, bundle.id);

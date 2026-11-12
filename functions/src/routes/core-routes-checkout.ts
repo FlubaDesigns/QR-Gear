@@ -5,6 +5,7 @@ import { catalogProductOptions } from '../services/catalog-sale-variants';
 import { resolveColorHex } from '../../../shared/colorUtils';
 import {validateCoupon} from '../services/coupons';
 import { prepareCartOrder, readCartQuote } from '../services/order-service';
+import { saleItemProof } from '../services/product-proof';
 import { Request, Response, NextFunction } from 'express';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
   import express from 'express';
@@ -27,9 +28,9 @@ export function registerCoreCheckoutRoutes(app: express.Express): void {
 app.post('/checkout/quote', requireAuth, async (req: Request, res: Response) => {
   try {
     const quote = await readCartQuote((req as any).user.uid, req.body?.bundle);
-    // Only public pricing and offer labels leave the server; production artwork stays internal.
+    const proofs = await Promise.all(quote.items.map(async item => ({ cartItemId: item.cartItemId, title: item.productTitle, ...await saleItemProof(item) })));
     res.json({ quoteToken: quote.quoteToken, amount: quote.amount, subtotalCents: quote.subtotalCents,
-      bundle: quote.bundle, offers: quote.offers, unavailable: quote.unavailable });
+      bundle: quote.bundle, offers: quote.offers, unavailable: quote.unavailable, proofs });
   } catch (e: any) { res.status(e.status || 400).json({ error: e.message }); }
 });
 for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' : '/checkout', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -39,7 +40,7 @@ for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' :
     if (!stripeKey) { res.status(503).json({ error: 'Stripe not configured' }); return; }
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
-    const prepared = await prepareCartOrder(userId, req.body.referrerId || '', req.body.bundle, req.body.quoteToken);
+    const prepared = await prepareCartOrder(userId, req.body.referrerId || '', req.body.bundle, req.body.quoteToken, req.body.proofApprovals);
     orderId = prepared.orderId;
     const lineItems = prepared.items.map(item => ({ price_data: { currency: 'usd',
       product_data: { name: item.productTitle, description: `${item.quantity} × ${item.customization.productColor} / ${item.customization.productSize}${item.discountCents ? " — bundle price applied" : ""}` },

@@ -11,6 +11,7 @@ import SEO from "@/components/SEO";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import type { CartItem } from "@shared/schema";
+import { ProductProofApproval, ProductProofImages } from '@/features/shared/components/ProductProofApproval';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
 
@@ -20,14 +21,15 @@ export default function Checkout() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [bundleId, setBundleId] = useState("");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [paymentReview, setPaymentReview] = useState<{ quoteToken: string; bundle?: { bundleId: string; selectedItems?: string[] } } | null>(null);
+  const [approvals, setApprovals] = useState<Record<string, string>>({});
+  const [paymentReview, setPaymentReview] = useState<{ quoteToken: string; proofApprovals: Record<string, { approved: true; proofId: string }>; bundle?: { bundleId: string; selectedItems?: string[] } } | null>(null);
 
   const { data: cartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
     queryKey: privateQueryKey("/api/cart", user?.id),
     enabled: !!user?.id,
   });
 
-  type Quote = { quoteToken: string; amount: number; subtotalCents: number;
+  type Quote = { quoteToken: string; amount: number; subtotalCents: number; proofs: Array<{cartItemId: string; title: string; proofId: string; selectedColor: string; selectedSize: string; mockupUrl: string; mockupUrls?: Record<string,string>; warnings: string[]}>;
     bundle: null | { name: string; discountCents: number };
     offers: Array<{ id: string; name: string; bundleType: string; minItems: number; maxItems: number; items: Array<{ id: string; name: string; quantity: number }> }> };
   const quoteRequest = async (bundle?: { bundleId: string; selectedItems?: string[] }): Promise<Quote> => {
@@ -44,6 +46,8 @@ export default function Checkout() {
   const currentQuote = bundleId ? selectedQuote : baseQuote;
   const quote = currentQuote.data;
   const ready = !!quote && !currentQuote.isFetching && !currentQuote.error && (!bundleId || selectionValid);
+  const approved = !!quote?.proofs?.length && quote.proofs.every(proof => approvals[proof.cartItemId] === proof.proofId);
+  useEffect(() => { setApprovals({}); }, [quote?.quoteToken]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -173,9 +177,17 @@ export default function Checkout() {
               {quote.bundle && <p className="flex justify-between"><span>{quote.bundle.name}</span><span>{quote.bundle.discountCents >= 0 ? "−" : "+"}${(Math.abs(quote.bundle.discountCents) / 100).toFixed(2)}</span></p>}
               <p className="flex justify-between font-bold"><span>Total</span><span data-testid="checkout-quoted-total">${(quote.amount / 100).toFixed(2)}</span></p>
             </div>}
-            {!paymentReview ? <Button className="w-full min-h-12" disabled={!ready || !quote || quote.amount <= 0}
-              onClick={() => { if (quote) { setCheckoutError(null); setPaymentReview({ quoteToken: quote.quoteToken, bundle }); } }}>Continue to payment</Button>
-              : <Button variant="outline" className="min-h-12" onClick={() => { setPaymentReview(null); setCheckoutError(null); void currentQuote.refetch(); }}>Change order selection</Button>}
+            {!paymentReview && ready && quote?.proofs?.map(proof => <div key={proof.cartItemId} className="space-y-3 rounded-md border p-3">
+              <h3 className="font-semibold">{proof.title}</h3>
+              <ProductProofImages proof={proof} />
+              <p>{proof.selectedColor} · {proof.selectedSize}</p>
+              <ProductProofApproval checked={approvals[proof.cartItemId] === proof.proofId} warnings={proof.warnings}
+                onChange={checked => setApprovals(previous => ({ ...previous, [proof.cartItemId]: checked ? proof.proofId : '' }))} />
+            </div>)}
+            {!paymentReview ? <Button className="w-full min-h-12" disabled={!ready || !approved || !quote || quote.amount <= 0}
+              onClick={() => { if (quote && approved) { setCheckoutError(null); setPaymentReview({ quoteToken: quote.quoteToken, bundle,
+                proofApprovals: Object.fromEntries(quote.proofs.map(proof => [proof.cartItemId, { approved: true as const, proofId: proof.proofId }])) }); } }}>Continue to payment</Button>
+              : <Button variant="outline" className="min-h-12" onClick={() => { setPaymentReview(null); setApprovals({}); setCheckoutError(null); void currentQuote.refetch(); }}>Change order selection</Button>}
           </CardContent>
         </Card>
 

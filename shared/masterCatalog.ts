@@ -1,5 +1,5 @@
 import { masterBlankImages } from "./productImages";
-import { resolveColorHex } from './colorUtils';
+import { masterPrintTextBackground, type PrintTextBackground } from './printTextColor';
 import { COLOR_LABELS, SIZE_LABELS } from './qrgVariantMappings';
 
 /**
@@ -8,7 +8,7 @@ import { COLOR_LABELS, SIZE_LABELS } from './qrgVariantMappings';
  * Falls back to legacy availableColors/availableSizes only if qrgVariants is absent.
  */
 export function buildColorSizeFromDoc(p: any): {
-  colorMap: Array<{ qrgColorCode: string; colorName: string; hex: string; available: boolean }>;
+  colorMap: Array<PrintTextBackground & { qrgColorCode: string; colorName: string; hex: string; available: boolean }>;
   sizeMap: Array<{ qrgSizeCode: string; sizeLabel: string; available: boolean }>;
 } {
   const qrgVariants: Record<string, any> = p.qrgVariants || {};
@@ -50,7 +50,7 @@ export function buildColorSizeFromDoc(p: any): {
 
   const colorMap = Array.from(colorCodesSeen.entries()).map(([code, info]) => {
     const colorName = info.providerLabels.size > 0 ? Array.from(info.providerLabels)[0] : info.label;
-    return { qrgColorCode: code, colorName, hex: resolveColorHex(colorName), available: true };
+    return { qrgColorCode: code, colorName, ...masterPrintTextBackground(p, colorName), available: true };
   });
 
   const sizeMap = Array.from(sizeCodesSeen.entries()).map(([code, info]) => {
@@ -123,7 +123,7 @@ export function masterCatalogProduct(docId: string, p: Record<string, any>) {
     colorMap,
     sizeMap,
     colorCount: colorMap.length,
-    availableColors: colorMap.map(c => ({ name: c.colorName, hex: c.hex })),
+    availableColors: colorMap.map(c => ({ name: c.colorName, hex: c.hex, contrastHex: c.contrastHex, textColorMode: c.textColorMode })),
     availableSizes: sizeMap.map(s => s.sizeLabel),
     fulfillmentProvider,
     availableVia,

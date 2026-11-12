@@ -1,6 +1,7 @@
 import { saveCreatorProfile, findCreatorProfile } from '../services/creator-slugs';
 import { memberCatalogProducts } from '../services/catalog-tier-products';
 import { prepareMemberBuild, previewMemberBuild, saveMemberArtwork, commitMemberBuild, memberBuildProjection } from '../services/member-build';
+import { approveProductProof } from '../services/product-proof';
 import { Request, Response, NextFunction } from 'express';
   import express from 'express';
   import { admin, db, storage, docToObject, docsToArray, stripUndef, sanitizeStyleForFirestore, generateNanoId, escapeHtml, generateGiftCode, FulfillmentProvider, PrintMethod, normalizePlacement, normalizePlacements, toProviderPlacement, isEmbroideryPlacement, groupPlacementsByLocation, detectPrintMethod, QR_GEAR_BRANDED_TAG_URL, LABEL_PLACEMENTS_PRINTFUL, isValidHexColor, isColorDark, PRINTIFY_TO_INTERNAL, PRINTFUL_TO_INTERNAL, INTERNAL_TO_PRINTFUL, INTERNAL_TO_PRINTFUL_DTF } from '../core';
@@ -419,6 +420,7 @@ app.post('/members/:memberId/products', async (req: Request, res: Response) => {
     const auth = await verifyMemberAuthCF(req, req.params.memberId);
     if (!auth.authorized) { res.status(401).json({ error: auth.error }); return; }
     if (!req.body.productionPacketId) { res.status(400).json({ error: 'Generate your product through the member builder before publishing.' }); return; }
+    await approveProductProof(req.body.productionPacketId, { id: req.params.memberId, type: 'member' }, req.body.proofApproval);
     res.json(await commitMemberBuild(req.params.memberId, req.body.productionPacketId));
   } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
 });

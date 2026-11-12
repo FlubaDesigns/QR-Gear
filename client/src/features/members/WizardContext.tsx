@@ -1,3 +1,5 @@
+import { PrintTextBackgroundContext } from '@/features/shared/components/PrintTextColorControl';
+import { ProductProofDialog } from '@/features/shared/components/ProductProofApproval';
 import { isComposeHostingCode } from '@shared/composeHosting';
 import { isAvailableProductVariant } from '@shared/storefrontTypes';
 import type { PricingSettings } from "@shared/schema-orders";
@@ -8,7 +10,7 @@ import { MEMBER_PACKETS_QUERY_KEY, useMemberRuntimeState } from './useMemberRunt
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useMembersContext } from "@/features/members/MembersContext";
-import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { type TextStyleConfig, defaultPrintTextStyle } from "@/features/shared/components/TextStyleEditor";
 import { type PlacementConfig } from "@/features/shared/components/PlacementPicker";
 import { type LandingPageConfig, defaultLandingPage } from "@/features/shared/components/LandingPageEditor";
 import {
@@ -158,8 +160,8 @@ function WizardSession({ children, startTier, startNewBuild }: {
   const [pendingVideoFile, setPendingVideoFile] = useState<File | null>(null);
   const [showSignInToPublish, setShowSignInToPublish] = useState(false);
 
-  const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
-  const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultTextStyle });
+  const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>({ ...defaultPrintTextStyle });
+  const [footerStyle, setFooterStyle] = useState<TextStyleConfig>({ ...defaultPrintTextStyle });
   const [productGraphic, setProductGraphic] = useState<string>('');
   const [originalUrlGraphic, setOriginalUrlGraphic] = useState<string>('');
   const [urlGraphic, setUrlGraphic] = useState<string>('');
@@ -253,9 +255,14 @@ function WizardSession({ children, startTier, startNewBuild }: {
   }, [pricingSettings, selectedProductType, selectedPlacements, headerStyle, footerStyle, areaImageUrl, qrType, composeHostingTerm, selectedShirtSize]);
 
   const currentPlacement = selectedPlacements[currentPlacementIndex] || 'front' as PlacementOption;
+  const [pendingProof, setPendingProof] = useState<{ proof: any; resolve: (value: { approved: true; proofId: string } | null) => void } | null>(null);
+  const requestProofApproval = (proof: any) => new Promise<{ approved: true; proofId: string } | null>((resolve, reject) => {
+    if (!proof?.proofId || !proof.mockupUrl) { reject(new Error('Generate the current product proof before continuing.')); return; }
+    setPendingProof({ proof, resolve });
+  });
 
   const actionCtx = {
-    user, toast, api, incrementPublishCount, pricingSettings,
+    user, toast, api, incrementPublishCount, pricingSettings, requestProofApproval,
     selectedChannel, selectedProductType, selectedColor, selectedShirtSize, selectedPlacements,
     perPlacementConfigs, perPlacementSizes, graphicSize, textLayoutChoice, headerStyle, footerStyle,
     qrType, qrDestination, qrGraphic, productGraphic, urlGraphic, originalUrlGraphic, videoUrl,
@@ -534,6 +541,10 @@ function WizardSession({ children, startTier, startNewBuild }: {
     handleStepClick, handleNext, handleBack, handlePublish, canProceed,
   };
 
-  return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;
+  return <WizardContext.Provider value={value}><PrintTextBackgroundContext.Provider value={selectedProductType?.availableColors?.find(c => c.name === selectedColor) ?? null}>{children}
+    {pendingProof && <ProductProofDialog key={pendingProof.proof.proofId} proof={pendingProof.proof} onClose={approved => {
+      pendingProof.resolve(approved ? { approved: true, proofId: pendingProof.proof.proofId } : null); setPendingProof(null);
+    }} />}
+  </PrintTextBackgroundContext.Provider></WizardContext.Provider>;
 }
 

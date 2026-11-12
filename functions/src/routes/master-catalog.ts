@@ -1,4 +1,5 @@
 import { normalizeSize } from '../../../shared/storefrontTypes';
+import { saveMasterTextColor } from '../services/master-text-color';
 import { catalogSaleVariants } from '../services/catalog-sale-variants';
 import { catalogColorOptions } from "../services/catalog-color-options";
 import { resolveQrgPrintSpecs, qrgPrintfulProductId } from '../services/qrg-print-specs';
@@ -98,6 +99,11 @@ export function register(app: express.Express): void {
   app.patch('/admin/master-catalog/products/:id', requireAdmin, async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
+      if (req.body.printTextColorOverride !== undefined) {
+        try { res.json(await saveMasterTextColor(db, id, req.body.printTextColorOverride)); }
+        catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+        return;
+      }
       const doc = await db.collection(MASTER_CATALOG_COLLECTION).doc(id).get();
       if (!doc.exists) { res.status(404).json({ error: 'Product not found' }); return; }
 
@@ -901,7 +907,7 @@ export function register(app: express.Express): void {
       const qrgVariants: Record<string, any> = product.qrgVariants || {};
       const { colorMap, sizeMap } = buildColorSizeFromDoc(product);
       const availableSizes = sizeMap.map(size => ({ code: size.qrgSizeCode, label: size.sizeLabel }));
-      const availableColors = colorMap.map(color => ({ name: color.colorName, hex: color.hex }));
+      const availableColors = colorMap.map(color => ({ name: color.colorName, hex: color.hex, contrastHex: color.contrastHex, textColorMode: color.textColorMode }));
 
       const catalogColors = await catalogColorOptions(db, req.query.catalogId, docId, availableColors);
       const saleVariants = catalogSaleVariants({ enabledColors: catalogColors, enabledSizes: availableSizes.map(s => s.label) }, product, requestedProvider);

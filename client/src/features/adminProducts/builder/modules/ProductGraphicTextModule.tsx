@@ -23,8 +23,8 @@ import {
   getQrSafetyClasses,
 } from "@/features/adminProducts/shared/qrSafety";
 
-const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
-const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, text: "", enabled: false };
+const headerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, colorMode: 'auto', text: "", enabled: false };
+const footerDefaultStyle: TextStyleConfig = { ...defaultTextStyle, colorMode: 'auto', text: "", enabled: false };
 
 type ZoneId = "top" | "bottom";
 
@@ -95,7 +95,7 @@ function ZoneEditor({
         })}
       </div>
 
-      <TextStyleEditor
+      <TextStyleEditor printText
         key={zone.stateKey}
         label={zone.label}
         sublabel={zone.sublabel}
@@ -300,7 +300,7 @@ export function ProductGraphicTextModule() {
               setSaveImageDataUrl={setSaveImageDataUrl}
             />
             <div className="pt-3 border-t">
-              <TextStyleEditor
+              <TextStyleEditor printText
                 label="Sub-Bottom CTA"
                 sublabel="Small label below QR code (max 20 chars)"
                 maxLength={20}

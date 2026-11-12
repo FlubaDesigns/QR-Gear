@@ -1,4 +1,5 @@
 import { DEFAULT_FONT_SIZE_NUM } from "../TextStyleEditor";
+import { usePrintTextPreview } from '../PrintTextColorControl';
 
 interface TextStyle {
   text: string;
@@ -6,6 +7,7 @@ interface TextStyle {
   fontFamily: string;
   fontSize: string;
   color: string;
+  colorMode?: import('@shared/printTextColor').PrintTextColorMode;
   warpPreset: string;
   letterSpacing: number;
   strokeColor: string;
@@ -25,6 +27,9 @@ export function TextPreviewView({
   backgroundImage,
   className = "",
 }: TextPreviewViewProps) {
+  const preview = usePrintTextPreview(style, backgroundColor);
+  if (style.colorMode) backgroundColor = preview.background?.hex || backgroundColor;
+  if (style.enabled && style.text && preview.error) return <p role="alert" className="text-sm text-destructive">{preview.error}</p>;
   if (!style.enabled || !style.text) {
     return (
       <div 
@@ -74,7 +79,7 @@ export function TextPreviewView({
         style={{ 
           fontFamily: style.fontFamily, 
           fontSize: `${fontSize}px`,
-          color: style.color,
+          color: preview.color,
           letterSpacing: `${style.letterSpacing}px`,
           textShadow,
           transform: getWarpTransform(),

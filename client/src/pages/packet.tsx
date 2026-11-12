@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Loader2, QrCode, ArrowLeft, ShoppingCart, Sparkles } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProductProofApproval, ProductProofImages } from '@/features/shared/components/ProductProofApproval';
 
 interface PublicPacketData {
   availableSizes?: string[];
@@ -50,6 +51,7 @@ export default function PacketPage() {
   const packetId = params?.id;
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [checkoutError, setCheckoutError] = useState<string>('');
+  const [approvedProofId, setApprovedProofId] = useState('');
 
   useEffect(() => {
     captureReferral();
@@ -65,6 +67,12 @@ export default function PacketPage() {
   });
 
   const packet = data?.packet;
+  const proofQuery = useQuery<any>({ queryKey: ['/api/public/packet-proof', packetId, selectedSize], enabled: !!packet && !!selectedSize,
+    queryFn: async () => {
+      const response = await fetch('/api/public/packet-proof', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ packetId, selectedShirtSize: selectedSize }) });
+      const proof = await response.json(); if (!response.ok) throw new Error(proof.error || 'Your proof could not load.'); return proof;
+    }, retry: false });
+  useEffect(() => setApprovedProofId(''), [packetId, selectedSize, proofQuery.data?.proofId]);
   const sizeUpcharges = packet?.sizeUpcharges || pricingData?.sizeUpcharges || {};
   const referrerId = localStorage.getItem('qrgear_referrer');
 
@@ -79,6 +87,7 @@ export default function PacketPage() {
   const checkoutMutation = useMutation({
     mutationFn: async () => {
       setCheckoutError('');
+      if (!proofQuery.data?.proofId || approvedProofId !== proofQuery.data.proofId) throw new Error('Approve your current product proof before continuing.');
       const response = await fetch('/api/public/packet-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,6 +95,7 @@ export default function PacketPage() {
           packetId,
           selectedShirtSize: selectedSize,
           referrerId: referrerId || undefined,
+          proofApproval: { approved: true, proofId: approvedProofId },
         }),
       });
       if (!response.ok) {
@@ -181,8 +191,13 @@ export default function PacketPage() {
                 {packet.selectedColor && <span data-testid="badge-color">{packet.selectedColor}</span>}
               </div>
               {checkoutError && <div className="alert alert-error" role="alert" data-testid="text-checkout-error">{checkoutError}</div>}
+              {proofQuery.isFetching ? <p>Preparing your product proof…</p> : proofQuery.error ? <p role="alert">{proofQuery.error.message} <button className="btn btn-secondary" onClick={() => proofQuery.refetch()}>Retry proof</button></p> : proofQuery.data && <div className="space-y-3">
+                <ProductProofImages proof={proofQuery.data} />
+                <p>{proofQuery.data.selectedColor} · {proofQuery.data.selectedSize}</p>
+                <ProductProofApproval checked={approvedProofId === proofQuery.data.proofId} onChange={checked => setApprovedProofId(checked ? proofQuery.data.proofId : '')} warnings={proofQuery.data.warnings} />
+              </div>}
               <button type="button" className="btn btn-primary product-detail__buy"
-                onClick={() => checkoutMutation.mutate()} disabled={checkoutMutation.isPending || !selectedSize}
+                onClick={() => checkoutMutation.mutate()} disabled={checkoutMutation.isPending || proofQuery.isFetching || !selectedSize || !approvedProofId || approvedProofId !== proofQuery.data?.proofId}
                 data-testid="button-buy-now">
                 {checkoutMutation.isPending ? <Loader2 className="product-detail__icon animate-spin" aria-hidden="true" />
                   : <ShoppingCart className="product-detail__icon" aria-hidden="true" />}

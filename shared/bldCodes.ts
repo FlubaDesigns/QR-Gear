@@ -192,7 +192,7 @@ export function applyBuilderBld(def: any, current: Record<string, any>): Record<
       const key = role === 'sub_bottom' ? 'subBottomStyle' : `${role}Style`;
       const previous = current[key] || {};
       c[key] = { enabled: true, mode: type === 'img' ? 'image' : 'text', text: previous.text || '',
-        imageUrl: previous.imageUrl || '', color: previous.color || '#000000', ...style };
+        imageUrl: previous.imageUrl || '', color: previous.color || '#000000', ...(previous.colorMode ? { colorMode: previous.colorMode } : {}), ...style };
     } else throw new Error(`BLD slot ${seq} cannot be represented by this product editor.`);
     if (role && roles.has(role)) throw new Error(`BLD role ${role} is repeated; this editor supports one per role.`);
     if (role) roles.add(role);

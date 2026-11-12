@@ -33,9 +33,10 @@ async function renderMemberBuild(memberId: string, input: Record<string, any>) {
   }
   return build;
 }
-export async function publishMemberBuild(memberId: string, input: Record<string, any>) {
+export async function publishMemberBuild(memberId: string, input: Record<string, any>, proofApproval: { approved: true; proofId: string }) {
   const entry = await prepareArtwork(memberId, input);
-  const result = await memberFetch<any>(`/${memberId}/products`, { method: 'POST', json: { productionPacketId: entry.build.packetId } });
+  if (!entry.preview?.proofId || proofApproval?.approved !== true || proofApproval.proofId !== entry.preview.proofId) throw new Error('Review and approve the current product proof before publishing.');
+  const result = await memberFetch<any>(`/${memberId}/products`, { method: 'POST', json: { productionPacketId: entry.build.packetId, proofApproval } });
   prepared.delete(memberId);
   return result;
 }

@@ -4,7 +4,7 @@ import { renderProductGraphic, type RenderOptions } from '@/features/shared/grap
 import { isAvailableProductVariant } from '@shared/storefrontTypes';
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { type TextStyleConfig, defaultTextStyle } from "@/features/shared/components/TextStyleEditor";
+import { type TextStyleConfig, defaultPrintTextStyle } from "@/features/shared/components/TextStyleEditor";
 import type {
   AllowedProduct, SimpleWizardStep, QRType, GraphicLocation,
   GraphicSize, PlacementOption, TextLayoutChoice, QRBasicInputType,
@@ -22,6 +22,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const restored = restoration.draft;
   const selection = restored?.selection;
   const [checkoutRestored, setCheckoutRestored] = useState(!!restored);
+  const [proofApproved, setProofApproved] = useState(false);
   const [simpleStep, setSimpleStep] = useState<SimpleWizardStep>(selection ? (selection.qrType === 'qr-plus' ? 'qr-plus-mockup' : 'qr-basic-mockup') : 'product');
   const [selectedProductType, setSelectedProductType] = useState<AllowedProduct | null>(selection?.selectedProductType ?? null);
   const [selectedColor, setSelectedColor] = useState(selection?.selectedColor ?? '');
@@ -35,8 +36,8 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   const [costPulse, setCostPulse] = useState(false);
   const [selectedPlacements, setSelectedPlacements] = useState<PlacementOption[]>(selection?.selectedPlacements ?? []);
   const [textLayoutChoice, setTextLayoutChoice] = useState<TextLayoutChoice>(selection?.textLayoutChoice ?? '');
-  const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>(selection?.headerStyle ?? { ...defaultTextStyle });
-  const [footerStyle, setFooterStyle] = useState<TextStyleConfig>(selection?.footerStyle ?? { ...defaultTextStyle });
+  const [headerStyle, setHeaderStyle] = useState<TextStyleConfig>(selection?.headerStyle ?? { ...defaultPrintTextStyle });
+  const [footerStyle, setFooterStyle] = useState<TextStyleConfig>(selection?.footerStyle ?? { ...defaultPrintTextStyle });
   const [currentPlacementIndex, setCurrentPlacementIndex] = useState(selection?.currentPlacementIndex ?? 0);
   const [placementGraphicChoice, setPlacementChoiceState] = useState<PlacementGraphicChoice>(selection?.placementGraphicChoice ?? '');
   const [perPlacementConfigs, setPerPlacementConfigs] = useState<Record<string, { graphicChoice: PlacementGraphicChoice }>>(selection?.perPlacementConfigs ?? {});
@@ -131,6 +132,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     if (previousInputKey.current === inputKey) return;
     previousInputKey.current = inputKey;
     setCheckoutRestored(false);
+    setProofApproved(false);
     try { clearOwnerCheckoutDraft(); }
     catch (error: any) { console.error('[OwnerBuild] Draft cleanup failed:', error.message); }
     setRealMockupUrl(null); setLifestyleMockupUrl(null); setTempPacketId(null); setQuotedPricing(null); setBuildError('');
@@ -153,6 +155,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   }
   const generateRealMockup = async (): Promise<boolean> => {
     if (generating.current) return false;
+    setProofApproved(false);
     generating.current = true;
     setIsGeneratingRealMockup(true); setBuildError(''); setRealMockupUrl(null);
     try {
@@ -191,6 +194,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
     try {
       const entry = prepared.current;
       if (!entry?.preview || entry.key !== inputKey || !realMockupUrl) throw new Error('Preview your current design before checkout.');
+      if (!proofApproved || !entry.preview.proofId) throw new Error('Check “I approve this proof” before continuing to checkout.');
       const draft = {
         version: 1 as const, inputKey, prepared: { ...entry, preview: entry.preview }, runningCost,
         selection: { selectedProductType, selectedColor, selectedShirtSize, graphicLocation,
@@ -200,7 +204,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
           areaImageUrl, areaImageMode, graphicLayoutMode },
       };
       saveOwnerCheckoutDraft(draft);
-      const data = await request('checkout', { packetId: entry.build.packetId }, entry.build.buildToken);
+      const data = await request('checkout', { packetId: entry.build.packetId, proofApproval: { approved: true, proofId: entry.preview.proofId } }, entry.build.buildToken);
       if (!data.url) throw new Error('Checkout did not return a payment page. Please try again.');
       const sessionId = new URL(data.url).pathname.split('/').find(part => part.startsWith('cs_'));
       saveOwnerCheckoutDraft({ ...draft, sessionId });
@@ -223,6 +227,7 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
 
   return {
     checkoutRestored,
+    proofApproved, setProofApproved, proof: prepared.current?.preview,
     simpleStep, setSimpleStep,
     selectedProductType, setSelectedProductType,
     selectedColor, setSelectedColor,

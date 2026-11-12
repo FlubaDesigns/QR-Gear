@@ -440,6 +440,24 @@ Both application package trees pin `@google-cloud/storage` to `7.19.0`. Firebase
 
 ## Recent Changes Log
 
+### November 12, 2026 — Shared text contrast and required proof approval
+
+Admin Blanks → product details → Print text color exceptions saves an exact color exception (Automatic, Light or Dark) on the canonical master blank. All catalogs inherit it. Product Builder's physical text uses Automatic by default and allows per-block Light, Dark or Custom; the shared warning reports weak contrast without overriding a personal choice. Uploaded image lettering and QR destination page text are unchanged; QR remains black on white.
+
+Snapshots store mode plus resolved color outside BLD. Static Assembly mappings, registered print files, alternate catalog colors and mockups stay connected through the existing production chain. Catalog buyers, member publishers, owner buyers and partner reward claimants must explicitly approve their current proof. `product-proof.ts` saves the authoritative approval flag, timestamp, actor/reference and exact proof ID; frozen order items retain that record. Fluba and BlastyBiz forward the shared proof and warnings. No new Firestore collection is introduced.
+
+| File | Change |
+| --- | --- |
+| `shared/printTextColor.ts` | Contrast, modes, warnings and canonical fabric projection |
+| `functions/src/services/master-text-color.ts` | Exact Admin fabric exception persistence |
+| `functions/src/services/packet-color-artwork.ts` | Alternate registered artwork and static Assembly links |
+| `functions/src/services/product-proof.ts` | Common proof rendering, fingerprint and approval record |
+| `client/src/features/shared/components/PrintTextColorControl.tsx` | Shared physical text controls |
+| `client/src/features/shared/components/ProductProofApproval.tsx` | Required proof checkbox and multiple-placement review |
+
+Validation and live acceptance are tracked in [QR Gear #30](https://github.com/FlubaDesigns/QR-Gear/issues/30).
+
+
 ### November 11, 2026 — Product type selection and cap printing
 
 In Products → Product Configuration, choose Product type to filter the existing All Products or assigned catalog list. Hats / Caps uses the canonical Hats category. Selecting another type saves an editable draft before clearing its blank-specific settings and generated output while retaining creative inputs. Select a blank and a verified placement; displayed dimensions follow the chosen print method. Refresh from QRG reloads supplier print specifications and stock. Embroidery-only or missing specifications produce an error, never shirt dimensions. Saved builds preserve technique and exact template IDs, and mockup/checkout reject stale areas.

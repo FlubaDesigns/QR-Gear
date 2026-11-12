@@ -1,6 +1,7 @@
 import { db } from '../core';
 import { pricingSettingsSchema, type PricingSettings } from '../../../shared/schema-orders';
 import { requireBuilderSnapshot } from '../../../shared/builderSnapshot';
+import { applyMasterPrintTextBackground } from '../../../shared/printTextColor';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { normalizeSize, sizeUpcharge } from '../../../shared/storefrontTypes';
 
@@ -172,7 +173,7 @@ export async function priceNewPacket(database: any, value: any, brandedTagUrl: s
   const { refreshQrgProviderPricing } = await import('./master-catalog');
   const master = await refreshQrgProviderPricing(database, input.metadata.selectedProductDocId, provider);
   const settings = pricingSettingsSchema.parse((await database.collection('testSettings').doc('pricing').get()).data());
-  const snapshot = withBrandLabel(master, input);
+  const snapshot = withBrandLabel(master, applyMasterPrintTextBackground(input, master));
   const placementGraphicUrls: Record<string, string> = {};
   const label = snapshot.layoutConfig.selectedPlacements.find((p: string) => labelPlacements.includes(p));
   if (label) {

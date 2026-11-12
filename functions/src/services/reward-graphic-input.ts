@@ -21,6 +21,6 @@ export function rewardGraphicInput(placement: any, websiteUrl: string, logoUrl: 
   if (lines.length > 4) throw new Error('The website domain is too long for this print area.');
   return { qrBasicContent: websiteUrl, graphicLayoutMode: 'freeform', qrPositionX: 50, qrPositionY: 50, qrSizePercent,
     areaImageUrl: logoUrl, areaImageMode: 'behind-qr', areaImageOffsetX: 0, areaImageOffsetY: 0, areaImageScale: 25,
-    headerStyle: { enabled: true, mode: 'text', text: lines.join('\n'), fontFamily: 'Arial', fontSize, color: '#000000', horizontalOffset: 0, verticalOffset: 38 },
+    headerStyle: { enabled: true, mode: 'text', text: lines.join('\n'), fontFamily: 'Arial', fontSize, colorMode: 'auto', color: '#000000', horizontalOffset: 0, verticalOffset: 38 },
     footerStyle: { enabled: true, mode: 'image', text: '', imageUrl: brandUrl, fontFamily: 'Arial', fontSize, color: '#000000', horizontalOffset: 100, verticalOffset: 100, imageScale: 15 } };
 }

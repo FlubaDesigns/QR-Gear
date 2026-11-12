@@ -1,3 +1,5 @@
+import { PrintTextBackgroundContext } from '@/features/shared/components/PrintTextColorControl';
+import { ProductProofApproval, ProductProofImages } from '@/features/shared/components/ProductProofApproval';
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -136,7 +138,7 @@ export function OwnerWizard() {
   if (showMemberPitch) {
     const memberEarnings = (selectedProductType?.memberEarnings || 5);
     return (
-      <BuilderFrame testId="owner-wizard-frame"
+      <PrintTextBackgroundContext.Provider value={selectedProductType?.availableColors?.find(c => c.name === selectedColor) ?? null}><BuilderFrame testId="owner-wizard-frame"
         header={<>
           <h1 className="flex items-center gap-2">
             <ShoppingCart className="w-3 h-3" />
@@ -193,12 +195,12 @@ export function OwnerWizard() {
             </Button>
           </div>
         </div>
-      </BuilderFrame>
+      </BuilderFrame></PrintTextBackgroundContext.Provider>
     );
   }
 
   return (
-    <BuilderFrame testId="owner-wizard-frame"
+    <PrintTextBackgroundContext.Provider value={selectedProductType?.availableColors?.find(c => c.name === selectedColor) ?? null}><BuilderFrame testId="owner-wizard-frame"
       header={<>
         <h1 className="flex items-center gap-2">
           <ShoppingCart className="w-3 h-3" />
@@ -251,7 +253,7 @@ export function OwnerWizard() {
           {simpleStep !== 'generate' && simpleStep !== 'qr-basic-type' && simpleStep !== ('compose-explain' as SimpleWizardStep) && (
             <Button
               onClick={handleNext}
-              disabled={!canProceed || isGeneratingRealMockup || isCheckingOut}
+              disabled={!canProceed || isGeneratingRealMockup || isCheckingOut || (isFinalStep && !state.proofApproved)}
               className={`flex-1 min-w-[100px] sm:flex-none transition-all duration-300 ${
                 canProceed
                   ? isFinalStep
@@ -279,6 +281,11 @@ export function OwnerWizard() {
         )}
       >
       <div className="row">
+        {isFinalStep && realMockupUrl && state.proof?.proofId && <div className="space-y-3">
+          <ProductProofImages proof={state.proof} />
+          <p>{state.proof.selectedColor} · {state.proof.selectedSize}</p>
+          <ProductProofApproval checked={state.proofApproved} onChange={state.setProofApproved} warnings={state.proof.warnings} />
+        </div>}
         {state.checkoutRestored && isFinalStep && (
           <div role="status" className="mb-4 space-y-2">
             <h2>Your design is ready to continue</h2>
@@ -371,7 +378,7 @@ export function OwnerWizard() {
 
 
       </div>
-    </BuilderFrame>
+    </BuilderFrame></PrintTextBackgroundContext.Provider>
   );
 }
 

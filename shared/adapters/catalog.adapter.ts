@@ -1,5 +1,6 @@
 import { masterBlankImages, resolveCatalogImages } from "../productImages";
 import { resolveDisplayText } from "../descriptionLayers";
+import type { PrintTextBackground } from '../printTextColor';
 /**
  * CANONICAL FIELD AUTHORITY — catalog.adapter.ts
  *
@@ -14,7 +15,7 @@ import { resolveDisplayText } from "../descriptionLayers";
  * ONE FIELD. ONE NAME. ONE AUTHORITY.
  */
 
-export interface ProductColor {
+export interface ProductColor extends PrintTextBackground {
   name: string;
   hex: string;
 }
@@ -63,6 +64,8 @@ export function normalizeProductColors(raw: Record<string, any>): ProductColor[]
     return colorMap.map((c: any) => ({
       name: c.colorName || c.name || '',
       hex: c.hex || '#CCCCCC',
+      contrastHex: c.contrastHex === undefined ? (c.hex || null) : c.contrastHex,
+      textColorMode: c.textColorMode ?? 'auto',
     }));
   }
 
@@ -74,6 +77,8 @@ export function normalizeProductColors(raw: Record<string, any>): ProductColor[]
     return providerColors.map((c: any) => ({
       name: c.name || '',
       hex: c.hex || '#CCCCCC',
+      contrastHex: c.hex || null,
+      textColorMode: 'auto',
     }));
   }
 
@@ -82,6 +87,7 @@ export function normalizeProductColors(raw: Record<string, any>): ProductColor[]
   return (existing as any[]).map((c: any) => ({
     name: typeof c === 'string' ? c : (c.name || c.colorName || c.label || ''),
     hex: typeof c === 'object' && c.hex ? c.hex : '#CCCCCC',
+    ...(typeof c === 'object' ? { contrastHex: c.contrastHex === undefined ? (c.hex || null) : c.contrastHex, textColorMode: c.textColorMode ?? 'auto' } : { contrastHex: null }),
   }));
 }
 
@@ -133,7 +139,8 @@ export function catalogToSelectItem(
   const catalogTitle = typeof adminCatalogTitle === 'string' && adminCatalogTitle.trim() ? adminCatalogTitle : null;
   // An empty catalog description is intentional; only null/absence restores supplier copy.
   const catalogDescription = typeof adminCatalogDescription === 'string' ? adminCatalogDescription.trim() : null;
-  const availableColors = adminCatalogColors ?? normalizeProductColors(raw);
+  const canonicalColors = normalizeProductColors(raw);
+  const availableColors = adminCatalogColors == null ? canonicalColors : canonicalColors.filter(c => adminCatalogColors.some(selected => selected.name === c.name));
   return {
     id: raw.docId || String(raw.id),
     qrgBlankId: raw.qrgBlankId ?? null,
