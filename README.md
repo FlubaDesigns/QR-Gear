@@ -1,5 +1,9 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Reward cap size selection — November 12, 2026
+
+Member, owner and partner product options now derive their size list directly from the canonical resolved variants. This preserves `One size`/`ONE SIZE` and apparel aliases such as `XXL`/`2XL` across catalog display and saved builds, while retaining stock and catalog restrictions. The Fluba reward acceptance run verifies the existing personalized cap preview path after release; no separate cap builder or size authority is introduced.
+
 ## Fluba reward integration — November 11, 2026
 
 The implementation checklist for both sites lives in [Fluba issue #1117](https://github.com/FlubaDesigns/fluba-designs/issues/1117). The first change connects an API partner to an existing external Store Builder destination through `partnerStores.storeId`. Its existing channels, catalog instances and `storeAllowedProducts` remain authoritative. Store Builder can save a `catalogId` reference instead of copying a catalog’s blanks. The shared store-product reference resolver reads current membership and color restrictions for both Store Builder and partner access, so later catalog edits apply immediately. Admin Partners selects that reference; the server validates an active external destination and rejects duplicate partner bindings. Linked API products are narrowed by the same saved QRG blank, size and color choices; empty choices stay empty. Missing configuration and removed/inactive stores fail explicitly. Existing unbound partner destinations retain their behavior.

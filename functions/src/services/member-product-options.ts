@@ -1,4 +1,5 @@
 import { catalogSaleVariants } from './catalog-sale-variants';
+import { sortProductSizes } from '../../../shared/storefrontTypes';
 import { requireFulfillmentProvider } from '../../../shared/fulfillmentSettings';
 import { calculatePacketPricing, withBrandLabel } from './pricing';
 
@@ -7,7 +8,7 @@ export function memberProductOptions(master: any, item: any, providerValue: unkn
   const provider = requireFulfillmentProvider(providerValue);
   const variants = catalogSaleVariants({ enabledColors: item.availableColors, enabledSizes: item.availableSizes }, master, provider);
   const availableColors = item.availableColors.filter((c: any) => variants.some(v => v.color === c.name));
-  const availableSizes = item.availableSizes.filter((s: string) => variants.some(v => v.size === s));
+  const availableSizes = sortProductSizes([...new Set(variants.map(v => v.size))]);
   const placements = (master.qrgPrintSpecs?.[provider]?.locations || []).filter((p: any) =>
     !p.id.startsWith('label_') && p.provider === provider && p.dimensions?.widthPx > 0 && p.dimensions?.heightPx > 0 &&
     variants.some(v => p.verifiedVariantIds?.includes(Number(v.mapping.variantId))));
