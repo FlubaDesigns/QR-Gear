@@ -299,10 +299,12 @@ async function generateMockupFromPrintful(request: MockupRequest): Promise<Mocku
     } catch (err: any) {
       lastError = err;
       const errorMsg = err.message || String(err);
+      // The client already honored Printful's cooldown for this task. Do not
+      // restart task creation and extend a remaining provider lockout.
+      if (err.status === 429) throw err;
       
       // Check if it's a retryable error
-      if (errorMsg.includes('429') || errorMsg.includes('TooManyRequests') || 
-          errorMsg.includes('Internal Server Error') || errorMsg.includes('timeout')) {
+      if (errorMsg.includes('Internal Server Error') || errorMsg.includes('timeout')) {
         console.log(`[Printful] Attempt ${attempt} failed with retryable error: ${errorMsg}`);
         continue;
       }
