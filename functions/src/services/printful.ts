@@ -80,16 +80,30 @@ class PrintfulClient {
     if (!mockupOnly) requireLiveCommerce('Printful catalog or commerce request');
     const url = `${PRINTFUL_API_BASE}${endpoint}`;
     const headers = await this.getHeaders(mockupOnly);
-    const options: RequestInit = { method, headers, signal: AbortSignal.timeout(30000) };
+    const options: RequestInit = { method, headers };
     if (body) options.body = JSON.stringify(body);
-    
-    const response = await fetch(url, options);
-    if (!response.ok) {
+    for (let attempt = 0; ; attempt++) {
+      const response = await fetch(url, { ...options, signal: AbortSignal.timeout(30000) });
+      if (response.ok) {
+        const data = await response.json();
+        return data.result as T;
+      }
       const errorText = await response.text();
+      // Retry only rejected catalog/mockup work. Order writes retain their
+      // existing reconciliation policy and are never replayed here.
+      if (mockupOnly && response.status === 429 && attempt < 2) {
+        const retryAfter = response.headers?.get('Retry-After');
+        const seconds = retryAfter !== null && retryAfter !== undefined && retryAfter !== ''
+          ? Number(retryAfter) : Number(errorText.match(/try again after (\d+) seconds?/i)?.[1] ?? 60);
+        if (Number.isFinite(seconds) && seconds >= 0 && seconds <= 60) {
+          const delay = Math.max(1000, seconds * 1000) + 250 + Math.floor(Math.random() * 500);
+          console.warn('[Printful] Rate limited; retrying', method, endpoint.split('?')[0], 'after', delay, 'ms');
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
       throw new PrintfulApiError(response.status, `Printful API error: ${response.status} - ${errorText}`);
     }
-    const data = await response.json();
-    return data.result as T;
   }
 
   async createOrder(body: { external_id: string; recipient: Record<string, string>; items: Array<{ variant_id: number; quantity: number; files: PrintfulOrderFile[] }> }): Promise<PrintfulOrder> {
