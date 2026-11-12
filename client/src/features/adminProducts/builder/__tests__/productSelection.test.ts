@@ -330,8 +330,10 @@ describe('Product cards and draft handoff', () => {
       expect(current.state.masterTitle).toBe('Provider qrg_11001');
       expect(current.state.masterDescription).toBe('Provider description');
       expect(current.state.activeSessionId).toBe('session-a');
-      expect(mocks.apiRequest.mock.calls.at(-1)?.[2]).toEqual({ blankId: 'qrg_11001', description: value });
+      expect(mocks.apiRequest.mock.calls.at(-1)?.[2]).toEqual({ blankId: 'qrg_11001', description: value, restore: false });
     }
+    await act(async () => { await getCards()[0].props.onDescriptionSave('qrg_11001', '', true); });
+    expect(mocks.apiRequest.mock.calls.at(-1)?.[2]).toEqual({ blankId: 'qrg_11001', description: '', restore: true });
   });
 
   it('surfaces a failed catalog save without changing the product copy', async () => {

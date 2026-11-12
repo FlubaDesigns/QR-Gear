@@ -30,6 +30,20 @@ function fixture(prefix: string, extra: Record<string, any> = {}) {
   return { ...f, api: request(app) };
 }
 for (const prefix of ['/admin', '/api/admin']) describe(prefix, () => {
+  it('persists intentionally empty descriptions without changing other catalogs and restores only explicitly', async () => {
+    const f=fixture(prefix, {'catalogs/other':{name:'Other',blankIds:[first],blankDescriptions:{[first]:'Other store copy'}}});
+    for(const description of ['Updated reward copy', '']) {
+      expect((await f.api.put(`${prefix}/catalogs/source/blank-description`).send({blankId:first,description})).status).toBe(200);
+      const saved=(await f.api.get(`${prefix}/catalogs`)).body.catalogs.find((c:any)=>c.id==='source');
+      expect(saved.blankDescriptions[first]).toBe(description);
+      expect(f.store.get('catalogs/other').blankDescriptions[first]).toBe('Other store copy');
+    }
+    await f.api.put(`${prefix}/catalogs/source/blank-description`).send({blankId:first,description:'',restore:true});
+    expect(f.store.get('catalogs/source').blankDescriptions).toEqual({});
+    await f.api.put(`${prefix}/catalogs/source/blank-description`).send({blankId:first,description:'Copy'});
+    await f.api.put(`${prefix}/catalogs/source/blank-description`).send({blankId:first,description:null});
+    expect(f.store.get('catalogs/source').blankDescriptions).toEqual({});
+  });
   it('protects a catalog assigned only to an individual store', async () => {
     const f=fixture(prefix, {'storeAllowedProducts/fluba':{catalogId:'source'}});
     const response=await f.api.delete(`${prefix}/catalogs/source`);

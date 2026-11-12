@@ -507,7 +507,7 @@ export default function AdminBlanks() {
             onTierChange={(_blankId: string, tier: string | null) => onTierChange(blankKey, tier)}
             showTierControls={!!validSelectedCatalogId && inTarget}
             editableDescription={!!validSelectedCatalogId && inTarget}
-            onDescriptionSave={(id: string, desc: string) => onSaveDescription(id, desc, blankKey)}
+            onDescriptionSave={(id: string, desc: string, restore?: boolean) => onSaveDescription(id, desc, blankKey, restore)}
             descriptionSaving={saveDescriptionMutation.isPending}
             editableTitle={!!validSelectedCatalogId && inTarget}
             onTitleSave={(id: string, title: string) => onSaveTitle(id, title, blankKey)}
