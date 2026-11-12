@@ -144,6 +144,12 @@ describe('partner API ownership and admin persistence', () => {
     const other=await partnerProducts(db,{id:'b',storeId:'other'},{});
     expect(other.products).toHaveLength(1);
     expect(other.products[0]).toMatchObject({id:'other-shirt',name:'Other shirt',description:'Other description'});
+    rows['master_catalog/qrg_11111'].description='Supplier description';
+    rows['catalogs/rewards'].blankDescriptions.qrg_11111='';
+    expect((await partnerProducts(db,partner,{})).products[0].description).toBe('');
+    expect((await partnerProducts(db,{id:'b',storeId:'other'},{})).products[0].description).toBe('Other description');
+    delete rows['catalogs/rewards'].blankDescriptions.qrg_11111;
+    expect((await partnerProducts(db,partner,{})).products[0].description).toBe('Supplier description');
     expect(rows['productPackets/pkt']).toEqual(packetBefore);
     rows['catalogs/rewards'].blankColors.qrg_11111=[];
     expect((await partnerProducts(db,partner,{})).products).toEqual([]);
