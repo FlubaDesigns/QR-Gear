@@ -1,6 +1,10 @@
 # QR Gear — Admin Operating Law
 
-Last updated: November 11, 2026
+Last updated: November 12, 2026
+
+## Reward cap size selection — November 12, 2026
+
+The shared member/owner/partner options projection now returns the size labels from `catalogSaleVariants`, so a cap advertised as `ONE SIZE` is accepted by the same canonical builder validator. Catalog restrictions and supplier stock still apply. Regression coverage includes the one-size cap, apparel size aliases and unavailable sizes. Files: `functions/src/services/member-product-options.ts`, its regression test, and the release build marker in `functions/src/index.ts`.
 
 > History → `ADMIN_CHANGELOG.md` | Schema authority → `ADMIN_SCHEMA_MAP.md` | Route inventory → `ADMIN_ROUTES.md`
 
