@@ -131,14 +131,15 @@ export function catalogToSelectItem(
   const providerTitle = raw.canonicalTitle || raw.title || raw.name || '';
   const providerDescription = raw.canonicalDescription || raw.description || null;
   const catalogTitle = typeof adminCatalogTitle === 'string' && adminCatalogTitle.trim() ? adminCatalogTitle : null;
-  const catalogDescription = typeof adminCatalogDescription === 'string' && adminCatalogDescription.trim() ? adminCatalogDescription : null;
+  // An empty catalog description is intentional; only null/absence restores supplier copy.
+  const catalogDescription = typeof adminCatalogDescription === 'string' ? adminCatalogDescription.trim() : null;
   const availableColors = adminCatalogColors ?? normalizeProductColors(raw);
   return {
     id: raw.docId || String(raw.id),
     qrgBlankId: raw.qrgBlankId ?? null,
     name: resolveDisplayText({ catalogValue: catalogTitle, providerValue: providerTitle }).value || '',
     providerTitle, adminCatalogTitle: catalogTitle,
-    description: resolveDisplayText({ catalogValue: catalogDescription, providerValue: providerDescription }).value,
+    description: catalogDescription ?? resolveDisplayText({ providerValue: providerDescription }).value,
     providerDescription, providerDescriptionRaw: providerDescription, adminCatalogDescription: catalogDescription,
     price: Number.isFinite(parsedCost) ? parsedCost : null, cost: null,
     manufacturer: raw.brand || raw.maker || raw.manufacturer || null, model: raw.model || null,
