@@ -2013,3 +2013,6 @@ Fluba's authenticated Rewards endpoints resolve the named store's assigned catal
 A partner must explicitly enable sponsored rewards in Admin Partners. Approval binds the current preview to one deterministic canonical order, with `paymentStatus: sponsored`, partner funding evidence and no customer charge. Production revalidates the active sponsor and approved claim; ordinary sales retain live Stripe reconciliation. Existing frozen production, provider idempotency and tracking services remain authoritative. No supplier test order is required.
 
 Validation: real canvas QR scans for shirt/cap in both print modes; interrupted preview retries; independent claim/variant binding; cross-customer and cross-store rejection; sponsor revocation; unchanged Stripe boundary; focused checkout and snapshot regressions. Local verification is not a claim that customer fulfillment has been exercised live. Release evidence belongs in Fluba issue #1117.
+
+### Preview provider cooldown
+Printful catalog and mockup requests respect the provider cooldown with bounded retries. The same polling task is retained and exhausted rate limits remain visible. Order writes are not retried by this preview recovery. Live reward acceptance is tracked in Fluba issue #1117.
