@@ -4,7 +4,7 @@ import { parseGrfId } from '../../../../shared/GRF_engine';
 const m = vi.hoisted(() => ({ db: null as any, composition: vi.fn(), payment: vi.fn() }));
 vi.mock('../../core', () => ({ QR_GEAR_BRANDED_TAG_URL: 'https://files.example/brand.png', get db() { return m.db; }, admin: { firestore: { FieldValue: { serverTimestamp: () => "fixture-time" } } } }));
 vi.mock('../assembly-store', () => ({ validatePacketComposition: m.composition }));
-vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'fixture' }));
+vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'sk_live_fixture' }));
 vi.mock('stripe', () => ({ default: class { paymentIntents = { retrieve: m.payment }; } }));
 // Storage/image/assembly adapters are covered separately; retain real per-unit allocation here.
 vi.mock('../brand-label-artwork', () => ({ renderUnitBrandLabel: async () => Buffer.from('label-fixture') }));
@@ -24,7 +24,7 @@ const cart = { userId: 'buyer', quantity: 2, price: '0.01', customization: { pro
 const layout = { provider: 'printful', providerPlacementId: 'back', dimensions: { widthPx: 3600, heightPx: 4800, dpi: 300 } };
 const insideLayout={provider:'printful',providerPlacementId:'label_inside',dimensions:{widthPx:900,heightPx:900,dpi:300}};
 const insideId='GRF-11442-000002';
-const payment = (id: string, extra = {}) => ({ id: 'cs_test', metadata: { source: 'direct_cart', orderId: id, userId: 'buyer' }, payment_status: 'paid', amount_total: 6800, currency: 'usd', payment_intent: 'pi_test',
+const payment = (id: string, extra = {}) => ({ id: 'cs_test', metadata: { source: 'direct_cart', orderId: id, userId: 'buyer' }, livemode: true, payment_status: 'paid', amount_total: 6800, currency: 'usd', payment_intent: 'pi_test',
   customer_details: { email: 'buyer@example.test', name: 'Test Buyer' }, shipping_details: { name: 'Test Buyer', address: { line1: '1 Test St', city: 'Test City', state: 'CA', postal_code: '90001', country: 'US' } }, ...extra } as any);
 const getOrder = vi.spyOn(printfulClient, 'getOrder'), createOrder = vi.spyOn(printfulClient, 'createOrder'), confirmOrder = vi.spyOn(printfulClient, 'confirmOrder');
 const getProduct = vi.spyOn(printfulClient, 'getProduct');
@@ -43,7 +43,7 @@ beforeEach(() => {
   }); m.db = f.db; store = f.store;
   m.db.batch = () => { const writes: Array<() => Promise<any>> = []; return { update: (ref: any, value: any) => writes.push(() => ref.update(value)), commit: async () => { for (const write of writes) await write(); } }; };
   m.composition.mockResolvedValue({ assembly: { qrgId: '11111' } });
-  m.payment.mockImplementation(async () => { const order = [...store.entries()].find(([key]) => key.startsWith('orders/'))?.[1]; return { status: 'succeeded', amount_received: order.amountTotalCents, currency: 'usd', latest_charge: { id: 'ch_test', payment_intent: 'pi_test', paid: true, amount_refunded: 0 } }; });
+  m.payment.mockImplementation(async () => { const order = [...store.entries()].find(([key]) => key.startsWith('orders/'))?.[1]; return { livemode: true, status: 'succeeded', amount_received: order.amountTotalCents, currency: 'usd', latest_charge: { livemode: true, id: 'ch_test', payment_intent: 'pi_test', paid: true, amount_refunded: 0 } }; });
   getOrder.mockRejectedValue(new PrintfulApiError(404, 'Not found'));
   getProduct.mockResolvedValue({ product: { files: [{ type: 'back' },{type:'label_inside'}] }, variants: [{ id: 123, in_stock: true }] } as any);
   createOrder.mockImplementation(async body => ({ id: 77, external_id: body.external_id, status: 'draft' }));
@@ -201,4 +201,18 @@ it('uses the selected method area for production and rejects a stale template or
   packet.builderSnapshot.layoutConfig.providerLayouts.back.printfileIds = { '123': 9 };
   packet.builderSnapshot.layoutConfig.providerLayouts.back.providerPlacementId = 'front_dtf';
   await expect(readCartQuote('buyer')).rejects.toThrow('Refresh and regenerate');
+});
+
+it.each([false, undefined])('never finalizes test/missing-mode checkout (%s) or removes its cart', async livemode => {
+ const { orderId } = await reviewedOrder();
+ await expect(finalizeCartPayment(payment(orderId, { livemode }))).rejects.toThrow('cannot fund Main');
+ expect(store.get('orders/' + orderId).paymentStatus).toBe('unpaid');
+ expect(store.has('cartItems/cart')).toBe(true); expect(createOrder).not.toHaveBeenCalled();
+});
+it.each(['intent', 'charge'])('blocks an already-paid order retry when the Stripe %s is test-mode', async target => {
+ const { orderId } = await paidOrder();
+ m.payment.mockResolvedValue({ livemode: target !== 'intent', status: 'succeeded', amount_received: 6800, currency: 'usd',
+   latest_charge: { livemode: target !== 'charge', id: 'ch_test', payment_intent: 'pi_test', paid: true, amount_refunded: 0 } });
+ await expect(fulfillOrder(orderId)).rejects.toThrow('cannot fund Main');
+ expect(getOrder).not.toHaveBeenCalled(); expect(createOrder).not.toHaveBeenCalled(); expect(confirmOrder).not.toHaveBeenCalled();
 });

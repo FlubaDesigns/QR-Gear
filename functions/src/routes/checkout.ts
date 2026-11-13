@@ -1,3 +1,4 @@
+import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { validateMemberCompensation } from '../services/member-compensation';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { memberBuildProjection } from '../services/member-build';
@@ -44,12 +45,12 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     }
 
     const size = selectedShirtSize || packet.selectedShirtSize || 'M';
-    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId, req.body.proofApproval);
-    const serverTotal = prepared.amount / 100;
-
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
+    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId, req.body.proofApproval);
+    const serverTotal = prepared.amount / 100;
 
     const productTitle = packet.title || 'QR Gear Custom Product';
     const productImage = packet.itemImage || packet.socialPacket?.itemImage || null;
@@ -121,13 +122,14 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     }
 
     const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `checkout-${prepared.orderId}` });
+    assertLiveStripeObject(session);
     await db.collection('orders').doc(prepared.orderId).update({ stripeSessionId: session.id });
 
     console.log(`[PacketCheckout] Created session ${session.id} for packet ${packetId}, total: $${serverTotal}`);
     res.json({ url: session.url, sessionId: session.id, total: serverTotal });
   } catch (error: any) {
     console.error('[PacketCheckout] Error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -136,9 +138,11 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
     const { sessionId } = req.params;
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    assertLiveStripeObject(session);
     if (session.payment_status !== 'paid') {
       res.status(400).json({ error: "Payment not completed", status: session.payment_status }); return;
     }
@@ -225,7 +229,7 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
     });
   } catch (error: any) {
     console.error('[PacketCheckout Verify] Error:', error.message);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

@@ -1,8 +1,10 @@
+import { assertLiveStripeObject } from './stripe-mode';
 import type Stripe from 'stripe';
 import { db } from '../core';
 
 /** Read-only buyer receipt. A paid Stripe session can precede its order webhook. */
 export async function readCheckoutReceipt(session: Stripe.Checkout.Session, userId: string) {
+  assertLiveStripeObject(session);
   const fail = (message: string, status: number): never => { throw Object.assign(new Error(message), { status }); };
   if (session.metadata?.userId !== userId) fail('This checkout belongs to another account.', 403);
   const orderId = session.metadata?.orderId;

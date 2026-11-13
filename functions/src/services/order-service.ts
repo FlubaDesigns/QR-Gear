@@ -1,3 +1,4 @@
+import { assertLiveStripeKey, assertLiveStripeObject } from './stripe-mode';
 import { resolveLifetimeReferral } from './lifetime-referral';
 import { freezeMemberCompensation, validateMemberCompensation, reconcileMemberTransfer, type MemberCompensation } from './member-compensation';
 import { readFlubaProviderKey } from './fluba-provider-keys';
@@ -217,6 +218,7 @@ export async function prepareCartOrder(userId: string, referrerId = '', selectio
 
 /** Caller must verify the webhook signature (or retrieve this session from Stripe). */
 export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
+  assertLiveStripeObject(session);
   const orderId = session.metadata?.orderId;
   if (!orderId || !['direct_cart', 'packet_share', 'public_wizard'].includes(session.metadata?.source || '')) throw new Error('Checkout has no frozen order. Manual reconciliation required.');
   if (session.payment_status !== 'paid') throw new Error('Payment is not complete.');
@@ -291,6 +293,7 @@ export async function finalizeMemberPayment(session: Stripe.Checkout.Session) {
   if (session.metadata?.source === 'packet_share' && order.memberCompensation) {
     const key = await readFlubaProviderKey('STRIPE_SECRET_KEY');
     if (!key) throw new Error('Payment reconciliation is unavailable.');
+    assertLiveStripeKey(key);
     order.transferSettlement = await reconcileMemberTransfer(new Stripe(key), order);
     await db.collection('orders').doc(orderId).update({ transferSettlement: order.transferSettlement });
   }

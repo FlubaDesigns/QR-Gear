@@ -1,8 +1,10 @@
+import { assertLiveStripeObject } from './stripe-mode';
 import type Stripe from 'stripe';
 import { db } from '../core';
 
 /** Shared by the signed webhook and Stripe-retrieved browser return. */
 export async function finalizeHostingRenewal(session: Stripe.Checkout.Session, expectedInstanceId?: string) {
+  assertLiveStripeObject(session);
   const { renewalId, instanceId, type } = session.metadata || {};
   if (session.payment_status !== 'paid' || type !== 'hosting_renewal' || !renewalId || !instanceId ||
       (expectedInstanceId && expectedInstanceId !== instanceId)) throw new Error('Renewal payment has no matching frozen order. Historical payments require reconciliation.');

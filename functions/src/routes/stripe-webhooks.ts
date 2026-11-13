@@ -1,3 +1,4 @@
+import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { finalizeHostingRenewal } from '../services/hosting-renewal';
 import { recordChargeRefund } from '../services/payment-state';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
@@ -27,6 +28,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    assertLiveStripeKey(stripeSecretKey);
     const stripe = new Stripe(stripeSecretKey, { apiVersion: '2023-10-16' });
 
     let event;
@@ -42,10 +44,12 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    assertLiveStripeObject(event);
     switch (event.type) {
       case 'checkout.session.completed':
       case 'checkout.session.async_payment_succeeded': {
         const session = event.data.object as Stripe.Checkout.Session;
+        assertLiveStripeObject(session);
         const source = session.metadata?.source;
         console.log(`Checkout session completed: ${session.id}, source=${source || 'direct_cart'}`);
 
@@ -104,6 +108,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
       }
       case 'charge.refunded': {
         const charge = event.data.object as Stripe.Charge;
+        assertLiveStripeObject(charge);
         await recordChargeRefund(await stripe.charges.retrieve(charge.id, { expand: ['transfer'] }));
         break;
       }
@@ -119,7 +124,7 @@ app.post('/webhooks/stripe', async (req: Request, res: Response): Promise<void> 
     res.json({ received: true });
   } catch (error: any) {
     console.error('Webhook error:', error);
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 

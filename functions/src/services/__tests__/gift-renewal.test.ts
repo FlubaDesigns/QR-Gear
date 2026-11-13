@@ -35,7 +35,7 @@ it('consumes one gift into one deterministic redemption despite concurrent reque
   const a = app(); const results = await Promise.all([1, 2].map(() => request(a).post('/gifts/redeem/GIFT').send({ recipientName: 'Buyer' })));
   expect(results.map(r => r.status).sort()).toEqual([200, 409]); expect([...store.keys()].filter(k => k.startsWith('gift_redemptions/'))).toEqual(['gift_redemptions/code']);
 });
-const paid = () => ({ id: 'cs_renew', payment_status: 'paid', amount_total: 499, currency: 'usd', payment_intent: 'pi_renew', metadata: { type: 'hosting_renewal', renewalId: 'r', instanceId: 'i' } } as any);
+const paid = () => ({ id: 'cs_renew', livemode: true, payment_status: 'paid', amount_total: 499, currency: 'usd', payment_intent: 'pi_renew', metadata: { type: 'hosting_renewal', renewalId: 'r', instanceId: 'i' } } as any);
 it('credits a renewal exactly once across concurrent webhook/return/replay', async () => {
   const results = await Promise.all([finalizeHostingRenewal(paid()), finalizeHostingRenewal(paid(), 'i')]);
   expect(results.filter(r => r.alreadyProcessed).length).toBe(1); const expiry = store.get('buyer_instances/i').hostingExpiresAt;
@@ -45,4 +45,10 @@ it('credits a renewal exactly once across concurrent webhook/return/replay', asy
 it('rejects wrong payment terms, wrong instance and unbound historical payments without credit', async () => {
   for (const patch of [{ amount_total: 1 }, { currency: 'eur' }, { payment_status: 'unpaid' }, { metadata: { type: 'hosting_renewal', instanceId: 'i' } }]) await expect(finalizeHostingRenewal({ ...paid(), ...patch })).rejects.toThrow();
   await expect(finalizeHostingRenewal(paid(), 'another')).rejects.toThrow(); expect(store.get('buyer_instances/i').hostingExpiresAt).toBe('2030-01-01T00:00:00.000Z');
+});
+
+it('does not extend hosting from a test-mode renewal', async () => {
+ await expect(finalizeHostingRenewal({ ...paid(), livemode: false })).rejects.toThrow('cannot fund Main');
+ expect(store.get('hosting_renewals/r').status).toBe('awaiting_payment');
+ expect(store.get('buyer_instances/i').hostingExpiresAt).toBe('2030-01-01T00:00:00.000Z');
 });

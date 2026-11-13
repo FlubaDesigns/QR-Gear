@@ -1,3 +1,4 @@
+import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { readCheckoutReceipt } from '../services/checkout-receipt';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
@@ -38,6 +39,7 @@ for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' :
   try {
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: 'Stripe not configured' }); return; }
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
     const prepared = await prepareCartOrder(userId, req.body.referrerId || '', req.body.bundle, req.body.quoteToken, req.body.proofApprovals);
@@ -52,12 +54,13 @@ for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' :
         : { success_url: req.body.successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: req.body.cancelUrl || `${req.headers.origin}/cart` }),
       metadata: { userId, source: 'direct_cart', orderId },
     }, { idempotencyKey: `checkout-${orderId}` });
+    assertLiveStripeObject(session);
     await db.collection('orders').doc(orderId).update({ stripeSessionId: session.id });
     res.json(embedded ? { clientSecret: session.client_secret } : { sessionId: session.id, url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error);
     if (orderId) await db.collection('orders').doc(orderId).update({ checkoutError: error.message }).catch(console.error);
-    res.status(orderId ? 502 : 400).json({ error: error.message });
+    res.status(error.status || (orderId ? 502 : 400)).json({ error: error.message });
   }
 });
 
@@ -75,8 +78,10 @@ app.get('/checkout/session-status', requireAuth, async (req: Request, res: Respo
       return;
     }
 
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    assertLiveStripeObject(session);
     if (session.metadata?.userId !== (req as any).user.uid) { res.status(403).json({ error: 'This checkout belongs to another account.' }); return; }
     
     res.json({
@@ -86,7 +91,7 @@ app.get('/checkout/session-status', requireAuth, async (req: Request, res: Respo
       amountTotal: session.amount_total ? session.amount_total / 100 : 0,
     });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -98,8 +103,10 @@ app.get('/checkout/verify/:sessionId', requireAuth, async (req: Request, res: Re
       return;
     }
 
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey);
     const session = await stripe.checkout.sessions.retrieve(req.params.sessionId);
+    assertLiveStripeObject(session);
     res.setHeader('Cache-Control', 'private, no-store');
     res.json(await readCheckoutReceipt(session, (req as any).user.uid));
   } catch (error: any) {

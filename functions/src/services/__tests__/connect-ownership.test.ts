@@ -6,7 +6,7 @@ import { MEMBER_PACKETS_COLLECTION } from '../../constants';
 
 const m = vi.hoisted(() => ({ db: null as any, verify: vi.fn(), retrieve: vi.fn(), create: vi.fn(), link: vi.fn(), login: vi.fn(), checkout: vi.fn(), event: vi.fn() }));
 vi.mock('../../core', () => ({ db: { collection: (...args: any[]) => m.db.collection(...args) }, admin: { auth: () => ({ verifyIdToken: m.verify }) } }));
-vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'fixture-key' }));
+vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'sk_live_fixture' }));
 vi.mock('stripe', () => ({ default: class { accounts = { retrieve: m.retrieve, create: m.create, createLoginLink: m.login }; accountLinks = { create: m.link }; checkout = { sessions: { create: m.checkout } }; webhooks = { constructEvent: m.event }; } }));
 vi.mock('../member-build', () => ({ memberBuildProjection: async () => ({ status: 'published', memberId: 'owner', title: 'Fixture' }) }));
 vi.mock('../order-service', () => ({ prepareMemberOrder: async () => ({ orderId: 'o', amount: 4000, memberCompensation: { version: 1, currency: 'usd', saleCents: 4000, costCents: 2400, profitCents: 1600, share: 0.25, amountCents: 400 } }) }));
@@ -29,7 +29,7 @@ beforeEach(() => {
   m.verify.mockResolvedValue({ uid: 'owner' }); m.retrieve.mockResolvedValue(owned());
   m.create.mockResolvedValue(owned()); m.link.mockResolvedValue({ url: 'https://fixture.invalid/onboard' });
   m.login.mockResolvedValue({ url: 'https://fixture.invalid/dashboard' });
-  m.checkout.mockResolvedValue({ id: 'session', url: 'https://fixture.invalid/checkout' });
+  m.checkout.mockResolvedValue({ livemode: true, id: 'session', url: 'https://fixture.invalid/checkout' });
 });
 afterEach(() => vi.unstubAllEnvs());
 
@@ -102,14 +102,14 @@ describe('Connect account ownership', () => {
   });
   it('syncs a signed account event only to its bound owner, not the first matching profile', async () => {
     store.set('member_profiles/attacker', { stripeConnectAccountId: 'acct_owner', stripePayoutsEnabled: false });
-    m.event.mockReturnValue({ type: 'account.updated', data: { object: owned() } });
+    m.event.mockReturnValue({ livemode: true, type: 'account.updated', data: { object: owned() } });
     expect((await request(app()).post('/webhooks/stripe').set('stripe-signature', 'fixture').send({})).status).toBe(200);
     expect(store.get('member_profiles/owner').stripePayoutsEnabled).toBe(true);
     expect(store.get('member_profiles/attacker').stripePayoutsEnabled).toBe(false);
   });
   it('does not sync an event into an owner profile whose account binding differs', async () => {
     store.set('member_profiles/owner', { stripeConnectAccountId: 'acct_replacement', stripePayoutsEnabled: false });
-    m.event.mockReturnValue({ type: 'account.updated', data: { object: owned() } });
+    m.event.mockReturnValue({ livemode: true, type: 'account.updated', data: { object: owned() } });
     expect((await request(app()).post('/webhooks/stripe').set('stripe-signature', 'fixture').send({})).status).toBe(200);
     expect(store.get('member_profiles/owner').stripePayoutsEnabled).toBe(false);
   });
