@@ -11,12 +11,12 @@ vi.mock('stripe', () => ({ default: class { checkout = { sessions: { create: m.c
 import { registerCoreCheckoutRoutes } from '../../routes/core-routes-checkout';
 const app = express(); app.use(express.json()); registerCoreCheckoutRoutes(app);
 beforeEach(() => {
-  vi.clearAllMocks(); vi.stubEnv('STRIPE_SECRET_KEY', 'test-only');
+  vi.clearAllMocks(); vi.stubEnv('STRIPE_SECRET_KEY', 'sk_live_fixture');
   m.prepare.mockResolvedValue({ orderId: 'order', amount: 10935, items: [
     { productTitle: 'Army', customization: { productColor: 'Navy', productSize: 'M' }, quantity: 2, unitAmount: 3400, lineTotalCents: 6500, discountCents: 300 },
     { productTitle: 'Lincoln', customization: { productColor: 'Navy', productSize: 'M' }, quantity: 1, unitAmount: 4883, lineTotalCents: 4435, discountCents: 448 },
   ] });
-  m.create.mockResolvedValue({ id: 'session', client_secret: 'secret', url: 'https://payment.example' }); m.update.mockResolvedValue(undefined);
+  m.create.mockResolvedValue({ livemode: true, id: 'session', client_secret: 'secret', url: 'https://payment.example' }); m.update.mockResolvedValue(undefined);
 });
 afterEach(() => vi.unstubAllEnvs());
 describe('bundle checkout transport', () => {
@@ -40,4 +40,17 @@ describe('bundle checkout transport', () => {
     const response = await request(app).post('/checkout/embedded').send({ quoteToken: 'stale' });
     expect(response.status).toBe(400); expect(response.body.error).toContain('changed'); expect(m.create).not.toHaveBeenCalled();
   });
+});
+
+it.each(['/checkout', '/checkout/embedded'])('blocks test keys before order creation at %s', async path => {
+ vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_fixture');
+ const response = await request(app).post(path).send({});
+ expect(response.status).toBe(503); expect(response.body.error).toContain('administrator attention');
+ expect(m.prepare).not.toHaveBeenCalled(); expect(m.create).not.toHaveBeenCalled();
+});
+it('does not publish a non-live Stripe session returned by the provider', async () => {
+ m.create.mockResolvedValue({ id: 'test', livemode: false, url: 'https://payment.example/test' });
+ const response = await request(app).post('/checkout').send({});
+ expect(response.status).toBe(409); expect(response.body.url).toBeUndefined();
+ expect(m.update).not.toHaveBeenCalledWith(expect.objectContaining({ stripeSessionId: 'test' }));
 });

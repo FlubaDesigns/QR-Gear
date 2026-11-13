@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Checkout from '@/pages/checkout';
 
@@ -33,6 +33,7 @@ beforeEach(() => {
   vi.clearAllMocks(); pick = false;
   vi.stubGlobal('window', { location: { origin: 'https://store.example' } });
   mocks.api.mockImplementation(async (_method, path, body) => {
+    if (path === '/api/stripe/publishable-key') return { json: async () => ({ publishableKey: 'pk_live_fixture' }) };
     if (path.endsWith('/embedded')) return { json: async () => ({ clientSecret: 'test-secret' }) };
     const chosen = !!body?.bundle;
     return { json: async () => ({ quoteToken: chosen ? 'chosen-token' : 'base-token', amount: chosen ? 13615 : 14499, subtotalCents: 14499,
@@ -50,7 +51,7 @@ it('shows the server total, then sends the reviewed bundle and token to payment'
   expect(tree.root.findByProps({ 'data-testid': 'checkout-quoted-total' }).children.join('')).toBe('$136.15');
   expect(button('Continue to payment').props.disabled).toBe(true); approve();
   expect(button('Continue to payment').props.disabled).toBe(false);
-  act(() => button('Continue to payment').props.onClick());
+  act(() => button('Continue to payment').props.onClick()); await settle();
   expect(tree.root.findByType('select').props.disabled).toBe(true);
   await act(async () => { await stripe()[0].props.options.fetchClientSecret(); });
   expect(mocks.api).toHaveBeenCalledWith('POST', '/api/checkout/embedded', {
@@ -77,9 +78,30 @@ it('blocks payment and exposes a failed price quote', async () => {
   expect(JSON.stringify(tree.toJSON())).toContain('Saved product price is unavailable.');
 });
 it('exposes a changed-price payment rejection and allows another review', async () => {
-  await mount(); approve(); act(() => button('Continue to payment').props.onClick());
+  await mount(); approve(); act(() => button('Continue to payment').props.onClick()); await settle();
   mocks.api.mockRejectedValueOnce(new Error('Your cart or bundle price changed.'));
   await act(async () => { await expect(stripe()[0].props.options.fetchClientSecret()).rejects.toThrow('changed'); });
   expect(JSON.stringify(tree.toJSON())).toContain('Your cart or bundle price changed.');
   act(() => button('Change order selection').props.onClick()); await settle(); expect(stripe()).toHaveLength(0);
+});
+
+it('loads current server payment configuration and blocks the form when unavailable', async () => {
+ const original = mocks.api.getMockImplementation()!;
+ mocks.api.mockImplementation(async (method, path, body) => {
+   if (path === '/api/stripe/publishable-key') throw new Error('Payment configuration unavailable');
+   return original(method, path, body);
+ });
+ await mount(); approve(); act(() => button('Continue to payment').props.onClick()); await settle();
+ expect(mocks.api).toHaveBeenCalledWith('GET', '/api/stripe/publishable-key');
+ expect(tree.root.findByProps({role:'alert'}).children.join('')).toContain('Live payments are temporarily unavailable');
+ expect(stripe()).toHaveLength(0);
+ expect(mocks.api.mock.calls.some(call => call[1] === '/api/checkout/embedded')).toBe(false);
+});
+
+it('keeps an open payment form mounted when the connection returns', async () => {
+ await mount(); approve(); act(() => button('Continue to payment').props.onClick()); await settle();
+ const initialCalls = mocks.api.mock.calls.filter(call => call[1] === '/api/stripe/publishable-key').length;
+ act(() => { onlineManager.setOnline(false); onlineManager.setOnline(true); }); await settle();
+ expect(stripe()).toHaveLength(1);
+ expect(mocks.api.mock.calls.filter(call => call[1] === '/api/stripe/publishable-key')).toHaveLength(initialCalls);
 });

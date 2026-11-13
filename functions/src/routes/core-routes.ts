@@ -1,3 +1,5 @@
+import { readFlubaProviderKey } from '../services/fluba-provider-keys';
+import { assertLiveStripeKey } from '../services/stripe-mode';
 import { isPublicLegacyProduct } from '../services/publication';
 import { createHash } from 'crypto';
 import { publicPartner } from '../services/partner-api';
@@ -259,12 +261,13 @@ app.get('/settings', async (_req: Request, res: Response): Promise<void> => {
 
 
 app.get('/stripe/publishable-key', async (_req: Request, res: Response): Promise<void> => {
-  const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
-  if (!key) {
-    res.status(500).json({ error: 'Stripe not configured' });
-    return;
-  }
-  res.json({ publishableKey: key });
+  res.set('Cache-Control', 'no-store');
+  try {
+    const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    assertLiveStripeKey(key, 'publishable');
+    assertLiveStripeKey(await readFlubaProviderKey('STRIPE_SECRET_KEY'));
+    res.json({ publishableKey: key });
+  } catch (error: any) { res.status(error.status || 503).json({ error: error.message }); }
 });
 
 }

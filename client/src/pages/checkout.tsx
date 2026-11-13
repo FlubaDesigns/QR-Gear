@@ -1,5 +1,5 @@
 import { privateQueryKey } from '@/lib/identityCache';
-import { useCallback, useState, useEffect } from "react";
+import { useCallback, useState, useEffect, useMemo } from "react";
 import { loadStripe } from "@stripe/stripe-js";
 import { EmbeddedCheckoutProvider, EmbeddedCheckout } from "@stripe/react-stripe-js";
 import { useQuery } from "@tanstack/react-query";
@@ -13,7 +13,6 @@ import { apiRequest } from "@/lib/queryClient";
 import type { CartItem } from "@shared/schema";
 import { ProductProofApproval, ProductProofImages } from '@/features/shared/components/ProductProofApproval';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || "");
 
 export default function Checkout() {
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
@@ -23,6 +22,17 @@ export default function Checkout() {
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [approvals, setApprovals] = useState<Record<string, string>>({});
   const [paymentReview, setPaymentReview] = useState<{ quoteToken: string; proofApprovals: Record<string, { approved: true; proofId: string }>; bundle?: { bundleId: string; selectedItems?: string[] } } | null>(null);
+
+  const paymentConfig = useQuery<{ publishableKey: string }>({
+    queryKey: ["/api/stripe/publishable-key"],
+    queryFn: async () => (await apiRequest("GET", "/api/stripe/publishable-key")).json(),
+    enabled: isAuthenticated && !!paymentReview,
+    retry: false,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  });
+  const stripePromise = useMemo(() => paymentConfig.data ? loadStripe(paymentConfig.data.publishableKey) : null, [paymentConfig.data?.publishableKey]);
 
   const { data: cartItems = [], isLoading: cartLoading } = useQuery<CartItem[]>({
     queryKey: privateQueryKey("/api/cart", user?.id),
@@ -200,12 +210,13 @@ export default function Checkout() {
           </CardHeader>
           <CardContent>
             <div id="checkout" className="min-h-[400px]">
-              {paymentReview ? <EmbeddedCheckoutProvider
+              {paymentReview && paymentConfig.isError ? <p role="alert">Live payments are temporarily unavailable. Please try again later or contact QR Gear.</p>
+                : paymentReview && !paymentConfig.isFetching && stripePromise ? <EmbeddedCheckoutProvider
                 stripe={stripePromise}
                 options={{ fetchClientSecret }}
               >
                 <EmbeddedCheckout />
-              </EmbeddedCheckoutProvider> : <p className="text-muted-foreground">Review your total above to continue.</p>}
+              </EmbeddedCheckoutProvider> : <p className="text-muted-foreground">{paymentReview ? "Loading secure payment…" : "Review your total above to continue."}</p>}
             </div>
           </CardContent>
         </Card>

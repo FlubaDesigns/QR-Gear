@@ -11,9 +11,9 @@ vi.mock('../member-build',()=>({preparePartnerBuild:(...args:any[])=>m.build(...
 vi.mock('../product-graphic-renderer',()=>({renderSavedProductGraphic:(...args:any[])=>m.render(...args)}));
 vi.mock('../reward-graphic-input',()=>({rewardGraphicInput:()=>({headerStyle:{enabled:true,text:'customer.example',colorMode:'auto'}})}));
 vi.mock('../grf-registrar',()=>({registerGrfAsset:async()=>({publicUrl:'https://qrgear.test/logo.png'})}));
-vi.mock('../../runtime-config',()=>({resolveRuntimeConfig:()=>({origin:'https://qrgear.test'})}));
+vi.mock('../../runtime-config',()=>({resolveRuntimeConfig:()=>({origin:'https://qrgear.test'}),requireLiveCommerce:()=>{}}));
 vi.mock('../order-fulfillment',()=>({resolveSaleItem:async()=>({productTitle:'Catalog shirt',frozenProduction:{sourceHash:'saved-artwork'},fulfillment:{provider:'printful'},quantity:1}),verifyProviderItems:async()=>{},syncFulfillment:async()=>{},fulfillOrder:async(id:string)=>{const order=m.rows['orders/'+id];if(order.fulfillmentState!=='submitted'){m.providerOrders++;order.fulfillmentState='submitted';}}}));
-vi.mock('../fluba-provider-keys',()=>({readFlubaProviderKey:async()=> 'fixture-key'}));
+vi.mock('../fluba-provider-keys',()=>({readFlubaProviderKey:async()=> 'sk_live_fixture'}));
 vi.mock('stripe',()=>({default:class{paymentIntents={retrieve:m.stripe};}}));
 import {partnerRewardProducts,partnerRewardPreview,partnerRewardStatus,approvePartnerReward} from '../partner-rewards';
 import {productionFundingDate,assertProductionPayment} from '../payment-state';
@@ -64,7 +64,7 @@ it('keeps ordinary Stripe, refunds and forged funding behind their existing boun
  expect(productionFundingDate({paymentStatus:'sponsored',paymentVerifiedAt:'now'})).toBeNull();
  expect(productionFundingDate({paymentStatus:'paid',paymentVerifiedAt:'now',productionHold:true})).toBeNull();
  await expect(assertProductionPayment({paymentStatus:'paid'})).rejects.toThrow('Stripe reconciliation');
- m.stripe.mockResolvedValue({status:'succeeded',amount_received:1000,currency:'usd',latest_charge:{paid:true,amount_refunded:0,disputed:false,payment_intent:'pi_test'}});
+ m.stripe.mockResolvedValue({livemode:true,status:'succeeded',amount_received:1000,currency:'usd',latest_charge:{livemode:true,paid:true,amount_refunded:0,disputed:false,payment_intent:'pi_test'}});
  await expect(assertProductionPayment({paymentStatus:'paid',stripePaymentIntentId:'pi_test',amountTotalCents:1000,currency:'usd'})).resolves.toBeUndefined();expect(m.stripe).toHaveBeenCalledTimes(1);
  await expect(assertProductionPayment({paymentStatus:'paid',productionHold:true})).rejects.toThrow('held payment');
 });

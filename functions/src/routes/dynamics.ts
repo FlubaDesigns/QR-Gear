@@ -1,3 +1,4 @@
+import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { isPublicPacket, isVisibleLegacyLink } from '../services/publication';
 import { finalizeHostingRenewal } from '../services/hosting-renewal';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
@@ -92,14 +93,16 @@ app.post('/buyer/instances/:instanceId/renew', async (req: Request, res: Respons
     const instance = doc.data() as any;
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
     const renewalRef = db.collection('hosting_renewals').doc();
     await renewalRef.create({ instanceId, amountCents: 499, currency: 'usd', durationDays: 1095, status: 'awaiting_payment', createdAt: new Date().toISOString() });
     const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: 'QR Hosting Renewal - 3 Years', description: 'Extend your QR hosting for another 3 years' }, unit_amount: 499 }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, renewalId: renewalRef.id, type: 'hosting_renewal', source: 'hosting_renewal' }, customer_email: instance.buyerEmail }, { idempotencyKey: `hosting-renewal-${renewalRef.id}` });
+    assertLiveStripeObject(session);
     await renewalRef.update({ stripeSessionId: session.id });
     res.json({ url: session.url, sessionId: session.id });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/buyer/instances/:instanceId/verify-renewal', async (req: Request, res: Response): Promise<void> => {
@@ -108,10 +111,12 @@ app.post('/buyer/instances/:instanceId/verify-renewal', async (req: Request, res
     const { sessionId } = req.body;
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
+    assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    assertLiveStripeObject(session);
     res.json(await finalizeHostingRenewal(session, instanceId));
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.post('/admin/dynamics/surfaces', requireAdmin, async (req: Request, res: Response): Promise<void> => {
@@ -400,9 +405,10 @@ app.post('/public/checkout', async (req: Request, res: Response) => {
   try {
     const ownerId = ownerKey(req), packetId = req.body.packetId;
     await ownedMemberBuild(ownerId, packetId, 'owner');
-    await approveProductProof(packetId, { id: ownerId, type: 'owner' }, req.body.proofApproval);
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
+    assertLiveStripeKey(stripeKey);
+    await approveProductProof(packetId, { id: ownerId, type: 'owner' }, req.body.proofApproval);
     const packet = await commitOwnerBuild(ownerId, packetId);
     const prepared = await prepareOwnerOrder(packetId, packet, ownerId);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
@@ -415,6 +421,7 @@ app.post('/public/checkout', async (req: Request, res: Response) => {
       success_url: `${origin}/build/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${origin}/build`,
       metadata: { source: 'public_wizard', orderId: prepared.orderId, packetId },
     }, { idempotencyKey: `checkout-${prepared.orderId}` });
+    assertLiveStripeObject(session);
     await db.collection('orders').doc(prepared.orderId).update({ stripeSessionId: session.id });
     res.json({ url: session.url, total: prepared.amount / 100 });
   } catch (error) { buildError(res, error); }
@@ -423,7 +430,9 @@ app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response
   try {
     const key = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!key) throw Object.assign(new Error('Payment not configured.'), { status: 503 });
+    assertLiveStripeKey(key);
     const session = await new Stripe(key, { apiVersion: '2023-10-16' as any }).checkout.sessions.retrieve(req.params.sessionId);
+    assertLiveStripeObject(session);
     if (session.metadata?.source !== 'public_wizard' || !session.metadata.orderId) throw new Error('This session has no canonical owner order. Contact support to reconcile a legacy purchase.');
     res.set('Cache-Control', 'no-store').json(await finalizeMemberPayment(session));
   } catch (error) { buildError(res, error); }

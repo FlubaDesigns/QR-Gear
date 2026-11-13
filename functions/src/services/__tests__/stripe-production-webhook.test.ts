@@ -12,12 +12,12 @@ import { register } from '../../routes/stripe-webhooks';
 const app = express(); app.use(express.json({ verify: (req, _res, body) => { (req as any).rawBody = body; } })); register(app);
 const stripe = new Stripe('sk_test_fixture');
 const secret = 'whsec_test_fixture';
-function event(paymentStatus = 'paid') { return JSON.stringify({ id: 'evt_1', type: 'checkout.session.completed', data: { object: { id: 'cs_1', metadata: { source: 'direct_cart', userId: 'buyer', orderId: 'order' }, payment_status: paymentStatus } } }); }
+function event(paymentStatus = 'paid') { return JSON.stringify({ id: 'evt_1', livemode: true, type: 'checkout.session.completed', data: { object: { id: 'cs_1', livemode: true, metadata: { source: 'direct_cart', userId: 'buyer', orderId: 'order' }, payment_status: paymentStatus } } }); }
 function send(payload = event(), signature = stripe.webhooks.generateTestHeaderString({ payload, secret })) {
   return request(app).post('/webhooks/stripe').set('Content-Type', 'application/json').set('stripe-signature', signature).send(payload);
 }
 beforeEach(() => {
-  process.env.STRIPE_SECRET_KEY = 'sk_test_fixture'; process.env.STRIPE_WEBHOOK_SECRET = secret; vi.resetAllMocks();
+  process.env.STRIPE_SECRET_KEY = 'sk_live_fixture'; process.env.STRIPE_WEBHOOK_SECRET = secret; vi.resetAllMocks();
   m.finalize.mockResolvedValue({ orderId: 'order', order: {}, items: [] }); m.fulfill.mockResolvedValue({ success: true }); m.activation.mockResolvedValue({ success: true });
 });
 describe('Stripe signature and production delivery', () => {
@@ -46,4 +46,19 @@ it('retries failed activation delivery without treating the hosted item as activ
  expect((await send()).status).toBe(500);
  expect((await send()).status).toBe(200);
  expect(m.activation).toHaveBeenCalledTimes(2);
+});
+
+it.each([false, undefined])('rejects signed events with livemode=%s before side effects', async livemode => {
+ const body = JSON.parse(event()); body.livemode = livemode;
+ expect((await send(JSON.stringify(body))).status).toBe(409);
+ expect(m.finalize).not.toHaveBeenCalled(); expect(m.fulfill).not.toHaveBeenCalled(); expect(m.email).not.toHaveBeenCalled();
+});
+it('rejects test session data even inside a signed live event', async () => {
+ const body = JSON.parse(event()); body.data.object.livemode = false;
+ expect((await send(JSON.stringify(body))).status).toBe(409);
+ expect(m.finalize).not.toHaveBeenCalled(); expect(m.confirmEmbed).not.toHaveBeenCalled();
+});
+it('rejects test-mode server configuration before accepting signed events', async () => {
+ process.env.STRIPE_SECRET_KEY = 'sk_test_fixture';
+ expect((await send()).status).toBe(503); expect(m.fulfill).not.toHaveBeenCalled();
 });

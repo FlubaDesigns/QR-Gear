@@ -1,5 +1,14 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Main Stripe payment boundary — November 13, 2026
+
+`functions/src/services/stripe-mode.ts` owns the live-mode policy. Main checkout requires a live secret key; the browser reads the current `/api/stripe/publishable-key` response instead of a build-time key. That endpoint validates both configured key modes and returns an explicit unavailable response for test/missing configuration without exposing credentials. Key prefixes establish mode only, not proof that two keys belong to the same Stripe account; provider/account/webhook configuration still requires live verification.
+
+Verified webhook events, checkout sessions, production PaymentIntents and charges must explicitly report `livemode: true`. A paid/succeeded status alone cannot release an order, extend hosting or update refund evidence. The final production validator rechecks Stripe on retries. Valid partner-sponsored rewards retain their existing sponsor/claim validation and do not impersonate Stripe sales. No gift feature changes are included.
+
+Tracked in [QR Gear #19](https://github.com/FlubaDesigns/QR-Gear/issues/19). Deployment and live configuration evidence are recorded there separately from local fixture results. Until live credentials are correctly configured, Main paid checkout deliberately fails closed; this change does not turn test credentials into live credentials.
+
+
 ## Automatic print text and mandatory proof approval — November 12, 2026
 
 New physical text defaults to Automatic. `shared/printTextColor.ts` chooses black or white using linear sRGB contrast and owns low-contrast warnings. Each text block can use Light, Dark or a Custom color. Legacy fixed colors and lettering inside uploaded images are preserved. QR modules stay black on a white surface. Exact fabric exceptions live only in `master_catalog.printTextColorOverrides`; catalogs and partner options project that authority.
