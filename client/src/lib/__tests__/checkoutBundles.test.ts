@@ -1,6 +1,6 @@
 import React from 'react';
 import { act, create, type ReactTestRenderer } from 'react-test-renderer';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import Checkout from '@/pages/checkout';
 
@@ -96,4 +96,12 @@ it('loads current server payment configuration and blocks the form when unavaila
  expect(tree.root.findByProps({role:'alert'}).children.join('')).toContain('Live payments are temporarily unavailable');
  expect(stripe()).toHaveLength(0);
  expect(mocks.api.mock.calls.some(call => call[1] === '/api/checkout/embedded')).toBe(false);
+});
+
+it('keeps an open payment form mounted when the connection returns', async () => {
+ await mount(); approve(); act(() => button('Continue to payment').props.onClick()); await settle();
+ const initialCalls = mocks.api.mock.calls.filter(call => call[1] === '/api/stripe/publishable-key').length;
+ act(() => { onlineManager.setOnline(false); onlineManager.setOnline(true); }); await settle();
+ expect(stripe()).toHaveLength(1);
+ expect(mocks.api.mock.calls.filter(call => call[1] === '/api/stripe/publishable-key')).toHaveLength(initialCalls);
 });

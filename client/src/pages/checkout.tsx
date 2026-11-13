@@ -29,6 +29,8 @@ export default function Checkout() {
     enabled: isAuthenticated && !!paymentReview,
     retry: false,
     staleTime: 0,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
   const stripePromise = useMemo(() => paymentConfig.data ? loadStripe(paymentConfig.data.publishableKey) : null, [paymentConfig.data?.publishableKey]);
 
