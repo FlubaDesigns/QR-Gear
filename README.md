@@ -1,5 +1,14 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Durable checkout attempts — November 14, 2026
+
+Cart (hosted/embedded), shared member products, homepage builds and hosting renewals now retain a browser purchase-attempt ID across reloads and network failures. The server scopes the ID to the authenticated cart account or owner capability where applicable, hashes the exact request, and freezes one existing order/renewal record transactionally. Reusing an ID with different input is rejected. No new order collection or pricing authority is introduced.
+
+The shared `checkout-attempt.ts` service freezes Stripe parameters and expiry before the provider call, reuses the same idempotency key after a lost response, and retrieves a recorded session instead of creating another. A confirmed expired session permits a fresh user attempt; an unresolved provider outcome beyond the 23-hour retry window requires reconciliation. Completed sessions return to their existing verification page. Browser storage failure stops checkout before sending a request. This protects retries of the same intent; independently started purchases are separate intents.
+
+Fixture validation: 454 client tests and 669 backend tests passed, including account/selection isolation, concurrent order creation, lost Stripe responses, provider mode checks, expired sessions and the old-window boundary. Backend rendering used two workers and a 15-second timeout after the existing large-image test exceeded its default five seconds. Live replay evidence is recorded on the release PR; these fixtures do not prove a charge, fulfillment, email or phone acceptance.
+
+
 ## Hosting renewal uses Admin Pricing — November 14, 2026
 
 Renewal options and Stripe amounts now read the existing `testSettings/pricing.hostingTiers` through `readHostingTiers`. The separate $4.99/three-year offer is removed. Paid renewal supports configured positive-price 1/2/3/5-year terms; no new pricing setting or fallback price is introduced. Checkout rejects stale displayed prices and freezes the selected amount and calendar-year term for payment verification. Initial free-year policy remains a separate open acceptance item.

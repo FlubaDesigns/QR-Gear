@@ -3,7 +3,7 @@ import express from 'express';
 import request from 'supertest';
 import { database } from './composition-fixture';
 const m = vi.hoisted(() => ({ db: null as any, uid: 'owner', create: vi.fn() }));
-vi.mock('../../core', () => ({ db: { collection: (...a: any[]) => m.db.collection(...a) }, admin: { auth: () => ({ verifyIdToken: async () => ({ uid: m.uid }) }) } }));
+vi.mock('../../core', () => ({ db: { collection: (...a: any[]) => m.db.collection(...a), runTransaction: (...a: any[]) => m.db.runTransaction(...a) }, admin: { auth: () => ({ verifyIdToken: async () => ({ uid: m.uid }) }) } }));
 vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'sk_live_fixture' }));
 vi.mock('stripe', () => ({ default: class { checkout = { sessions: { create: m.create } }; } }));
 let records: Map<string, any>;
@@ -31,17 +31,17 @@ it('uses the current QR record instead of a colliding legacy ID and exposes only
 });
 it('freezes Admin Pricing and the current record before creating renewal checkout', async () => {
  records.set('qr_dynamics_instances/i',{status:'active',ownerId:'owner',qrgBaseCode:'QRG-11111-O-000001',hostingExpiresAt:'2035-01-01T00:00:00.000Z'});
- const result=await request(app()).post('/buyer/instances/i/renew').send({hostingTierCode:'2_year',expectedAmountCents:800});
+ const result=await request(app()).post('/buyer/instances/i/renew').send({checkoutAttemptId:'550e8400-e29b-41d4-a716-446655440000',hostingTierCode:'2_year',expectedAmountCents:800});
  expect(result.status).toBe(200);
  const renewal=[...records.entries()].find(([key])=>key.startsWith('hosting_renewals/'))![1];
  expect(renewal).toMatchObject({version:2,amountCents:800,durationYears:2,instanceCollection:'qr_dynamics_instances',hostingTierCode:'2_year',stripeSessionId:'cs_new'});
  expect(m.create.mock.calls[0][0].line_items[0].price_data.unit_amount).toBe(800);
 });
 it('rejects stale prices, unknown terms, static and unactivated items without checkout', async () => {
- for (const body of [{hostingTierCode:'2_year',expectedAmountCents:499},{hostingTierCode:'unknown',expectedAmountCents:800}]) expect((await request(app()).post('/buyer/instances/i/renew').send(body)).status).toBe(409);
+ for (const body of [{hostingTierCode:'2_year',expectedAmountCents:499},{hostingTierCode:'unknown',expectedAmountCents:800}]) expect((await request(app()).post('/buyer/instances/i/renew').send({...body,checkoutAttemptId:'550e8400-e29b-41d4-a716-446655440000'})).status).toBe(409);
  for (const value of [{status:'static'},{status:'active',orderId:'o',claimCode:'private'}]) {
  records.set('qr_dynamics_instances/i',value);
- expect((await request(app()).post('/buyer/instances/i/renew').send({hostingTierCode:'2_year',expectedAmountCents:800})).status).toBe(409);
+ expect((await request(app()).post('/buyer/instances/i/renew').send({checkoutAttemptId:'550e8400-e29b-41d4-a716-446655440000',hostingTierCode:'2_year',expectedAmountCents:800})).status).toBe(409);
  }
  expect(m.create).not.toHaveBeenCalled();
 });

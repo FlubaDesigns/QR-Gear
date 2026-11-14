@@ -1,4 +1,4 @@
-const _BUILD_ID = '20261114-hosting-pricing-19';
+const _BUILD_ID = '20261114-checkout-replay-19';
 process.env.QRGEAR_BUILD_ID = _BUILD_ID;
 console.log('[CF Boot] Build:', _BUILD_ID);
 import { isSandboxRuntime } from './runtime-config';

@@ -7,7 +7,7 @@ Baseline reviewed source: `a8e7b822be992d1d1d52f2095fd2835b051b7850`; repair bat
 
 | Path | Evidence collected | Remaining acceptance |
 | --- | --- | --- |
-| 1. Admin / QR Gear store | Public collections and product page load. US Army USA250, Military Green, M, quantity 1 failed Add to Cart: “Refresh and regenerate the verified Printful print area for front.” Cart remained empty. | Read-only live diagnosis confirmed the saved `front_large` and current `front` are both 12×16 inches. Narrow alias compatibility retains geometry, DPI, variant, template and technique guards. Repeat this exact variant after deployment; paid reconciliation remains unverified. |
+| 1. Admin / QR Gear store | Public collections and product page load. US Army USA250, Military Green, M, quantity 1 failed Add to Cart: “Refresh and regenerate the verified Printful print area for front.” Cart remained empty. | Read-only live diagnosis confirmed the saved `front_large` and current `front` are both 12×16 inches. Narrow alias compatibility retains geometry, DPI, variant, template and technique guards. Live replay passed after deployment: Army Military Green/M added to cart at $33.58. Paid reconciliation remains unverified. |
 | 2. Partner sites and stores | Active partner registrations visible. Shared partner API binds credentials to partner, origin, store and allowed products. Fluba rewards integration uses that API. | Verify a normal paid partner purchase separately from sponsored rewards. Catalog now uses the canonical publication predicate, including parent store/channel visibility; regression cases cover filtered and unfiltered queries. Live partner attribution remains unverified. |
 | 3. Create from homepage | Public builder completed preview and exact-proof approval, reached unpaid Stripe checkout for White/M at $22.33, and returned with the saved design intact. | Paid reconciliation is not tested. Replace supplier-facing descriptions and missing-description diagnostics; reconcile Compose/Dynamics naming. |
 | 4. Create from member page | New product `SEl8ya0eZwTPrfTnRMeh` saved and published after proof approval. Reload retained 11 products / 8 published and channel count 8. Public proof gate and unpaid $22.33 White/M Stripe handoff passed. | Paid earnings reconciliation remains unverified. Stripe displays Kingdom Connects as merchant on both tested handoffs; review account branding before launch. |
@@ -18,7 +18,7 @@ Baseline reviewed source: `a8e7b822be992d1d1d52f2095fd2835b051b7850`; repair bat
 
 - Canonical sale resolution distinguishes admin catalog instances, member packets and owner packets, then resolves the master product, supplier variant, verified print layout and production assets. Fulfillment freezes the production source.
 - Member compensation uses nonnegative sale-minus-cost profit and the frozen configured member share. The confirmed default is **25% of profit**. Copy changes do not alter calculations or discounts.
-- Each checkout preparation creates a fresh order ID. Stripe's per-order idempotency key therefore does not deduplicate two separate initial checkout requests. Validate request-level retry behavior before adding an idempotency design; existing per-order fulfillment protection is a separate safeguard.
+- Durable checkout attempts now reuse one frozen order and Stripe payload for repeated requests; account/owner scope and request hashes reject mismatched reuse. Existing per-order fulfillment protection remains a separate safeguard. Live replay acceptance is recorded with the release.
 - Partner product filtering now reuses the same strict publication predicate as canonical checkout. Parent reads are cached per request.
 - Referral capture stores a local timestamp. `lifetime-referral.ts` transactionally preserves first-buyer email attribution; lifetime behavior exists and must not be removed as presumed dead code. The reviewed owner checkout does not consume the referral; its compensation policy and paid evidence still need resolution.
 - Zero legacy builder hosts does not establish that partner API integrations are broken. Retired widget purchase routes intentionally reject new checkout.
@@ -59,7 +59,7 @@ Authorization Engine run [43562890845](https://github.com/FlubaDesigns/fluba-des
 
 ## Reconciliation with readiness issue 19
 
-Read [issue #19](https://github.com/FlubaDesigns/QR-Gear/issues/19) and all 14 comments through comment 6872482602. Its October opening observations are historical: the storefront is now accessible and live Stripe configuration was subsequently verified. The free-first-year hosting requirement, undecided renewal price and deferred Gifts scope remain constraints. Do not treat the original unchecked list as current completion evidence.
+Read [issue #19](https://github.com/FlubaDesigns/QR-Gear/issues/19) and all 14 comments through comment 6872482602. Its October opening observations are historical: the storefront is now accessible and live Stripe configuration was subsequently verified. The free-first-year hosting requirement and deferred Gifts scope remain constraints. The owner subsequently confirmed existing Admin Pricing for renewal (PR39). Do not treat the original unchecked list as current completion evidence.
 
 | #19 requirement | Current evidence / status | Six-path impact |
 | --- | --- | --- |
@@ -67,10 +67,10 @@ Read [issue #19](https://github.com/FlubaDesigns/QR-Gear/issues/19) and all 14 c
 | 2. Fresh Functions deployment | PR33 removes tracked generated output and builds clean source before deployment. | Shared backend for all six paths. |
 | 3. Marketing reward cost/reporting | PR33 implements canonical loss-leader classification and provider cost reporting; signed-in Admin verified. | Partner-sponsored rewards; keep separate from normal retail revenue. |
 | 4. Sponsored recovery | Queues and production retry shipped; notification/shipment recovery still open. | Partner/rewards path; do not mark the entire lifecycle complete. |
-| 5. Hosting and renewal | OPEN: current Dynamics records and legacy buyer_instances renewal disagree. Owner confirmed the existing Admin Pricing authority; renewal must use those configured terms. First-year-free policy remains open. | Homepage/member creations and promoted QR items. Preserve printed code identity; reconcile expiry advertising, notification deduplication, renewal and terms together. |
+| 5. Hosting and renewal | PARTIAL: PR39 connects current Dynamics renewal and expiry advertising to existing Admin Pricing. Its release markers and provider checks passed. First-year-free policy, notifications and paid renewal proof remain open. | Homepage/member creations and promoted QR items. Preserve printed code identity; reconcile expiry advertising, notification deduplication, renewal and terms together. |
 | 6. Product/store authorities | PARTIAL: shared purchase/publication policy shipped in PR34; PR37 extends it to partner listing. Alternate product/store APIs still need caller/data review. | Store, partner and surface catalog consistency. |
 | 7. Purchase eligibility | PR34 gates new purchases on canonical parent publication while preserving paid fulfillment; PR37 adds partner catalog parity. | Store/partner and stale-cart behavior. |
-| 8. Durable checkout replay | OPEN: automatic mutation retry removed; separate initial user retries still allocate fresh awaiting orders. | All checkout paths; duplicate-webhook safeguards are a different layer. |
+| 8. Durable checkout replay | PARTIAL: shared durable attempts implemented for cart, member-product, homepage-builder and renewal checkout; concurrent and lost-response fixtures pass. Live replay acceptance is recorded with the release. | All checkout paths; duplicate-webhook safeguards are a different layer. |
 | 9. Marketplace lifecycle | OPEN: account-aware listings exist, zero seller accounts observed, complete inbound order/fulfillment/tracking/refund bridge not established. | Direct surface selling remains unaccepted. |
 | 10. Store deletion obligations | OPEN: impact preview and resumable handling of partner/remote-listing obligations need implementation. | Admin, partner stores and external surfaces. |
 | 11. Shipment updates | OPEN: automatic provider-event delivery and sponsored notification recovery require evidence. | Every fulfilled purchase. |
@@ -82,7 +82,7 @@ PR35 also fixed missing Admin order amounts without inventing historical totals;
 
 ### Unified remaining acceptance order
 
-1. Finish the current PR37 release and replay the exact Army Military Green/M cart failure; verify frontend and backend markers.
+1. Completed: PR37/38 release and Army Military Green/M cart replay; frontend/backend markers matched. PR39 hosting release also verified.
 2. Resolve hosting lifecycle and free-year policy coherently, including current-record renewal, expiry advertising, emails and historical printed codes. Do not invent renewal pricing.
 3. Implement durable initial checkout replay and complete sponsored notification/shipment recovery.
 4. Review alternate authorities and deletion obligations, then remove only proven-unused code; address dependency/security and legacy-login findings with current evidence.
@@ -96,3 +96,11 @@ The six-path review does not close #19. Both issues retain explicit gaps rather 
 Renewal options and Stripe amounts now read the existing `testSettings/pricing.hostingTiers` through `readHostingTiers`. The separate $4.99/three-year offer is removed. Paid renewal supports configured positive-price 1/2/3/5-year terms; no new pricing setting or fallback price is introduced. Checkout rejects stale displayed prices and freezes the selected amount and calendar-year term for payment verification. Initial free-year policy remains a separate open acceptance item.
 
 Current `qr_dynamics_instances` records are authoritative, with historical `buyer_instances` compatibility only when no current record exists. Successful paid renewal updates the current record and its existing claimed-item projection atomically and once. Historical paid terms remain honored. Expired, correctly bound public scans return to the existing QR Gear homepage without deleting identity or content. Notification recovery, durable initial checkout replay, phone acceptance and paid live proof remain open under #19/#36.
+
+## Durable checkout attempts — November 14, 2026
+
+Cart (hosted/embedded), shared member products, homepage builds and hosting renewals now retain a browser purchase-attempt ID across reloads and network failures. The server scopes the ID to the authenticated cart account or owner capability where applicable, hashes the exact request, and freezes one existing order/renewal record transactionally. Reusing an ID with different input is rejected. No new order collection or pricing authority is introduced.
+
+The shared `checkout-attempt.ts` service freezes Stripe parameters and expiry before the provider call, reuses the same idempotency key after a lost response, and retrieves a recorded session instead of creating another. A confirmed expired session permits a fresh user attempt; an unresolved provider outcome beyond the 23-hour retry window requires reconciliation. Completed sessions return to their existing verification page. Browser storage failure stops checkout before sending a request. This protects retries of the same intent; independently started purchases are separate intents.
+
+Fixture validation: 454 client tests and 669 backend tests passed, including account/selection isolation, concurrent order creation, lost Stripe responses, provider mode checks, expired sessions and the old-window boundary. Backend rendering used two workers and a 15-second timeout after the existing large-image test exceeded its default five seconds. Live replay evidence is recorded on the release PR; these fixtures do not prove a charge, fulfillment, email or phone acceptance.

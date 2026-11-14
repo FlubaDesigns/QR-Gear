@@ -1,3 +1,4 @@
+import { checkoutAttemptId, releaseCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { privateQueryKey } from '@/lib/identityCache';
 import { useCallback, useState, useEffect, useMemo } from "react";
 import { loadStripe } from "@stripe/stripe-js";
@@ -74,16 +75,20 @@ export default function Checkout() {
     const returnUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`;
 
     if (!paymentReview) throw new Error("Review your order total before payment.");
+    const scope = `cart:${user?.id}`;
+    const selection = { returnUrl, ...paymentReview };
     try {
-      const response = await apiRequest("POST", "/api/checkout/embedded", { returnUrl, ...paymentReview });
+      const response = await apiRequest("POST", "/api/checkout/embedded", { ...selection, checkoutAttemptId: checkoutAttemptId(scope, selection) });
       const data = await response.json();
+      if (data.status === "complete") { if (data.paymentStatus === "paid") releaseCheckoutAttempt(scope, selection); window.location.href = data.url; throw new Error("Opening your completed order…"); }
       if (!data.clientSecret) throw new Error(data.error || "Checkout did not return a payment session.");
       return data.clientSecret;
     } catch (e: any) {
+      if (e.message.includes("checkout_expired")) releaseCheckoutAttempt(scope, selection);
       setCheckoutError(e.message);
       throw e;
     }
-  }, [cartItems, paymentReview]);
+  }, [cartItems, paymentReview, user?.id]);
 
   if (authLoading || cartLoading) {
     return (

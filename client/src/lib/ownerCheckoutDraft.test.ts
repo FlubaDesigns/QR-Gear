@@ -66,7 +66,7 @@ it.each(['qr-basic', 'qr-plus'] as const)('restores the exact %s review after le
   act(() => state.setProofApproved(true));
   await act(async () => { await state.handlePublicCheckout(); });
   expect(request).toHaveBeenCalledTimes(1);
-  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({packetId: 'saved-packet', proofApproval: {approved:true, proofId:'reviewed-proof'}});
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({packetId: 'saved-packet', proofApproval: {approved:true, proofId:'reviewed-proof'}, checkoutAttemptId: expect.any(String)});
 });
 it('invalidates the old preview and saved checkout when the restored design changes', async () => {
   await prepare(); await act(async () => { await state.handlePublicCheckout(); }); unmount(); mount();

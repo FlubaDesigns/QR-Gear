@@ -1,3 +1,4 @@
+import { checkoutAttemptId, releaseCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 import { sortProductSizes } from "@shared/storefrontTypes";
 import { useRoute, Link } from "wouter";
@@ -89,21 +90,21 @@ export default function PacketPage() {
     mutationFn: async () => {
       setCheckoutError('');
       if (!proofQuery.data?.proofId || approvedProofId !== proofQuery.data.proofId) throw new Error('Approve your current product proof before continuing.');
+      const scope = 'packet_share';
+      const selection = { packetId, selectedShirtSize: selectedSize, referrerId: referrerId || undefined, proofApproval: { approved: true, proofId: approvedProofId } };
       const response = await fetch('/api/public/packet-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          packetId,
-          selectedShirtSize: selectedSize,
-          referrerId: referrerId || undefined,
-          proofApproval: { approved: true, proofId: approvedProofId },
-        }),
+        body: JSON.stringify({ ...selection, checkoutAttemptId: checkoutAttemptId(scope, selection) }),
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+        if (errData.code === 'checkout_expired') releaseCheckoutAttempt(scope, selection);
         throw new Error(errData.error || 'Failed to create checkout');
       }
-      return response.json();
+      const result = await response.json();
+      if (result.status === 'complete' && result.paymentStatus === 'paid') releaseCheckoutAttempt(scope, selection);
+      return result;
     },
     onSuccess: (data) => {
       if (data.url) {

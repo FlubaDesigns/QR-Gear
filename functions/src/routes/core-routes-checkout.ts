@@ -1,3 +1,4 @@
+import { checkoutAttempt, createCheckoutSession } from '../services/checkout-attempt';
 import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { readCheckoutReceipt } from '../services/checkout-receipt';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
@@ -42,25 +43,26 @@ for (const embedded of [false, true]) app.post(embedded ? '/checkout/embedded' :
     assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey);
     const userId = (req as any).user.uid;
-    const prepared = await prepareCartOrder(userId, req.body.referrerId || '', req.body.bundle, req.body.quoteToken, req.body.proofApprovals);
+    const { checkoutAttemptId, ...selection } = req.body;
+    const attempt = checkoutAttempt(`cart:${userId}:${embedded ? 'embedded' : 'hosted'}`, checkoutAttemptId, selection);
+    const prepared = await prepareCartOrder(userId, req.body.referrerId || '', req.body.bundle, req.body.quoteToken, req.body.proofApprovals, attempt);
     orderId = prepared.orderId;
     const lineItems = prepared.items.map(item => ({ price_data: { currency: 'usd',
       product_data: { name: item.productTitle, description: `${item.quantity} × ${item.customization.productColor} / ${item.customization.productSize}${item.discountCents ? " — bundle price applied" : ""}` },
       unit_amount: item.lineTotalCents }, quantity: 1 }));
-    const session = await stripe.checkout.sessions.create({
+    const session = await createCheckoutSession(stripe, 'orders', orderId, {
       payment_method_types: ['card'], line_items: lineItems, mode: 'payment',
       shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'] },
       ...(embedded ? { ui_mode: 'embedded' as const, return_url: req.body.returnUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}` }
         : { success_url: req.body.successUrl || `${req.headers.origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: req.body.cancelUrl || `${req.headers.origin}/cart` }),
       metadata: { userId, source: 'direct_cart', orderId },
-    }, { idempotencyKey: `checkout-${orderId}` });
+    });
     assertLiveStripeObject(session);
-    await db.collection('orders').doc(orderId).update({ stripeSessionId: session.id });
-    res.json(embedded ? { clientSecret: session.client_secret } : { sessionId: session.id, url: session.url });
+    res.json(session.status === 'complete' ? { status: session.status, paymentStatus: session.payment_status, url: `/checkout/success?session_id=${session.id}` } : embedded ? { clientSecret: session.client_secret } : { sessionId: session.id, url: session.url });
   } catch (error: any) {
     console.error('Checkout error:', error);
     if (orderId) await db.collection('orders').doc(orderId).update({ checkoutError: error.message }).catch(console.error);
-    res.status(error.status || (orderId ? 502 : 400)).json({ error: error.message });
+    res.status(error.status || (orderId ? 502 : 400)).json({ error: error.message, code: error.code });
   }
 });
 

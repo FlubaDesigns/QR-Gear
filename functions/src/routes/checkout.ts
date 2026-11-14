@@ -1,3 +1,4 @@
+import { checkoutAttempt, createCheckoutSession } from '../services/checkout-attempt';
 import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { validateMemberCompensation } from '../services/member-compensation';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
@@ -22,7 +23,7 @@ app.post('/public/packet-proof', async (req: Request, res: Response): Promise<vo
     const packet = await memberBuildProjection(packetId);
     const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: packetId, productColor: packet.selectedColor, productSize: selectedShirtSize } });
     res.json(await saleItemProof(item));
-  } catch (error: any) { res.status(error.status || 400).json({ error: error.message }); }
+  } catch (error: any) { res.status(error.status || 400).json({ error: error.message, code: error.code }); }
 });
 
 app.post('/public/packet-checkout', async (req: Request, res: Response): Promise<void> => {
@@ -49,7 +50,9 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
-    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId, req.body.proofApproval);
+    const { checkoutAttemptId, ...selection } = req.body;
+    const attempt = checkoutAttempt('packet_share', checkoutAttemptId, selection);
+    const prepared = await prepareMemberOrder(packetId, packet, size, referrerId, req.body.proofApproval, attempt);
     const serverTotal = prepared.amount / 100;
 
     const productTitle = packet.title || 'QR Gear Custom Product';
@@ -72,7 +75,6 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
     const totalCents = Math.round(serverTotal * 100);
     const entityShareCents = creatorMemberId ? validateMemberCompensation(prepared.memberCompensation!, totalCents).amountCents : 0;
     connectTransferApplied = !!connectAccountId && entityShareCents > 0;
-    await db.collection('orders').doc(prepared.orderId).update({ connectAccountId: connectTransferApplied ? connectAccountId : null, expectedTransferCents: entityShareCents });
 
     // Build session with optional destination transfer
     const sessionParams: any = {
@@ -121,15 +123,14 @@ app.post('/public/packet-checkout', async (req: Request, res: Response): Promise
       console.log(`[PacketCheckout] Connect transfer: ${entityShareCents}¢ → ${connectAccountId}`);
     }
 
-    const session = await stripe.checkout.sessions.create(sessionParams, { idempotencyKey: `checkout-${prepared.orderId}` });
+    const session = await createCheckoutSession(stripe, 'orders', prepared.orderId, sessionParams, { connectAccountId: connectTransferApplied ? connectAccountId : null, expectedTransferCents: entityShareCents });
     assertLiveStripeObject(session);
-    await db.collection('orders').doc(prepared.orderId).update({ stripeSessionId: session.id });
 
     console.log(`[PacketCheckout] Created session ${session.id} for packet ${packetId}, total: $${serverTotal}`);
-    res.json({ url: session.url, sessionId: session.id, total: serverTotal });
+    res.json({ url: session.status === 'complete' ? `${packetBaseUrl}/p/success?session_id=${session.id}` : session.url, sessionId: session.id, total: serverTotal, status: session.status, paymentStatus: session.payment_status });
   } catch (error: any) {
     console.error('[PacketCheckout] Error:', error.message);
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message, code: error.code });
   }
 });
 
@@ -229,7 +230,7 @@ app.get('/public/packet-checkout/verify/:sessionId', async (req: Request, res: R
     });
   } catch (error: any) {
     console.error('[PacketCheckout Verify] Error:', error.message);
-    res.status(error.status || 500).json({ error: error.message });
+    res.status(error.status || 500).json({ error: error.message, code: error.code });
   }
 });
 
