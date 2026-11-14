@@ -146,7 +146,7 @@ export default function PacketSuccessPage() {
               </Badge>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="row"><div className="layout__split-2">
                 <div>
                   <p className="text-sm text-slate-500">Order Number</p>
                   <p className="font-mono font-medium text-white" data-testid="text-order-id">
@@ -161,6 +161,7 @@ export default function PacketSuccessPage() {
                 </div>
               </div>
 
+              </div>
               <Separator className="bg-slate-700" />
 
               <div className="flex justify-between items-center">

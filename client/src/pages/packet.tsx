@@ -1,4 +1,5 @@
 import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
+import { sortProductSizes } from "@shared/storefrontTypes";
 import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -24,7 +25,6 @@ interface PublicPacketData {
 }
 
 const AVAILABLE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
-const DEFAULT_SIZE_UPCHARGES: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
 
 function getQrTypeLabel(qrType: string | null): string {
   switch (qrType) {
@@ -182,7 +182,7 @@ export default function PacketPage() {
                 <label htmlFor="packet-size">Size
                   <select id="packet-size" value={selectedSize} onChange={event => setSelectedSize(event.target.value)} data-testid="select-size">
                     <option value="" disabled>Select size</option>
-                    {(packet.availableSizes || AVAILABLE_SIZES).map(size => (
+                    {sortProductSizes(packet.availableSizes || AVAILABLE_SIZES).map(size => (
                       <option key={size} value={size} data-testid={`select-size-${size}`}>
                         {size}{(sizeUpcharges[size] || 0) > 0 ? ` (+$${(sizeUpcharges[size] || 0).toFixed(2)})` : ''}
                       </option>

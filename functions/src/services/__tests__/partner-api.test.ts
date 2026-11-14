@@ -96,8 +96,8 @@ describe('partner API ownership and admin persistence', () => {
       'storeChannels/rewards':{storeId:'fluba',isActive:true},
       'storeChannels/legacy':{storeId:'a',isActive:true},
       'storeAllowedProducts/fluba':{products:[{canonicalBlankKey:'qrg_11001',colors:['Black'],sizes:['M']}]},
-      'admin_catalog_instances/shirt':{storeId:'fluba',channelId:'rewards',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
-      'admin_catalog_instances/legacy':{storeId:'a',currentPacketId:'pkt'},
+      'admin_catalog_instances/shirt':{status:'active',storeId:'fluba',channelId:'rewards',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
+      'admin_catalog_instances/legacy':{status:'active',storeId:'a',currentPacketId:'pkt'},
       'productPackets/pkt':{sourceMasterId:'qrg_11001',fulfillmentProvider:'printful'},
       'master_catalog/qrg_11001':{qrgVariants:{
         '0401':{sizeLabel:'M',colorLabel:'Black',providerVariants:{printful:{variantId:123,productId:456}}},
@@ -109,6 +109,21 @@ describe('partner API ownership and admin persistence', () => {
     expect(result.products).toHaveLength(1);
     expect(result.products[0]).toMatchObject({id:'shirt',storeId:'fluba',availableVariants:[{size:'M',color:'Black'}],availableColors:['Black'],availableSizes:['M']});
     await expect(partnerProducts(db,partner,{channelId:'legacy'})).rejects.toMatchObject({status:404});
+    for (const updates of [{isActive:false}, {isVisible:false}, {status:'draft'}]) {
+      rows['storeChannels/rewards']={storeId:'fluba',isActive:true,...updates};
+      expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+      await expect(partnerProducts(db,partner,{channelId:'rewards'})).rejects.toMatchObject({status:404});
+    }
+    rows['storeChannels/rewards']={storeId:'fluba',isActive:true};
+    for (const status of [undefined, 'published', 'pending', 'draft', 'deleted']) {
+      rows['admin_catalog_instances/shirt'].status=status;
+      expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+    }
+    rows['admin_catalog_instances/shirt'].status='active';
+    expect((await partnerProducts(db,partner,{})).products).toHaveLength(1);
+    rows['stores/fluba'].isVisible=false;
+    expect((await partnerProducts(db,partner,{})).products).toEqual([]);
+    rows['stores/fluba'].isVisible=true;
     rows['storeChannels/rewards'].isActive=false;
     await expect(partnerProducts(db,partner,{channelId:'rewards'})).rejects.toMatchObject({status:404});
     rows['storeAllowedProducts/fluba'].products[0].sizes=[];
@@ -126,8 +141,8 @@ describe('partner API ownership and admin persistence', () => {
       'stores/other':{roleType:'external',isActive:true},
       'storeAllowedProducts/other':{catalogId:'other'},
       'catalogs/other':{name:'Other',blankIds:['qrg_11111'],blankTitles:{qrg_11111:'Other shirt'},blankDescriptions:{qrg_11111:'Other description'}},
-      'admin_catalog_instances/other-shirt':{storeId:'other',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
-      'admin_catalog_instances/shirt':{storeId:'fluba',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
+      'admin_catalog_instances/other-shirt':{status:'active',storeId:'other',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
+      'admin_catalog_instances/shirt':{status:'active',storeId:'fluba',currentPacketId:'pkt',enabledColors:['Black','White'],enabledSizes:['M','L'],resolved:{pricing:{customerPrice:35}}},
       'productPackets/pkt':{sourceMasterId:'qrg_11111',fulfillmentProvider:'printful'},
       'master_catalog/qrg_11111':{qrgVariants:{
         '0401':{sizeLabel:'M',colorLabel:'Black',providerVariants:{printful:{variantId:123,productId:456}}},
@@ -167,9 +182,9 @@ describe('partner API ownership and admin persistence', () => {
   });
   it('projects only this partner’s visible canonical products with QRG options', async () => {
     const {db}=database({...seed,
-      'admin_catalog_instances/item':{storeId:'a',currentPacketId:'pkt',enabledColors:['Black'],enabledSizes:['M'],resolved:{title:'Saved product',pricing:{customerPrice:35}}},
-      'admin_catalog_instances/hidden':{storeId:'a',isVisible:false},
-      'admin_catalog_instances/foreign':{storeId:'b'},
+      'admin_catalog_instances/item':{status:'active',storeId:'a',currentPacketId:'pkt',enabledColors:['Black'],enabledSizes:['M'],resolved:{title:'Saved product',pricing:{customerPrice:35}}},
+      'admin_catalog_instances/hidden':{status:'active',storeId:'a',isVisible:false},
+      'admin_catalog_instances/foreign':{status:'active',storeId:'b'},
       'productPackets/pkt':{builderSnapshot:{metadata:{selectedProductDocId:'qrg_11001'}},fulfillmentProvider:'printful',priorityMockupUrl:'https://example.com/saved.png',mockupsByColor:{Black:{front:{standard:'https://example.com/black.png'}}}},
       'master_catalog/qrg_11001':{qrgVariants:{'0401':{sizeLabel:'M',colorLabel:'Black',providerVariants:{printful:{variantId:123,productId:456}}}}},
     });

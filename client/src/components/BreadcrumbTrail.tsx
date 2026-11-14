@@ -70,6 +70,15 @@ export default function BreadcrumbTrail() {
 
   const crumbs: { label: string; href: string }[] = [];
 
+  // Published product IDs are identifiers, not navigation destinations.
+  if (segments[0] === "p" && segments.length === 2) {
+    return (
+      <nav className="row py-2 text-sm text-muted-foreground" aria-label="Breadcrumb" data-testid="nav-breadcrumb">
+        <span className="text-foreground font-medium" data-testid="breadcrumb-current">Product</span>
+      </nav>
+    );
+  }
+
   let path = "";
   segments.forEach((seg, i) => {
     path += "/" + seg;

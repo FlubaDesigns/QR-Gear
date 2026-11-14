@@ -31,6 +31,31 @@ describe('saved-design color mockups', () => {
     expect(buildPacketMockupRequest(packet('art.png'), master, 'front').printfulVariantId).toBe(100);
     expect(packetMockupSourceId(packet('art.png'))).toBe('qrg_11111');
   });
+  it('resolves a legacy DTG front name only for the same verified physical print area', () => {
+    const legacy = packet('saved-front.png');
+    const layout = legacy.builderSnapshot.layoutConfig.providerLayouts.front;
+    layout.providerPlacementId = 'front_large';
+    layout.dimensions = {widthPx:3600,heightPx:4800,dpi:300};
+    expect(buildPacketMockupRequest(legacy,master,'front','Red').printArea).toEqual({width:3600,height:4800,placement:'front'});
+    expect(layout.providerPlacementId).toBe('front_large');
+    for (const dimensions of [{widthPx:4200,heightPx:5400,dpi:300}, {widthPx:1200,heightPx:1600,dpi:100}]) {
+      layout.dimensions=dimensions;
+      expect(() => buildPacketMockupRequest(legacy,master,'front','Red')).toThrow('verified Printful');
+    }
+    layout.dimensions={widthPx:3600,heightPx:4800,dpi:300};
+    for (const providerPlacementId of ['back','default','front_dtf','front_dtf_hat']) {
+      layout.providerPlacementId=providerPlacementId;
+      expect(() => buildPacketMockupRequest(legacy,master,'front','Red')).toThrow();
+    }
+    layout.providerPlacementId='front_large';
+    const unverified=structuredClone(master);
+    unverified.qrgPrintSpecs.printful.locations[0].verifiedVariantIds=[100];
+    expect(() => buildPacketMockupRequest(legacy,unverified,'front','Red')).toThrow('verified Printful');
+    Object.assign(layout,{technique:'DTFILM'});
+    expect(() => buildPacketMockupRequest(legacy,master,'front','Red')).toThrow('verified Printful');
+    Object.assign(layout,{technique:undefined,printfileIds:{'200':999}});
+    expect(() => buildPacketMockupRequest(legacy,master,'front','Red')).toThrow('verified Printful');
+  });
   it('rejects missing front artwork instead of using unrelated legacy artwork', () => {
     expect(() => buildPacketMockupRequest({ ...packet('art.png'), placementGraphicUrls: {} }, master, 'front', 'Red')).toThrow('no generated print artwork');
   });

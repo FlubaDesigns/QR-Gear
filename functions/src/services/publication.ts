@@ -6,12 +6,12 @@ export function isPublicCatalogRecord(value: any): boolean {
   return !!value && value.isVisible !== false && value.isActive !== false && value.status === 'active';
 }
 /** Product visibility and new purchases share the same parent authority. */
-export async function isPublicCatalogInstance(value: any, parents = new Map<string, Promise<any>>()): Promise<boolean> {
+export async function isPublicCatalogInstance(value: any, parents = new Map<string, Promise<any>>(), source = db): Promise<boolean> {
   if (!isPublicCatalogRecord(value)) return false;
   if (value.channelId && !value.storeId) return false;
   const read = (collection: string, id: string) => {
     const key = `${collection}/${id}`;
-    if (!parents.has(key)) parents.set(key, db.collection(collection).doc(id).get().then(doc => doc.data()));
+    if (!parents.has(key)) parents.set(key, source.collection(collection).doc(id).get().then(doc => doc.data()));
     return parents.get(key)!;
   };
   if (value.storeId) {

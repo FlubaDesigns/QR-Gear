@@ -176,7 +176,11 @@ export function requireVerifiedPrintLayout(master: any, placement: string, layou
   const saved = layout?.dimensions, target = spec?.dimensions;
   const template = spec?.printfileIds?.[String(variantId)];
   const savedTemplate = layout?.printfileIds?.[String(variantId)];
-  if (layout?.provider !== 'printful' || !spec || spec.providerPlacementId !== layout.providerPlacementId ||
+  // Older DTG packets used front_large for the same physical canvas. Resolve only
+  // this known alias; variant, dimensions, resolution, template and technique still
+  // must pass below. The returned current spec drives both proof and production.
+  const legacyFrontAlias = placement === 'front' && layout?.providerPlacementId === 'front_large' && spec?.providerPlacementId === 'front';
+  if (layout?.provider !== 'printful' || !spec || (spec.providerPlacementId !== layout.providerPlacementId && !legacyFrontAlias) ||
       !spec.verifiedVariantIds?.includes(variantId) || !(saved?.widthPx > 0 && saved.heightPx > 0 && saved.dpi > 0 && target?.dpi > 0) ||
       saved.widthPx / saved.dpi !== target.widthPx / target.dpi || saved.heightPx / saved.dpi !== target.heightPx / target.dpi || saved.dpi < target.dpi ||
       (savedTemplate != null && template !== savedTemplate) || (layout.technique && spec.technique !== layout.technique)) {
