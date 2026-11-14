@@ -52,3 +52,23 @@ it('does not extend hosting from a test-mode renewal', async () => {
  expect(store.get('hosting_renewals/r').status).toBe('awaiting_payment');
  expect(store.get('buyer_instances/i').hostingExpiresAt).toBe('2030-01-01T00:00:00.000Z');
 });
+
+it('applies frozen current-item terms once and updates only its claimed projection', async () => {
+ const qrg='QRG-11111-O-000001';
+ store.set('qr_dynamics_instances/i',{status:'active',ownerId:'owner',qrgBaseCode:qrg,hostingExpiresAt:'2030-01-01T00:00:00.000Z'});
+ store.set('claimedInstances/i',{dynamicsInstanceId:'i',ownerUserId:'owner',hostingExpiresAt:'2030-01-01T00:00:00.000Z'});
+ Object.assign(store.get('hosting_renewals/r'),{version:2,instanceCollection:'qr_dynamics_instances',qrgBaseCode:qrg,amountCents:800,durationYears:2});
+ const session={...paid(),amount_total:800};
+ const results=await Promise.all([finalizeHostingRenewal(session),finalizeHostingRenewal(session)]);
+ expect(results.filter(r=>r.alreadyProcessed).length).toBe(1);
+ expect(store.get('qr_dynamics_instances/i').hostingExpiresAt).toBe('2032-01-01T00:00:00.000Z');
+ expect(store.get('claimedInstances/i').hostingExpiresAt).toBe('2032-01-01T00:00:00.000Z');
+ expect(store.get('buyer_instances/i').hostingExpiresAt).toBe('2030-01-01T00:00:00.000Z');
+});
+it('rejects refunded renewals and unrecognized target collections without mutation', async () => {
+ store.set('paymentRefunds/pi_renew',{refunded:true});
+ await expect(finalizeHostingRenewal(paid())).rejects.toThrow('saved terms');
+ store.delete('paymentRefunds/pi_renew');store.get('hosting_renewals/r').instanceCollection='users';
+ await expect(finalizeHostingRenewal(paid())).rejects.toThrow('target');
+ expect(store.get('buyer_instances/i').hostingExpiresAt).toBe('2030-01-01T00:00:00.000Z');
+});

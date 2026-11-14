@@ -11,6 +11,7 @@ export function database(seed: Record<string, any> = {}) {
   };
   const ref = (path: string): any => ({ path, id: path.split('/').pop(), collection: (name: string) => query(`${path}/${name}`),
     get: async () => ({ id: path.split('/').pop(), ref: ref(path), exists: store.has(path), data: () => structuredClone(store.get(path)) }),
+    create: async (data: any) => { if (store.has(path)) throw new Error('collision'); store.set(path, structuredClone(data)); },
     update: async (data: any) => { if (!store.has(path)) throw new Error('missing document'); patch(path, data); },
     set: async (data: any) => store.set(path, structuredClone(data)), delete: async () => store.delete(path),
   });

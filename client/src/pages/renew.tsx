@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { claimedItemLifecycle, type HostingStatusResponse } from '@shared/claimedItems';
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,26 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, CheckCircle, Clock, CreditCard } from "lucide-react";
 
-interface BuyerInstance {
-  instanceId: string;
-  hostingExpiresAt: string;
-  status: string;
-  destinationUrl: string;
-  packetId: string;
-}
-
 export default function RenewPage() {
   const { instanceId } = useParams<{ instanceId: string }>();
   const [, setLocation] = useLocation();
-  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [selectedTier, setSelectedTier] = useState('');
 
   const searchParams = new URLSearchParams(window.location.search);
   const successSessionId = searchParams.get('session_id');
 
-  const { data, isLoading, error, refetch } = useQuery<{ instance: BuyerInstance; isActive: boolean }>({
+  const { data, isLoading, error, refetch } = useQuery<HostingStatusResponse>({
     queryKey: ['/api/buyer/instances', instanceId, 'public'],
     enabled: !!instanceId,
   });
+
+  const selectedOffer = data?.renewalOptions.find(t => t.code === selectedTier);
 
   const verifyMutation = useMutation({
     mutationFn: async () => {
@@ -44,13 +39,16 @@ export default function RenewPage() {
 
   const renewMutation = useMutation({
     mutationFn: async () => {
+      if (!selectedOffer) throw new Error('Choose a hosting term.');
       const response = await fetch(`/api/buyer/instances/${instanceId}/renew`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hostingTierCode: selectedOffer.code, expectedAmountCents: selectedOffer.amountCents }),
       });
-      if (!response.ok) throw new Error('Checkout failed');
+      if (!response.ok) { const error = await response.json(); throw new Error(error.error || 'Checkout failed'); }
       return response.json() as Promise<{ url: string; sessionId: string }>;
     },
+    onError: () => { setSelectedTier(''); refetch(); },
     onSuccess: (data) => {
       if (data.url) {
         window.location.href = data.url;
@@ -78,9 +76,9 @@ export default function RenewPage() {
         <Card className="max-w-md w-full">
           <CardHeader className="text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <CardTitle>Instance Not Found</CardTitle>
+            <CardTitle>Hosting Status Unavailable</CardTitle>
             <CardDescription>
-              This QR code is not associated with a valid hosting instance.
+              We could not load this QR item's hosting details. Please try again.
             </CardDescription>
           </CardHeader>
         </Card>
@@ -90,9 +88,8 @@ export default function RenewPage() {
 
   const instance = data.instance;
   const isActive = data.isActive;
-  const expirationDate = new Date(instance.hostingExpiresAt);
-  const now = new Date();
-  const daysRemaining = Math.ceil((expirationDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const { hasTerm, isStatic, daysRemaining } = claimedItemLifecycle(instance);
+  const expirationDate = hasTerm ? new Date(instance.hostingExpiresAt!) : null;
 
   if (verifyMutation.isSuccess) {
     return (
@@ -102,18 +99,18 @@ export default function RenewPage() {
             <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
             <CardTitle>Renewal Successful!</CardTitle>
             <CardDescription>
-              Your QR hosting has been extended for 3 more years.
+              Your QR hosting has been extended to the date shown below.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-green-500/10 rounded-lg p-4 text-center">
               <p className="text-sm text-muted-foreground">New Expiration Date</p>
               <p className="text-lg font-semibold text-green-500">
-                {new Date(instance.hostingExpiresAt).toLocaleDateString('en-US', {
+                {new Date(verifyMutation.data.newExpirationDate).toLocaleDateString('en-US', {
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric'
-                })}
+                }) || 'Not recorded'}
               </p>
             </div>
             <Button 
@@ -142,7 +139,7 @@ export default function RenewPage() {
             {isActive ? 'QR Hosting Status' : 'QR Hosting Expired'}
           </CardTitle>
           <CardDescription>
-            {isActive 
+            {isStatic ? 'This is a static QR item with no hosting term.' : !hasTerm ? 'No hosting expiration is recorded for this item.' : isActive
               ? `Your hosting is active but will expire in ${daysRemaining} days`
               : 'Your QR code is no longer showing your content'
             }
@@ -153,28 +150,31 @@ export default function RenewPage() {
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Status</span>
               <Badge variant={isActive ? "default" : "destructive"}>
-                {isActive ? 'Active' : 'Expired'}
+                {isStatic ? 'Static QR' : isActive ? 'Active' : hasTerm ? 'Expired' : 'Inactive'}
               </Badge>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Expiration</span>
               <span className={isActive ? '' : 'text-red-500'}>
-                {expirationDate.toLocaleDateString()}
+                {expirationDate?.toLocaleDateString() || 'No hosting term'}
               </span>
             </div>
 
           </div>
 
-          <div className="bg-slate-800/50 rounded-lg p-4 text-center">
-            <p className="text-2xl font-bold text-white mb-1">$4.99</p>
-            <p className="text-sm text-muted-foreground">for 3 years of hosting</p>
+          {data.renewalOptions.length > 0 ? <><div className="space-y-2">
+            <label htmlFor="renewal-tier">Choose a hosting term</label>
+            <select id="renewal-tier" className="w-full min-h-[48px] rounded-md border bg-background p-3" value={selectedTier} onChange={e => setSelectedTier(e.target.value)}>
+              <option value="">Select a term</option>
+              {data.renewalOptions.map(tier => <option key={tier.code} value={tier.code}>{tier.name} — {new Intl.NumberFormat('en-US', { style: 'currency', currency: tier.currency }).format(tier.amountCents / 100)}</option>)}
+            </select>
           </div>
 
           <Button 
             className="w-full" 
             size="lg"
             onClick={() => renewMutation.mutate()}
-            disabled={renewMutation.isPending}
+            disabled={renewMutation.isPending || !!successSessionId || !selectedOffer}
             data-testid="btn-renew"
           >
             {renewMutation.isPending ? (
@@ -184,10 +184,15 @@ export default function RenewPage() {
             )}
             {isActive ? 'Extend Hosting' : 'Renew Now'}
           </Button>
+          </> : <p className="text-sm text-muted-foreground" data-testid="renewal-unavailable">
+            {isStatic ? 'This item does not need hosting renewal.' : 'Renewal terms are not available yet. Your QR identity and saved content are preserved. Contact info@qrgear.com for help.'}
+          </p>}
 
+          {verifyMutation.isPending && <p role="status">Confirming your renewal payment…</p>}
+          {verifyMutation.isError && <p role="alert" className="text-sm text-red-500 text-center">We could not confirm your renewal yet. Please refresh this page to check again before starting another payment.</p>}
           {renewMutation.isError && (
             <p className="text-sm text-red-500 text-center">
-              Failed to start checkout. Please try again.
+              {renewMutation.error?.message || 'Failed to start checkout. Please try again.'}
             </p>
           )}
         </CardContent>
