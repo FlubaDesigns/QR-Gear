@@ -5,6 +5,31 @@ import { MEMBER_PACKETS_COLLECTION } from '../constants';
 export function isPublicCatalogRecord(value: any): boolean {
   return !!value && value.isVisible !== false && value.isActive !== false && value.status === 'active';
 }
+/** Product visibility and new purchases share the same parent authority. */
+export async function isPublicCatalogInstance(value: any, parents = new Map<string, Promise<any>>()): Promise<boolean> {
+  if (!isPublicCatalogRecord(value)) return false;
+  if (value.channelId && !value.storeId) return false;
+  const read = (collection: string, id: string) => {
+    const key = `${collection}/${id}`;
+    if (!parents.has(key)) parents.set(key, db.collection(collection).doc(id).get().then(doc => doc.data()));
+    return parents.get(key)!;
+  };
+  if (value.storeId) {
+    let store = await read('stores', value.storeId);
+    if (!store) store = await read('partnerStores', value.storeId);
+    if (!isVisibleLegacyLink(store)) return false;
+    if (value.channelId) {
+      const channel = await read('storeChannels', value.channelId);
+      if (!isVisibleLegacyLink(channel) || channel.storeId !== value.storeId) return false;
+    }
+  }
+  return true;
+}
+export async function publicCatalogDocuments(docs: any[]): Promise<any[]> {
+  const parents = new Map<string, Promise<any>>();
+  const eligible = await Promise.all(docs.map(doc => isPublicCatalogInstance(doc.data(), parents)));
+  return docs.filter((_, index) => eligible[index]);
+}
 export function isVisibleLegacyLink(value: any): boolean {
   return !!value && value.isVisible !== false && value.isActive !== false &&
     (value.status == null || ['active', 'published'].includes(value.status));

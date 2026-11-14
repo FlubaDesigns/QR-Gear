@@ -64,7 +64,8 @@ export async function apiRequest(
     },
     {
       source: "apiRequest",
-      tries: 3,
+      // A lost mutation response may already have committed on the server.
+      tries: ["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase()) ? 3 : 1,
       baseDelayMs: 500,
       maxDelayMs: 5000,
       meta: { method, url },

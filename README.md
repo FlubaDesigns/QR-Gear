@@ -1164,3 +1164,8 @@ Validation: real canvas QR scans for shirt/cap in both print modes; interrupted 
 ## Printful preview cooldown — November 12, 2026
 
 Catalog and mockup requests now respect Printful's Retry-After response before up to two bounded retries. Polling continues the same supplier task; exhausting a rate limit does not restart task creation. Order writes retain their existing reconciliation policy. Focused tests cover cooldown timing, provider-message fallback, bounded retries, same-task reuse and non-replayed production writes. This completes the rate-limit recovery observed during Fluba #1117 live preview verification.
+
+### Purchase eligibility and ambiguous mutation responses
+New catalog purchases and product storefront aliases share the active product, store, and channel checks in `publication.ts`. Bound parents must exist, remain visible/active, and match the product's store. Standalone active catalog products remain supported. Existing paid orders use their frozen production records; printed QR play policy is unchanged.
+
+The client request helper only automatically retries safe reads. A lost POST/PATCH/PUT/DELETE response can mean the write already succeeded, so it must not silently replay it. Durable checkout operation replay across user retries remains a separate production-readiness requirement.

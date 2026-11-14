@@ -48,3 +48,17 @@ it('returns the saved Canvas background without substituting physical print artw
  expect(result.status).toBe(200); expect(result.body.landingPage.landingPageSnapshotUrl).toBeNull();
  expect(result.body.landingPage.landingPageBackgroundUrl).toBe('https://files/canvas.png');
 });
+
+it('blocks product purchase aliases when a bound parent is disabled without changing printed play policy', async () => {
+  Object.assign(store.get('admin_catalog_instances/i'), { storeId: 'shop', channelId: 'channel' });
+  store.set('stores/shop', { isActive: false });
+  store.set('storeChannels/channel', { storeId: 'shop', isActive: true });
+  const a = app();
+  expect((await request(a).get('/store/product/i')).status).toBe(404);
+  expect((await request(a).post('/store/product/i/mockup-for-color').send({ colorName: 'Black' })).status).toBe(404);
+  expect(await isPublicPacket('p', store.get('productPackets/p'))).toBe(true);
+  store.get('stores/shop').isActive = true;
+  store.get('storeChannels/channel').storeId = 'another-store';
+  expect((await request(a).get('/store/product/i')).status).toBe(404);
+  expect(m.generate).not.toHaveBeenCalled();
+});

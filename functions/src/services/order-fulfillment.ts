@@ -1,3 +1,4 @@
+import { isPublicCatalogInstance } from './publication';
 import { providerCostSnapshot } from './provider-costs';
 import { assertProductionPayment, productionFundingDate } from './payment-state';
 import { randomUUID } from 'crypto';
@@ -24,12 +25,13 @@ export async function resolveSaleItem(cart: any, ownerBuild?: { packetId: string
   if (!Number.isSafeInteger(cart.quantity) || cart.quantity <= 0) throw new Error('Choose a positive whole-number quantity.');
   const instance = (await db.collection(ownerBuild ? 'productPackets' : memberPacketId ? MEMBER_PACKETS_COLLECTION : 'admin_catalog_instances').doc(instanceId).get()).data();
   if (!instance || instance.isVisible === false || instance.isActive === false || ['archived', 'deleted'].includes(instance.status)) throw new Error('This catalog product is unavailable.');
+  if (!ownerBuild && !memberPacketId && !await isPublicCatalogInstance(instance)) throw new Error('This catalog product is no longer available for purchase.');
   if (memberPacketId && instance.status !== 'published') throw new Error('This member product is not published.');
   if (ownerBuild && (instance.ownerType !== 'owner' || instance.ownerId !== ownerBuild.ownerId || instance.status !== 'ready')) throw new Error('This owner build is not ready for your checkout.');
   const packetId = ownerBuild ? instanceId : memberPacketId ? instance.productionPacketId : instance.currentPacketId;
   if (!packetId) throw new Error('Product has no saved production packet.');
   let packet = (await db.collection('productPackets').doc(packetId).get()).data();
-  if (!packet) throw new Error('Production packet is missing.');
+  if (!packet || packet.isActive === false || packet.isVisible === false || ['building', 'draft', 'archived', 'deleted'].includes(packet.status)) throw new Error('Production packet is unavailable.');
   if (memberPacketId && (packet.status !== 'published' || packet.memberId !== instance.memberId || packet.memberPacketId !== memberPacketId)) throw new Error('Member production ownership does not match.');
   const composition = await validatePacketComposition(db, packetId, packet);
   const snapshot = requireBuilderSnapshot(packet.builderSnapshot);
