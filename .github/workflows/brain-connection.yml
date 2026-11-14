@@ -8,6 +8,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - run: node scripts/verify-manifest.js
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
