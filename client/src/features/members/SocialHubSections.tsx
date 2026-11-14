@@ -146,7 +146,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
     setHasChanges(true);
   };
 
-  const connectedCount = Object.values(handles).filter(v => v && v.trim()).length;
+  const profileCount = Object.values(handles).filter(v => v && v.trim()).length;
 
   return (
     <Card className="bg-slate-800/50 border-slate-700">
@@ -156,7 +156,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
           Social Profiles
         </CardTitle>
         <Badge variant="secondary" className="text-xs">
-          {connectedCount} connected
+          {profileCount} profiles entered
         </Badge>
       </CardHeader>
       <CardContent className="row">
@@ -167,7 +167,7 @@ export function SocialProfilesSection({ memberId }: { memberId: string }) {
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-slate-400 mb-4">
-              Add your social media handles and contact info for notifications and sharing.
+              Save your social profiles and contact info here. Sharing opens the selected app or copies your caption; you finish posting there.
             </p>
             <div className="layout__auto">
               {PLATFORMS.map((platform) => {

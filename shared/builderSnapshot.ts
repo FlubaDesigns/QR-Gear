@@ -196,7 +196,7 @@ export function buildPacketMockupRequest(packet: Record<string, any>, master: Re
   if (layout?.provider !== 'printful' || !layout.providerPlacementId || !Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0) {
     throw new Error('Saved build is missing its Printful print-area dimensions');
   }
-  requireVerifiedPrintLayout(master, placement, layout, variantId);
+  const verifiedLayout = requireVerifiedPrintLayout(master, placement, layout, variantId);
   const artworkUrl = packet.placementGraphicUrls?.[placement];
   if (!artworkUrl) throw new Error('The saved placement has no generated print artwork');
   const label = snapshot.layoutConfig.selectedPlacements.find((p: string) => ['label_inside', 'label_outside'].includes(p));
@@ -210,6 +210,6 @@ export function buildPacketMockupRequest(packet: Record<string, any>, master: Re
     blueprintId: productId, printProviderId: 0, colorName: selectedColor,
     placement, artworkUrl, artworkVariant: 'black' as const, fulfillmentProvider: 'printful' as const,
     hasCompositeGraphic: true, printfulVariantId: variantId,
-    printArea: { width, height, placement: layout.providerPlacementId },
+    printArea: { width, height, placement: verifiedLayout.providerPlacementId },
   };
 }

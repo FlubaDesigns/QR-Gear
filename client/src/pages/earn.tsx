@@ -1,3 +1,4 @@
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 import PageIntro from '@/components/PageIntro';
 import { Link } from "wouter";
 import { DollarSign, Layers, Wand2, Crown, ShoppingCart, Sparkles, ArrowRight, ChevronRight, QrCode, Image, Film, LayoutGrid, Repeat, CheckCircle, Zap, TrendingUp, Shield, Package, HelpCircle, Lightbulb, Megaphone, Store } from "lucide-react";
@@ -62,9 +63,9 @@ const journeySteps = [
     accent: "from-green-500/20 to-green-900/10",
     border: "border-green-500/30",
     headline: "Every sale puts money in your pocket.",
-    description: "You earn a share of every sale, every time someone buys a product you designed. There is no cap on what you can earn. The more you create and share, the more you make. Design one product or a hundred — each one is a new stream of income.",
+    description: "You earn a share of the profit on every sale, every time someone buys a product you designed. There is no cap on what you can earn. The more you create and share, the more you make. Design one product or a hundred — each one is a new stream of income.",
     details: [
-      "Earn a percentage of every sale automatically",
+      `Earn ${formatProfitSharePercent(DEFAULT_MEMBER_PROFIT_SHARE)} of the profit on every sale`,
       "No limit on how many products you can create",
       "Track your earnings in real time from your dashboard",
       "Multiple products = multiple income streams",
@@ -123,7 +124,7 @@ const faqs = [
   },
   {
     q: "How much do I earn per sale?",
-    a: "You earn a percentage of the profit on every sale. The exact amount depends on the product tier and any customizations. You can see your earnings estimate for each product before you publish it.",
+    a: `You earn ${formatProfitSharePercent(DEFAULT_MEMBER_PROFIT_SHARE)} of the profit on every sale. The exact amount depends on the product tier and any customizations. You can see your earnings estimate for each product before you publish it.`,
   },
   {
     q: "Do I need any design experience?",

@@ -1,3 +1,5 @@
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
+import { sortProductSizes } from "@shared/storefrontTypes";
 import { useRoute, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -23,7 +25,6 @@ interface PublicPacketData {
 }
 
 const AVAILABLE_SIZES = ['S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
-const DEFAULT_SIZE_UPCHARGES: Record<string, number> = { 'S': 0, 'M': 2, 'L': 4, 'XL': 6, '2XL': 8, '3XL': 10, '4XL': 12 };
 
 function getQrTypeLabel(qrType: string | null): string {
   switch (qrType) {
@@ -181,7 +182,7 @@ export default function PacketPage() {
                 <label htmlFor="packet-size">Size
                   <select id="packet-size" value={selectedSize} onChange={event => setSelectedSize(event.target.value)} data-testid="select-size">
                     <option value="" disabled>Select size</option>
-                    {(packet.availableSizes || AVAILABLE_SIZES).map(size => (
+                    {sortProductSizes(packet.availableSizes || AVAILABLE_SIZES).map(size => (
                       <option key={size} value={size} data-testid={`select-size-${size}`}>
                         {size}{(sizeUpcharges[size] || 0) > 0 ? ` (+$${(sizeUpcharges[size] || 0).toFixed(2)})` : ''}
                       </option>
@@ -212,7 +213,7 @@ export default function PacketPage() {
           <div className="layout__split-2-1 card">
             <div className="cta__text">
               <h2 id="create-own-heading" data-testid="text-create-own-heading">Want to create your own?</h2>
-              <p className="cta__message">Design custom QR merchandise and earn 25% on every sale. Forever.</p>
+              <p className="cta__message">Design custom QR merchandise and earn {formatProfitSharePercent(DEFAULT_MEMBER_PROFIT_SHARE)} of the profit on every sale.</p>
             </div>
             <div className="btn-row">
               <Link href={createYourOwnUrl} className="btn btn-secondary" data-testid="button-create-your-own">

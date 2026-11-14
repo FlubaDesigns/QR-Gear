@@ -1,3 +1,4 @@
+import { isPublicCatalogInstance, isVisibleLegacyLink } from './publication';
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { storeProductReferences } from './store-product-references';
@@ -98,15 +99,16 @@ export async function partnerProducts(db: any, store: any, query: any) {
   if (channelId !== undefined) {
     if (typeof channelId !== 'string' || !channelId || channelId.includes('/')) fail(400, 'Invalid channelId');
     const channel = await db.collection('storeChannels').doc(channelId).get();
-    if (!channel.exists || channel.data().storeId !== storeId || channel.data().isActive === false) fail(404, 'Channel not found for this partner');
+    if (!channel.exists || channel.data().storeId !== storeId || !isVisibleLegacyLink(channel.data())) fail(404, 'Channel not found for this partner');
   }
   const q = db.collection('admin_catalog_instances').where('storeId', '==', storeId);
   // Equality-only store query avoids a new composite index and checks every row's ownership.
   const snap = await q.get();
   const products = [];
+  const parents = new Map<string, Promise<any>>();
   for (const doc of snap.docs) {
     const instance = doc.data();
-    if (instance.isActive === false || instance.isVisible === false || ['draft', 'deleted', 'archived', 'blocked'].includes(instance.status) || (channelId && instance.channelId !== channelId)) continue;
+    if ((channelId && instance.channelId !== channelId) || !await isPublicCatalogInstance(instance, parents, db)) continue;
     if (!instance.currentPacketId) fail(409, `Product ${doc.id} has no saved production packet`);
     const packetDoc = await db.collection('productPackets').doc(instance.currentPacketId).get();
     if (!packetDoc.exists) fail(409, `Product ${doc.id} has a missing production packet`);

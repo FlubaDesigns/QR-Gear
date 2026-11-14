@@ -1,3 +1,4 @@
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 import { Button } from "@/components/ui/button";
 import { ShoppingCart, DollarSign, Crown, Tag, Users, Sparkles, QrCode, Type, ImagePlus, Play, Layers, ArrowRight, Palette, Crosshair, PenLine, PartyPopper, Check } from "lucide-react";
 
@@ -284,7 +285,7 @@ export function MemberConversionPitch({ earnings, onSignUp, onSkip, mockupUrl }:
           </div>
           <div className="flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-sky-400 shrink-0" />
-            <span className="text-slate-300 text-sm">Earn 25% when someone else buys your design</span>
+            <span className="text-slate-300 text-sm">Earn {formatProfitSharePercent(DEFAULT_MEMBER_PROFIT_SHARE)} of the profit when someone else buys your design</span>
           </div>
           <div className="flex items-center gap-2">
             <Users className="w-4 h-4 text-sky-400 shrink-0" />
