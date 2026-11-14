@@ -1,3 +1,4 @@
+import { providerCostSnapshot } from './provider-costs';
 import { assertProductionPayment, productionFundingDate } from './payment-state';
 import { randomUUID } from 'crypto';
 import { db } from '../core';
@@ -95,6 +96,7 @@ function providerUpdates(remote: PrintfulOrder) {
   const shipments = remote.shipments || [];
   return { providerOrderId: String(remote.id), routedProvider: 'printful', providerStatus: remote.status,
     status: states[remote.status] || 'on_hold', shipments,
+    ...(remote.costs ? { providerCosts: providerCostSnapshot(remote.costs, remote.status) } : {}),
     trackingNumber: shipments[0]?.tracking_number || null, trackingUrl: shipments[0]?.tracking_url || null,
     carrier: shipments[0]?.carrier || null, lastSyncedAt: new Date().toISOString() };
 }

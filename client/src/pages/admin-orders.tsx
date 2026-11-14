@@ -40,7 +40,7 @@ import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Users, DollarSign, Tag, Gift } from "lucide-react";
 
-type OrderUnified = StoredOrderUnified & { checkoutVersion?: number; paymentStatus?: string; fulfillmentState?: string; fulfillmentError?: string };
+type OrderUnified = StoredOrderUnified & { commercialPurpose?: string; funding?: { partnerId?: string }; canRetryProduction?: boolean; netRevenueCents?: number | null; marketingExpenseCents?: number | null; checkoutVersion?: number; paymentStatus?: string; fulfillmentState?: string; fulfillmentError?: string };
 
 type OrderStatus = "pending" | "routed" | "in_production" | "shipped" | "delivered" | "cancelled";
 
@@ -381,9 +381,10 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
               <h4 className="font-medium text-sm mb-2">Actions</h4>
               {order.checkoutVersion === 1 ? <div className="space-y-3">
                 <p className="text-sm">Payment: {order.paymentStatus}. Production: {order.fulfillmentState}.</p>
+                {order.commercialPurpose === 'marketing_loss_leader' && <p className="text-sm">Marketing loss leader · Sponsor: {order.funding?.partnerId || 'Needs review'} · Customer charge: $0.00 · Provider cost: {order.marketingExpenseCents == null ? 'Awaiting confirmed cost' : `$${(order.marketingExpenseCents / 100).toFixed(2)}`}</p>}
                 {order.fulfillmentError && <p role="alert" className="text-sm text-destructive">{order.fulfillmentError}</p>}
                 <div className="flex flex-wrap gap-2">
-                  <Button className="min-h-12" disabled={fulfillmentMutation.isPending || order.paymentStatus !== 'paid' || order.fulfillmentState === 'submitted'} onClick={() => fulfillmentMutation.mutate('fulfill')}>Retry production submission</Button>
+                  <Button className="min-h-12" disabled={fulfillmentMutation.isPending || !order.canRetryProduction || order.fulfillmentState === 'submitted'} onClick={() => fulfillmentMutation.mutate('fulfill')}>Retry production submission</Button>
                   <Button variant="outline" className="min-h-12" disabled={fulfillmentMutation.isPending || !order.providerOrderId} onClick={() => fulfillmentMutation.mutate('sync-provider')}>Refresh shipping status</Button>
                 </div>
               </div> : <Select
@@ -463,18 +464,21 @@ export default function AdminOrdersPage() {
 
   const ordersByTab: Record<string, OrderUnified[]> = {
     all: filteredOrders,
-    pending: filteredOrders.filter(o => ["pending", "paid", "awaiting_payment", "fulfillment_failed", "on_hold"].includes(o.status || "")),
+    pending: filteredOrders.filter(o => ["pending", "approved", "paid", "awaiting_payment", "fulfillment_failed", "on_hold"].includes(o.status || "")),
     production: filteredOrders.filter(o => o.status === "routed" || o.status === "in_production"),
     shipped: filteredOrders.filter(o => o.status === "shipped"),
   };
 
   const stats = {
     total: orders.length,
-    pending: orders.filter(o => ["pending", "paid", "awaiting_payment", "fulfillment_failed", "on_hold"].includes(o.status || "")).length,
+    pending: orders.filter(o => ["pending", "approved", "paid", "awaiting_payment", "fulfillment_failed", "on_hold"].includes(o.status || "")).length,
     inProduction: orders.filter(o => o.status === "routed" || o.status === "in_production").length,
     shipped: orders.filter(o => o.status === "shipped").length,
-    revenue: orders.filter(o => !o.checkoutVersion || o.paymentStatus === "paid").reduce((acc, o) => acc + (Number(o.total) || 0), 0),
-    profit: orders.reduce((acc, o) => acc + (o.profit ? parseFloat(o.profit) : 0), 0),
+    revenue: orders.reduce((acc, o) => acc + (o.netRevenueCents ?? 0), 0) / 100,
+    marketing: orders.reduce((acc, o) => acc + (o.marketingExpenseCents ?? 0), 0) / 100,
+    revenuePending: orders.filter(o => o.netRevenueCents == null).length,
+    marketingPending: orders.filter(o => o.commercialPurpose === "marketing_loss_leader" && o.marketingExpenseCents == null).length,
+    profit: orders.filter(o => o.commercialPurpose !== "marketing_loss_leader").reduce((acc, o) => acc + (o.profit ? parseFloat(o.profit) : 0), 0),
   };
 
   const handleViewDetails = (order: OrderUnified) => {
@@ -531,10 +535,11 @@ export default function AdminOrdersPage() {
               <div className={`text-xl font-bold ${stats.profit >= 0 ? "text-green-500" : "text-red-500"}`}>
                 ${stats.profit.toFixed(0)}
               </div>
-              <div className="text-[10px] text-muted-foreground">Profit</div>
+              <div className="text-[10px] text-muted-foreground">Reported sales profit</div>
             </div>
         </div></div>
 
+        <p className="text-sm mb-4">Marketing costs: ${stats.marketing.toFixed(2)} · {stats.marketingPending} awaiting confirmed costs. Revenue excludes marketing rewards; {stats.revenuePending} orders need revenue reconciliation.</p>
         <div className="flex flex-wrap gap-2 mb-4">
           <div className="relative flex-1 min-w-[180px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

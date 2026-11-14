@@ -1,3 +1,6 @@
+import { commercialPurpose, productionFundingDate } from '../../../shared/orderFunding';
+import { orderNetPaidCents } from '../services/order-metrics';
+import { marketingExpenseCents } from '../services/provider-costs';
 import {readFlubaProviderKey} from '../services/fluba-provider-keys';
 import { fulfillOrder, syncFulfillment } from '../services/order-fulfillment';
 import { Request, Response, NextFunction } from 'express';
@@ -454,7 +457,10 @@ app.patch('/admin/orders/:id', requireAdmin, async (req: Request, res: Response)
 async function adminOrder(doc: FirebaseFirestore.DocumentSnapshot) {
   const order = docToObject(doc);
   const rows = await db.collection('orderItems').where('orderId', '==', doc.id).get();
-  return { ...order, sourceChannel: order.sourceChannel || order.source || 'direct', total: order.totalAmount ?? order.total,
+  return { ...order, commercialPurpose: commercialPurpose(order),
+    canRetryProduction: !!productionFundingDate(order) && !['cancelled', 'refunded'].includes(order.status) && order.fulfillmentState !== 'submitted',
+    netRevenueCents: orderNetPaidCents(order), marketingExpenseCents: marketingExpenseCents(order),
+    sourceChannel: order.sourceChannel || order.source || 'direct', total: Number.isSafeInteger(order.amountTotalCents) ? order.amountTotalCents / 100 : order.totalAmount ?? order.total,
     items: rows.empty ? (order.items || []) : rows.docs.map(row => { const item = row.data(); return {
       ...item, masterProductId: item.masterId || item.productId, variantSku: item.fulfillment?.variantKey || item.variantSku || '',
       productTitle: item.productTitle || item.customization?.productName || item.productId, price: Number(item.price),

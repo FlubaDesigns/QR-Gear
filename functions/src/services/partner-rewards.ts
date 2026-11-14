@@ -173,7 +173,7 @@ export async function approvePartnerReward(partner: any, input: any) {
       if (!current || current.revision !== input.previewId || current.customerRef !== input.customerRef) fail('Reward approval changed.');
       if (existing.exists) { if (existing.data()?.funding?.claimId !== input.claimId) fail('Order identity differs.'); return; }
       tx.create(orderRef, { id: orderId, source: 'partner_reward', sourceChannel: 'partner', userId: ownerRef(partner, saved.customerRef), checkoutVersion: 1,
-        paymentStatus: 'sponsored', funding: { type: 'partner_sponsored', partnerId: partner.id, claimId: input.claimId, previewId: input.previewId, authorization, authorizedAt: now },
+        commercialPurpose: 'marketing_loss_leader', paymentStatus: 'sponsored', funding: { type: 'partner_sponsored', partnerId: partner.id, claimId: input.claimId, previewId: input.previewId, authorization, authorizedAt: now },
         status: 'approved', proofApproval, fulfillmentState: 'pending', amountTotalCents: 0, currency: 'usd', customerChargeCents: 0,
         shippingAddress: { ...address, zip: address.postalCode }, productTitle: item.productTitle, createdAt: now, updatedAt: now });
       tx.create(db.collection('orderItems').doc(orderId), { ...line, id: orderId, orderId });

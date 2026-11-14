@@ -1,5 +1,12 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Production readiness repair — issue 19
+
+Functions deploys run a clean TypeScript build through Firebase predeploy. Generated `functions/lib` output is untracked; tests and source maps are excluded from the runtime build. Compile errors stop deployment.
+
+Partner rewards carry `commercialPurpose: marketing_loss_leader` on the canonical order, with sponsor identity in its existing funding record and a zero customer charge. Provider synchronization records Printful production, shipping and total costs separately; draft, absent, invalid or non-USD costs remain unreconciled in USD reporting. Rewards do not count as sales revenue. Admin retries use the shared funding policy; actual submission still revalidates sponsor and claim authorization. Historical sponsored orders are classified on read without rewriting their saved payment history.
+
+
 ## Main Stripe payment boundary — November 13, 2026
 
 `functions/src/services/stripe-mode.ts` owns the live-mode policy. Main checkout requires a live secret key; the browser reads the current `/api/stripe/publishable-key` response instead of a build-time key. That endpoint validates both configured key modes and returns an explicit unavailable response for test/missing configuration without exposing credentials. Key prefixes establish mode only, not proof that two keys belong to the same Stripe account; provider/account/webhook configuration still requires live verification.

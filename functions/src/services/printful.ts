@@ -49,6 +49,7 @@ export interface PrintfulOrderFile {
 }
 export interface PrintfulOrder {
   id: number; external_id: string; status: string;
+  costs?: { currency: string; subtotal: string | number; shipping: string | number; total: string | number; [key: string]: unknown };
   shipments?: Array<{ carrier: string; tracking_number: string; tracking_url: string; shipped_at?: number; delivered_at?: number }>;
 }
 export class PrintfulApiError extends Error {
