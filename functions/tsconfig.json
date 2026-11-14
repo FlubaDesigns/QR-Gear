@@ -4,7 +4,7 @@
     "noImplicitReturns": true,
     "noUnusedLocals": false,
     "outDir": "lib",
-    "sourceMap": true,
+    "sourceMap": false,
     "strict": true,
     "target": "es2020",
     "esModuleInterop": true,
@@ -14,5 +14,10 @@
   "compileOnSave": true,
   "include": [
     "src"
+  ],
+  "exclude": [
+    "src/**/__tests__/**",
+    "src/**/*.test.ts",
+    "src/**/*.spec.ts"
   ]
 }

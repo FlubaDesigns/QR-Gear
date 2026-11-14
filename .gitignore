@@ -4,3 +4,6 @@ dist
 vite.config.ts.*
 *.tar.gz
 .firebase/hosting.ZGlzdC9wdWJsaWM.cache
+
+# Functions output is rebuilt from TypeScript before deployment.
+/functions/lib/

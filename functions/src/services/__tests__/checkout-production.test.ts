@@ -132,6 +132,18 @@ describe('Store sale to Printful production', () => {
     getOrder.mockResolvedValue({ id: 77, external_id: orderId, status: 'fulfilled', shipments: [{ carrier: 'USPS', tracking_number: 'track-1', tracking_url: 'https://tracking.example/1' }] });
     await syncFulfillment(orderId); expect(store.get('orders/' + orderId)).toMatchObject({ status: 'shipped', trackingNumber: 'track-1', trackingUrl: 'https://tracking.example/1' });
   });
+  it('persists supplier costs through production and refreshes them on the same canonical order', async () => {
+    const { orderId } = await paidOrder();
+    confirmOrder.mockResolvedValueOnce({ id: 77, external_id: orderId, status: 'pending', costs: { currency: 'USD', subtotal: '12.00', shipping: '4.50', total: '17.20' } });
+    await fulfillOrder(orderId);
+    expect(store.get('orders/' + orderId).providerCosts).toMatchObject({ source: 'printful', status: 'confirmed', productionCents: 1200, shippingCents: 450, totalCents: 1720 });
+    getOrder.mockResolvedValue({ id: 77, external_id: orderId, status: 'fulfilled' });
+    await syncFulfillment(orderId);
+    expect(store.get('orders/' + orderId).providerCosts.totalCents).toBe(1720);
+    getOrder.mockResolvedValue({ id: 77, external_id: orderId, status: 'fulfilled', costs: { currency: 'USD', subtotal: '12.00', shipping: '5.00', total: '17.70' } });
+    await syncFulfillment(orderId);
+    expect(store.get('orders/' + orderId).providerCosts).toMatchObject({ shippingCents: 500, totalCents: 1770 });
+  });
   it.each(['price', 'variant', 'artwork', 'layout', 'inside-label', 'disabled-color', 'provider', 'composition'])('blocks invalid %s before checkout', async issue => {
     if (issue === 'inside-label') store.get('productPackets/packet').builderSnapshot.layoutConfig.selectedPlacements=['back'];
     if (issue === 'price') store.get('admin_catalog_instances/instance').resolved.pricing = {};

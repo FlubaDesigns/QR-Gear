@@ -54,7 +54,7 @@ it('blocks unavailable variants, stale approval and unapproved sponsor funding; 
  await expect(approvePartnerReward(partner,{...approval,proofApproval:{approved:false,proofId:preview.proofId}})).rejects.toThrow('approve this proof');
  expect(m.providerOrders).toBe(0);
  const first=await approvePartnerReward(partner,approval),again=await approvePartnerReward(partner,approval);expect(again.orderId).toBe(first.orderId);expect(first.orderId!.length).toBeLessThanOrEqual(32);expect(m.providerOrders).toBe(1);
- const order=m.rows['orders/'+first.orderId];expect(order.paymentStatus).toBe('sponsored');expect(order.stripePaymentIntentId).toBeUndefined();expect(order.customerChargeCents).toBe(0);
+ const order=m.rows['orders/'+first.orderId];expect(order.paymentStatus).toBe('sponsored');expect(order.commercialPurpose).toBe('marketing_loss_leader');expect(order.stripePaymentIntentId).toBeUndefined();expect(order.customerChargeCents).toBe(0);
  expect(order.proofApproval).toMatchObject({approved:true,proofId:preview.proofId,method:'proof_checkbox'});
  await expect(assertProductionPayment(order)).resolves.toBeUndefined();expect(m.stripe).not.toHaveBeenCalled();
  m.rows['partnerStores/fluba']={...partner,sponsoredRewards:false};await expect(assertProductionPayment(order)).rejects.toThrow('no longer authorized');

@@ -264,7 +264,7 @@ async function buildSetupChecklist(): Promise<SetupItem[]> {
     label: 'Stripe Webhook Secret',
     description: 'Required for validating Stripe webhook events',
     status: env.STRIPE_WEBHOOK_SECRET ? 'ok' : 'missing',
-    action: 'Add STRIPE_WEBHOOK_SECRET — configure endpoint at /api/stripe-webhooks in Stripe dashboard',
+    action: 'Add STRIPE_WEBHOOK_SECRET — configure endpoint at /api/webhooks/stripe in Stripe dashboard',
     href: '/admin/settings',
     group: 'payments',
   });

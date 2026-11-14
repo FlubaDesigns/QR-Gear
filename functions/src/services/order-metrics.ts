@@ -1,5 +1,7 @@
+import { commercialPurpose, productionFundingDate } from '../../../shared/orderFunding';
 /** Financial reports sum cents; an incomplete refund must be reconciled, never guessed. */
 export function orderNetPaidCents(order: any): number | null {
+  if (commercialPurpose(order) === 'marketing_loss_leader' || order.paymentStatus === 'sponsored') return 0;
   const paid = order.paymentStatus ? ['paid', 'partially_refunded', 'refunded'].includes(order.paymentStatus) : ['paid', 'routed', 'in_production', 'shipped', 'delivered'].includes(order.status);
   if (!paid) return 0;
   if (order.currency && String(order.currency).toLowerCase() !== 'usd') return null;
@@ -13,8 +15,8 @@ export function orderNetPaidCents(order: any): number | null {
   return cents - (refund || 0);
 }
 export function needsFulfillmentAttention(order: any) {
-  if (order.paymentStatus !== 'paid' || order.productionHold || order.refund?.refundedAmountCents > 0 || ['cancelled', 'refunded'].includes(order.status)) return false;
-  return ['ready', 'failed'].includes(order.fulfillmentState) || order.fulfillmentStatus === 'pending' ||
+  if ((order.paymentStatus !== 'paid' && !productionFundingDate(order)) || order.productionHold || order.refund?.refundedAmountCents > 0 || ['cancelled', 'refunded'].includes(order.status)) return false;
+  return ['pending', 'ready', 'failed'].includes(order.fulfillmentState) || order.fulfillmentStatus === 'pending' ||
     (order.fulfillmentState === 'submitting' && Number(order.fulfillmentLeaseUntil || 0) < Date.now());
 }
 export function orderDate(value: any): string {
