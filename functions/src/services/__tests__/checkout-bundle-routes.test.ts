@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const m = vi.hoisted(() => ({ prepare: vi.fn(), quote: vi.fn(), create: vi.fn(), update: vi.fn() }));
 vi.mock('../../core', () => ({ db: { collection: () => ({ doc: () => ({ update: m.update }) }) } }));
 vi.mock('../../middleware', () => ({ requireAdmin: (_req: any, _res: any, next: any) => next(), requireAuth: (req: any, _res: any, next: any) => { req.user = { uid: 'buyer' }; next(); } }));
+vi.mock('../checkout-attempt', async importOriginal => ({ ...await importOriginal<any>(), createCheckoutSession: async (stripe: any, _collection: string, _id: string, params: any) => stripe.checkout.sessions.create(params) }));
 vi.mock('../order-service', () => ({ prepareCartOrder: m.prepare, readCartQuote: m.quote }));
 vi.mock('../product-proof', () => ({ saleItemProof: async () => ({ proofId:'proof-1',mockupUrl:'https://files.test/proof.png',selectedColor:'Navy',selectedSize:'M',warnings:[] }) }));
 vi.mock('stripe', () => ({ default: class { checkout = { sessions: { create: m.create } }; } }));
@@ -23,8 +24,8 @@ describe('bundle checkout transport', () => {
   it.each(['/checkout', '/checkout/embedded'])('sends exact discounted cents to Stripe at %s', async path => {
     const bundle = { bundleId: 'pair' };
     const proofApprovals = {cart:{approved:true,proofId:'proof-1'}};
-    const response = await request(app).post(path).send({ bundle, quoteToken: 'reviewed', proofApprovals });
-    expect(response.status).toBe(200); expect(m.prepare).toHaveBeenCalledWith('buyer', '', bundle, 'reviewed', proofApprovals);
+    const response = await request(app).post(path).send({ checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000', bundle, quoteToken: 'reviewed', proofApprovals });
+    expect(response.status).toBe(200); expect(m.prepare).toHaveBeenCalledWith('buyer', '', bundle, 'reviewed', proofApprovals, expect.objectContaining({id:expect.any(String),requestHash:expect.any(String)}));
     const session = m.create.mock.calls[0][0];
     expect(session.line_items.reduce((sum: number, row: any) => sum + row.quantity * row.price_data.unit_amount, 0)).toBe(10935);
     expect(session.line_items[0]).toMatchObject({ quantity: 1, price_data: { unit_amount: 6500, product_data: { description: '2 × Navy / M — bundle price applied' } } });
@@ -37,20 +38,20 @@ describe('bundle checkout transport', () => {
   });
   it('does not create a payment session when review validation fails', async () => {
     m.prepare.mockRejectedValue(new Error('Your cart or bundle price changed.'));
-    const response = await request(app).post('/checkout/embedded').send({ quoteToken: 'stale' });
+    const response = await request(app).post('/checkout/embedded').send({ checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000', quoteToken: 'stale' });
     expect(response.status).toBe(400); expect(response.body.error).toContain('changed'); expect(m.create).not.toHaveBeenCalled();
   });
 });
 
 it.each(['/checkout', '/checkout/embedded'])('blocks test keys before order creation at %s', async path => {
  vi.stubEnv('STRIPE_SECRET_KEY', 'sk_test_fixture');
- const response = await request(app).post(path).send({});
+ const response = await request(app).post(path).send({checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000'});
  expect(response.status).toBe(503); expect(response.body.error).toContain('administrator attention');
  expect(m.prepare).not.toHaveBeenCalled(); expect(m.create).not.toHaveBeenCalled();
 });
 it('does not publish a non-live Stripe session returned by the provider', async () => {
  m.create.mockResolvedValue({ id: 'test', livemode: false, url: 'https://payment.example/test' });
- const response = await request(app).post('/checkout').send({});
+ const response = await request(app).post('/checkout').send({checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000'});
  expect(response.status).toBe(409); expect(response.body.url).toBeUndefined();
  expect(m.update).not.toHaveBeenCalledWith(expect.objectContaining({ stripeSessionId: 'test' }));
 });

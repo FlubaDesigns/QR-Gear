@@ -31,7 +31,8 @@ function approve() { act(() => tree.root.findByProps({'data-testid':'approve-pro
 async function selectOffer() { act(() => tree.root.findByType('select').props.onChange({ target: { value: 'pair' } })); await settle(); }
 beforeEach(() => {
   vi.clearAllMocks(); pick = false;
-  vi.stubGlobal('window', { location: { origin: 'https://store.example' } });
+  const memory = new Map<string,string>();
+  vi.stubGlobal('window', { sessionStorage: { getItem: (key:string) => memory.get(key) ?? null, setItem: (key:string,value:string) => memory.set(key,value), removeItem: (key:string) => memory.delete(key) }, location: { origin: 'https://store.example' } });
   mocks.api.mockImplementation(async (_method, path, body) => {
     if (path === '/api/stripe/publishable-key') return { json: async () => ({ publishableKey: 'pk_live_fixture' }) };
     if (path.endsWith('/embedded')) return { json: async () => ({ clientSecret: 'test-secret' }) };
@@ -55,7 +56,7 @@ it('shows the server total, then sends the reviewed bundle and token to payment'
   expect(tree.root.findByType('select').props.disabled).toBe(true);
   await act(async () => { await stripe()[0].props.options.fetchClientSecret(); });
   expect(mocks.api).toHaveBeenCalledWith('POST', '/api/checkout/embedded', {
-    returnUrl: 'https://store.example/checkout/success?session_id={CHECKOUT_SESSION_ID}', quoteToken: 'chosen-token', proofApprovals: {cart:{approved:true,proofId:'proof-1'}}, bundle: { bundleId: 'pair' },
+    checkoutAttemptId: expect.any(String), returnUrl: 'https://store.example/checkout/success?session_id={CHECKOUT_SESSION_ID}', quoteToken: 'chosen-token', proofApprovals: {cart:{approved:true,proofId:'proof-1'}}, bundle: { bundleId: 'pair' },
   });
   act(() => button('Change order selection').props.onClick()); await settle();
   expect(stripe()).toHaveLength(0); expect(tree.root.findByType('select').props.disabled).toBe(false);
@@ -104,4 +105,13 @@ it('keeps an open payment form mounted when the connection returns', async () =>
  act(() => { onlineManager.setOnline(false); onlineManager.setOnline(true); }); await settle();
  expect(stripe()).toHaveLength(1);
  expect(mocks.api.mock.calls.filter(call => call[1] === '/api/stripe/publishable-key')).toHaveLength(initialCalls);
+});
+
+it('reuses the payment attempt after an ambiguous response and a repeated Stripe mount callback', async () => {
+ await mount(); approve(); act(() => button('Continue to payment').props.onClick()); await settle();
+ mocks.api.mockRejectedValueOnce(new Error('network interrupted'));
+ await act(async () => { await expect(stripe()[0].props.options.fetchClientSecret()).rejects.toThrow('network interrupted'); });
+ await act(async () => { await stripe()[0].props.options.fetchClientSecret(); });
+ const calls = mocks.api.mock.calls.filter(call => call[1] === '/api/checkout/embedded');
+ expect(calls).toHaveLength(2); expect(calls[0][2]).toEqual(calls[1][2]);
 });

@@ -1,3 +1,4 @@
+import { assertCheckoutAttempt, type CheckoutAttempt } from './checkout-attempt';
 import { assertLiveStripeKey, assertLiveStripeObject } from './stripe-mode';
 import { resolveLifetimeReferral } from './lifetime-referral';
 import { freezeMemberCompensation, validateMemberCompensation, reconcileMemberTransfer, type MemberCompensation } from './member-compensation';
@@ -191,7 +192,16 @@ export async function readCartQuote(userId: string, selection?: { bundleId?: str
   return { ...quote, quoteToken };
 }
 
-export async function prepareCartOrder(userId: string, referrerId = '', selection?: { bundleId?: string; selectedItems?: string[] }, expectedQuoteToken?: string, approvals?: Record<string, any>) {
+async function readPreparedCheckout(attempt: CheckoutAttempt) {
+  const order = (await db.collection('orders').doc(attempt.id).get()).data();
+  if (!order) return null;
+  assertCheckoutAttempt(order, attempt);
+  const items = (await db.collection('orderItems').where('orderId', '==', attempt.id).get()).docs.map(doc => doc.data());
+  return { orderId: attempt.id, items: items as any[], amount: order.amountTotalCents as number, memberCompensation: order.memberCompensation };
+}
+
+export async function prepareCartOrder(userId: string, referrerId = '', selection?: { bundleId?: string; selectedItems?: string[] }, expectedQuoteToken?: string, approvals?: Record<string, any>, attempt?: CheckoutAttempt) {
+  if (attempt) { const saved = await readPreparedCheckout(attempt); if (saved) return saved; }
   const quote = await readCartQuote(userId, selection);
   if (expectedQuoteToken && quote.quoteToken !== expectedQuoteToken) throw new Error('Your cart or bundle price changed. Return to checkout and review the new total.');
   const { items, amount } = quote;
@@ -201,9 +211,11 @@ export async function prepareCartOrder(userId: string, referrerId = '', selectio
   }
   await verifyProviderItems(items);
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Checkout requires a positive order total.');
-  const ref = db.collection('orders').doc(), now = new Date().toISOString();
+  const ref = (attempt ? db.collection('orders').doc(attempt.id) : db.collection('orders').doc()), now = new Date().toISOString();
   await db.runTransaction(async tx => {
-    tx.create(ref, { userId, source: 'direct_cart', sourceChannel: 'direct', checkoutVersion: 1,
+    const existing = (await tx.get(ref)).data();
+    if (existing && attempt) { assertCheckoutAttempt(existing, attempt); return; }
+    tx.create(ref, { ...(attempt ? { checkoutRequestHash: attempt.requestHash } : {}), userId, source: 'direct_cart', sourceChannel: 'direct', checkoutVersion: 1,
       status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
       amountTotalCents: amount, subtotalCents: quote.subtotalCents, bundle: quote.bundle, currency: 'usd', totalAmount: (amount / 100).toFixed(2),
       referrerId, payoutState: referrerId ? 'needs_review' : null, routedProvider: items[0].fulfillment.provider, createdAt: now, updatedAt: now });
@@ -213,7 +225,7 @@ export async function prepareCartOrder(userId: string, referrerId = '', selectio
       tx.create(db.collection('orderProductionSources').doc(id), { ...frozenProduction, orderId: ref.id });
     });
   });
-  return { orderId: ref.id, items, amount };
+  return attempt ? (await readPreparedCheckout(attempt))! : { orderId: ref.id, items, amount };
 }
 
 /** Caller must verify the webhook signature (or retrieve this session from Stripe). */
@@ -254,36 +266,39 @@ export async function finalizeCartPayment(session: Stripe.Checkout.Session) {
 }
 
 /** Member sales use the same frozen production contract as catalog sales. */
-export async function prepareMemberOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, proofApproval?: any) {
-  return prepareProductOrder(packetId, packet, size, referrerId, undefined, proofApproval);
+export async function prepareMemberOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, proofApproval?: any, attempt?: CheckoutAttempt) {
+  return prepareProductOrder(packetId, packet, size, referrerId, undefined, proofApproval, attempt);
 }
-export async function prepareOwnerOrder(packetId: string, packet: Record<string, any>, ownerId: string) {
+export async function prepareOwnerOrder(packetId: string, packet: Record<string, any>, ownerId: string, attempt?: CheckoutAttempt) {
   const { requireApprovedProductProof } = await import('./product-proof');
   requireApprovedProductProof(packet);
-  return prepareProductOrder(packetId, packet, packet.selectedShirtSize, '', ownerId);
+  return prepareProductOrder(packetId, packet, packet.selectedShirtSize, '', ownerId, undefined, attempt);
 }
-async function prepareProductOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, ownerId?: string, approval?: any) {
+async function prepareProductOrder(packetId: string, packet: Record<string, any>, size: string, referrerId: string, ownerId?: string, approval?: any, attempt?: CheckoutAttempt) {
+  if (attempt) { const saved = await readPreparedCheckout(attempt); if (saved) return saved; }
   const item = await resolveSaleItem({ id: packetId, quantity: 1, customization: { memberPacketId: ownerId ? null : packetId, productSize: size, productColor: packet.selectedColor } }, ownerId ? { packetId, ownerId } : undefined);
   await verifyProviderItems([item]);
   const memberCompensation = item.creatorMemberId ? await freezeMemberCompensation(item.unitAmount, item.productCost) : null;
-  const ref = db.collection('orders').doc(), now = new Date().toISOString();
+  const ref = (attempt ? db.collection('orders').doc(attempt.id) : db.collection('orders').doc()), now = new Date().toISOString();
   if (!ownerId) {
     item.proofApproval = recordProofApproval(item.packetId, await saleItemProof(item), { id: ref.id, type: 'guest' }, approval);
     item.frozenProduction.packet.proofApproval = item.proofApproval;
   }
-  const batch = db.batch();
-  batch.create(ref, { userId: null, source: ownerId ? 'public_wizard' : 'packet_share', sourceChannel: ownerId ? 'owner' : 'member', checkoutVersion: 1,
-    packetId, productTitle: item.productTitle, qrType: packet.packetType, selectedSize: size, selectedColor: packet.selectedColor,
-    mockupUrl: packet.mockupUrl || packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost, memberCompensation,
-    proofApproval: item.proofApproval,
-    status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
-    amountTotalCents: item.unitAmount, currency: 'usd', totalAmount: (item.unitAmount / 100).toFixed(2),
-    referrerId, routedProvider: item.fulfillment.provider, createdAt: now, updatedAt: now });
-  const { frozenProduction, ...publicItem } = item;
-  batch.create(db.collection('orderItems').doc(`${ref.id}_0`), { ...publicItem, orderId: ref.id, createdAt: now });
-  batch.create(db.collection('orderProductionSources').doc(`${ref.id}_0`), { ...frozenProduction, orderId: ref.id });
-  await batch.commit();
-  return { orderId: ref.id, amount: item.unitAmount, memberCompensation };
+  await db.runTransaction(async tx => {
+    const existing = (await tx.get(ref)).data();
+    if (existing && attempt) { assertCheckoutAttempt(existing, attempt); return; }
+    tx.create(ref, { ...(attempt ? { checkoutRequestHash: attempt.requestHash } : {}), userId: null, source: ownerId ? 'public_wizard' : 'packet_share', sourceChannel: ownerId ? 'owner' : 'member', checkoutVersion: 1,
+      packetId, productTitle: item.productTitle, qrType: packet.packetType, selectedSize: size, selectedColor: packet.selectedColor,
+      mockupUrl: packet.mockupUrl || packet.itemImage || null, creatorMemberId: item.creatorMemberId, productCost: item.productCost, memberCompensation,
+      proofApproval: item.proofApproval,
+      status: 'awaiting_payment', paymentStatus: 'unpaid', fulfillmentState: 'waiting_for_payment',
+      amountTotalCents: item.unitAmount, currency: 'usd', totalAmount: (item.unitAmount / 100).toFixed(2),
+      referrerId, routedProvider: item.fulfillment.provider, createdAt: now, updatedAt: now });
+    const { frozenProduction, ...publicItem } = item;
+    tx.create(db.collection('orderItems').doc(`${ref.id}_0`), { ...publicItem, orderId: ref.id, createdAt: now });
+    tx.create(db.collection('orderProductionSources').doc(`${ref.id}_0`), { ...frozenProduction, orderId: ref.id });
+  });
+  return attempt ? (await readPreparedCheckout(attempt))! : { orderId: ref.id, amount: item.unitAmount, memberCompensation };
 }
 
 /** The signed webhook and Stripe-retrieved return page converge on one durable order. */

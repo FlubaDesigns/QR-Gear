@@ -5,7 +5,7 @@ import { database } from './composition-fixture';
 import { MEMBER_PACKETS_COLLECTION } from '../../constants';
 
 const m = vi.hoisted(() => ({ db: null as any, verify: vi.fn(), retrieve: vi.fn(), create: vi.fn(), link: vi.fn(), login: vi.fn(), checkout: vi.fn(), event: vi.fn() }));
-vi.mock('../../core', () => ({ db: { collection: (...args: any[]) => m.db.collection(...args) }, admin: { auth: () => ({ verifyIdToken: m.verify }) } }));
+vi.mock('../../core', () => ({ db: { collection: (...args: any[]) => m.db.collection(...args), runTransaction: (...args: any[]) => m.db.runTransaction(...args) }, admin: { auth: () => ({ verifyIdToken: m.verify }) } }));
 vi.mock('../fluba-provider-keys', () => ({ readFlubaProviderKey: async () => 'sk_live_fixture' }));
 vi.mock('stripe', () => ({ default: class { accounts = { retrieve: m.retrieve, create: m.create, createLoginLink: m.login }; accountLinks = { create: m.link }; checkout = { sessions: { create: m.checkout } }; webhooks = { constructEvent: m.event }; } }));
 vi.mock('../member-build', () => ({ memberBuildProjection: async () => ({ status: 'published', memberId: 'owner', title: 'Fixture' }) }));
@@ -24,7 +24,7 @@ beforeEach(() => {
   vi.clearAllMocks(); vi.stubEnv('STRIPE_WEBHOOK_SECRET', 'fixture-secret');
   const fixture = database({
     'member_profiles/owner': { stripeConnectAccountId: 'acct_owner', stripePayoutsEnabled: true },
-    [`${MEMBER_PACKETS_COLLECTION}/p`]: { memberId: 'owner' }, 'orders/o': {},
+    [`${MEMBER_PACKETS_COLLECTION}/p`]: { memberId: 'owner' }, 'orders/o': { status: 'awaiting_payment' },
   }); m.db = fixture.db; store = fixture.store;
   m.verify.mockResolvedValue({ uid: 'owner' }); m.retrieve.mockResolvedValue(owned());
   m.create.mockResolvedValue(owned()); m.link.mockResolvedValue({ url: 'https://fixture.invalid/onboard' });
@@ -89,15 +89,15 @@ describe('Connect account ownership', () => {
   });
   it('blocks checkout before creating a payment session for a foreign account', async () => {
     m.retrieve.mockResolvedValue({ ...owned(), metadata: { entityId: 'other' } });
-    const r = await request(app()).post('/public/packet-checkout').send({ packetId: 'p' });
+    const r = await request(app()).post('/public/packet-checkout').send({ packetId: 'p', checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000' });
     expect(r.status).toBeGreaterThanOrEqual(400); expect(m.checkout).not.toHaveBeenCalled();
   });
   it('keeps verified-owner checkout and pending-payout checkout usable', async () => {
     const a = app();
-    expect((await request(a).post('/public/packet-checkout').send({ packetId: 'p' })).status).toBe(200);
+    expect((await request(a).post('/public/packet-checkout').send({ packetId: 'p', checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000' })).status).toBe(200);
     expect(m.checkout.mock.calls[0][0].payment_intent_data.transfer_data.destination).toBe('acct_owner');
-    m.checkout.mockClear(); m.retrieve.mockResolvedValue({ ...owned(), payouts_enabled: false });
-    expect((await request(a).post('/public/packet-checkout').send({ packetId: 'p' })).status).toBe(200);
+    m.checkout.mockClear(); store.set('orders/o', { status: 'awaiting_payment' }); m.retrieve.mockResolvedValue({ ...owned(), payouts_enabled: false });
+    expect((await request(a).post('/public/packet-checkout').send({ packetId: 'p', checkoutAttemptId: '550e8400-e29b-41d4-a716-446655440000' })).status).toBe(200);
     expect(m.checkout.mock.calls[0][0].payment_intent_data).toBeUndefined();
   });
   it('syncs a signed account event only to its bound owner, not the first matching profile', async () => {

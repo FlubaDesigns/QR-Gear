@@ -1,3 +1,4 @@
+import { checkoutAttempt, assertCheckoutAttempt, createCheckoutSession } from '../services/checkout-attempt';
 import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { isPublicPacket, isVisibleLegacyLink } from '../services/publication';
 import { finalizeHostingRenewal, readHostingInstance, hostingRenewalOptions } from '../services/hosting-renewal';
@@ -93,20 +94,27 @@ app.post('/buyer/instances/:instanceId/renew', async (req: Request, res: Respons
     const { instanceId } = req.params;
     const { instance, legacy } = await readHostingInstance(instanceId);
     if (!legacy && (instance.status !== 'active' || (instance.orderId && instance.claimCode && !instance.claimedAt))) { res.status(409).json({ error: 'Activate this hosted item before renewing it.' }); return; }
-    const offer = (await hostingRenewalOptions()).find(t => t.code === req.body.hostingTierCode);
+    const { checkoutAttemptId, ...selection } = req.body;
+    const attempt = checkoutAttempt(`hosting_renewal:${instanceId}`, checkoutAttemptId, selection);
+    const renewalRef = db.collection('hosting_renewals').doc(attempt.id);
+    const previous = (await renewalRef.get()).data();
+    if (previous) assertCheckoutAttempt(previous, attempt);
+    const offer = previous ? { code: previous.hostingTierCode, name: previous.hostingTierName, amountCents: previous.amountCents, currency: previous.currency, durationYears: previous.durationYears } : (await hostingRenewalOptions()).find(t => t.code === req.body.hostingTierCode);
     if (!offer || req.body.expectedAmountCents !== offer.amountCents) { res.status(409).json({ error: 'Hosting prices changed or this term is unavailable. Refresh and choose an available hosting term.' }); return; }
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
-    const renewalRef = db.collection('hosting_renewals').doc();
-    await renewalRef.create({ version: 2, instanceId, instanceCollection: legacy ? 'buyer_instances' : QR_DYNAMICS_INSTANCES_COLLECTION, qrgBaseCode: instance.qrgBaseCode || null, hostingTierCode: offer.code, amountCents: offer.amountCents, currency: offer.currency, durationYears: offer.durationYears, status: 'awaiting_payment', createdAt: new Date().toISOString() });
-    const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: `QR Hosting Renewal — ${offer.name}`, description: `Extend your QR hosting by ${offer.durationYears} year(s)` }, unit_amount: offer.amountCents }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, renewalId: renewalRef.id, type: 'hosting_renewal', source: 'hosting_renewal' }, customer_email: legacy ? instance.buyerEmail : undefined }, { idempotencyKey: `hosting-renewal-${renewalRef.id}` });
+    await db.runTransaction(async tx => {
+      const current = (await tx.get(renewalRef)).data();
+      if (current) { assertCheckoutAttempt(current, attempt); return; }
+      tx.create(renewalRef, { checkoutRequestHash: attempt.requestHash, hostingTierName: offer.name, version: 2, instanceId, instanceCollection: legacy ? 'buyer_instances' : QR_DYNAMICS_INSTANCES_COLLECTION, qrgBaseCode: instance.qrgBaseCode || null, hostingTierCode: offer.code, amountCents: offer.amountCents, currency: offer.currency, durationYears: offer.durationYears, status: 'awaiting_payment', createdAt: new Date().toISOString() });
+    });
+    const session = await createCheckoutSession(stripe, 'hosting_renewals', renewalRef.id, { payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: `QR Hosting Renewal — ${offer.name}`, description: `Extend your QR hosting by ${offer.durationYears} year(s)` }, unit_amount: offer.amountCents }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, renewalId: renewalRef.id, type: 'hosting_renewal', source: 'hosting_renewal' }, customer_email: legacy ? instance.buyerEmail : undefined });
     assertLiveStripeObject(session);
-    await renewalRef.update({ stripeSessionId: session.id });
-    res.json({ url: session.url, sessionId: session.id });
-  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
+    res.json({ url: session.status === 'complete' ? `${baseUrl}/renew/${instanceId}/success?session_id=${session.id}` : session.url, sessionId: session.id, status: session.status, paymentStatus: session.payment_status });
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message, code: error.code }); }
 });
 
 app.post('/buyer/instances/:instanceId/verify-renewal', async (req: Request, res: Response): Promise<void> => {
@@ -391,7 +399,7 @@ function ownerKey(req: Request) {
 }
 function buildError(res: Response, error: any) {
   console.error('[OwnerBuild]', error.message);
-  res.status(error.status || 400).json({ error: error.message });
+  res.status(error.status || 400).json({ error: error.message, code: error.code });
 }
 app.post('/public/builds', async (req: Request, res: Response) => {
   try {
@@ -417,20 +425,21 @@ app.post('/public/checkout', async (req: Request, res: Response) => {
     assertLiveStripeKey(stripeKey);
     await approveProductProof(packetId, { id: ownerId, type: 'owner' }, req.body.proofApproval);
     const packet = await commitOwnerBuild(ownerId, packetId);
-    const prepared = await prepareOwnerOrder(packetId, packet, ownerId);
+    const { checkoutAttemptId, ...selection } = req.body;
+    const attempt = checkoutAttempt(`public_wizard:${ownerId}`, checkoutAttemptId, selection);
+    const prepared = await prepareOwnerOrder(packetId, packet, ownerId, attempt);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const origin = resolveRuntimeConfig().origin;
-    const session = await stripe.checkout.sessions.create({
+    const session = await createCheckoutSession(stripe, 'orders', prepared.orderId, {
       payment_method_types: ['card'], mode: 'payment', customer_creation: 'if_required',
       shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'ES', 'IT', 'NL', 'BE'] },
       line_items: [{ price_data: { currency: 'usd', unit_amount: prepared.amount,
         product_data: { name: packet.title, description: `${packet.selectedColor} / ${packet.selectedShirtSize}`, images: [packet.mockupUrl] } }, quantity: 1 }],
       success_url: `${origin}/build/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${origin}/build`,
       metadata: { source: 'public_wizard', orderId: prepared.orderId, packetId },
-    }, { idempotencyKey: `checkout-${prepared.orderId}` });
+    });
     assertLiveStripeObject(session);
-    await db.collection('orders').doc(prepared.orderId).update({ stripeSessionId: session.id });
-    res.json({ url: session.url, total: prepared.amount / 100 });
+    res.json({ url: session.status === 'complete' ? `${origin}/build/success?session_id=${session.id}` : session.url, total: prepared.amount / 100, status: session.status, paymentStatus: session.payment_status });
   } catch (error) { buildError(res, error); }
 });
 app.get('/public/checkout/verify/:sessionId', async (req: Request, res: Response) => {

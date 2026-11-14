@@ -1,3 +1,4 @@
+import { checkoutAttempt } from '../checkout-attempt';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { database } from './composition-fixture';
 import { parseGrfId } from '../../../../shared/GRF_engine';
@@ -247,4 +248,21 @@ it.each(['intent', 'charge'])('blocks an already-paid order retry when the Strip
    latest_charge: { livemode: target !== 'charge', id: 'ch_test', payment_intent: 'pi_test', paid: true, amount_refunded: 0 } });
  await expect(fulfillOrder(orderId)).rejects.toThrow('cannot fund Main');
  expect(getOrder).not.toHaveBeenCalled(); expect(createOrder).not.toHaveBeenCalled(); expect(confirmOrder).not.toHaveBeenCalled();
+});
+
+it('freezes one cart order for concurrent initial requests and reuses it after lost responses', async () => {
+ const quote = await readCartQuote('buyer');
+ const approvals = { cart: { approved: true, proofId: (await saleItemProof(quote.items[0])).proofId } };
+ const attempt = checkoutAttempt('cart:buyer', '550e8400-e29b-41d4-a716-446655440000', { quoteToken: quote.quoteToken, approvals });
+ const transaction = m.db.runTransaction; let tail = Promise.resolve();
+ m.db.runTransaction = (fn:any) => { const next = tail.then(() => transaction(fn)); tail = next.catch(() => {}); return next; };
+ const prepare = () => prepareCartOrder('buyer', '', undefined, quote.quoteToken, approvals, attempt);
+ const [first, second] = await Promise.all([prepare(), prepare()]);
+ expect(first.orderId).toBe(second.orderId);
+ expect([...store.keys()].filter(key => key.startsWith('orders/'))).toHaveLength(1);
+ expect([...store.keys()].filter(key => key.startsWith('orderItems/'))).toHaveLength(1);
+ store.get('cartItems/cart').quantity = 3;
+ expect((await prepare()).amount).toBe(first.amount);
+ await expect(prepareCartOrder('buyer', '', undefined, quote.quoteToken, approvals, { ...attempt, requestHash: 'changed' })).rejects.toThrow('different selection');
+ expect(createOrder).not.toHaveBeenCalled();
 });

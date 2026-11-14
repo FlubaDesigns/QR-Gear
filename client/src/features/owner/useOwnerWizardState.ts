@@ -1,3 +1,4 @@
+import { checkoutAttemptId, releaseCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { readOwnerCheckoutDraft, saveOwnerCheckoutDraft, clearOwnerCheckoutDraft } from '@/lib/ownerCheckoutDraft';
 import { productGraphicOptions } from '@shared/builderSnapshot';
 import { renderProductGraphic, type RenderOptions } from '@/features/shared/graphics/productGraphicRenderer';
@@ -145,11 +146,14 @@ export function useOwnerWizardState(preSelectedType: QRType, isGuided: boolean) 
   }, []);
 
   async function request(path: string, body?: any, token?: string) {
+    const scope = `public_wizard:${body?.packetId}`;
+    const payload = path === 'checkout' ? { ...body, checkoutAttemptId: checkoutAttemptId(scope, body) } : body;
     const res = await fetch(`/api/public/${path}`, { method: 'POST',
       headers: { 'Content-Type': 'application/json', ...(token ? { 'X-QR-Build-Token': token } : {}) },
-      body: JSON.stringify(body || {}),
+      body: JSON.stringify(payload || {}),
     });
     const data = await res.json();
+    if (path === 'checkout' && (data.code === 'checkout_expired' || (data.status === 'complete' && data.paymentStatus === 'paid'))) releaseCheckoutAttempt(scope, body);
     if (!res.ok) throw new Error(data.error || 'Your build could not be saved. Please try again.');
     return data;
   }

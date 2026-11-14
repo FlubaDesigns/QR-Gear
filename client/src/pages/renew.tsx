@@ -1,3 +1,4 @@
+import { checkoutAttemptId, releaseCheckoutAttempt } from '@/lib/checkoutAttempt';
 import { useEffect, useState } from "react";
 import { claimedItemLifecycle, type HostingStatusResponse } from '@shared/claimedItems';
 import { useParams, useLocation } from "wouter";
@@ -40,13 +41,17 @@ export default function RenewPage() {
   const renewMutation = useMutation({
     mutationFn: async () => {
       if (!selectedOffer) throw new Error('Choose a hosting term.');
+      const scope = `hosting_renewal:${instanceId}`;
+      const selection = { hostingTierCode: selectedOffer.code, expectedAmountCents: selectedOffer.amountCents };
       const response = await fetch(`/api/buyer/instances/${instanceId}/renew`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hostingTierCode: selectedOffer.code, expectedAmountCents: selectedOffer.amountCents }),
+        body: JSON.stringify({ ...selection, checkoutAttemptId: checkoutAttemptId(scope, selection) }),
       });
-      if (!response.ok) { const error = await response.json(); throw new Error(error.error || 'Checkout failed'); }
-      return response.json() as Promise<{ url: string; sessionId: string }>;
+      if (!response.ok) { const error = await response.json(); if (error.code === 'checkout_expired') releaseCheckoutAttempt(scope, selection); throw new Error(error.error || 'Checkout failed'); }
+      const result = await response.json();
+      if (result.status === 'complete' && result.paymentStatus === 'paid') releaseCheckoutAttempt(scope, selection);
+      return result as { url: string; sessionId: string };
     },
     onError: () => { setSelectedTier(''); refetch(); },
     onSuccess: (data) => {
