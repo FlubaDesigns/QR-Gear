@@ -2,7 +2,7 @@ import { resolvePacketColorArtwork } from '../services/packet-color-artwork';
 import { hasAutomaticPrintText } from '../../../shared/printTextColor';
 import { dynamicsPrintSource } from '../services/dynamics-order';
 import { extractPacketMockups } from '../services/packet-mockups';
-import { isPublicCatalogRecord, isVisibleLegacyLink, isPublicPacket } from '../services/publication';
+import { isPublicCatalogRecord, isPublicCatalogInstance, publicCatalogDocuments, isVisibleLegacyLink, isPublicPacket } from '../services/publication';
 import { setUntrustedAssetHeaders } from '../services/image-validation';
 import { catalogProductOptions, CatalogSelectionError } from '../services/catalog-sale-variants';
 import { resolveSaleItem } from '../services/order-fulfillment';
@@ -64,7 +64,7 @@ app.get('/store/product/:linkId', async (req: Request, res: Response): Promise<v
     if (instanceDoc.exists) {
       console.log('[Store API] Product detail: serving from admin_catalog_instances', linkId);
       const d = instanceDoc.data()!;
-      if (!isPublicCatalogRecord(d)) { res.status(404).json({ error: 'Product not found' }); return; }
+      if (!await isPublicCatalogInstance(d)) { res.status(404).json({ error: 'Product not found' }); return; }
       const resolved = d.resolved || {};
 
       let price: number | null = resolved.pricing?.customerPrice ?? null;
@@ -394,7 +394,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       };
 
       const products = await Promise.all(
-        instancesSnap.docs
+        (await publicCatalogDocuments(instancesSnap.docs))
           .filter((doc: any) => {
             const d = doc.data();
             // Exclude soft-deleted / hidden / draft instances from the public store
@@ -536,7 +536,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       const collectionSlug = collection ? toSlug(collection) : null;
 
       const channelProducts = await Promise.all(
-        instancesSnap.docs
+        (await publicCatalogDocuments(instancesSnap.docs))
           .filter((doc: any) => {
             const d = doc.data();
             // Exclude soft-deleted / hidden / draft instances from the public store
@@ -638,7 +638,7 @@ app.get('/store/:storeType/:storeName', async (req: Request, res: Response): Pro
       .get();
 
     const products = await Promise.all(
-      storeInstancesSnap.docs
+      (await publicCatalogDocuments(storeInstancesSnap.docs))
         .filter((doc: any) => {
           const d = doc.data();
           // Exclude soft-deleted / hidden / draft instances from the public store
@@ -813,7 +813,7 @@ app.post('/store/product/:linkId/mockup-for-color', async (req: Request, res: Re
     const instanceDoc = await db.collection('admin_catalog_instances').doc(linkId).get();
     if (instanceDoc.exists) {
       instanceData = instanceDoc.data()!;
-      if (!isPublicCatalogRecord(instanceData)) { res.status(404).json({ error: 'Product not found' }); return; }
+      if (!await isPublicCatalogInstance(instanceData)) { res.status(404).json({ error: 'Product not found' }); return; }
       packetId = instanceData.currentPacketId || null;
       if (packetId) {
         const pDoc = await db.collection('productPackets').doc(packetId).get();

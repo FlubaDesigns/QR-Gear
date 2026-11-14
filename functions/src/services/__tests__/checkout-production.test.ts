@@ -33,7 +33,7 @@ beforeEach(() => {
   const f = database({
     'cartItems/cart': cart, 'settings/admin': { defaultFulfillmentProvider: 'printify' },
     'testSettings/pricing': { sizeUpcharges: { M: 4 } },
-    'admin_catalog_instances/instance': { currentPacketId: 'packet', enabledSizes: ['M'], enabledColors: ['Navy'], resolved: { title: 'Saved Navy Shirt', pricing: { customerPrice: 30 } } },
+    'admin_catalog_instances/instance': { status: 'active', currentPacketId: 'packet', enabledSizes: ['M'], enabledColors: ['Navy'], resolved: { title: 'Saved Navy Shirt', pricing: { customerPrice: 30 } } },
     'productPackets/packet': { qrContent: 'https://example.test', assemblyId: 'ASM-000001', fulfillmentProvider: 'printful', placementGrfIds: { back: grfId, label_inside:insideId }, placementGraphicUrls: { back: 'https://files.example/art.png', label_inside:'https://files.example/label.png' },
       builderSnapshot: { graphics: { content: { graphicLayoutMode: 'zone', qrSizePercent: 70 } }, qrConfig: { selectedColor: { name: 'Navy' } },
         metadata: { selectedProductDocId: 'qrg_11111', fulfillmentProvider: 'printful' }, layoutConfig: { selectedPlacements: ['back','label_inside'], providerLayouts: { back: layout, label_inside:insideLayout } } } },
@@ -143,6 +143,26 @@ describe('Store sale to Printful production', () => {
     getOrder.mockResolvedValue({ id: 77, external_id: orderId, status: 'fulfilled', costs: { currency: 'USD', subtotal: '12.00', shipping: '5.00', total: '17.70' } });
     await syncFulfillment(orderId);
     expect(store.get('orders/' + orderId).providerCosts).toMatchObject({ shippingCents: 500, totalCents: 1770 });
+  });
+  it.each(['draft', 'inactive-store', 'missing-store', 'inactive-channel', 'wrong-channel'])('rejects stale carts for %s before order creation', async reason => {
+    const instance = store.get('admin_catalog_instances/instance');
+    Object.assign(instance, { storeId: 'shop', channelId: 'channel' });
+    store.set('stores/shop', { isActive: true });
+    store.set('storeChannels/channel', { storeId: 'shop', isActive: true });
+    if (reason === 'draft') instance.status = 'draft';
+    if (reason === 'inactive-store') store.get('stores/shop').isActive = false;
+    if (reason === 'missing-store') store.delete('stores/shop');
+    if (reason === 'inactive-channel') store.get('storeChannels/channel').isActive = false;
+    if (reason === 'wrong-channel') store.get('storeChannels/channel').storeId = 'other';
+    await expect(readCartQuote('buyer')).rejects.toThrow('no longer available');
+    expect([...store.keys()].some(key => key.startsWith('orders/'))).toBe(false);
+    expect(createOrder).not.toHaveBeenCalled();
+  });
+  it('keeps an already-paid frozen order fulfillable after its storefront is deactivated', async () => {
+    const { orderId } = await paidOrder();
+    Object.assign(store.get('admin_catalog_instances/instance'), { status: 'archived', storeId: 'missing' });
+    await fulfillOrder(orderId);
+    expect(store.get('orders/' + orderId).fulfillmentState).toBe('submitted');
   });
   it.each(['price', 'variant', 'artwork', 'layout', 'inside-label', 'disabled-color', 'provider', 'composition'])('blocks invalid %s before checkout', async issue => {
     if (issue === 'inside-label') store.get('productPackets/packet').builderSnapshot.layoutConfig.selectedPlacements=['back'];
