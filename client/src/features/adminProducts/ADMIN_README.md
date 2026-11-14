@@ -1,5 +1,11 @@
 # QR Gear — Admin Operating Law
 
+## Six sales paths audit — issue 36
+
+Creator earnings copy on product, checkout-success, owner conversion and Earn pages now explicitly says **25% of the profit**, using the existing shared default and percentage formatter. This is a wording correction; payment calculations, configured shares and owner discounts are unchanged.
+
+The six-path checklist and evidence limits are tracked in [issue #36](https://github.com/FlubaDesigns/QR-Gear/issues/36) and [the audit checklist](../../../../docs/six-sales-path-audit.md). Store add-to-cart failed live print-layout verification; partner paid checkout, marketplace order import, new member save/reopen and actual phone-width acceptance remain unverified. Passing regression tests do not clear those live checks.
+
 Last updated: November 12, 2026
 
 ## Reward cap size selection — November 12, 2026

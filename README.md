@@ -1,5 +1,11 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Six sales paths audit — issue 36
+
+Creator earnings copy on product, checkout-success, owner conversion and Earn pages now explicitly says **25% of the profit**, using the existing shared default and percentage formatter. This is a wording correction; payment calculations, configured shares and owner discounts are unchanged.
+
+The six-path checklist and evidence limits are tracked in [issue #36](https://github.com/FlubaDesigns/QR-Gear/issues/36) and [the audit checklist](docs/six-sales-path-audit.md). Store add-to-cart failed live print-layout verification; partner paid checkout, marketplace order import, new member save/reopen and actual phone-width acceptance remain unverified. Passing regression tests do not clear those live checks.
+
 ## Production readiness repair — issue 19
 
 Functions deploys run a clean TypeScript build through Firebase predeploy. Generated `functions/lib` output is untracked; tests and source maps are excluded from the runtime build. Compile errors stop deployment.

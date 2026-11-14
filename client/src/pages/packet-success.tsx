@@ -1,3 +1,4 @@
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -240,7 +241,7 @@ export default function PacketSuccessPage() {
                 Love it? Create your own!
               </h2>
               <p className="text-slate-400 text-sm">
-                Design custom QR merchandise and earn 25% on every sale. Forever.
+                Design custom QR merchandise and earn {formatProfitSharePercent(DEFAULT_MEMBER_PROFIT_SHARE)} of the profit on every sale.
               </p>
               <Link href={createYourOwnUrl}>
                 <Button variant="outline" className="mt-2 border-amber-500/30 text-amber-400" data-testid="button-create-your-own">

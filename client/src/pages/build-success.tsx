@@ -1,3 +1,4 @@
+import { DEFAULT_MEMBER_PROFIT_SHARE, formatProfitSharePercent } from "@shared/constants";
 import { clearOwnerCheckoutDraft } from '@/lib/ownerCheckoutDraft';
 import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -139,7 +140,7 @@ export default function BuildSuccess() {
                 <Users className="w-5 h-5 text-green-400 mt-0.5 shrink-0" />
                 <div>
                   <p className="text-white font-medium">Turn This Into Income</p>
-                  <p className="text-slate-400 text-sm">Sell your design to others and earn a share of every sale</p>
+                  <p className="text-slate-400 text-sm">Sell your design to others and earn a share of the profit on every sale</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -335,7 +336,7 @@ export default function BuildSuccess() {
               </div>
               <div className="flex items-center gap-2">
                 <DollarSign className="w-4 h-4 text-sky-400 shrink-0" />
-                <span className="text-slate-300 text-sm">Earn 25% when someone else orders your design</span>
+                <span className="text-slate-300 text-sm">Earn {formatProfitSharePercent(DEFAULT_MEMBER_PROFIT_SHARE)} of the profit when someone else orders your design</span>
               </div>
               <div className="flex items-center gap-2">
                 <QrCode className="w-4 h-4 text-sky-400 shrink-0" />
