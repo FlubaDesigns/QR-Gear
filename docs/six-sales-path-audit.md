@@ -56,3 +56,37 @@ Keep #36 open until the outstanding checks have evidence. Deployment and local v
 ## Live diagnostic receipt
 
 Authorization Engine run [43562890845](https://github.com/FlubaDesigns/fluba-designs/actions/runs/43562890845) read the exact failing catalog instance and current master. Saved front: 3600×4800 at 300 DPI; verified current front: 1800×2400 at 150 DPI; both 12×16 inches. The saved higher-resolution artwork remains unchanged; canonical current placement is used for proof and production. No Firestore production records were rewritten.
+
+## Reconciliation with readiness issue 19
+
+Read [issue #19](https://github.com/FlubaDesigns/QR-Gear/issues/19) and all 14 comments through comment 6872482602. Its October opening observations are historical: the storefront is now accessible and live Stripe configuration was subsequently verified. The free-first-year hosting requirement, undecided renewal price and deferred Gifts scope remain constraints. Do not treat the original unchecked list as current completion evidence.
+
+| #19 requirement | Current evidence / status | Six-path impact |
+| --- | --- | --- |
+| 1. Live payment boundary and configuration | Enforcement shipped in PR32. Setup run 43559355448 verified matching live keys, enabled account and signed handler behavior; no charge. | All paid paths; current browser handoffs are live, unpaid sessions, not sandbox purchases. |
+| 2. Fresh Functions deployment | PR33 removes tracked generated output and builds clean source before deployment. | Shared backend for all six paths. |
+| 3. Marketing reward cost/reporting | PR33 implements canonical loss-leader classification and provider cost reporting; signed-in Admin verified. | Partner-sponsored rewards; keep separate from normal retail revenue. |
+| 4. Sponsored recovery | Queues and production retry shipped; notification/shipment recovery still open. | Partner/rewards path; do not mark the entire lifecycle complete. |
+| 5. Hosting and renewal | OPEN: current Dynamics records and legacy buyer_instances renewal disagree. Admin tiers remain $5/$8/$10 for 1/2/3 years; owner requires first year free. Renewal price is undecided. | Homepage/member creations and promoted QR items. Preserve printed code identity; reconcile expiry advertising, notification deduplication, renewal and terms together. |
+| 6. Product/store authorities | PARTIAL: shared purchase/publication policy shipped in PR34; PR37 extends it to partner listing. Alternate product/store APIs still need caller/data review. | Store, partner and surface catalog consistency. |
+| 7. Purchase eligibility | PR34 gates new purchases on canonical parent publication while preserving paid fulfillment; PR37 adds partner catalog parity. | Store/partner and stale-cart behavior. |
+| 8. Durable checkout replay | OPEN: automatic mutation retry removed; separate initial user retries still allocate fresh awaiting orders. | All checkout paths; duplicate-webhook safeguards are a different layer. |
+| 9. Marketplace lifecycle | OPEN: account-aware listings exist, zero seller accounts observed, complete inbound order/fulfillment/tracking/refund bridge not established. | Direct surface selling remains unaccepted. |
+| 10. Store deletion obligations | OPEN: impact preview and resumable handling of partner/remote-listing obligations need implementation. | Admin, partner stores and external surfaces. |
+| 11. Shipment updates | OPEN: automatic provider-event delivery and sponsored notification recovery require evidence. | Every fulfilled purchase. |
+| 12. Dependencies and legacy login | OPEN: latest #19 audit reports 12 backend findings, including two high; token-in-URL login remains tracked. Advisory status was not independently refreshed in this six-path batch. | Shared security and release readiness. |
+| 13. Proven-unused cleanup | Tracked generated output removed by PR33; unused local packet upcharge constant removed by PR37. Unused-controller candidates require dependency review; printed-QR and historical-order routes stay protected. | All paths; no blanket legacy deletion. |
+| 14. Full funnel/phone/isolation/recovery acceptance | PARTIAL: new member save/publish/reload and homepage preview/checkout/cancel passed. Phone-width, every offered QR type, cross-account editing, paid reconciliation and physical scan remain unverified. | All six paths. |
+
+PR35 also fixed missing Admin order amounts without inventing historical totals; live unpaid controls stayed disabled. Provider verification run 43562170384 supplied the independent successful receipt after an earlier release's final check failed.
+
+### Unified remaining acceptance order
+
+1. Finish the current PR37 release and replay the exact Army Military Green/M cart failure; verify frontend and backend markers.
+2. Resolve hosting lifecycle and free-year policy coherently, including current-record renewal, expiry advertising, emails and historical printed codes. Do not invent renewal pricing.
+3. Implement durable initial checkout replay and complete sponsored notification/shipment recovery.
+4. Review alternate authorities and deletion obligations, then remove only proven-unused code; address dependency/security and legacy-login findings with current evidence.
+5. Complete configured partner/marketplace acceptance and authenticated phone/isolation/recovery checks for each offered QR type.
+6. Obtain separate authorization for a controlled paid order, fulfillment, email, label and physical scan acceptance. No unpaid checkout or fixture substitutes for this.
+
+The six-path review does not close #19. Both issues retain explicit gaps rather than a blanket launch approval. Gifts remain excluded; visitor-choice/menu and cross-item Exchange requirements from #19 also remain unverified and must be scoped before launch.
