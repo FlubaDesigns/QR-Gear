@@ -40,7 +40,12 @@ import AdminSectionSubNav from "@/components/admin/AdminSectionSubNav";
 import { SELL_SUBNAV } from "@/components/admin/adminNavConfig";
 import { Users, DollarSign, Tag, Gift } from "lucide-react";
 
-type OrderUnified = StoredOrderUnified & { commercialPurpose?: string; funding?: { partnerId?: string }; canRetryProduction?: boolean; netRevenueCents?: number | null; marketingExpenseCents?: number | null; checkoutVersion?: number; paymentStatus?: string; fulfillmentState?: string; fulfillmentError?: string };
+type OrderUnified = StoredOrderUnified & { subtotalCents?: number; commercialPurpose?: string; funding?: { partnerId?: string }; canRetryProduction?: boolean; netRevenueCents?: number | null; marketingExpenseCents?: number | null; checkoutVersion?: number; paymentStatus?: string; fulfillmentState?: string; fulfillmentError?: string };
+
+function recordedMoney(value: unknown): string {
+  if (!['number', 'string'].includes(typeof value) || String(value).trim() === '' || !Number.isFinite(Number(value))) return 'Not recorded';
+  return `$${Number(value).toFixed(2)}`;
+}
 
 type OrderStatus = "pending" | "routed" | "in_production" | "shipped" | "delivered" | "cancelled";
 
@@ -130,7 +135,7 @@ function ProviderBadge({ provider }: { provider: string | null }) {
 function OrderCard({ order, onViewDetails }: { order: OrderUnified; onViewDetails: () => void }) {
   const items = order.items as OrderItem[] || [];
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0);
-  const profit = order.profit ? parseFloat(order.profit) : null;
+  const profit = order.profit != null && order.profit !== '' && Number.isFinite(Number(order.profit)) ? Number(order.profit) : null;
 
   return (
     <Card 
@@ -163,7 +168,7 @@ function OrderCard({ order, onViewDetails }: { order: OrderUnified; onViewDetail
           </div>
           <div className="flex items-center gap-2">
             <span className="font-semibold" data-testid={`text-order-total-${order.id}`}>
-              ${parseFloat(order.total).toFixed(2)}
+              {recordedMoney(order.total)}
             </span>
             {profit !== null && (
               <span className={`text-xs ${profit >= 0 ? "text-green-500" : "text-red-500"}`}>
@@ -281,7 +286,7 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <span>x{item.quantity}</span>
-                      <span className="ml-2 font-medium">${item.price.toFixed(2)}</span>
+                      <span className="ml-2 font-medium">{recordedMoney(item.price)}</span>
                     </div>
                   </div>
                 ))}
@@ -295,35 +300,35 @@ function OrderDetailsDialog({ order, open, onOpenChange }: {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${parseFloat(order.subtotal).toFixed(2)}</span>
+                  <span>{recordedMoney(Number.isSafeInteger(order.subtotalCents) ? order.subtotalCents! / 100 : order.subtotal)}</span>
                 </div>
                 {order.shippingTotal && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Shipping</span>
-                    <span>${parseFloat(order.shippingTotal).toFixed(2)}</span>
+                    <span>{recordedMoney(order.shippingTotal)}</span>
                   </div>
                 )}
                 {order.taxTotal && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tax</span>
-                    <span>${parseFloat(order.taxTotal).toFixed(2)}</span>
+                    <span>{recordedMoney(order.taxTotal)}</span>
                   </div>
                 )}
                 <Separator className="my-2" />
                 <div className="flex justify-between font-medium">
                   <span>Total</span>
-                  <span>${parseFloat(order.total).toFixed(2)}</span>
+                  <span>{recordedMoney(order.total)}</span>
                 </div>
                 {order.productionCost && (
                   <div className="flex justify-between text-muted-foreground">
                     <span>Production Cost</span>
-                    <span>-${parseFloat(order.productionCost).toFixed(2)}</span>
+                    <span>{recordedMoney(order.productionCost)}</span>
                   </div>
                 )}
                 {order.profit && (
                   <div className={`flex justify-between font-medium ${parseFloat(order.profit) >= 0 ? "text-green-500" : "text-red-500"}`}>
                     <span>Profit</span>
-                    <span>${parseFloat(order.profit).toFixed(2)}</span>
+                    <span>{recordedMoney(order.profit)}</span>
                   </div>
                 )}
               </div>
@@ -478,7 +483,7 @@ export default function AdminOrdersPage() {
     marketing: orders.reduce((acc, o) => acc + (o.marketingExpenseCents ?? 0), 0) / 100,
     revenuePending: orders.filter(o => o.netRevenueCents == null).length,
     marketingPending: orders.filter(o => o.commercialPurpose === "marketing_loss_leader" && o.marketingExpenseCents == null).length,
-    profit: orders.filter(o => o.commercialPurpose !== "marketing_loss_leader").reduce((acc, o) => acc + (o.profit ? parseFloat(o.profit) : 0), 0),
+    profit: orders.filter(o => o.commercialPurpose !== "marketing_loss_leader").reduce((acc, o) => acc + (Number.isFinite(Number(o.profit)) ? Number(o.profit) : 0), 0),
   };
 
   const handleViewDetails = (order: OrderUnified) => {
