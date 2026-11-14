@@ -1,3 +1,4 @@
+import { isComposeHostingCode } from '../../../shared/composeHosting';
 import { db, storage, QR_GEAR_BRANDED_TAG_URL } from '../core';
 import { createHash } from 'crypto';
 import { MEMBER_PACKETS_COLLECTION, QR_DYNAMICS_INSTANCES_COLLECTION } from '../constants';
@@ -108,7 +109,7 @@ async function prepareBuild(memberId: string, input: any, ownerType: 'member' | 
   const compose = input.packetType === 'qr-compose';
   const composeSlots = compose ? await memberDynamicsSlots(memberId, input.composeItems) : null;
   const composeMode = compose ? dynamicsMode(input.composeMode) : 'auto-rotate';
-  if (compose && !['1-year', '3-year', '5-year'].includes(input.composeHostingTerm)) fail('Choose a hosting term.');
+  if (compose && !isComposeHostingCode(String(input.composeHostingTerm || '').replace('-', '_'))) fail('Choose a hosting term.');
   const selected = input.selectedPlacements;
   if (!Array.isArray(selected) || !selected.length || selected.some((p: any) => typeof p !== 'string')) fail('Choose a print placement.');
   const locations = master.qrgPrintSpecs?.[provider]?.locations || [];

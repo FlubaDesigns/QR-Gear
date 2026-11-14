@@ -67,7 +67,7 @@ Read [issue #19](https://github.com/FlubaDesigns/QR-Gear/issues/19) and all 14 c
 | 2. Fresh Functions deployment | PR33 removes tracked generated output and builds clean source before deployment. | Shared backend for all six paths. |
 | 3. Marketing reward cost/reporting | PR33 implements canonical loss-leader classification and provider cost reporting; signed-in Admin verified. | Partner-sponsored rewards; keep separate from normal retail revenue. |
 | 4. Sponsored recovery | Queues and production retry shipped; notification/shipment recovery still open. | Partner/rewards path; do not mark the entire lifecycle complete. |
-| 5. Hosting and renewal | OPEN: current Dynamics records and legacy buyer_instances renewal disagree. Admin tiers remain $5/$8/$10 for 1/2/3 years; owner requires first year free. Renewal price is undecided. | Homepage/member creations and promoted QR items. Preserve printed code identity; reconcile expiry advertising, notification deduplication, renewal and terms together. |
+| 5. Hosting and renewal | OPEN: current Dynamics records and legacy buyer_instances renewal disagree. Owner confirmed the existing Admin Pricing authority; renewal must use those configured terms. First-year-free policy remains open. | Homepage/member creations and promoted QR items. Preserve printed code identity; reconcile expiry advertising, notification deduplication, renewal and terms together. |
 | 6. Product/store authorities | PARTIAL: shared purchase/publication policy shipped in PR34; PR37 extends it to partner listing. Alternate product/store APIs still need caller/data review. | Store, partner and surface catalog consistency. |
 | 7. Purchase eligibility | PR34 gates new purchases on canonical parent publication while preserving paid fulfillment; PR37 adds partner catalog parity. | Store/partner and stale-cart behavior. |
 | 8. Durable checkout replay | OPEN: automatic mutation retry removed; separate initial user retries still allocate fresh awaiting orders. | All checkout paths; duplicate-webhook safeguards are a different layer. |
@@ -90,3 +90,9 @@ PR35 also fixed missing Admin order amounts without inventing historical totals;
 6. Obtain separate authorization for a controlled paid order, fulfillment, email, label and physical scan acceptance. No unpaid checkout or fixture substitutes for this.
 
 The six-path review does not close #19. Both issues retain explicit gaps rather than a blanket launch approval. Gifts remain excluded; visitor-choice/menu and cross-item Exchange requirements from #19 also remain unverified and must be scoped before launch.
+
+## Hosting renewal uses Admin Pricing — November 14, 2026
+
+Renewal options and Stripe amounts now read the existing `testSettings/pricing.hostingTiers` through `readHostingTiers`. The separate $4.99/three-year offer is removed. Paid renewal supports configured positive-price 1/2/3/5-year terms; no new pricing setting or fallback price is introduced. Checkout rejects stale displayed prices and freezes the selected amount and calendar-year term for payment verification. Initial free-year policy remains a separate open acceptance item.
+
+Current `qr_dynamics_instances` records are authoritative, with historical `buyer_instances` compatibility only when no current record exists. Successful paid renewal updates the current record and its existing claimed-item projection atomically and once. Historical paid terms remain honored. Expired, correctly bound public scans return to the existing QR Gear homepage without deleting identity or content. Notification recovery, durable initial checkout replay, phone acceptance and paid live proof remain open under #19/#36.

@@ -1,6 +1,7 @@
 import { assertLiveStripeKey, assertLiveStripeObject } from '../services/stripe-mode';
 import { isPublicPacket, isVisibleLegacyLink } from '../services/publication';
-import { finalizeHostingRenewal } from '../services/hosting-renewal';
+import { finalizeHostingRenewal, readHostingInstance, hostingRenewalOptions } from '../services/hosting-renewal';
+import { claimedItemLifecycle, type HostingStatusResponse } from '../../../shared/claimedItems';
 import { readFlubaProviderKey } from '../services/fluba-provider-keys';
 import { randomBytes, createHash } from 'crypto';
 import { prepareOwnerBuild, ownedMemberBuild, saveMemberArtwork, previewMemberBuild, commitOwnerBuild } from '../services/member-build';
@@ -51,13 +52,15 @@ app.get('/buyer/instances', requireAuth, async (req: Request, res: Response): Pr
 
 // Renewal screens need hosting dates, never buyer identity or private metadata.
 app.get('/buyer/instances/:instanceId/public', async (req: Request, res: Response): Promise<void> => {
+  res.set('Cache-Control', 'no-store');
   try {
-    const doc = await db.collection('buyer_instances').doc(req.params.instanceId).get();
-    if (!doc.exists) { res.status(404).json({ error: 'Instance not found' }); return; }
-    const instance = doc.data()!;
+    const { instance, legacy } = await readHostingInstance(req.params.instanceId);
+    if (!legacy && !['active', 'static'].includes(instance.status)) { res.status(404).json({ error: 'Instance not found' }); return; }
     const expiry = instance.hostingExpiresAt?.toDate?.() ?? (instance.hostingExpiresAt ? new Date(instance.hostingExpiresAt) : null);
-    res.json({ instance: { id: doc.id, hostingExpiresAt: expiry && Number.isFinite(expiry.getTime()) ? expiry.toISOString() : null }, isActive: !expiry || expiry > new Date() });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    const item = { id: req.params.instanceId, status: legacy ? 'active' : instance.status, hostingExpiresAt: expiry && Number.isFinite(expiry.getTime()) ? expiry.toISOString() : null };
+    const response: HostingStatusResponse = { instance: item, isActive: legacy ? !expiry || expiry > new Date() : claimedItemLifecycle(item).isActive, renewalOptions: !legacy && instance.status === 'static' ? [] : await hostingRenewalOptions() };
+    res.json(response);
+  } catch (error: any) { res.status(error.status || 500).json({ error: error.message }); }
 });
 
 app.get('/buyer/instances/:instanceId', requireAuth, async (req: Request, res: Response): Promise<void> => {
@@ -88,17 +91,18 @@ app.patch('/buyer/instances/:instanceId', requireAuth, async (req: Request, res:
 app.post('/buyer/instances/:instanceId/renew', async (req: Request, res: Response): Promise<void> => {
   try {
     const { instanceId } = req.params;
-    const doc = await db.collection('buyer_instances').doc(instanceId).get();
-    if (!doc.exists) { res.status(404).json({ error: "Instance not found" }); return; }
-    const instance = doc.data() as any;
+    const { instance, legacy } = await readHostingInstance(instanceId);
+    if (!legacy && (instance.status !== 'active' || (instance.orderId && instance.claimCode && !instance.claimedAt))) { res.status(409).json({ error: 'Activate this hosted item before renewing it.' }); return; }
+    const offer = (await hostingRenewalOptions()).find(t => t.code === req.body.hostingTierCode);
+    if (!offer || req.body.expectedAmountCents !== offer.amountCents) { res.status(409).json({ error: 'Hosting prices changed or this term is unavailable. Refresh and choose an available hosting term.' }); return; }
     const stripeKey = (await readFlubaProviderKey('STRIPE_SECRET_KEY'));
     if (!stripeKey) { res.status(503).json({ error: "Payment not configured" }); return; }
     assertLiveStripeKey(stripeKey);
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' as any });
     const baseUrl = process.env.FIREBASE_HOSTING_URL || 'https://qrgear-c1ffd.web.app';
     const renewalRef = db.collection('hosting_renewals').doc();
-    await renewalRef.create({ instanceId, amountCents: 499, currency: 'usd', durationDays: 1095, status: 'awaiting_payment', createdAt: new Date().toISOString() });
-    const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: 'QR Hosting Renewal - 3 Years', description: 'Extend your QR hosting for another 3 years' }, unit_amount: 499 }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, renewalId: renewalRef.id, type: 'hosting_renewal', source: 'hosting_renewal' }, customer_email: instance.buyerEmail }, { idempotencyKey: `hosting-renewal-${renewalRef.id}` });
+    await renewalRef.create({ version: 2, instanceId, instanceCollection: legacy ? 'buyer_instances' : QR_DYNAMICS_INSTANCES_COLLECTION, qrgBaseCode: instance.qrgBaseCode || null, hostingTierCode: offer.code, amountCents: offer.amountCents, currency: offer.currency, durationYears: offer.durationYears, status: 'awaiting_payment', createdAt: new Date().toISOString() });
+    const session = await stripe.checkout.sessions.create({ payment_method_types: ['card'], line_items: [{ price_data: { currency: 'usd', product_data: { name: `QR Hosting Renewal — ${offer.name}`, description: `Extend your QR hosting by ${offer.durationYears} year(s)` }, unit_amount: offer.amountCents }, quantity: 1 }], mode: 'payment', success_url: `${baseUrl}/renew/${instanceId}/success?session_id={CHECKOUT_SESSION_ID}`, cancel_url: `${baseUrl}/renew/${instanceId}`, metadata: { instanceId, renewalId: renewalRef.id, type: 'hosting_renewal', source: 'hosting_renewal' }, customer_email: legacy ? instance.buyerEmail : undefined }, { idempotencyKey: `hosting-renewal-${renewalRef.id}` });
     assertLiveStripeObject(session);
     await renewalRef.update({ stripeSessionId: session.id });
     res.json({ url: session.url, sessionId: session.id });
@@ -372,7 +376,10 @@ app.get('/qr/d/:instanceId', async (req: Request, res: Response) => {
       const key = JSON.stringify(`qr_str_${req.params.instanceId}`).replace(/</g, '\\u003c');
       res.type('html').send(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>QR Gear</title></head><body><p id="message">Opening your QR experience…</p><script>(function(){var urls=${urls};var key=${key};try{var i=Number(localStorage.getItem(key)||0);if(!Number.isSafeInteger(i)||i<0)i=0;localStorage.setItem(key,String((i+1)%urls.length));location.replace(urls[i%urls.length]);}catch(e){document.getElementById('message').textContent='Allow browser storage to use scan to reveal.';}})();</script><noscript>Enable JavaScript to use scan to reveal.</noscript></body></html>`);
     } else res.redirect(302, targets[result.activeIndex]);
-  } catch (error: any) { console.error('[QR Dynamics] Scan failed:', error.message); res.status(error.status || 500).type('text').send(error.message); }
+  } catch (error: any) {
+    if (error.status === 410) { res.redirect(302, '/'); return; }
+    console.error('[QR Dynamics] Scan failed:', error.message); res.status(error.status || 500).type('text').send(error.message);
+  }
 });
 
 // Public builders use the same production schema as member/admin builders.

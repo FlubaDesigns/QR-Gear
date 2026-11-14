@@ -1,5 +1,12 @@
 # QR GEAR SYSTEM — ROOT README (ENFORCED)
 
+## Hosting renewal uses Admin Pricing — November 14, 2026
+
+Renewal options and Stripe amounts now read the existing `testSettings/pricing.hostingTiers` through `readHostingTiers`. The separate $4.99/three-year offer is removed. Paid renewal supports configured positive-price 1/2/3/5-year terms; no new pricing setting or fallback price is introduced. Checkout rejects stale displayed prices and freezes the selected amount and calendar-year term for payment verification. Initial free-year policy remains a separate open acceptance item.
+
+Current `qr_dynamics_instances` records are authoritative, with historical `buyer_instances` compatibility only when no current record exists. Successful paid renewal updates the current record and its existing claimed-item projection atomically and once. Historical paid terms remain honored. Expired, correctly bound public scans return to the existing QR Gear homepage without deleting identity or content. Notification recovery, durable initial checkout replay, phone acceptance and paid live proof remain open under #19/#36.
+
+
 ## Six sales paths audit — issue 36
 
 Creator earnings copy on product, checkout-success, owner conversion and Earn pages now explicitly says **25% of the profit**, using the existing shared default and percentage formatter. This is a wording correction; payment calculations, configured shares and owner discounts are unchanged.
